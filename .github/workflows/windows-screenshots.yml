@@ -1,0 +1,38 @@
+name: Windows screenshots - isolated public UI
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  screenshots:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install screenshot-only dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Install browser
+        run: npx playwright install chromium --only-shell
+      - name: Start isolated static site
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath python -ArgumentList @('-m','http.server','4173','--bind','127.0.0.1') -WorkingDirectory (Get-Location).Path -PassThru
+          Write-Host "HTTP static site PID: $($p.Id)"
+          Start-Sleep -Seconds 3
+      - name: Capture preview pages with Windows Chromium
+        run: npm run screenshots
+      - name: Upload screenshots for mobile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omsi-ui-preview-windows-screenshots
+          path: artifacts/windows-screenshots/
+          if-no-files-found: warn
+          retention-days: 7
