@@ -1,0 +1,12 @@
+{
+  "name": "omsi-manager-public-ui-preview",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
