@@ -14,7 +14,8 @@ try {
   const capabilities = await window.evaluate(() => ({
     nodeRequire: typeof window.require,
     nodeProcess: typeof window.process,
-    preview: window.omsiPreview
+    preview: window.omsiPreview,
+    inspectGameType: typeof window.omsiPreview?.inspectGame
   }));
   assert.equal(capabilities.nodeRequire, 'undefined');
   assert.equal(capabilities.nodeProcess, 'undefined');
@@ -24,7 +25,7 @@ try {
   assert.equal(capabilities.preview?.capabilities?.executeCommands, false);
   assert.equal(capabilities.preview?.capabilities?.readGameFiles,false);
   assert.equal(capabilities.preview?.capabilities?.inspectDirectories,true);
-  assert.equal(typeof capabilities.preview?.inspectGame,'function');
+  assert.equal(capabilities.inspectGameType,'function');
   assert.equal(await window.evaluate(async()=>{try{await window.omsiPreview.inspectGame('../etc');return false;}catch{return true;}}),true);
   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
   assert.equal(await window.getByRole('button',{name:'Selecionar pasta e inspecionar'}).first().isEnabled(),true);
