@@ -152,3 +152,18 @@ A pessoa pode preencher em **Detalhes → Versão hipotética do jogo** um valor
 Exemplo demonstrativo: [`examples/catalog.versions.example.json`](./examples/catalog.versions.example.json). Contém propositalmente uma dependência declarada em versão insuficiente para demonstrar alertas.
 
 **“Nenhum bloqueio lógico no JSON” não é sinal de compatibilidade real, segurança, integridade ou autorização para instalar mods.** Instalação e remoção continuam permanentemente desativadas nesta prévia.
+
+## Relatório consolidado de diagnóstico
+
+Na tela **Detalhes → Relatório consolidado**, o protótipo agora agrupa informações antes apresentadas separadamente:
+
+- **Metadados:** bloqueios declarados em dependências, conflitos e versões, avisos, sequência teórica e origem do catálogo JSON.
+- **Pastas (opcional):** se a pessoa inspecionou uma pasta para aquele jogo nesta sessão, inclui contagens e avisos de estrutura. Não mistura resultados do OMSI com ETS2/ATS.
+- **Escopo:** sempre mostra claramente o que falta verificar, como versão instalada do jogo, presença real de mods, integridade, ativação e compatibilidade.
+- **Estado final:** somente “Inconsistências no catálogo” ou “Revisão manual obrigatória”, nunca “compatível”, “seguro” ou “pronto para instalar”.
+
+O relatório é calculado em memória. Não grava histórico, não envia dados à rede, não exporta arquivos e não acessa APIs privilegiadas. O relatório de inspeção de pastas anterior é volátil: uma nova execução do aplicativo exige nova seleção manual. O nome da pasta pode ser visto na tela original de inspeção, mas **não é copiado para o relatório consolidado**.
+
+A primeira seção **Dependências e conflitos · simulação** permanece para mostrar a ordem detalhada; o relatório abaixo dela resume as informações e separa suas origens. Sua contagem de entradas não equivale a número de mods.
+
+Os testes automatizados cobrem catálogo sem bloqueios, versão incompatível, inspeção ausente/erro/parcial, proteção contra mistura de jogos, apresentação dos resultados na interface e E2E do Electron com pastas inteiramente sintéticas. O processo de instalação e desinstalação permanece bloqueado.
