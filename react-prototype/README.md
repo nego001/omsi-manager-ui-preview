@@ -75,3 +75,13 @@ Jogos aceitos: `omsi`, `ets2`, `ats`. Categorias: Ônibus, Mapas, Caminhões, So
 O arquivo é lido **somente após seleção explícita do usuário** pela API de arquivos do navegador. Ele não é copiado, aplicado, instalado, enviado a servidor ou persistido pelo aplicativo. Ao reiniciar/recarregar, volta o catálogo demonstrativo. Os favoritos armazenados localmente não contêm os dados importados e são limpos quando se troca a origem do catálogo.
 
 Esta é uma **etapa de integração de metadados**, não detecção de mods instalados nem restauração do backend original.
+
+## Prévia portátil para Windows (sem instalador)
+
+Uma segunda job da CI, `Windows portable preview (not signed)`, compila a interface e usa `@electron/packager` para montar **uma pasta portátil** dentro de `OMSI-Manager-Preview-Windows-x64.zip`. Este arquivo é publicado como artefato temporário do GitHub Actions, não como release e não como substituição para o OMSI Manager real.
+
+Depois de baixar o artefato no GitHub Actions: descompacte **a pasta inteira** e execute `OMSI-Manager-Preview.exe` nela. Não arraste apenas o EXE, pois ele precisa das DLLs e da pasta `resources`. O binário **não tem assinatura digital** e pode acionar alertas do Windows; evite contornar avisos de segurança sem conferir sua procedência e o status dos testes. Não execute com privilégios de administrador.
+
+O ZIP da prévia não inclui mods, instalações do Steam, banco de dados, jogo, relatórios privados nem código do backup do OMSI Manager. Ele não tem botão funcional para instalar ou remover mods.
+
+Uma CI verde atesta o build/empacotamento automático, mas **não substitui testes manuais no Windows e uma revisão de assinatura/distribuição**.
