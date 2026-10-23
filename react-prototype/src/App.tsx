@@ -169,7 +169,7 @@ export default function App(){
      </div>
      <div className="hero-art hero-spotlight-art" aria-hidden="true">
       <div className="hero-art-halo"/>
-      <GameCover id={featuredGame} large/>
+      <GameCover key={featuredGame} id={featuredGame} large/>
       <span className="hero-art-tag">{featuredGame==='omsi'?'OMSI':featuredGame==='ets2'?'EURO':'AMERICAN'} SIMULATION</span>
      </div>
     </section><div className="section-title"><h2>Jogos em destaque</h2><button className="link" onClick={()=>goto('games')}>Ver todos <ChevronRight size={14}/></button></div><div className="game-grid">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id}/><strong>{games[id].title}</strong><small>Abrir catálogo</small></button>)}</div><div className="section-title"><h2>Descobrir mods</h2></div>{modCards(catalogMods.slice(0,4))}</>}
