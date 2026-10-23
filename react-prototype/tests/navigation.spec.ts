@@ -24,7 +24,7 @@ test('favoritos não executam instalação',async({page})=>{
  await page.getByRole('button',{name:'Favoritar'}).first().click();
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
- await expect(page.getByText('Os favoritos são temporários')).toBeVisible();
+ await expect(page.getByText('Os favoritos ficam salvos')).toBeVisible();
 });
 test('pesquisa e filtros não atravessam jogos',async({page})=>{
  await page.goto('/');
@@ -34,4 +34,26 @@ test('pesquisa e filtros não atravessam jogos',async({page})=>{
  await page.getByRole('combobox',{name:'Filtrar categoria'}).selectOption('Mapas');
  await expect(page.getByText('1 resultado')).toBeVisible();
  await expect(page.getByRole('button',{name:'Serra do Vale',exact:true})).toBeVisible();
+});
+
+test('favoritos e aparência persistem após recarregar o protótipo',async({page})=>{
+ await page.goto('/');
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByRole('button',{name:'Favoritar'}).first().click();
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Configurações'}).click();
+ await page.getByRole('checkbox',{name:/Cards compactos/}).check();
+ await page.reload();
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Configurações'}).click();
+ await expect(page.getByRole('checkbox',{name:/Cards compactos/})).toBeChecked();
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+});
+test('mod cards have distinct illustrative artwork, game selection retains official covers',async({page})=>{
+ await page.goto('/');
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Catálogo de mods'}).click();
+ await expect(page.locator('.mod-cover')).toHaveCount(7);
+ const gradients=await page.locator('.mod-cover').evaluateAll(elements=>elements.map(el=>getComputedStyle(el).backgroundImage));
+ expect(new Set(gradients).size).toBe(7);
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+ await expect(page.locator('.game-tile img')).toHaveCount(3);
 });
