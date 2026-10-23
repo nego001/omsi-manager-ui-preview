@@ -80,6 +80,7 @@ function readPreferences():SavedPreferences{
 export default function App(){
  const [screen,setScreen]=useState<Screen>('home');
  const [selectedGame,setSelectedGame]=useState<GameId|'all'>('all');
+ const [featuredGame,setFeaturedGame]=useState<GameId>('omsi');
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
@@ -150,7 +151,28 @@ export default function App(){
   </aside>
   <div className="workspace"><header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" aria-label="Alternar menu" onClick={()=>setSidebar(v=>!v)}><Menu size={20}/></button><div className="breadcrumb">OMSI Manager <ChevronRight size={13}/> <strong>{title}</strong></div></div><div className="top-actions"><label className="search"><Search size={17}/><input placeholder="Buscar mods..." aria-label="Buscar mods" value={search} onChange={e=>setSearch(e.target.value)} onFocus={()=>screen!=='catalog'&&goto('catalog')}/></label><span className="mode-indicator"><LockKeyhole size={13}/> Protótipo</span></div></header>
    <main id="conteudo-principal" tabIndex={-1} className="content">
-    {screen==='home'&&<><div className="hero"><div><div className="eyebrow">SEUS JOGOS, SEUS MODS</div><h1>Seu universo de simulação, organizado.</h1><p>Uma central visual para OMSI 2, Euro Truck Simulator 2 e American Truck Simulator. Explore sem modificar nenhuma instalação.</p><button className="btn primary" onClick={()=>goto('games')}>Explorar jogos <ChevronRight size={17}/></button></div><div className="hero-art"><GameCover id="omsi" large/><GameCover id="ets2" large/><GameCover id="ats" large/></div></div><div className="section-title"><h2>Jogos em destaque</h2><button className="link" onClick={()=>goto('games')}>Ver todos <ChevronRight size={14}/></button></div><div className="game-grid">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id}/><strong>{games[id].title}</strong><small>Abrir catálogo</small></button>)}</div><div className="section-title"><h2>Descobrir mods</h2></div>{modCards(catalogMods.slice(0,4))}</>}
+    {screen==='home'&&<><section className="hero hero-spotlight" aria-label="Destaque de simuladores" style={{'--spotlight':games[featuredGame].color} as React.CSSProperties}>
+     <div className="hero-copy">
+      <div className="eyebrow">SEUS JOGOS, SEUS MODS</div>
+      <h1>Seu universo de simulação, organizado.</h1>
+      <p>Explore OMSI 2, Euro Truck Simulator 2 e American Truck Simulator sem modificar nenhuma instalação.</p>
+      <div className="featured-game-label">EM DESTAQUE</div>
+      <h2 className="featured-game-name">{games[featuredGame].title}</h2>
+      <p className="featured-game-subtitle">{featuredGame==='omsi'?'Ônibus e mapas demonstrativos':featuredGame==='ets2'?'Caminhões e gráficos demonstrativos':'Caminhões e sons demonstrativos'} · {games[featuredGame].publisher}</p>
+      <div className="hero-actions">
+       <button className="btn primary" onClick={()=>{setSelectedGame(featuredGame);setCategory('Todos');setSearch('');goto('catalog')}}>Ver mods de {games[featuredGame].title} <ChevronRight size={17}/></button>
+       <button className="btn secondary" onClick={()=>goto('games')}>Explorar jogos</button>
+      </div>
+      <div className="featured-selector" role="group" aria-label="Escolher simulador em destaque">
+       {(Object.keys(games) as GameId[]).map(id=><button type="button" key={id} aria-label={'Mostrar '+games[id].title+' no destaque'} aria-pressed={featuredGame===id} className={'featured-choice '+(featuredGame===id?'selected':'')} onClick={()=>setFeaturedGame(id)}>{id==='omsi'?'OMSI 2':id==='ets2'?'ETS2':'ATS'}</button>)}
+      </div>
+     </div>
+     <div className="hero-art hero-spotlight-art" aria-hidden="true">
+      <div className="hero-art-halo"/>
+      <GameCover id={featuredGame} large/>
+      <span className="hero-art-tag">{featuredGame==='omsi'?'OMSI':featuredGame==='ets2'?'EURO':'AMERICAN'} SIMULATION</span>
+     </div>
+    </section><div className="section-title"><h2>Jogos em destaque</h2><button className="link" onClick={()=>goto('games')}>Ver todos <ChevronRight size={14}/></button></div><div className="game-grid">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id}/><strong>{games[id].title}</strong><small>Abrir catálogo</small></button>)}</div><div className="section-title"><h2>Descobrir mods</h2></div>{modCards(catalogMods.slice(0,4))}</>}
     {screen==='games'&&<><div className="page-heading"><span className="eyebrow">BIBLIOTECA DE JOGOS</span><h1>Escolha seu simulador</h1><p>Capas online quando disponíveis; cartões identificados mesmo sem internet. A inspeção é manual e opcional, sem detecção automática de instalações.</p></div><div className="game-grid game-grid-large">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id} large/><strong>{games[id].title}</strong><small>Ver mods <ChevronRight size={13}/></small></button>)}</div>
      <section className="inspection-panel" aria-label="Inspeção de pastas de jogos">
       <div className="inspection-header"><div><h2>Inspeção local · somente leitura</h2><p>Escolha manualmente a pasta desejada. O app distingue pastas, arquivos e possíveis pacotes de mods apenas pelos nomes, sem abrir conteúdo nem alterar nada.</p></div><span className="pill">{inspectorAvailable?'Seletor nativo disponível':'Disponível apenas no Electron'}</span></div>
