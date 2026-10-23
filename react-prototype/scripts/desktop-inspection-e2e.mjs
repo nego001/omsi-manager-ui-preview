@@ -55,6 +55,11 @@ try{
  assert.equal(etsReport.groups[0].files,3);
  assert.equal(etsReport.groups[0].packageCandidates,2);
  assert.equal(etsReport.notices.some(n=>n.code==='mods-not-verified'),true);
+ await window.locator('.inspection-game').nth(1).getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
+ const etsPanel=window.locator('.inspection-game').nth(1).locator('.inspection-result');
+ await etsPanel.waitFor({timeout:15000});
+ assert.match(await etsPanel.innerText(),/2 candidatos .scs\/\.zip/);
+ assert.match(await etsPanel.innerText(),/não confirma validade/);
  assert.ok(!JSON.stringify(etsReport).includes(etsSample));
  assert.equal(await readFile(join(etsSample,'mod','heavy_sound.SCS'),'utf8'),'SCS_SENTINEL');
  await application.evaluate(patch,{canceled:false,filePaths:[sample]});
