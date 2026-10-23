@@ -186,6 +186,29 @@ try{
        }));
      });
      assert.deepEqual(cutControls,[],'Interactive controls clipped on '+name+' at '+width);
+     if(name==='Catálogo de mods'){
+       const cards=await window.locator('.mod-card').evaluateAll(elements=>elements.map(card=>{
+         const rect=card.getBoundingClientRect();
+         const footer=card.querySelector('.mod-bottom')?.getBoundingClientRect();
+         const title=card.querySelector('.text-button');
+         const meta=card.querySelector('.meta');
+         return {
+           top:rect.top,bottom:rect.bottom,footerBottom:footer?.bottom??0,
+           titleSize:title?parseFloat(getComputedStyle(title).fontSize):0,
+           metaSize:meta?parseFloat(getComputedStyle(meta).fontSize):0
+         };
+       }));
+       assert.ok(cards.length>0,'Catalog cards must remain rendered');
+       for(const card of cards){
+         assert.ok(card.titleSize>=14,'Catalog title too small on Windows at '+width);
+         assert.ok(card.metaSize>=11,'Catalog metadata too small on Windows at '+width);
+       }
+       for(let a=0;a<cards.length;a++)for(let b=a+1;b<cards.length;b++){
+         if(Math.abs(cards[a].top-cards[b].top)>2)continue;
+         assert.ok(Math.abs(cards[a].footerBottom-cards[b].footerBottom)<=3,
+           'Misaligned card footers on Windows at '+width);
+       }
+     }
      await recordScreenshot('07-'+file+'-'+width+'.png');
    }
  }
