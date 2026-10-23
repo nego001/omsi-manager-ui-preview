@@ -219,3 +219,29 @@
 }
 /* Focus may be set by OS accessibility APIs as well as by keyboard navigation. */
 .mod-art:focus,.game-tile:focus{outline:3px solid #c0c9ff;outline-offset:-4px}
+
+/* Library v1: the gallery shows favorites, never claims real installed mods. */
+.library-summary{display:grid;grid-template-columns:minmax(105px,150px) minmax(130px,170px) minmax(0,1fr);gap:12px;align-items:stretch;margin:0 0 22px}
+.library-summary>div{min-width:0;padding:16px 18px;background:#1b1f25;border:1px solid #3b434d;border-radius:12px;display:flex;flex-direction:column;justify-content:center;gap:7px}
+.library-summary small{font-size:11px;color:#b8c1cf}
+.library-summary strong{font-size:24px;font-variant-numeric:tabular-nums;line-height:1.1}
+.library-summary .library-trust{flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;background:#282822;border-color:#56503e;color:#e6d7b5;font-size:12px;line-height:1.65}
+.library-trust svg{flex-shrink:0}
+.library-toolbar{display:flex;flex-wrap:wrap;align-items:end;gap:12px;padding:15px 17px;border:1px solid #363e49;border-radius:12px;background:#1a1e24;margin-bottom:21px}
+.library-toolbar label{font-size:11px;color:#c8d0db;display:flex;flex-direction:column;gap:7px;min-width:195px;flex:0 1 260px}
+.library-toolbar select{width:100%;height:40px;padding:8px 12px;border:1px solid #545e6b;border-radius:8px;background:#272d36;color:#f1f3f7;font-size:12px;min-width:0}
+.library-filter-results{font-size:12px;line-height:1.6;color:#c5cbd6;margin-left:auto;padding:8px 2px}
+.library-mod-status{display:block;width:fit-content;margin-top:9px;padding:5px 8px;border:1px solid #6a6049;background:#302b23;color:#ead8b6;font-size:10px;line-height:1.3;border-radius:7px}
+.library-empty-filter{padding:40px 20px}
+.detail-art .mod-cover{height:430px;border-radius:15px;border:1px solid #414b57}
+.detail-art .mod-cover-caption{padding:22px}
+.detail-art .mod-cover-caption strong{font-size:clamp(18px,2.1vw,25px)}
+.detail-image-note{font-size:11px!important;color:#b7c1cf!important;line-height:1.6!important;margin:12px 0 0}
+.detail-copy{min-width:0}
+.detail-copy h1{overflow-wrap:anywhere}
+.detail-verification-status{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;background:#302b25;border:1px solid #68563e;border-radius:9px;color:#ebd3ae;font-size:11px;line-height:1.7;margin-top:18px}
+.detail-verification-status svg{flex-shrink:0;margin-top:2px}
+.detail-verification-status strong{color:#f1d5ad}
+@media(max-width:900px){.library-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.library-summary .library-trust{grid-column:span 2}}
+@media(max-width:760px){.detail-art .mod-cover{height:280px;max-width:310px}.library-filter-results{margin-left:0;width:100%}}
+@media(max-width:480px){.library-summary{gap:9px}.library-summary>div{padding:12px}.library-toolbar{padding:12px;gap:10px}.library-toolbar label{min-width:0;flex:1 1 100%}.library-summary .library-trust{font-size:11px}}
