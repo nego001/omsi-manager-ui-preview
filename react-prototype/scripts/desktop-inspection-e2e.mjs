@@ -46,7 +46,7 @@ try{
  assert.equal(safeResult.groups[1].count,1);
  assert.equal(safeResult.groups[0].directories,2);
  assert.equal(safeResult.groups[0].files,0);
- assert.deepEqual(safeResult.notices,[]);
+ assert.equal(safeResult.notices.some(n=>n.code==='omsi-structure-incomplete'),true);
  await application.evaluate(patch,{canceled:false,filePaths:[etsSample]});
  const etsReport=await window.evaluate(()=>window.omsiPreview.inspectGame('ets2'));
  assert.equal(etsReport.status,'ok');
