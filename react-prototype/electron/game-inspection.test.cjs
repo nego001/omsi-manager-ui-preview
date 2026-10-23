@@ -52,6 +52,9 @@ test('large folders are capped without recursion',async(t)=>{
   const result=await countDirectChildren(dir,5);
   assert.equal(result.count,5);assert.equal(result.limited,true);
   assert.equal(MAX_ENTRIES_PER_GROUP,2000);
+  const exact=await countDirectChildren(dir,12);
+  assert.equal(exact.count,12);
+  assert.equal(exact.limited,false,'Exactly the limit is a complete count');
 });
 test('unknown or empty directories cannot be mistaken for recognized game folders',async(t)=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-empty-'));
