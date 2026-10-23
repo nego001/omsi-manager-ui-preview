@@ -7,3 +7,15 @@
 .mod-cover-caption{position:relative;z-index:1;padding:17px;max-width:100%}
 .mod-cover-caption strong{display:block;color:#fff;font-size:16px;line-height:1.15;text-shadow:0 2px 5px #0005;max-width:240px}
 .mod-cover-caption small{display:block;font-size:8px;letter-spacing:1.4px;color:#e1e1ec;margin-top:9px}
+
+/* Read-only user-provided manifest flow, never a mod installer. */
+.catalog-import-bar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;background:#1b1f29;border:1px solid #34394a;border-radius:12px;padding:16px;margin:19px 0 8px}
+.catalog-source{display:flex;flex-direction:column;min-width:0;gap:6px}
+.catalog-source strong{font-size:13px;overflow-wrap:anywhere}
+.catalog-source span{color:#a5abba;font-size:11px;line-height:1.6}
+.catalog-import-actions{display:flex;gap:9px;flex-wrap:wrap}
+.import-control{cursor:pointer;position:relative}
+.import-control input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.import-control:focus-within{outline:2px solid #a3a2ff;outline-offset:2px}
+.catalog-error{border:1px solid #7a434a;background:#352328;color:#ffc5cb;padding:13px 15px;border-radius:9px;font-size:12px;line-height:1.7;margin-top:12px}
+@media(max-width:760px){.catalog-import-bar{align-items:stretch}.catalog-import-actions{width:100%}.catalog-import-actions>*{flex:1}}
