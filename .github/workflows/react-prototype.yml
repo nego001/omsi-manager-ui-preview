@@ -1,0 +1,23 @@
+name: React Prototype Validation
+on:
+  push:
+    branches: [feat/react-nine-screens-safe]
+  pull_request:
+    paths:
+      - 'react-prototype/**'
+      - '.github/workflows/react-prototype.yml'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
