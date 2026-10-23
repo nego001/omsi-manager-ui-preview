@@ -25,10 +25,10 @@ try{
    env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0'},
    timeout:90000
  });
- const info=await application.evaluate(({app})=>({
+ const info=await application.evaluate(({app,BrowserWindow})=>({
    packaged:app.isPackaged,
    appPath:app.getAppPath(),
-   windows:require('electron').BrowserWindow.getAllWindows().length
+   windows:BrowserWindow.getAllWindows().length
  }));
  assert.equal(info.packaged,true,'O teste deve iniciar o executável empacotado');
  assert.ok(info.appPath.includes('app.asar'),'Aplicação deve rodar dentro de app.asar');
@@ -53,7 +53,7 @@ try{
  });
  await window.screenshot({path:join(shots,'01-inicio.png'),animations:'disabled'});
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
- await window.getByRole('heading',{name:'Biblioteca de jogos'}).waitFor({timeout:12000});
+ await window.getByRole('heading',{name:'Escolha seu simulador'}).waitFor({timeout:12000});
  await window.screenshot({path:join(shots,'02-jogos.png'),animations:'disabled'});
 
  // Intercept only this test run's native dialog and return a freshly generated synthetic path.
