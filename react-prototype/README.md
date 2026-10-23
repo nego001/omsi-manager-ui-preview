@@ -7,14 +7,14 @@ Este projeto contém nove telas navegáveis de uma futura interface do OMSI Mana
 1. Início
 2. Jogos (OMSI 2, ETS2, ATS)
 3. Catálogo de mods
-4. Minha biblioteca (favoritos em memória)
+4. Minha biblioteca (favoritos salvos localmente)
 5. Detalhes
 6. Fila de tarefas
 7. Histórico
 8. Configurações
 9. Segurança
 
-O catálogo é fictício. As capas dos jogos são buscadas da CDN pública da Steam no navegador (sem redistribuí-las neste repositório). Se uma capa não carregar, há um visual alternativo.
+O catálogo é fictício. Os favoritos e as preferências visuais são persistidos apenas no armazenamento local do navegador/Electron, com IDs permitidos e sem arquivos dos jogos. Os cartões de mods usam arte **ilustrativa distinta**; as capas oficiais aparecem na seleção dos jogos. As capas dos jogos são buscadas da CDN pública da Steam no navegador (sem redistribuí-las neste repositório). Se uma capa não carregar, há um visual alternativo.
 
 ## Execução
 
