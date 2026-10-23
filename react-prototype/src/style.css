@@ -55,3 +55,19 @@
 .inspection-assessment{margin:10px 0 13px;padding:10px 11px;border:1px solid #776142;border-radius:8px;background:#302920;display:flex;flex-direction:column;gap:5px}
 .inspection-assessment strong{font-size:11px;color:#f2c98c}
 .inspection-assessment span,.inspection-assessment small{font-size:10px;line-height:1.6;color:#d6c2a7}
+
+/* Pure metadata graph preview. These labels deliberately do not claim actual compatibility. */
+.relation-panel{margin-top:22px;padding:19px;border:1px solid #454a5a;background:#1d222c;border-radius:13px}
+.relation-panel h2{font-size:16px;margin:0 0 9px}
+.relation-panel h3{font-size:12px;margin:17px 0 9px}
+.relation-panel>p{font-size:11px;color:#b9becc;line-height:1.6}
+.relation-verdict{background:#293343;border:1px solid #48586d;border-radius:8px;font-size:12px;padding:10px 11px;color:#e5edfd}
+.relation-order{padding-left:24px;color:#dfe6f1;font-size:12px;line-height:1.8}
+.relation-order small{color:#aeb4c4;overflow-wrap:anywhere}
+.relation-issues{list-style:none;padding:0;display:grid;gap:8px}
+.relation-issues li{font-size:11px;line-height:1.6;border-left:3px solid #ba975d;padding:9px;background:#362c26;color:#ffddbb;border-radius:6px;overflow-wrap:anywhere}
+.relation-issues li.blocking{border-left-color:#e07885;background:#3e2831;color:#ffd3dc}
+.relation-clean{font-size:11px;color:#c7d7c8}
+.relation-disclaimer{display:flex;gap:8px;align-items:flex-start;color:#e6bd82!important;border-top:1px solid #3f4350;padding-top:13px}
+.relation-disclaimer svg{flex-shrink:0;margin-top:2px}
+@media(max-width:600px){.relation-panel{padding:14px}}
