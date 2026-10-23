@@ -49,7 +49,7 @@ test('inspeção soma apenas entradas, não declara mods instalados',()=>{
 test('inspeção incompleta ou falha vira aviso, não atestado de compatibilidade',()=>{
  const a=analyzeModRelations(mods,'ets2-paint');
  const partial:FolderInspection={...inspected,limited:true,
-  groups:[{...inspected.status==='ok'?inspected.groups[0]:{key:'mods',name:'Mods',found:true,count:0,limited:false,directories:0,files:0,packageCandidates:0,linksSkipped:0,others:0},count:2000,limited:true}],
+  groups:[{...inspected.groups[0],count:2000,limited:true}],
   notices:[{code:'partial-count',level:'attention',message:'Contagem parcial.'}]};
  const report=consolidateDiagnostic('ets2','ets2-paint','JSON',a,partial,'');
  expect(report.hasPartialCounts).toBe(true);
