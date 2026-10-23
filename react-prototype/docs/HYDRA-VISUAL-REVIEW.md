@@ -46,3 +46,17 @@ O banner inicial agora deixa de exibir três capas inclinadas simultaneamente. U
 - O hero ainda **não** replica uma arte panorâmica específica do Hydra e permanece intencionalmente autoral. Sem imagens reais de mods nem integração com instalação.
 
 **Comparação geométrica 1:1, tipografia detalhada e homologação com a interface Hydra em resolução equivalente continuam pendentes.**
+
+## Terceira rodada: ritmo visual e legibilidade dos cartões
+
+O destaque panorâmico foi preservado, porque a composição já se mostrou adequada ao OMSI Manager. Nesta rodada, as alterações se concentram no **restante da interface**:
+
+- Tipografia da biblioteca e do catálogo: nomes dos mods a 14 px, metadados a 11 px, títulos de jogos a 15 px, linhas mais confortáveis e títulos de páginas fluidos.
+- Espaçamento: cabeçalhos de seções, grades de jogos/mods e conteúdo principal usam intervalos consistentes. Em janelas estreitas, o espaçamento diminui sem perder a hierarquia.
+- Rodapés dos cartões: layout flexível mantém o número de versão, tamanho declarado e botão de favoritos na mesma base para os cartões da mesma linha, inclusive com títulos de tamanhos diferentes.
+- Títulos de catálogo importado: o texto de até 100 caracteres faz quebra de linha, inclusive com largura compacta, sem executar nem ler arquivos reais dos mods.
+- Foco de teclado: os contornos das capas e controles de cards ficam dentro de superfícies recortadas, para não desaparecer sob `overflow:hidden`.
+
+A nova suíte `tests/card-layout.spec.ts` valida geometria, linhas, fonte e alinhamento a 1440, 1024, 850 e 390 px, além de testar título importado longo e card compacto. O relatório `card-layout-audit.json` é publicado como artefato, e o smoke do **EXE Windows empacotado** repete as verificações essenciais de tamanho de fonte e alinhamento a 1024/850 px.
+
+Estas são medições de consistência **interna** do projeto. Não alegam igualar espaçamento, fontes, arte ou geometria ao Hydra pixel a pixel. A validação física no notebook continua pendente.
