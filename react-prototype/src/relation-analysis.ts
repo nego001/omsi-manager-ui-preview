@@ -15,6 +15,7 @@ export function analyzeModRelations(catalog:readonly CatalogMod[],selectedId:str
  const byId=new Map(catalog.map(mod=>[mod.id,mod]));
  const target=byId.get(selectedId);
  if(!target)throw new Error('Mod não encontrado no catálogo.');
+ const targetGame=target.game;
  const sequence:CatalogMod[]=[];
  const issues:RelationIssue[]=[];
  const knownIssues=new Set<string>();
@@ -41,7 +42,7 @@ export function analyzeModRelations(catalog:readonly CatalogMod[],selectedId:str
    const required=byId.get(id);
    if(!required){
     push('dependency-missing','blocking',mod.title+' exige um ID ausente: '+id+'.',mod.id+':'+id);
-   } else if(required.game!==target.game){
+   } else if(required.game!==targetGame){
     push('different-game','blocking',mod.title+' exige '+required.title+', que pertence a outro jogo.',mod.id+':'+id);
    } else visit(required);
   }
@@ -58,7 +59,7 @@ export function analyzeModRelations(catalog:readonly CatalogMod[],selectedId:str
     push('unknown-conflict','notice',mod.title+' declara um conflito com ID ausente: '+otherId+'.',mod.id+':'+otherId);
    } else if(selectedIds.has(otherId)){
     push('conflict-in-plan','blocking',mod.title+' declara conflito com '+other.title+', incluído na mesma sequência.',mod.id+':'+otherId);
-   } else if(other.game===target.game){
+   } else if(other.game===targetGame){
     push('declared-conflict','notice',mod.title+' declara conflito com '+other.title+'. Não verificamos se está instalado ou ativo.',mod.id+':'+otherId);
    } else {
     push('unknown-conflict','notice',mod.title+' declara conflito com um registro de outro jogo: '+other.title+'.',mod.id+':'+otherId);
