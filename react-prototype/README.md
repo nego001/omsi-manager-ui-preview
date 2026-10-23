@@ -122,3 +122,18 @@ A janela real de escolha de pasta ainda precisa ser testada presencialmente no W
 O resultado traz uma avaliação explícita `assessment.compatibilityVerified=false` e `assessment.installationVerified=false`. A presença de pastas ou arquivos nunca é interpretada como prova de instalação ou funcionamento. A inspeção mostra avisos para estrutura parcial de OMSI 2, pasta `mod` vazia e seleção direta da pasta `mod`. Não lê manifesto, versão mínima do jogo, arquivos `.scs`, banco de dados nem scripts de mods; portanto **não é possível afirmar se um mod é compatível somente com esta inspeção**.
 
 Os testes de segurança executados na CI cobrem os dois formatos de seleção da pasta de ETS2/ATS, pasta vazia e estrutura parcial do OMSI, além do fluxo de seleção de pasta via Electron com conteúdos sintéticos.
+
+## Relações entre mods: simulação de dependências e conflitos
+
+O JSON de catálogo na versão `schemaVersion: 1` aceita dois campos **opcionais e somente declarativos** por registro:
+
+- `requires: ["id-do-mod"]` indica IDs que o registro declara como necessários.
+- `conflictsWith: ["id-do-mod"]` indica IDs que o registro declara como conflitantes.
+
+Ambos aceitam até 20 IDs, minúsculos, únicos e no formato de IDs já validado. Caminhos de disco, comandos, URLs, scripts e chaves extras continuam proibidos. IDs ausentes são aceitos na importação e **sinalizados no diagnóstico**, de modo que catálogos incompletos sejam auditáveis; referências a outro jogo são sinalizadas e ciclos são detectados.
+
+Na tela **Detalhes**, o painel **Dependências e conflitos · simulação** ordena as dependências declaradas do mesmo jogo, detecta ciclos e destaca conflitos dentro da sequência ou com IDs externos. Um conflito declarado com um registro fora da sequência aparece apenas como alerta, pois o aplicativo **não sabe se esse mod está instalado**.
+
+Exemplo: [`examples/catalog.dependencies.example.json`](./examples/catalog.dependencies.example.json). Esse exemplo é fictício e não entrega nenhum mod. **Uma sequência sem erros no JSON não autoriza instalação nem comprova compatibilidade, integridade, versão, dependências reais ou ausência de conflitos nos arquivos.** Instalação e desinstalação seguem bloqueadas.
+
+As verificações são inteiramente em memória, sem IPC, sem ler arquivos de jogos e sem escrever em disco.
