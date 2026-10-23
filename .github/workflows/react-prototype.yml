@@ -52,6 +52,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - run: npm run test:security
       - run: npm run package:win
       - name: Validate portable package and compress
         shell: pwsh
@@ -64,10 +65,15 @@ jobs:
             throw "Embedded application archive not found."
           }
           Compress-Archive -Path "$output" -DestinationPath "release/OMSI-Manager-Preview-Windows-x64.zip" -Force
+          $zip = "release/OMSI-Manager-Preview-Windows-x64.zip"
+          $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  OMSI-Manager-Preview-Windows-x64.zip" | Set-Content "release/OMSI-Manager-Preview-Windows-x64.sha256" -Encoding ascii
       - name: Upload Windows preview
         uses: actions/upload-artifact@v4
         with:
           name: OMSI-Manager-Preview-Windows-x64-UNSIGNED
-          path: react-prototype/release/OMSI-Manager-Preview-Windows-x64.zip
+          path: |
+            react-prototype/release/OMSI-Manager-Preview-Windows-x64.zip
+            react-prototype/release/OMSI-Manager-Preview-Windows-x64.sha256
           if-no-files-found: error
           retention-days: 14
