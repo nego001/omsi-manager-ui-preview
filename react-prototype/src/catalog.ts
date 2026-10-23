@@ -4,15 +4,28 @@ export type ModCategory='Ônibus'|'Mapas'|'Caminhões'|'Sons'|'Gráficos';
 export type CatalogMod={
  id:string; title:string; game:GameId; category:ModCategory;
  version:string; description:string; size:string; safe:true;
+ requires?:string[]; conflictsWith?:string[];
 };
 const GAME_IDS:ReadonlySet<string>=new Set(['omsi','ets2','ats']);
 const CATEGORY_IDS:ReadonlySet<string>=new Set(['Ônibus','Mapas','Caminhões','Sons','Gráficos']);
 export const MAX_CATALOG_BYTES=1_000_000;
 export const MAX_CATALOG_MODS=200;
+const MOD_ID_PATTERN=/^[a-z0-9][a-z0-9_-]*$/;
 function nonEmptyText(v:unknown,label:string,max:number){
  if(typeof v!=='string'||v.trim().length<1||v.trim().length>max||/[\u0000-\u001f\u007f]/.test(v))
   throw new Error(`Campo "${label}" inválido (1 a ${max} caracteres, sem controles).`);
  return v.trim();
+}
+function relationIds(v:unknown,label:string):string[]{
+ if(v===undefined)return [];
+ if(!Array.isArray(v)||v.length>20)throw new Error(`Campo "${label}" deve ser uma lista de até 20 IDs.`);
+ const unique=new Set<string>();
+ for(const id of v){
+  if(typeof id!=='string'||id.length>64||!MOD_ID_PATTERN.test(id)||unique.has(id))
+   throw new Error(`Campo "${label}" contém ID inválido ou repetido.`);
+  unique.add(id);
+ }
+ return [...unique];
 }
 export function parseCatalogManifest(raw:string):CatalogMod[]{
  // This parser accepts only metadata. It never interprets content as commands or filesystem paths.
@@ -32,13 +45,13 @@ export function parseCatalogManifest(raw:string):CatalogMod[]{
    throw new Error(`Mod ${index+1}: registro inválido.`);
   const m=value as Record<string,unknown>;
   const id=nonEmptyText(m.id,`mods[${index}].id`,64);
-  if(!/^[a-z0-9][a-z0-9_-]*$/.test(id))throw new Error(`Mod ${index+1}: id deve ser minúsculo e usar apenas letras, números, _ e -.`);
+  if(!MOD_ID_PATTERN.test(id))throw new Error(`Mod ${index+1}: id deve ser minúsculo e usar apenas letras, números, _ e -.`);
   if(seen.has(id))throw new Error(`ID duplicado: ${id}`);
   seen.add(id);
   if(!GAME_IDS.has(String(m.game)))throw new Error(`Mod ${id}: jogo incompatível.`);
   if(!CATEGORY_IDS.has(String(m.category)))throw new Error(`Mod ${id}: categoria incompatível.`);
   // Explicitly reject fields that could suggest paths, URLs, commands, or installer operations.
-  const allowed=new Set(['id','title','game','category','version','description','size']);
+  const allowed=new Set(['id','title','game','category','version','description','size','requires','conflictsWith']);
   for(const key of Object.keys(m))if(!allowed.has(key))throw new Error(`Mod ${id}: campo não permitido: ${key.slice(0,60)}`);
   return {
    id,
@@ -48,6 +61,8 @@ export function parseCatalogManifest(raw:string):CatalogMod[]{
    version:nonEmptyText(m.version,`mods[${index}].version`,32),
    description:nonEmptyText(m.description,`mods[${index}].description`,700),
    size:nonEmptyText(m.size,`mods[${index}].size`,24),
+   requires:relationIds(m.requires,`mods[${index}].requires`),
+   conflictsWith:relationIds(m.conflictsWith,`mods[${index}].conflictsWith`),
    safe:true
   };
  });
