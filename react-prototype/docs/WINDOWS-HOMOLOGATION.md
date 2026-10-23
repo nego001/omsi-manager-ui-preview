@@ -64,3 +64,16 @@ Uma rotina Playwright agora mede o **contraste calculado de textos representativ
 A primeira correção foi no rótulo lateral `EXPLORAR`, cuja cor anterior tinha contraste insuficiente. A auditoria não cobre texto sobre gradientes complexos, capas Steam, ilustrações, translucidez, ícones isolados, imagens com texto, nem uma avaliação completa de WCAG, de leitores de tela ou de similaridade visual com Hydra. Esses itens exigem inspeção humana e, quando aplicável, ferramentas especializadas.
 
 **Critério da CI:** um texto amostrado com relação de contraste abaixo do limiar reprova o teste, e o JSON identifica a tela, o seletor, as cores e a razão encontrada.
+
+## Imagens, gradientes e ícones: segunda rodada da auditoria visual
+
+As capas de OMSI 2, ETS2 e ATS podem ser obtidas online da Steam, mas **nunca devem ser necessárias para navegar**. O componente de capa mantém o cartão de fundo degradê e o título de cada jogo visível durante o carregamento e quando a imagem falha. Imagens remotas bem carregadas aparecem por cima apenas quando confirmadas como válidas.
+
+A CI agora realiza:
+- Simulação de falha nas imagens externas, sem interromper o servidor local de desenvolvimento; confere que o título e o desenho alternativo permanecem visíveis e registra `offline-game-covers.png`.
+- Amostragem de pixels renderizados do **gradiente ao redor da área textual da página inicial**, verificando razão aproximada de contraste contra a cor computada do título e da descrição. Registra `gradient-sample.json`.
+- Avaliação de ícones selecionados de navegação e status sobre fundos opacos, com limiar de 3:1, registrada em `icon-contrast.json`.
+
+Todos esses arquivos, junto com o relatório anterior `contrast-audit.json`, ficam no artefato `react-prototype-visual-review` da CI.
+
+**Limites explícitos:** a amostragem de gradiente lê pixels vizinhos ao texto, não todos os pixels sob cada glifo. A checagem de ícones abrange apenas os elementos selecionados e fundos opacos, não toda a interface. A imagem online pode estar indisponível e as capas alternativas não substituem a arte oficial ou uma comparação visual 1:1 com Hydra. Teste de conexão totalmente desligada no Windows físico, diferenças de GPU, transparências e conformidade WCAG completa continuam pendentes.
