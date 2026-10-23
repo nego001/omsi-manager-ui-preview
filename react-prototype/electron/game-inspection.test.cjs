@@ -62,3 +62,51 @@ test('unknown or empty directories cannot be mistaken for recognized game folder
   const result=await inspectGameDirectory(root,'ets2');
   assert.equal(result.recognized,false);assert.equal(result.groups[0].count,0);
 });
+
+test('ETS2 and ATS classify package name candidates without opening mod files',async(t)=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-packages-'));
+ t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const mod=path.join(root,'mod');
+ await fs.mkdir(mod);
+ await fs.mkdir(path.join(mod,'loose-folder'));
+ for(const file of ['test.SCS','another.zip','notes.txt','download.zip.exe']){
+   await fs.writeFile(path.join(mod,file),'SENTINEL_DO_NOT_READ');
+ }
+ for(const game of ['ets2','ats']){
+   const report=await inspectGameDirectory(root,game);
+   const group=report.groups[0];
+   assert.equal(group.found,true);
+   assert.equal(group.directories,1);
+   assert.equal(group.files,4);
+   assert.equal(group.packageCandidates,2);
+   assert.equal(group.count,5);
+   assert.equal(report.notices.some(n=>n.code==='mods-not-verified'),true);
+   assert.equal(JSON.stringify(report).includes(path.join(mod,'notes.txt')),false);
+ }
+ assert.equal(await fs.readFile(path.join(mod,'test.SCS'),'utf8'),'SENTINEL_DO_NOT_READ');
+});
+test('inspection diagnostics explicitly distinguish unknown folders and partial enumerations',async(t)=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-diag-'));
+ t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ let report=await inspectGameDirectory(root,'omsi');
+ assert.deepEqual(report.notices.map(n=>n.code),['no-known-folders']);
+ await fs.mkdir(path.join(root,'Vehicles'));
+ report=await inspectGameDirectory(root,'omsi');
+ assert.equal(report.recognized,true);
+ assert.equal(report.groups[0].found,true);
+ assert.equal(report.groups[0].count,0);
+ assert.deepEqual(report.notices,[]);
+});
+test('symlink entries are ignored and included in the scan budget',async(t)=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-links-budget-'));
+ const outside=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-links-out-'));
+ t.after(async()=>{await fs.rm(root,{recursive:true,force:true});await fs.rm(outside,{recursive:true,force:true});});
+ const folder=path.join(root,'mod');await fs.mkdir(folder);
+ try{for(let i=0;i<6;i++)await fs.symlink(outside,path.join(folder,'link'+i),'dir');}
+ catch(err){if(['EPERM','EACCES','ENOTSUP'].includes(err.code)){t.skip('Links unavailable');return;}throw err;}
+ const report=await countDirectChildren(folder,4,true);
+ assert.equal(report.count,0);
+ assert.equal(report.files,0);
+ assert.equal(report.linksSkipped,4);
+ assert.equal(report.limited,true);
+});
