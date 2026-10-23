@@ -35,6 +35,12 @@ try{
  assert.ok(info.windows>0,'Deve abrir uma janela');
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor({timeout:30000});
+ // First keyboard Tab must offer a direct route to the active document content.
+ await window.keyboard.press('Tab');
+ assert.equal(await window.getByRole('link',{name:'Pular para o conteúdo principal'}).evaluate(el=>el===document.activeElement),true);
+ await window.keyboard.press('Enter');
+ assert.equal(await window.locator('main#conteudo-principal').evaluate(el=>el===document.activeElement),true);
+
  const isolation=await window.evaluate(()=>({
    nodeRequire:typeof window.require,
    nodeProcess:typeof window.process,
@@ -104,6 +110,8 @@ try{
    await window.getByRole('heading',{name:heading,exact:true}).waitFor({timeout:12000});
    const active=window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name});
    assert.match(await active.getAttribute('class')??'',/active/);
+   assert.equal(await active.getAttribute('aria-current'),'page');
+   assert.equal(await window.getByRole('navigation',{name:'Navegação principal'}).locator('[aria-current="page"]').count(),1);
  };
  for(const [name,heading,file] of screens){
    await navigate(name,heading);
@@ -131,6 +139,20 @@ try{
      const overflow=Math.max(0,dimensions.width-dimensions.viewport);
      console.log('WINDOWS VISUAL CHECK',width,name,'horizontal overflow px:',overflow);
      assert.ok(overflow<=3,'Horizontal document overflow on '+name+' at '+width+': '+overflow+'px');
+     const cutControls=await window.evaluate(()=>{
+       const viewport=document.documentElement.clientWidth;
+       return [...document.querySelectorAll('button,input,select')].filter(el=>{
+         const rect=el.getBoundingClientRect();
+         const css=getComputedStyle(el);
+         return rect.width>0&&rect.height>0&&css.display!=='none'&&css.visibility!=='hidden'&&
+           (rect.left < -3 || rect.right > viewport+3);
+       }).map(el=>({
+         name:el.getAttribute('aria-label')??el.textContent?.slice(0,35),
+         left:Math.round(el.getBoundingClientRect().left),
+         right:Math.round(el.getBoundingClientRect().right)
+       }));
+     });
+     assert.deepEqual(cutControls,[],'Interactive controls clipped on '+name+' at '+width);
      await window.screenshot({path:join(shots,'07-'+file+'-'+width+'.png'),animations:'disabled',fullPage:true});
    }
  }
