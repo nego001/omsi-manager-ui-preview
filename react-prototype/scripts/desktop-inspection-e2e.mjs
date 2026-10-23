@@ -103,6 +103,11 @@ try{
  assert.equal(concurrent.find(x=>x.status==='error')?.message,'Já existe uma inspeção em andamento.');
 
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
+ const report=window.getByRole('region',{name:'Relatório consolidado'});
+ await report.waitFor({timeout:10000});
+ assert.match(await report.innerText(),/Entradas diretas contabilizadas: 3/);
+ assert.match(await report.innerText(),/Revisão manual obrigatória/);
+ assert.match(await report.innerText(),/Compatibilidade não verificada/);
  assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
  assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
  console.log('Native folder IPC E2E: OK. Synthetic counts, cancellation, no path leak and concurrent-dialog guard.');
