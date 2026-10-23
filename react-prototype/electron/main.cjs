@@ -4,6 +4,8 @@ const { pathToFileURL } = require('node:url');
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./security-policy.cjs');
 const { requireGameId, inspectGameDirectory } = require('./game-inspection.cjs');
+// At most one native folder dialog per renderer at a time.
+const activeInspections = new Set();
 
 function createWindow() {
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
@@ -55,17 +57,26 @@ app.whenReady().then(() => {
         !isAllowedTopLevelURL(event.senderFrame.url, expectedURL)) {
       throw new Error('Origem da inspeção não autorizada.');
     }
-    const choice = await dialog.showOpenDialog(win, {
-      title: 'Selecione a pasta do jogo (somente leitura)',
-      properties: ['openDirectory', 'dontAddToRecent']
-    });
-    if (choice.canceled || choice.filePaths.length !== 1)
-      return { status: 'cancelled' };
+    // Defend against parallel IPC requests that could spawn multiple native dialogs.
+    const senderId = event.sender.id;
+    if (activeInspections.has(senderId))
+      return { status: 'error', message: 'Já existe uma inspeção em andamento.' };
+    activeInspections.add(senderId);
     try {
-      return await inspectGameDirectory(choice.filePaths[0], gameId);
-    } catch {
-      // Do not send absolute paths, file names, or filesystem errors to renderer.
-      return { status: 'error', message: 'Não foi possível inspecionar essa pasta.' };
+      const choice = await dialog.showOpenDialog(win, {
+        title: 'Selecione a pasta do jogo (somente leitura)',
+        properties: ['openDirectory', 'dontAddToRecent']
+      });
+      if (choice.canceled || choice.filePaths.length !== 1)
+        return { status: 'cancelled' };
+      try {
+        return await inspectGameDirectory(choice.filePaths[0], gameId);
+      } catch {
+        // Do not send absolute paths, file names, or filesystem errors to renderer.
+        return { status: 'error', message: 'Não foi possível inspecionar essa pasta.' };
+      }
+    } finally {
+      activeInspections.delete(senderId);
     }
   });
   createWindow();
