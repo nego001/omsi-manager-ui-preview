@@ -12,8 +12,10 @@ No workflow `React Prototype Validation`, o job **Windows portable preview (not 
 5. Confere isolamento do renderer: sem `window.require`, `window.process`, IPC bruto ou funções de instalar, remover e executar comandos.
 6. Abre Jogos, usa um diálogo nativo **substituído por um retorno de teste** para selecionar uma pasta OMSI temporária fictícia, valida contagens e ausência de vazamento de caminho, e comprova que o arquivo sentinela não foi modificado.
 7. Abre Detalhes e Segurança; confere relatório somente leitura e botões de instalação/remoção bloqueados.
-8. Publica capturas do executável sob `windows-portable-runtime-screenshots`.
-9. **Só se as etapas anteriores passarem**, compacta o ZIP portátil e publica SHA-256.
+8. Faz uma **varredura automática das nove telas**, conferindo os títulos e a navegação ativa. Produz capturas completas na janela 1440×900 e também nos tamanhos de conteúdo 1024×768 e 850×650. Nesses dois últimos tamanhos, qualquer excesso horizontal significativo reprova o job.
+9. Captura ainda o painel Detalhes com zoom do Chromium de 125% e 150%, preservando os controles bloqueados. **Zoom do Chromium não representa necessariamente a escala DPI real do Windows**.
+10. Publica capturas do executável sob `windows-portable-runtime-screenshots`.
+11. **Só se as etapas anteriores passarem**, compacta o ZIP portátil e publica SHA-256.
 
 O teste não comprova a interação manual da janela de escolha de diretório no Windows nem a integridade de mods verdadeiros. Também não estabelece fidelidade visual pixel a pixel à interface Hydra.
 
