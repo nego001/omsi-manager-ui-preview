@@ -39,14 +39,15 @@ async function countDirectChildren(folder,max=MAX_ENTRIES_PER_GROUP,checkPackage
     throw err;
   }
   const result=emptyCount(true);
+  let scanned=0;
   try{
     for await(const entry of dir){
+      // Budget applies to every entry, including symlinks, to bound scan cost.
+      if(scanned++>=max){result.limited=true;break;}
       if(entry.isSymbolicLink()){
         result.linksSkipped++;
         continue;
       }
-      // Skip any entry beyond the cap. Never inspect it or reveal its name.
-      if(result.count>=max){result.limited=true;break;}
       result.count++;
       if(entry.isDirectory()) result.directories++;
       else if(entry.isFile()){
