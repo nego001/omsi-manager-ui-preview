@@ -22,6 +22,12 @@ try {
   assert.equal(capabilities.preview?.capabilities?.installMods, false);
   assert.equal(capabilities.preview?.capabilities?.uninstallMods, false);
   assert.equal(capabilities.preview?.capabilities?.executeCommands, false);
+  assert.equal(capabilities.preview?.capabilities?.readGameFiles,false);
+  assert.equal(capabilities.preview?.capabilities?.inspectDirectories,true);
+  assert.equal(typeof capabilities.preview?.inspectGame,'function');
+  assert.equal(await window.evaluate(async()=>{try{await window.omsiPreview.inspectGame('../etc');return false;}catch{return true;}}),true);
+  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+  assert.equal(await window.getByRole('button',{name:'Selecionar pasta e inspecionar'}).first().isEnabled(),true);
   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
   assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
   assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
