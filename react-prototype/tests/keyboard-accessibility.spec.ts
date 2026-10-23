@@ -72,3 +72,17 @@ test('reduced motion desativa efeitos de deslocamento decorativos',async({page})
  const transition=await page.locator('.game-tile').first().evaluate(el=>getComputedStyle(el).transitionDuration);
  expect(transition).toBe('0s');
 });
+
+test('atalho de pular não encobre a interface depois que o foco muda',async({page})=>{
+ await page.goto('/');
+ const skip=page.getByRole('link',{name:'Pular para o conteúdo principal'});
+ await expect(skip).toHaveCSS('opacity','0');
+ await page.keyboard.press('Tab');
+ await expect(skip).toBeFocused();
+ await expect(skip).toHaveCSS('opacity','1');
+ await page.keyboard.press('Enter');
+ await expect(page.locator('#conteudo-principal')).toBeFocused();
+ await expect(skip).toHaveCSS('opacity','0');
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+ await expect(skip).toHaveCSS('opacity','0');
+});
