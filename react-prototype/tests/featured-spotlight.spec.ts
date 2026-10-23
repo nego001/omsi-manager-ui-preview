@@ -1,6 +1,5 @@
 import {test,expect} from '@playwright/test';
 
-const featured=({page}:{page:any})=>page.getByRole('group',{name:'Escolher simulador em destaque'});
 test('o destaque alterna simuladores e mantém somente uma capa por vez',async({page})=>{
  await page.goto('/');
  const hero=page.getByRole('region',{name:'Destaque de simuladores'});
