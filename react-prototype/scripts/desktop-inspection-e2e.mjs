@@ -14,6 +14,11 @@ try{
  await mkdir(join(sample,'Vehicles','Bus B'),{recursive:true});
  await mkdir(join(sample,'maps','Sample Map'),{recursive:true});
  await writeFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'DO_NOT_MODIFY', 'utf8');
+ const etsSample=join(root,'sample-ets2');
+ await mkdir(join(etsSample,'mod','unpacked'),{recursive:true});
+ await writeFile(join(etsSample,'mod','heavy_sound.SCS'),'SCS_SENTINEL');
+ await writeFile(join(etsSample,'mod','skin.zip'),'ZIP_SENTINEL');
+ await writeFile(join(etsSample,'mod','notes.txt'),'TEXT_SENTINEL');
  application=await electron.launch({
   args:['.'],
   cwd:process.cwd(),
@@ -39,6 +44,20 @@ try{
  assert.equal(safeResult.recognized,true);
  assert.equal(safeResult.groups[0].count,2);
  assert.equal(safeResult.groups[1].count,1);
+ assert.equal(safeResult.groups[0].directories,2);
+ assert.equal(safeResult.groups[0].files,0);
+ assert.deepEqual(safeResult.notices,[]);
+ await application.evaluate(patch,{canceled:false,filePaths:[etsSample]});
+ const etsReport=await window.evaluate(()=>window.omsiPreview.inspectGame('ets2'));
+ assert.equal(etsReport.status,'ok');
+ assert.equal(etsReport.groups[0].count,4);
+ assert.equal(etsReport.groups[0].directories,1);
+ assert.equal(etsReport.groups[0].files,3);
+ assert.equal(etsReport.groups[0].packageCandidates,2);
+ assert.equal(etsReport.notices.some(n=>n.code==='mods-not-verified'),true);
+ assert.ok(!JSON.stringify(etsReport).includes(etsSample));
+ assert.equal(await readFile(join(etsSample,'mod','heavy_sound.SCS'),'utf8'),'SCS_SENTINEL');
+ await application.evaluate(patch,{canceled:false,filePaths:[sample]});
  assert.ok(!JSON.stringify(safeResult).includes(root),'Must not expose absolute paths');
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
 
