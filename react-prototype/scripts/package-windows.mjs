@@ -1,5 +1,5 @@
 import {resolve} from 'node:path';
-import packager from '@electron/packager';
+import { packager } from '@electron/packager';
 
 const root=resolve('.');
 const bundled=await packager({
