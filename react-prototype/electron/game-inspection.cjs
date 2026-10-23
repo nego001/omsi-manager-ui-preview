@@ -44,7 +44,8 @@ async function countDirectChildren(folder, max = MAX_ENTRIES_PER_GROUP) {
       // Directory entries are counted but never opened. Symbolic links are ignored.
       if (entry.isSymbolicLink()) continue;
       count++;
-      if (count >= max) { limited = true; break; }
+      // Only mark truncated if an entry exists beyond the cap.
+      if (count > max) { count = max; limited = true; break; }
     }
   } finally {
     // for-await closes the directory automatically on break, but explicit safe
