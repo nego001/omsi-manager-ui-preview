@@ -1,6 +1,12 @@
 export type InspectionGameId='omsi'|'ets2'|'ats';
-export type FolderInspection =
- | {status:'ok';game:InspectionGameId;folderName:string;recognized:boolean;mode:'read-only';limited:boolean;groups:Array<{key:string;name:string;found:boolean;count:number;limited:boolean}>}
+export type InspectionGroup={
+ key:string;name:string;found:boolean;count:number;limited:boolean;
+ directories:number;files:number;packageCandidates:number;linksSkipped:number;others:number;
+};
+export type InspectionNotice={code:string;level:'info'|'attention';message:string};
+export type FolderInspection=
+ | {status:'ok';game:InspectionGameId;folderName:string;recognized:boolean;mode:'read-only';
+    limited:boolean;groups:InspectionGroup[];notices:InspectionNotice[]}
  | {status:'cancelled'}
  | {status:'error';message:string};
 declare global {
