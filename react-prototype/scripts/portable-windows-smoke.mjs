@@ -105,6 +105,27 @@ try{
  ];
  const jsErrors=[];
  window.on('pageerror',error=>jsErrors.push(error.message));
+ const screenshotManifest=[];
+ const recordScreenshot=async(file)=>{
+   const png=await window.screenshot({path:join(shots,file),animations:'disabled',fullPage:true});
+   const size=await window.evaluate(()=>({
+     viewportWidth:document.documentElement.clientWidth,
+     viewportHeight:document.documentElement.clientHeight,
+     devicePixelRatio:window.devicePixelRatio
+   }));
+   const native=await application.evaluate(({BrowserWindow})=>{
+     const current=BrowserWindow.getAllWindows()[0];
+     return current.getContentBounds();
+   });
+   screenshotManifest.push({
+     file,
+     imageWidthPx:png.readUInt32BE(16),
+     imageHeightPx:png.readUInt32BE(20),
+     ...size,
+     nativeContentWidth:native.width,
+     nativeContentHeight:native.height
+   });
+ };
  const navigate=async(name,heading)=>{
    await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name}).click();
    await window.getByRole('heading',{name:heading,exact:true}).waitFor({timeout:12000});
@@ -115,7 +136,8 @@ try{
  };
  for(const [name,heading,file] of screens){
    await navigate(name,heading);
-   await window.screenshot({path:join(shots,'06-'+file+'-1440.png'),animations:'disabled',fullPage:true});
+   const displayedWidth=await window.evaluate(()=>document.documentElement.clientWidth);
+   await recordScreenshot('06-'+file+'-initial-'+displayedWidth+'.png');
    assert.equal(await window.getByRole('heading',{name:heading,exact:true}).isVisible(),true);
  }
  // Native resize: 1024 and the app's declared 850px minimum.
@@ -153,7 +175,7 @@ try{
        }));
      });
      assert.deepEqual(cutControls,[],'Interactive controls clipped on '+name+' at '+width);
-     await window.screenshot({path:join(shots,'07-'+file+'-'+width+'.png'),animations:'disabled',fullPage:true});
+     await recordScreenshot('07-'+file+'-'+width+'.png');
    }
  }
  // Chromium zoom tests text scaling inside the packaged runtime; does not claim to test Windows DPI.
@@ -169,13 +191,18 @@ try{
    assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
    assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
    await window.getByRole('region',{name:'Relatório consolidado'}).waitFor({timeout:12000});
-   await window.screenshot({path:join(shots,'08-detalhes-zoom-'+Math.round(factor*100)+'.png'),animations:'disabled',fullPage:true});
+   await recordScreenshot('08-detalhes-zoom-'+Math.round(factor*100)+'.png');
  }
  await application.evaluate(({BrowserWindow})=>{
    BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1);
  });
  assert.deepEqual(jsErrors,[],'Renderer emitted uncaught JavaScript exceptions during screen sweep');
- console.log('WINDOWS NINE SCREENS: OK. 9 pages visited at 1440, 1024 and 850 CSS px; screenshots captured.');
+ await writeFile(join(shots,'screenshot-manifest.json'),JSON.stringify({
+   note:'Initial width is measured from the runner, not assumed to be 1440px. 1024/850 are requested native content sizes. Recorded pixel dimensions include full-page height.',
+   screenshots:screenshotManifest
+ },null,2),'utf8');
+ assert.equal(screenshotManifest.length,29,'Expected 9 initial + 18 resized + 2 zoom screenshots');
+ console.log('WINDOWS NINE SCREENS: OK. 9 pages at measured initial size, requested 1024 and 850 content widths, plus 2 zoom screenshots.');
 
  console.log('WINDOWS PORTABLE EXE SMOKE: OK. EXE empacotado abriu; sandbox, IPC, inspeção sintética, relatório e bloqueios verificados.');
 }finally{
