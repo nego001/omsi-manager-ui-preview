@@ -15,7 +15,7 @@ Revisão de aproximação visual, **não** validação de fidelidade 1:1. O OMSI
 | --- | --- | --- | --- |
 | Moldura / superfícies | Predomina preto / cinza-escuro uniforme | Contorno roxo/azulado em painéis e banner | Tons neutros em barra lateral, barra superior, cartões e gradiente do destaque |
 | Navegação | Sidebar lateral com item ativo discreto | Blocos roxos e bordas com acento vibrante | Estado ativo mais neutro, preservando nove páginas e nomes de acesso |
-| Destaque | Uma faixa de jogo em destaque com imagem panorâmica | Banner com três capas inclinadas de jogos | **Ainda diferente**: mantemos capas para não substituir conteúdo por uma reprodução não solicitada |
+| Destaque | Uma faixa de jogo em destaque com imagem panorâmica | Banner anterior com três capas inclinadas de jogos | **Segunda rodada:** banner panorâmico com um simulador selecionável por vez, ainda diferente da composição do Hydra |
 | Biblioteca / grade | Capas de jogos de conteúdo real | Cards demonstrativos de mods com tipografia e gradientes próprios | **Diferença funcional intencional**: o catálogo de mods é fictício, não um download do Hydra |
 | Experiência sem internet | Não avaliada nesta referência | Capas Steam com fallback | Fallback acessível e verificado na CI anterior |
 | Acessibilidade | Sem certificação observada | Link de salto visível indevidamente em capturas de CI | Link de salto fica visualmente oculto até receber foco do teclado |
@@ -35,3 +35,14 @@ Revisão de aproximação visual, **não** validação de fidelidade 1:1. O OMSI
 - Homologação física do seletor nativo de diretórios e revisão da segurança antes de considerar operações com escrita.
 
 O PR continua **draft**. Nenhum mod, jogo ou arquivo do OMSI Manager original é modificado.
+
+## Segunda rodada: um destaque panorâmico por simulador
+
+O banner inicial agora deixa de exibir três capas inclinadas simultaneamente. Um **destaque panorâmico** usa uma única capa decorativa e oferece botões explícitos `OMSI 2`, `ETS2` e `ATS`, com `aria-pressed` para o estado atual. A chamada **Ver mods de ...** abre o catálogo filtrado corretamente pelo jogo escolhido, sem instalação de arquivos. **Explorar jogos** mantém o acesso à biblioteca de simuladores.
+
+- Seleção é operável por mouse ou teclado, sem carrossel automático, sem temporizador e sem dependência de imagens online.
+- No Windows, o smoke do `.exe` empacotado muda o destaque, abre um catálogo filtrado e verifica que a prévia continua somente leitura.
+- Playwright cobre um único pôster no destaque, atualização do título, prevenção de estado de capa antigo, seleção por teclado e largura de 390/850/1024/1440 CSS px.
+- O hero ainda **não** replica uma arte panorâmica específica do Hydra e permanece intencionalmente autoral. Sem imagens reais de mods nem integração com instalação.
+
+**Comparação geométrica 1:1, tipografia detalhada e homologação com a interface Hydra em resolução equivalente continuam pendentes.**
