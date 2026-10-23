@@ -12,7 +12,7 @@ No workflow `React Prototype Validation`, o job **Windows portable preview (not 
 5. Confere isolamento do renderer: sem `window.require`, `window.process`, IPC bruto ou funções de instalar, remover e executar comandos.
 6. Abre Jogos, usa um diálogo nativo **substituído por um retorno de teste** para selecionar uma pasta OMSI temporária fictícia, valida contagens e ausência de vazamento de caminho, e comprova que o arquivo sentinela não foi modificado.
 7. Abre Detalhes e Segurança; confere relatório somente leitura e botões de instalação/remoção bloqueados.
-8. Faz uma **varredura automática das nove telas**, conferindo os títulos e a navegação ativa. Produz capturas completas na janela 1440×900 e também nos tamanhos de conteúdo 1024×768 e 850×650. Nesses dois últimos tamanhos, qualquer excesso horizontal significativo reprova o job.
+8. Faz uma **varredura automática das nove telas**, conferindo os títulos e a navegação ativa. Produz capturas completas na dimensão inicial **efetiva** do runner, documentada em `screenshot-manifest.json`, e também nos tamanhos de conteúdo solicitados de 1024×768 e 850×650. Nesses dois últimos tamanhos, qualquer excesso horizontal significativo reprova o job.
 9. Captura ainda o painel Detalhes com zoom do Chromium de 125% e 150%, preservando os controles bloqueados. **Zoom do Chromium não representa necessariamente a escala DPI real do Windows**.
 10. Publica capturas do executável sob `windows-portable-runtime-screenshots`.
 11. **Só se as etapas anteriores passarem**, compacta o ZIP portátil e publica SHA-256.
@@ -77,3 +77,9 @@ A CI agora realiza:
 Todos esses arquivos, junto com o relatório anterior `contrast-audit.json`, ficam no artefato `react-prototype-visual-review` da CI.
 
 **Limites explícitos:** a amostragem de gradiente lê pixels vizinhos ao texto, não todos os pixels sob cada glifo. A checagem de ícones abrange apenas os elementos selecionados e fundos opacos, não toda a interface. A imagem online pode estar indisponível e as capas alternativas não substituem a arte oficial ou uma comparação visual 1:1 com Hydra. Teste de conexão totalmente desligada no Windows físico, diferenças de GPU, transparências e conformidade WCAG completa continuam pendentes.
+
+## Fidelidade visual: registro das dimensões reais
+
+A revisão de capturas encontrou um erro de nomenclatura: o runner Windows limitava a largura inicial disponível, mas o arquivo tinha o sufixo `1440`. O novo teste não faz essa suposição. Cada captura de varredura possui entradas em `windows-portable-runtime-screenshots/screenshot-manifest.json`: largura e altura efetivas do viewport, escala de pixel, tamanho nativo da área de conteúdo e dimensões PNG. O sufixo das capturas iniciais agora usa `initial-<largura-real>`.
+
+Uma avaliação visual comparativa foi iniciada e documentada em [HYDRA-VISUAL-REVIEW.md](./HYDRA-VISUAL-REVIEW.md), com referência pública da página oficial do Hydra. A paleta do protótipo foi aproximada de tons neutros; a organização e os cartões ainda **não** constituem réplica 1:1. Não usar o tamanho esperado da janela do Electron como se fosse a resolução de fato capturada.
