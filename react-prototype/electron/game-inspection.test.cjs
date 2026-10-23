@@ -95,7 +95,7 @@ test('inspection diagnostics explicitly distinguish unknown folders and partial 
  assert.equal(report.recognized,true);
  assert.equal(report.groups[0].found,true);
  assert.equal(report.groups[0].count,0);
- assert.deepEqual(report.notices,[]);
+ assert.equal(report.notices.some(n=>n.code==='omsi-structure-incomplete'),true);
 });
 test('symlink entries are ignored and included in the scan budget',async(t)=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-links-budget-'));
