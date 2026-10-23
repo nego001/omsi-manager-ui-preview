@@ -50,3 +50,8 @@
 .inspection-notices{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:8px}
 .inspection-notices li{font-size:11px;line-height:1.6;padding:8px 9px;border-radius:7px;border-left:3px solid #6c9eae;background:#202f37;color:#c8e0ea}
 .inspection-notices li.attention{border-left-color:#bd9654;background:#352d25;color:#ffddb0}
+
+/* Compatibility is deliberately never inferred from filenames or directory counts. */
+.inspection-assessment{margin:10px 0 13px;padding:10px 11px;border:1px solid #776142;border-radius:8px;background:#302920;display:flex;flex-direction:column;gap:5px}
+.inspection-assessment strong{font-size:11px;color:#f2c98c}
+.inspection-assessment span,.inspection-assessment small{font-size:10px;line-height:1.6;color:#d6c2a7}
