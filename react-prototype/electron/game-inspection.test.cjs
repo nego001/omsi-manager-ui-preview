@@ -110,3 +110,51 @@ test('symlink entries are ignored and included in the scan budget',async(t)=>{
  assert.equal(report.linksSkipped,4);
  assert.equal(report.limited,true);
 });
+
+test('ETS2 and ATS support selecting the mod folder itself as well as its parent',async(t)=>{
+ const base=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-direct-mod-'));
+ t.after(()=>fs.rm(base,{recursive:true,force:true}));
+ const mod=path.join(base,'mod');
+ await fs.mkdir(mod);
+ await fs.writeFile(path.join(mod,'bus_sound.SCS'),'SENTINEL');
+ await fs.writeFile(path.join(mod,'livery.zip'),'SENTINEL');
+ for(const game of ['ets2','ats']){
+  const parent=await inspectGameDirectory(base,game);
+  const direct=await inspectGameDirectory(mod,game);
+  assert.equal(parent.selectionMode,'parent-folder');
+  assert.equal(direct.selectionMode,'direct-mod-folder');
+  assert.equal(parent.groups[0].count,2);
+  assert.equal(direct.groups[0].count,2);
+  assert.equal(direct.groups[0].packageCandidates,2);
+  assert.equal(direct.recognized,true);
+  assert.equal(direct.assessment.compatibilityVerified,false);
+  assert.equal(direct.assessment.installationVerified,false);
+  assert.equal(direct.assessment.scope,'directory-structure-only');
+  assert.equal(direct.notices.some(n=>n.code==='direct-mod-folder'),true);
+  assert.equal(JSON.stringify(direct).includes(base),false);
+  assert.equal(JSON.stringify(parent).includes(base),false);
+ }
+});
+test('empty mod folder never implies installation, validation, or compatibility',async(t)=>{
+ const base=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-empty-mod-'));
+ t.after(()=>fs.rm(base,{recursive:true,force:true}));
+ await fs.mkdir(path.join(base,'mod'));
+ const r=await inspectGameDirectory(path.join(base,'mod'),'ets2');
+ assert.equal(r.recognized,true);
+ assert.equal(r.groups[0].files,0);
+ assert.equal(r.groups[0].packageCandidates,0);
+ assert.equal(r.assessment.compatibilityVerified,false);
+ assert.equal(r.assessment.installationVerified,false);
+ assert.equal(r.notices.some(n=>n.code==='no-package-candidates'),true);
+});
+test('partial OMSI directory structure is informational, not failed compatibility',async(t)=>{
+ const base=await fs.mkdtemp(path.join(os.tmpdir(),'omsi-partial-'));
+ t.after(()=>fs.rm(base,{recursive:true,force:true}));
+ await fs.mkdir(path.join(base,'Vehicles'));
+ const r=await inspectGameDirectory(base,'omsi');
+ assert.equal(r.recognized,true);
+ assert.equal(r.groups.filter(x=>x.found).length,1);
+ assert.equal(r.notices.some(n=>n.code==='omsi-structure-incomplete'),true);
+ assert.equal(r.assessment.compatibilityVerified,false);
+ assert.equal(r.assessment.installationVerified,false);
+});
