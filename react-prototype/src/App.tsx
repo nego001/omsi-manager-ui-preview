@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {analyzeModRelations} from './relation-analysis';
+import {consolidateDiagnostic} from './diagnostic-report';
 import type {FolderInspection} from './inspection-types';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu} from 'lucide-react';
 
@@ -93,6 +94,7 @@ export default function App(){
  },[favorites,sidebar,dense]);
  const selected=catalogMods.find(m=>m.id===selectedMod)??catalogMods[0];
  const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
+ const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&(`${m.title} ${m.category} ${games[m.game].title}`.toLowerCase().includes(search.toLowerCase()))),[catalogMods,selectedGame,category,search]);
  function goto(id:Screen){setScreen(id);setToast('')}
  function detail(id:string){setSelectedMod(id);goto('details')}
@@ -168,7 +170,23 @@ export default function App(){
   <ol className="relation-order">{relationAnalysis.sequence.map(m=><li key={m.id}>{m.title} <small>({m.id})</small></li>)}</ol>
   {relationAnalysis.issues.length>0?<ul className="relation-issues">{relationAnalysis.issues.map((issue,index)=><li key={issue.code+index} className={issue.severity}><strong>{issue.severity==='blocking'?'Bloqueio no catálogo':'Atenção'}:</strong> {issue.message}</li>)}</ul>:<p className="relation-clean">Nenhuma relação inconsistente declarada para este mod.</p>}
   <p className="relation-disclaimer"><LockKeyhole size={15}/> A versão informada é hipotética. Compatibilidade real, versão instalada, integridade dos mods e instalação NÃO verificadas. Nenhuma ação é executada.</p>
- </section></div></div></>}
+ </section></div></div>
+ <section className="diagnostic-report" aria-label="Relatório consolidado">
+  <div className="report-heading"><div><span className="eyebrow">DIAGNÓSTICO SOMENTE LEITURA</span><h2>Relatório consolidado</h2><p>Reúne metadados declarados e, se realizada, a inspeção manual de pastas deste jogo. Nenhuma operação é executada.</p></div><strong className="report-verdict">{diagnostic.title}</strong></div>
+  <div className="report-summary">
+   <div><small>Bloqueios declarados</small><strong>{diagnostic.blockers}</strong></div>
+   <div><small>Avisos</small><strong>{diagnostic.warnings}</strong></div>
+   <div><small>Etapas teóricas</small><strong>{diagnostic.declaredSequenceCount}</strong></div>
+   <div><small>Inspeção de pasta</small><strong>{diagnostic.directoryStatus==='inspected'?'Manual':diagnostic.directoryStatus==='error'?'Falhou':'Não realizada'}</strong></div>
+  </div>
+  <p className="report-origin">Origem do catálogo: {diagnostic.catalogOrigin} · Jogo: {games[diagnostic.game].title} · Versão hipotética: {diagnostic.hypotheticalVersion??'não informada'}</p>
+  {diagnostic.directoryStatus==='inspected'&&<p className="report-origin">Entradas diretas contabilizadas: {diagnostic.inspectedEntries}{diagnostic.hasPartialCounts?' (contagem parcial)':''}. Não equivale a quantidade de mods instalados.</p>}
+  <h3>Constatações e avisos</h3>
+  <ul className="report-findings">{diagnostic.findings.map((finding,index)=><li key={finding.origin+'-'+finding.code+'-'+index} className={finding.severity}><span>{finding.origin==='catalog'?'Catálogo':'Pastas'}</span><p>{finding.description}</p></li>)}</ul>
+  <h3>O que não foi verificado</h3>
+  <ul className="report-limits">{diagnostic.limitations.map((reason,index)=><li key={index}>{reason}</li>)}</ul>
+  <p className="report-footnote"><LockKeyhole size={16}/> Este relatório é informativo. Compatibilidade não verificada. Instalar e remover continuam bloqueados.</p>
+ </section></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div><div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div></>}
     {screen==='settings'&&<><div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Preferências visuais salvas localmente neste dispositivo.</p></div><div className="settings-panel"><h3>Aparência</h3><label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label><label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label><div className="divider"/><h3>Integrações</h3><div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Integração somente leitura</strong><small>Inspeção manual de pastas na tela Jogos, sem instalação ou exclusão</small></div></div></div></>}
