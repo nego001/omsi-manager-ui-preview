@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "mods": [
+    {
+      "id": "omsi-core",
+      "title": "Pacote base OMSI",
+      "game": "omsi",
+      "category": "Ônibus",
+      "version": "1.0",
+      "description": "Base demonstrativa para testar ordem de dependências, sem arquivos do jogo.",
+      "size": "30 MB"
+    },
+    {
+      "id": "omsi-bus-1721",
+      "title": "Ônibus OF-1721 (exemplo)",
+      "game": "omsi",
+      "category": "Ônibus",
+      "version": "1.1",
+      "description": "Registro fictício que declara dependência do pacote base.",
+      "size": "190 MB",
+      "requires": [
+        "omsi-core"
+      ]
+    },
+    {
+      "id": "omsi-audio",
+      "title": "Sons do OF-1721 (exemplo)",
+      "game": "omsi",
+      "category": "Sons",
+      "version": "1.2",
+      "description": "Registro fictício que depende do ônibus e da base por transitividade.",
+      "size": "65 MB",
+      "requires": [
+        "omsi-bus-1721"
+      ]
+    },
+    {
+      "id": "omsi-alternative",
+      "title": "Pacote alternativo (exemplo)",
+      "game": "omsi",
+      "category": "Sons",
+      "version": "0.5",
+      "description": "Regra declarativa de conflito apenas para demonstrar o alerta.",
+      "size": "40 MB",
+      "conflictsWith": [
+        "omsi-audio"
+      ]
+    }
+  ]
+}
