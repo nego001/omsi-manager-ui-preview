@@ -79,7 +79,7 @@ test('geometria dos cards mantém rodapés alinhados e textos legíveis',async({
 });
 
 test('título extenso no JSON não é truncado no catálogo, inclusive em cards compactos',async({page})=>{
- const name='Ônibus rodoviário experimental edição especial com configuração demonstrativa e documentação de operações';
+ const name='Ônibus rodoviário experimental edição especial com configuração demonstrativa e documentação';
  expect(name.length).toBeLessThanOrEqual(100);
  const manifest=JSON.stringify({schemaVersion:1,mods:[
   {id:'long-omsi',title:name,game:'omsi',category:'Ônibus',version:'1.2',description:'Somente metadados de teste.',size:'250 MB'},
