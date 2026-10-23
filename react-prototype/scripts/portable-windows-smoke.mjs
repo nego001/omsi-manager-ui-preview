@@ -57,6 +57,17 @@ try{
    previewMode:'read-only',read:false,install:false,uninstall:false,
    command:false,inspect:'function'
  });
+ const featured=window.getByRole('region',{name:'Destaque de simuladores'});
+ await featured.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).click();
+ assert.equal(await featured.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).getAttribute('aria-pressed'),'true');
+ await featured.getByRole('heading',{name:'Euro Truck Simulator 2'}).waitFor();
+ assert.equal(await featured.locator('.hero-spotlight-art .game-cover').count(),1);
+ await featured.getByRole('button',{name:'Ver mods de Euro Truck Simulator 2'}).click();
+ await window.getByRole('heading',{name:'Catálogo de mods'}).waitFor();
+ assert.match(await window.locator('.result-count').first().innerText(),/2 resultados/);
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Início'}).click();
+ await window.getByRole('region',{name:'Destaque de simuladores'}).getByRole('button',{name:'Mostrar OMSI 2 no destaque'}).click();
+ await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor();
  await window.screenshot({path:join(shots,'01-inicio.png'),animations:'disabled'});
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
  await window.getByRole('heading',{name:'Escolha seu simulador'}).waitFor({timeout:12000});
