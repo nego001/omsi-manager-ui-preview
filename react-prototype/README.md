@@ -92,7 +92,7 @@ Uma CI verde atesta o build/empacotamento automático, mas **não substitui test
 No **aplicativo Electron**, em **Jogos → Inspeção local**, clique em `Selecionar pasta e inspecionar` no jogo correspondente. O sistema abre um diálogo **nativo**, e só inspeciona a pasta que a pessoa escolheu naquele momento.
 
 - OMSI 2: contagem direta das entradas em `Vehicles`, `maps`, `Sceneryobjects` e `Splines`.
-- ETS2 e ATS: contagem direta das entradas em `mod` (se existir sob a pasta escolhida), separando subpastas, arquivos e **candidatos** com extensão `.scs`/`.zip` (sem ler o conteúdo). A pasta de mods pode estar na pasta de documentos do jogo, separada da instalação Steam.
+- ETS2 e ATS: selecione **a própria pasta `mod`** ou **a pasta acima dela** (frequentemente a pasta de documentos do jogo, separada da Steam). O aplicativo conta entradas diretas da pasta `mod`, distinguindo subpastas, arquivos e **candidatos** `.scs`/`.zip` apenas pela extensão, sem abrir nenhum arquivo.
 - Limite de **2.000 entradas inspecionadas por subpasta**, incluindo links ignorados; contagem parcial indicada quando houver itens adicionais. Sem recursão, hash, leitura de conteúdo, extração de arquivos, execução de executáveis ou modificação dos jogos.
 - Pastas-alvo que são links simbólicos são recusadas; também não segue links internos.
 - A interface só recebe o **nome da pasta principal**, contagens e indicadores de presença/limite, nunca caminhos completos nem nomes de arquivos.
@@ -116,3 +116,9 @@ A janela real de escolha de pasta ainda precisa ser testada presencialmente no W
 ### Interpretação dos resultados
 
 **Pastas e arquivos são entradas, não necessariamente mods instalados.** Um arquivo `.scs` ou `.zip` recebe o rótulo de *candidato*, sem qualquer validação do formato, versão, integridade, ativação, conflito ou compatibilidade. Pastas reconhecidas não comprovam a presença nem a instalação do jogo. O diagnóstico registra avisos quando nada é encontrado, há links ignorados ou a contagem está truncada. Os arquivos não são abertos, e o aplicativo não recebe seus nomes.
+
+### Pré-checagem estrutural vs. compatibilidade
+
+O resultado traz uma avaliação explícita `assessment.compatibilityVerified=false` e `assessment.installationVerified=false`. A presença de pastas ou arquivos nunca é interpretada como prova de instalação ou funcionamento. A inspeção mostra avisos para estrutura parcial de OMSI 2, pasta `mod` vazia e seleção direta da pasta `mod`. Não lê manifesto, versão mínima do jogo, arquivos `.scs`, banco de dados nem scripts de mods; portanto **não é possível afirmar se um mod é compatível somente com esta inspeção**.
+
+Os testes de segurança executados na CI cobrem os dois formatos de seleção da pasta de ETS2/ATS, pasta vazia e estrutura parcial do OMSI, além do fluxo de seleção de pasta via Electron com conteúdos sintéticos.
