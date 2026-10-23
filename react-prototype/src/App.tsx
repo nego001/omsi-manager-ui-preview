@@ -1,4 +1,4 @@
-import {useMemo,useState} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu} from 'lucide-react';
 
 type GameId='omsi'|'ets2'|'ats';
@@ -44,16 +44,37 @@ const nav:{id:Screen;label:string;icon:typeof House}[]=[
 ];
 const categories:Category[]=['Todos','Ônibus','Mapas','Caminhões','Sons','Gráficos'];
 function GameCover({id,large=false}:{id:GameId;large?:boolean}){const game=games[id];return <div className={'game-cover '+(large?'large':'')} style={{'--game-color':game.color} as React.CSSProperties}><img src={`https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${game.app}/library_600x900.jpg`} alt={`Capa de ${game.title}`} loading="lazy" onError={e=>{e.currentTarget.style.display='none'}}/><div className="cover-fallback"><strong>{game.title}</strong><span>{game.publisher}</span></div></div>}
+type SavedPreferences={favorites:string[];sidebar:boolean;dense:boolean};
+const PREFS_KEY='omsi-manager-preview:prefs:v1';
+function readPreferences():SavedPreferences{
+ const defaults:SavedPreferences={favorites:[],sidebar:true,dense:false};
+ try{
+  const parsed:unknown=JSON.parse(window.localStorage.getItem(PREFS_KEY)??'null');
+  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return defaults;
+  const obj=parsed as Partial<SavedPreferences>;
+  const allowed=new Set(mods.map(m=>m.id));
+  return {
+   favorites:Array.isArray(obj.favorites)?Array.from(new Set(obj.favorites.filter((id):id is string=>typeof id==='string'&&allowed.has(id)))):[],
+   sidebar:typeof obj.sidebar==='boolean'?obj.sidebar:true,
+   dense:obj.dense===true
+  };
+ }catch{return defaults}
+}
 export default function App(){
  const [screen,setScreen]=useState<Screen>('home');
  const [selectedGame,setSelectedGame]=useState<GameId|'all'>('all');
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
- const [favorites,setFavorites]=useState<string[]>([]);
- const [sidebar,setSidebar]=useState(true);
- const [dense,setDense]=useState(false);
+ const initialPrefs=useMemo(readPreferences,[]);
+ const [favorites,setFavorites]=useState<string[]>(initialPrefs.favorites);
+ const [sidebar,setSidebar]=useState(initialPrefs.sidebar);
+ const [dense,setDense]=useState(initialPrefs.dense);
  const [toast,setToast]=useState('');
+ useEffect(()=>{
+  try{window.localStorage.setItem(PREFS_KEY,JSON.stringify({favorites,sidebar,dense}));}
+  catch{/* private-mode storage can be unavailable; keep session state */}
+ },[favorites,sidebar,dense]);
  const selected=mods.find(m=>m.id===selectedMod)??mods[0];
  const filtered=useMemo(()=>mods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&(`${m.title} ${m.category} ${games[m.game].title}`.toLowerCase().includes(search.toLowerCase()))),[selectedGame,category,search]);
  function goto(id:Screen){setScreen(id);setToast('')}
@@ -72,11 +93,11 @@ export default function App(){
     {screen==='home'&&<><div className="hero"><div><div className="eyebrow">SEUS JOGOS, SEUS MODS</div><h1>Seu universo de simulação, organizado.</h1><p>Uma central visual para OMSI 2, Euro Truck Simulator 2 e American Truck Simulator. Explore sem modificar nenhuma instalação.</p><button className="btn primary" onClick={()=>goto('games')}>Explorar jogos <ChevronRight size={17}/></button></div><div className="hero-art"><GameCover id="omsi" large/><GameCover id="ets2" large/><GameCover id="ats" large/></div></div><div className="section-title"><h2>Jogos em destaque</h2><button className="link" onClick={()=>goto('games')}>Ver todos <ChevronRight size={14}/></button></div><div className="game-grid">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id}/><strong>{games[id].title}</strong><small>Abrir catálogo</small></button>)}</div><div className="section-title"><h2>Descobrir mods</h2></div>{modCards(mods.slice(0,4))}</>}
     {screen==='games'&&<><div className="page-heading"><span className="eyebrow">BIBLIOTECA DE JOGOS</span><h1>Escolha seu simulador</h1><p>Capas originais carregadas online. A detecção de jogos instalados ainda não está conectada.</p></div><div className="game-grid game-grid-large">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id} large/><strong>{games[id].title}</strong><small>Ver mods <ChevronRight size={13}/></small></button>)}</div></>}
     {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Exemplos fictícios para testar filtros e navegação.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select></div><div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>{filtered.length?modCards(filtered):<div className="empty">Nenhum mod corresponde aos filtros.</div>}</>}
-    {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>Os favoritos são temporários e só existem nesta sessão. Nada foi instalado.</p></div>{favorites.length?modCards(mods.filter(m=>favorites.includes(m.id))):<div className="empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>}</>}
+    {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>Os favoritos ficam salvos neste navegador ou perfil Electron. Nenhum mod foi instalado.</p></div>{favorites.length?modCards(mods.filter(m=>favorites.includes(m.id))):<div className="empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>}</>}
     {screen==='details'&&<><button className="back" onClick={()=>goto('catalog')}><ArrowLeft size={17}/> Voltar ao catálogo</button><div className="detail-layout"><div className="detail-art"><GameCover id={selected.game} large/></div><div><span className="eyebrow">{games[selected.game].title} / {selected.category}</span><h1>{selected.title}</h1><p>{selected.description}</p><div className="properties"><div><span>Versão</span><strong>{selected.version}</strong></div><div><span>Tamanho</span><strong>{selected.size}</strong></div><div><span>Verificação</span><strong>Dados ilustrativos</strong></div></div><div className="detail-actions"><button className="btn disabled-action" disabled title="Instalação desativada"><Download size={17}/> Instalar (bloqueado)</button><button className="btn disabled-action" disabled title="Desinstalação desativada"><Trash2 size={17}/> Remover (bloqueado)</button><button className="btn secondary" onClick={()=>setFavorites(a=>a.includes(selected.id)?a.filter(x=>x!==selected.id):[...a,selected.id])}>{favorites.includes(selected.id)?'Remover dos favoritos':'Adicionar aos favoritos'}</button></div><p className="lock-note"><LockKeyhole size={16}/> Nenhum mod será aplicado enquanto o pipeline de testes não estiver liberado.</p></div></div></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div><div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div></>}
-    {screen==='settings'&&<><div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Preferências visuais locais para esta sessão.</p></div><div className="settings-panel"><h3>Aparência</h3><label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label><label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label><div className="divider"/><h3>Integrações</h3><div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Electron / caminhos de jogos</strong><small>Desconectados até validação técnica</small></div></div></div></>}
+    {screen==='settings'&&<><div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Preferências visuais salvas localmente neste dispositivo.</p></div><div className="settings-panel"><h3>Aparência</h3><label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label><label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label><div className="divider"/><h3>Integrações</h3><div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Electron / caminhos de jogos</strong><small>Desconectados até validação técnica</small></div></div></div></>}
     {screen==='security'&&<><div className="page-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>Este frontend não possui API de arquivos ou ponte Electron.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}
    </main><footer className="footer"><span>OMSI Manager · Interface React independente</span><span><ShieldCheck size={13}/> Modo demonstração seguro</span></footer>
   </div>{toast&&<div className="toast" role="status"><LockKeyhole size={16}/>{toast}<button onClick={()=>setToast('')}>×</button></div>}
