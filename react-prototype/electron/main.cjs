@@ -30,7 +30,7 @@ function createWindow() {
     if (!isAllowedTopLevelURL(targetURL, approvedURL)) event.preventDefault();
   });
   win.webContents.on('will-attach-webview', event => event.preventDefault());
-  win.webContents.on('will-download', event => event.preventDefault());
+  win.webContents.session.on('will-download', event => event.preventDefault());
   win.webContents.session.setPermissionRequestHandler((_contents, _permission, respond) => respond(false));
   win.webContents.session.setPermissionCheckHandler(() => false);
   win.once('ready-to-show', () => win.show());
