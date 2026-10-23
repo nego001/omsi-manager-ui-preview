@@ -42,6 +42,7 @@ jobs:
             react-prototype/test-results/contrast-audit.json
             react-prototype/test-results/gradient-sample.json
             react-prototype/test-results/icon-contrast.json
+            react-prototype/test-results/card-layout-audit.json
             react-prototype/test-results/offline-game-covers.png
             react-prototype/test-results/**/error-context.md
           if-no-files-found: warn
