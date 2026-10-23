@@ -26,6 +26,8 @@ jobs:
       - run: npm test
       - name: Electron desktop smoke test
         run: xvfb-run -a npm run test:desktop
+      - name: Native folder inspection IPC E2E
+        run: xvfb-run -a npm run test:inspection:e2e
       - name: Public UI screenshots and test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
