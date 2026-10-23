@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {mkdirSync} from 'node:fs';
 const destinations=[
  ['home','Início'],
  ['games','Jogos'],
@@ -13,6 +14,7 @@ const destinations=[
 test('registrar capturas das nove telas no protótipo isolado', async ({page})=>{
  await page.setViewportSize({width:1440,height:900});
  await page.goto('/');
+ mkdirSync('test-results/screenshots',{recursive:true});
  for(const [id,label] of destinations) {
   await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:label}).click();
   await expect(page.getByRole('main')).toBeVisible();
