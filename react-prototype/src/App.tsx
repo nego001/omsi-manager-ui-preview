@@ -75,6 +75,7 @@ export default function App(){
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
+ const [hypotheticalGameVersion,setHypotheticalGameVersion]=useState('');
  const [catalogMods,setCatalogMods]=useState<Mod[]>(mods);
  const [catalogSource,setCatalogSource]=useState('Demonstração');
  const [catalogError,setCatalogError]=useState('');
@@ -91,7 +92,7 @@ export default function App(){
   catch{/* private-mode storage can be unavailable; keep session state */}
  },[favorites,sidebar,dense]);
  const selected=catalogMods.find(m=>m.id===selectedMod)??catalogMods[0];
- const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id),[catalogMods,selected.id]);
+ const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
  const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&(`${m.title} ${m.category} ${games[m.game].title}`.toLowerCase().includes(search.toLowerCase()))),[catalogMods,selectedGame,category,search]);
  function goto(id:Screen){setScreen(id);setToast('')}
  function detail(id:string){setSelectedMod(id);goto('details')}
@@ -103,7 +104,7 @@ export default function App(){
   try{
    if(file.size>MAX_CATALOG_BYTES)throw new Error('Arquivo excede 1 MB.');
    const next=parseCatalogManifest(await file.text());
-   setCatalogMods(next);
+   setCatalogMods(next);setHypotheticalGameVersion('');
    setCatalogSource('Importado: '+file.name.slice(0,85));
    setCatalogError('');
    setSelectedMod(next[0].id);
@@ -126,7 +127,7 @@ export default function App(){
   }finally{setInspecting(null)}
  }
  function restoreDemo(){
-  setCatalogMods(mods);setCatalogSource('Demonstração');setCatalogError('');
+  setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
   setFavorites([]);
  }
@@ -160,12 +161,13 @@ export default function App(){
     {screen==='details'&&<><button className="back" onClick={()=>goto('catalog')}><ArrowLeft size={17}/> Voltar ao catálogo</button><div className="detail-layout"><div className="detail-art"><GameCover id={selected.game} large/></div><div><span className="eyebrow">{games[selected.game].title} / {selected.category}</span><h1>{selected.title}</h1><p>{selected.description}</p><div className="properties"><div><span>Versão</span><strong>{selected.version}</strong></div><div><span>Tamanho</span><strong>{selected.size}</strong></div><div><span>Verificação</span><strong>Dados ilustrativos</strong></div></div><div className="detail-actions"><button className="btn disabled-action" disabled title="Instalação desativada"><Download size={17}/> Instalar (bloqueado)</button><button className="btn disabled-action" disabled title="Desinstalação desativada"><Trash2 size={17}/> Remover (bloqueado)</button><button className="btn secondary" onClick={()=>setFavorites(a=>a.includes(selected.id)?a.filter(x=>x!==selected.id):[...a,selected.id])}>{favorites.includes(selected.id)?'Remover dos favoritos':'Adicionar aos favoritos'}</button></div><p className="lock-note"><LockKeyhole size={16}/> Nenhum mod será aplicado enquanto o pipeline de testes não estiver liberado.</p>
  <section className="relation-panel" aria-label="Simulação de dependências">
   <h2>Dependências e conflitos · simulação</h2>
+  <label className="version-simulator"><strong>Versão hipotética do jogo</strong><input aria-label="Versão hipotética do jogo" placeholder="Ex.: 1.52.0 (opcional)" value={hypotheticalGameVersion} onChange={e=>setHypotheticalGameVersion(e.target.value.slice(0,30))}/><small>Valor digitado por você. Não detectamos a versão instalada no computador.</small></label>
   <p>Somente metadados declarados no catálogo. Não é uma análise dos arquivos do jogo.</p>
   <div className="relation-verdict" role="status">{relationAnalysis.logicalBlockers?'Inconsistências lógicas encontradas':'Nenhum bloqueio lógico encontrado no JSON'}</div>
   <h3>Sequência teórica de dependências</h3>
   <ol className="relation-order">{relationAnalysis.sequence.map(m=><li key={m.id}>{m.title} <small>({m.id})</small></li>)}</ol>
   {relationAnalysis.issues.length>0?<ul className="relation-issues">{relationAnalysis.issues.map((issue,index)=><li key={issue.code+index} className={issue.severity}><strong>{issue.severity==='blocking'?'Bloqueio no catálogo':'Atenção'}:</strong> {issue.message}</li>)}</ul>:<p className="relation-clean">Nenhuma relação inconsistente declarada para este mod.</p>}
-  <p className="relation-disclaimer"><LockKeyhole size={15}/> Compatibilidade, versão do jogo, presença de mods e instalação real NÃO verificadas. Nenhuma ação é executada.</p>
+  <p className="relation-disclaimer"><LockKeyhole size={15}/> A versão informada é hipotética. Compatibilidade real, versão instalada, integridade dos mods e instalação NÃO verificadas. Nenhuma ação é executada.</p>
  </section></div></div></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div><div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div></>}
