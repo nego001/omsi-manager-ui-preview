@@ -60,6 +60,17 @@ jobs:
       - run: npm run build
       - run: npm run test:security
       - run: npm run package:win
+      - name: Test packaged Windows executable (real GUI)
+        timeout-minutes: 5
+        run: npm run test:portable:windows
+      - name: Upload Windows runtime screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-runtime-screenshots
+          path: react-prototype/test-results/screenshots/portable-windows/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Validate portable package and compress
         shell: pwsh
         run: |
