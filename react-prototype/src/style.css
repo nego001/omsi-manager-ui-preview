@@ -210,3 +210,12 @@
  .mod-info .text-button{min-height:0}
  .game-tile strong{font-size:15px}
 }
+
+/* A breakpoint must not animate sidebar width while the viewport is shrinking.
+   That transition could temporarily add 20-60px of horizontal scroll on narrow windows. */
+@media(max-width:760px){
+ .sidebar{transition:none!important}
+ .workspace,.content{min-width:0;max-width:100%}
+}
+/* Focus may be set by OS accessibility APIs as well as by keyboard navigation. */
+.mod-art:focus,.game-tile:focus{outline:3px solid #c0c9ff;outline-offset:-4px}
