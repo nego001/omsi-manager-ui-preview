@@ -50,3 +50,28 @@ As capturas de todas as nove telas são exportadas pela CI no artefato `react-pr
 Somente depois de recuperação independente do backup, auditoria técnica e testes de integridade, rollback, permissões e caminhos será possível projetar uma ponte IPC de **leitura** para uma branch de integração. Ações que escrevem ou removem arquivos exigem escopo e homologação separados.
 
 **Não mesclar este protótipo diretamente no código principal até a revisão visual e de segurança.**
+
+## Catálogo JSON personalizado (somente metadados)
+
+Na tela **Catálogo de mods**, escolha **Importar catálogo JSON** e selecione um arquivo local. Exemplo: [`examples/catalog.example.json`](./examples/catalog.example.json).
+
+```json
+{
+  "schemaVersion": 1,
+  "mods": [{
+    "id": "omsi-bus-demo",
+    "title": "Ônibus de exemplo",
+    "game": "omsi",
+    "category": "Ônibus",
+    "version": "1.0",
+    "description": "Apenas informações do catálogo.",
+    "size": "250 MB"
+  }]
+}
+```
+
+Jogos aceitos: `omsi`, `ets2`, `ats`. Categorias: Ônibus, Mapas, Caminhões, Sons, Gráficos. Aceita até 200 mods em arquivo JSON de até 1 MB. IDs devem ser únicos e usar letras minúsculas, números, hífen e underscore. Campos extras não são permitidos; não há suporte a paths, URLs, scripts, executáveis ou instruções de instalação.
+
+O arquivo é lido **somente após seleção explícita do usuário** pela API de arquivos do navegador. Ele não é copiado, aplicado, instalado, enviado a servidor ou persistido pelo aplicativo. Ao reiniciar/recarregar, volta o catálogo demonstrativo. Os favoritos armazenados localmente não contêm os dados importados e são limpos quando se troca a origem do catálogo.
+
+Esta é uma **etapa de integração de metadados**, não detecção de mods instalados nem restauração do backend original.
