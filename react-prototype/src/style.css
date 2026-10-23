@@ -41,3 +41,12 @@
 .inspection-note{margin-top:19px;border-top:1px solid #333746;padding-top:13px}
 @media(max-width:900px){.inspection-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.inspection-header{flex-direction:column}.inspection-panel{padding:15px}}
+
+/* Inspect-only breakdown. These counters do not imply valid or enabled mods. */
+.inspection-group{border-bottom:1px solid #303440}
+.inspection-group .inspection-stat{border-bottom:0}
+.inspection-breakdown{display:flex;flex-wrap:wrap;gap:5px 9px;padding:0 0 10px}
+.inspection-breakdown span{border:1px solid #3c4555;border-radius:6px;padding:4px 7px;background:#28313e;font-size:10px;color:#cbd5e4}
+.inspection-notices{margin:12px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.inspection-notices li{font-size:11px;line-height:1.6;padding:8px 9px;border-radius:7px;border-left:3px solid #6c9eae;background:#202f37;color:#c8e0ea}
+.inspection-notices li.attention{border-left-color:#bd9654;background:#352d25;color:#ffddb0}
