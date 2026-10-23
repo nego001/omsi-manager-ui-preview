@@ -1,8 +1,9 @@
 'use strict';
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./security-policy.cjs');
+const { requireGameId, inspectGameDirectory } = require('./game-inspection.cjs');
 
 function createWindow() {
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
@@ -43,6 +44,30 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle('preview:inspect-game', async (event, gameId) => {
+    // Renderer chooses only a game identifier. The native dialog owns folder choice.
+    requireGameId(gameId);
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const expectedURL = process.env.OMSI_MANAGER_DEV_PREVIEW === '1'
+      ? DEV_URL : pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href;
+    if (!win || win.isDestroyed() || !event.senderFrame ||
+        event.senderFrame !== event.sender.mainFrame ||
+        !isAllowedTopLevelURL(event.senderFrame.url, expectedURL)) {
+      throw new Error('Origem da inspeção não autorizada.');
+    }
+    const choice = await dialog.showOpenDialog(win, {
+      title: 'Selecione a pasta do jogo (somente leitura)',
+      properties: ['openDirectory', 'dontAddToRecent']
+    });
+    if (choice.canceled || choice.filePaths.length !== 1)
+      return { status: 'cancelled' };
+    try {
+      return await inspectGameDirectory(choice.filePaths[0], gameId);
+    } catch {
+      // Do not send absolute paths, file names, or filesystem errors to renderer.
+      return { status: 'error', message: 'Não foi possível inspecionar essa pasta.' };
+    }
+  });
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
