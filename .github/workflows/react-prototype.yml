@@ -36,3 +36,38 @@ jobs:
             react-prototype/test-results/**/error-context.md
           if-no-files-found: warn
           retention-days: 14
+
+  windows_portable:
+    name: Windows portable preview (not signed)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm run package:win
+      - name: Validate portable package and compress
+        shell: pwsh
+        run: |
+          $output = "release/OMSI-Manager-Preview-win32-x64"
+          if (!(Test-Path "$output/OMSI-Manager-Preview.exe")) {
+            throw "Portable executable not found."
+          }
+          if (!(Test-Path "$output/resources/app.asar")) {
+            throw "Embedded application archive not found."
+          }
+          Compress-Archive -Path "$output" -DestinationPath "release/OMSI-Manager-Preview-Windows-x64.zip" -Force
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Windows-x64-UNSIGNED
+          path: react-prototype/release/OMSI-Manager-Preview-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
