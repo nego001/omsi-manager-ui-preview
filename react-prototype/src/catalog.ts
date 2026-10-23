@@ -43,7 +43,7 @@ function numericRange(value:unknown,label:string):CatalogMod['gameVersionRange']
  }
  const min=raw.min as string|undefined;
  const max=raw.max as string|undefined;
- if(min&&max&&compareNumericVersions(min,max)!>0)
+ if(min&&max&&compareNumericVersions(min,max)===1)
   throw new Error(`Campo "${label}" tem intervalo invertido.`);
  return {min,max};
 }
