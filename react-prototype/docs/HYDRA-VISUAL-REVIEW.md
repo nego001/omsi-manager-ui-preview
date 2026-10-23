@@ -60,3 +60,9 @@ O destaque panorâmico foi preservado, porque a composição já se mostrou adeq
 A nova suíte `tests/card-layout.spec.ts` valida geometria, linhas, fonte e alinhamento a 1440, 1024, 850 e 390 px, além de testar título importado longo e card compacto. O relatório `card-layout-audit.json` é publicado como artefato, e o smoke do **EXE Windows empacotado** repete as verificações essenciais de tamanho de fonte e alinhamento a 1024/850 px.
 
 Estas são medições de consistência **interna** do projeto. Não alegam igualar espaçamento, fontes, arte ou geometria ao Hydra pixel a pixel. A validação física no notebook continua pendente.
+
+## Ajustes após o teste de regressão responsiva
+
+A primeira CI da rodada de tipografia e alinhamento identificou uma **largura extra transitória de 21 a 57 px** durante a mudança para viewport estreito. A transição de largura da barra lateral não deve rodar enquanto o breakpoint reduz o menu; ela agora é desligada abaixo de 760 px, preservando as animações no desktop. Também acrescentamos contorno de foco quando cartões recebem foco por APIs assistivas ou automaticamente, não apenas via `:focus-visible`.
+
+A etapa só pode ser considerada validada depois da nova CI verde. O teste de títulos longos continua impedindo o corte de nomes de até 100 caracteres informados em JSON.
