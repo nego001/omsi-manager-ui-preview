@@ -9,10 +9,13 @@ test('capas de jogos mantêm título e fundo íntegros sem acesso ao servidor de
  await page.route('https://shared.fastly.steamstatic.com/**',route=>route.abort('internetdisconnected'));
  await page.goto('/');
  const hero=page.locator('.hero-art .game-cover');
- await expect(hero).toHaveCount(3);
+ await expect(hero).toHaveCount(1);
  await expect(hero.locator('.cover-fallback strong').first()).toHaveText('OMSI 2');
  await expect(hero.locator('img').first()).toHaveCSS('opacity','0');
  await expect(page.locator('.hero-art .game-cover[data-cover-loaded="true"]')).toHaveCount(0);
+ await page.getByRole('group',{name:'Escolher simulador em destaque'}).getByRole('button',{name:'Mostrar American Truck Simulator no destaque'}).click();
+ await expect(hero.locator('.cover-fallback strong')).toHaveText('American Truck Simulator');
+ await expect(hero.locator('img')).toHaveCSS('opacity','0');
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
  const covers=page.locator('.game-tile .game-cover');
  await expect(covers).toHaveCount(3);
