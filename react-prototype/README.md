@@ -2,6 +2,12 @@
 
 Este projeto contém nove telas navegáveis de uma futura interface do OMSI Manager, em uma pasta separada do aplicativo original. **Não é a aplicação principal, nem uma restauração validada do backup.**
 
+## Visão do ecossistema e etapa atual
+
+A visão transversal de automação do usuário foi registrada em [ECOSYSTEM-VISION.md](docs/ECOSYSTEM-VISION.md) e na [issue #2](https://github.com/nego001/omsi-manager-ui-preview/issues/2). Ela abrange identificação baseada em evidências de mods OMSI 2/ETS2/ATS, biblioteca com mídia autêntica, filtros, detecção de instalações, diagnóstico, adaptações versionadas, loja e operações transacionais com backup/rollback.
+
+**Etapa em desenvolvimento:** acabamento visual e informativo da Biblioteca e Detalhes. A Biblioteca filtra **favoritos declarativos** por jogo e categoria; não representa um inventário de mods realmente instalados. Detalhes mostra **arte ilustrativa do próprio registro de mod**, identificada como ilustração, em vez de exibir erroneamente a capa do jogo como foto do mod. Estados de compatibilidade e instalação reais permanecem não verificados. Não existe instalador ou atualizador habilitado.
+
 ## Telas
 
 1. Início
