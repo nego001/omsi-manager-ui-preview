@@ -67,7 +67,7 @@ test('detalhes mostram a sequência e aviso de compatibilidade não verificada',
  await expect(panel.locator('ol li').nth(0)).toContainText('Pacote base OMSI');
  await expect(panel.locator('ol li').nth(1)).toContainText('Ônibus OF-1721 (exemplo)');
  await expect(panel.locator('ol li').nth(2)).toContainText('Sons do OF-1721 (exemplo)');
- await expect(panel.getByText(/Compatibilidade, versão do jogo, presença de mods e instalação real NÃO verificadas/)).toBeVisible();
+ await expect(panel.getByText(/A versão informada é hipotética. Compatibilidade real, versão instalada, integridade dos mods e instalação NÃO verificadas/)).toBeVisible();
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
 });
