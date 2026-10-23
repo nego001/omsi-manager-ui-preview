@@ -84,6 +84,57 @@ try{
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Segurança'}).click();
  await window.getByRole('heading',{name:'Central de segurança'}).waitFor({timeout:12000});
  await window.screenshot({path:join(shots,'05-seguranca.png'),animations:'disabled'});
+ // Visual evidence of all nine real screens, not just the four main destinations.
+ // Use content size to exercise native BrowserWindow resizing, not a CSS-only mock.
+ const screens=[
+   ['Início','Seu universo de simulação, organizado.','inicio'],
+   ['Jogos','Escolha seu simulador','jogos'],
+   ['Catálogo de mods','Catálogo de mods','catalogo'],
+   ['Minha biblioteca','Minha biblioteca','biblioteca'],
+   ['Detalhes','Ônibus Urbano Clássico','detalhes'],
+   ['Fila de tarefas','Fila de tarefas','fila'],
+   ['Histórico','Histórico','historico'],
+   ['Configurações','Configurações','configuracoes'],
+   ['Segurança','Central de segurança','seguranca']
+ ];
+ const jsErrors=[];
+ window.on('pageerror',error=>jsErrors.push(error.message));
+ const navigate=async(name,heading)=>{
+   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name}).click();
+   await window.getByRole('heading',{name:heading,exact:true}).waitFor({timeout:12000});
+   const active=window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name});
+   assert.match(await active.getAttribute('class')??'',/active/);
+ };
+ for(const [name,heading,file] of screens){
+   await navigate(name,heading);
+   await window.screenshot({path:join(shots,'06-'+file+'-1440.png'),animations:'disabled',fullPage:true});
+   assert.equal(await window.getByRole('heading',{name:heading,exact:true}).isVisible(),true);
+ }
+ // Native resize: 1024 and the app's declared 850px minimum.
+ for(const [width,height] of [[1024,768],[850,650]]){
+   await application.evaluate(({BrowserWindow},size)=>{
+     const win=BrowserWindow.getAllWindows()[0];
+     win.setContentSize(size.width,size.height);
+   },{width,height});
+   await window.waitForTimeout(180);
+   const viewport=await window.evaluate(()=>({w:window.innerWidth,h:window.innerHeight}));
+   assert.ok(viewport.w<=width+30&&viewport.w>=width-30,'Native window did not resize');
+   for(const [name,heading,file] of screens){
+     await navigate(name,heading);
+     const dimensions=await window.evaluate(()=>({
+       viewport:document.documentElement.clientWidth,
+       width:document.documentElement.scrollWidth,
+       mainWidth:document.querySelector('main')?.clientWidth??0
+     }));
+     assert.ok(dimensions.mainWidth>0,'Main content must remain rendered');
+     // Capture actual layout for manual review; overflow is measured and reported separately.
+     await window.screenshot({path:join(shots,'07-'+file+'-'+width+'.png'),animations:'disabled',fullPage:true});
+     console.log('WINDOWS VISUAL CHECK',width,name,'horizontal overflow px:',Math.max(0,dimensions.width-dimensions.viewport));
+   }
+ }
+ assert.deepEqual(jsErrors,[],'Renderer emitted uncaught JavaScript exceptions during screen sweep');
+ console.log('WINDOWS NINE SCREENS: OK. 9 pages visited at 1440, 1024 and 850 CSS px; screenshots captured.');
+
  console.log('WINDOWS PORTABLE EXE SMOKE: OK. EXE empacotado abriu; sandbox, IPC, inspeção sintética, relatório e bloqueios verificados.');
 }finally{
  await application?.close();
