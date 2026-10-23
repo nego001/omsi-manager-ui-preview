@@ -6,6 +6,8 @@ export type InspectionGroup={
 export type InspectionNotice={code:string;level:'info'|'attention';message:string};
 export type FolderInspection=
  | {status:'ok';game:InspectionGameId;folderName:string;recognized:boolean;mode:'read-only';
+    selectionMode:'parent-folder'|'direct-mod-folder';
+    assessment:{scope:'directory-structure-only';compatibilityVerified:false;installationVerified:false;summary:string};
     limited:boolean;groups:InspectionGroup[];notices:InspectionNotice[]}
  | {status:'cancelled'}
  | {status:'error';message:string};
