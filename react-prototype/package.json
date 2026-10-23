@@ -10,7 +10,8 @@
     "test": "playwright test",
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "desktop": "electron .",
-    "test:security": "node --test electron/*.test.cjs"
+    "test:security": "node --test electron/*.test.cjs",
+    "test:desktop": "node scripts/desktop-smoke.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
