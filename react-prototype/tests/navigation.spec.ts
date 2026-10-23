@@ -14,8 +14,8 @@ test('jogo, filtro e detalhes selecionados',async({page})=>{
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
  await page.getByRole('button',{name:/Euro Truck Simulator 2.*Ver mods/}).click();
  await expect(page.getByText('2 resultados')).toBeVisible();
- await page.getByRole('button',{name:'Iluminação Noturna'}).click();
- await expect(page.getByRole('heading',{name:'Iluminação Noturna'})).toBeVisible();
+ await page.getByRole('button',{name:'Iluminação Noturna',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Iluminação Noturna',exact:true})).toBeVisible();
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
 });
 test('favoritos não executam instalação',async({page})=>{
@@ -23,7 +23,7 @@ test('favoritos não executam instalação',async({page})=>{
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByRole('button',{name:'Favoritar'}).first().click();
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
- await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
  await expect(page.getByText('Os favoritos são temporários')).toBeVisible();
 });
 test('pesquisa e filtros não atravessam jogos',async({page})=>{
@@ -33,5 +33,5 @@ test('pesquisa e filtros não atravessam jogos',async({page})=>{
  await expect(page.getByText('3 resultados')).toBeVisible();
  await page.getByRole('combobox',{name:'Filtrar categoria'}).selectOption('Mapas');
  await expect(page.getByText('1 resultado')).toBeVisible();
- await expect(page.getByRole('button',{name:'Serra do Vale'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Serra do Vale',exact:true})).toBeVisible();
 });
