@@ -19,6 +19,22 @@ const mods:Mod[]=[
  {id:'ats-truck',title:'Long Haul Classic',game:'ats',category:'Caminhões',version:'1.4',description:'Caminhão fictício para teste de seleção dinâmica.',size:'410 MB',safe:true},
  {id:'ats-sound',title:'Motor & Estrada',game:'ats',category:'Sons',version:'1.0',description:'Pacote fictício para apresentar metadados.',size:'185 MB',safe:true}
 ];
+const previewArt:Record<string,{glyph:string;first:string;second:string}> = {
+ 'omsi-bus':{glyph:'BUS',first:'#507ab9',second:'#18283e'},
+ 'omsi-map':{glyph:'MAP',first:'#729572',second:'#203c34'},
+ 'omsi-sound':{glyph:'SND',first:'#8c70b8',second:'#2c2446'},
+ 'ets-truck':{glyph:'TRK',first:'#b98858',second:'#393044'},
+ 'ets-graphic':{glyph:'FX',first:'#3b8caa',second:'#212f51'},
+ 'ats-truck':{glyph:'USA',first:'#b86669',second:'#33243b'},
+ 'ats-sound':{glyph:'V8',first:'#ad9562',second:'#49323c'}
+};
+function ModArtwork({mod}:{mod:Mod}){
+ const art=previewArt[mod.id];
+ return <div className="mod-cover" style={{'--mod-first':art.first,'--mod-second':art.second} as React.CSSProperties}>
+  <span className="mod-cover-glyph" aria-hidden="true">{art.glyph}</span>
+  <div className="mod-cover-caption"><strong>{mod.title}</strong><small>VISUAL ILUSTRATIVO</small></div>
+ </div>;
+}
 const nav:{id:Screen;label:string;icon:typeof House}[]=[
  {id:'home',label:'Início',icon:House},{id:'games',label:'Jogos',icon:Gamepad2},
  {id:'catalog',label:'Catálogo de mods',icon:Grid2X2},{id:'library',label:'Minha biblioteca',icon:Library},
@@ -43,7 +59,7 @@ export default function App(){
  function goto(id:Screen){setScreen(id);setToast('')}
  function detail(id:string){setSelectedMod(id);goto('details')}
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
- const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><GameCover id={m.game}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span><button className="text-button" onClick={()=>detail(m.id)}>{m.title}</button><div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} onClick={()=>setFavorites(a=>a.includes(m.id)?a.filter(x=>x!==m.id):[...a,m.id])}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
+ const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span><button className="text-button" onClick={()=>detail(m.id)}>{m.title}</button><div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} onClick={()=>setFavorites(a=>a.includes(m.id)?a.filter(x=>x!==m.id):[...a,m.id])}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
  const title=nav.find(n=>n.id===screen)?.label??'Início';
  return <div className="shell">
   <aside className={'sidebar '+(!sidebar?'collapsed':'')}>
