@@ -137,3 +137,18 @@ Na tela **Detalhes**, o painel **Dependências e conflitos · simulação** orde
 Exemplo: [`examples/catalog.dependencies.example.json`](./examples/catalog.dependencies.example.json). Esse exemplo é fictício e não entrega nenhum mod. **Uma sequência sem erros no JSON não autoriza instalação nem comprova compatibilidade, integridade, versão, dependências reais ou ausência de conflitos nos arquivos.** Instalação e desinstalação seguem bloqueadas.
 
 As verificações são inteiramente em memória, sem IPC, sem ler arquivos de jogos e sem escrever em disco.
+
+## Requisitos de versões (somente declarações do catálogo)
+
+Além de `requires` e `conflictsWith`, cada mod do JSON `schemaVersion: 1` pode declarar:
+
+- `gameVersionRange: {"min":"1.50","max":"1.55"}`. Ambos opcionais individualmente, mas o objeto deve ter pelo menos um, com mínimo menor ou igual ao máximo.
+- `requiresMinVersions: [{"id":"outro-mod","minVersion":"2.2"}]`. Cada ID precisa existir em `requires` no próprio registro. No máximo 20 requisitos, sem repetição.
+
+O comparador aceita apenas versões numéricas de **1 a 4 componentes**, separados por ponto, sem prefixo `v`, rótulos `beta`, sufixos ou intervalos automáticos. Por exemplo `1.52` e `1.52.0` são equivalentes; `1.10` é maior que `1.9`. Versões fora desse formato **não são adivinhadas**: em requisitos de dependência, o diagnóstico as sinaliza como não comparáveis.
+
+A pessoa pode preencher em **Detalhes → Versão hipotética do jogo** um valor para testar uma regra declarada. Não é autodetecção e não há leitura do Steam, registro do Windows, executáveis nem arquivos do jogo. Sem valor informado, o diagnóstico registra que a condição do jogo não foi verificada. A comparação de versão dos mods usa **exclusivamente o número publicado no JSON**, não o mod instalado.
+
+Exemplo demonstrativo: [`examples/catalog.versions.example.json`](./examples/catalog.versions.example.json). Contém propositalmente uma dependência declarada em versão insuficiente para demonstrar alertas.
+
+**“Nenhum bloqueio lógico no JSON” não é sinal de compatibilidade real, segurança, integridade ou autorização para instalar mods.** Instalação e remoção continuam permanentemente desativadas nesta prévia.
