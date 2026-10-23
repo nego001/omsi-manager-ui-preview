@@ -6,6 +6,10 @@ on:
     paths:
       - 'react-prototype/**'
       - '.github/workflows/react-prototype.yml'
+concurrency:
+  group: react-prototype-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
