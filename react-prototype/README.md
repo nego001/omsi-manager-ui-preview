@@ -38,10 +38,10 @@ Comandos auxiliares:
 ## Limites de segurança
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`.
-- Sem `ipcRenderer` exposto, sem acesso a arquivos, sem execução de comandos ou APIs do instalador.
+- Sem `ipcRenderer` genérico exposto, sem leitura de conteúdo de arquivos, sem execução de comandos nem APIs do instalador. Existe apenas uma função IPC limitada de inspeção manual de diretórios (veja abaixo).
 - Downloads, permissões da sessão, abertura de janelas e navegação externa bloqueados.
 - Botões de instalação e desinstalação desativados por construção.
-- Não executa varredura de diretórios, detecção de jogo, cópia de arquivos ou alterações de mods.
+- Apenas a inspeção manual e não recursiva de subpastas específicas é permitida após o usuário selecionar uma pasta; não há varredura automática de instalações, cópia de arquivos ou alterações de mods.
 
 ## Validações e próximos passos
 
@@ -85,3 +85,22 @@ Depois de baixar o artefato no GitHub Actions: descompacte **a pasta inteira** e
 O ZIP da prévia não inclui mods, instalações do Steam, banco de dados, jogo, relatórios privados nem código do backup do OMSI Manager. Ele não tem botão funcional para instalar ou remover mods.
 
 Uma CI verde atesta o build/empacotamento automático, mas **não substitui testes manuais no Windows e uma revisão de assinatura/distribuição**.
+
+
+## Inspeção opcional de pastas (novo)
+
+No **aplicativo Electron**, em **Jogos → Inspeção local**, clique em `Selecionar pasta e inspecionar` no jogo correspondente. O sistema abre um diálogo **nativo**, e só inspeciona a pasta que a pessoa escolheu naquele momento.
+
+- OMSI 2: contagem direta das entradas em `Vehicles`, `maps`, `Sceneryobjects` e `Splines`.
+- ETS2 e ATS: contagem direta das entradas em `mod` (se existir sob a pasta escolhida).
+- Limite de **2.000 entradas por subpasta**; sem recursão, hash, leitura de conteúdo, extração de arquivos, execução de executáveis ou modificação dos jogos.
+- Pastas-alvo que são links simbólicos são recusadas; também não segue links internos.
+- A interface só recebe o **nome da pasta principal**, contagens e indicadores de presença/limite, nunca caminhos completos nem nomes de arquivos.
+- O renderer aceita apenas os identificadores `omsi`, `ets2` e `ats`. Não envia nomes de diretórios nem caminhos arbitrários ao processo principal.
+- A solicitação IPC exige que a origem seja a página principal autorizada do próprio aplicativo. IPC bruto, Node.js, filesystem e shell **não são expostos** ao renderer.
+- Nenhum dado da inspeção é persistido ou enviado à rede. Uma pasta sem estrutura conhecida é exibida como **não reconhecida**, sem afirmar que o jogo está instalado.
+- No navegador comum, os três botões de inspeção ficam desabilitados.
+
+A inspeção é **experimental e somente leitura**, não substitui detecção automática de instalações e não comprova a compatibilidade dos mods. A inspeção de arquivos reais do usuário ainda precisa ser homologada num Windows físico; os testes de CI usam exclusivamente pastas temporárias sintéticas.
+
+Comandos de validação: `npm run test:security`, `npm test` e `npm run test:desktop`.
