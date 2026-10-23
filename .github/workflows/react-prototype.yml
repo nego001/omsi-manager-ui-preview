@@ -39,6 +39,7 @@ jobs:
           name: react-prototype-visual-review
           path: |
             react-prototype/test-results/screenshots/
+            react-prototype/test-results/contrast-audit.json
             react-prototype/test-results/**/error-context.md
           if-no-files-found: warn
           retention-days: 14
