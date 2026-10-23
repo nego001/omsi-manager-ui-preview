@@ -101,3 +101,11 @@
 .report-footnote svg{flex-shrink:0}
 @media(max-width:850px){.report-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.report-heading{flex-direction:column}.diagnostic-report{padding:15px}.report-findings li{gap:9px}}
+
+/* Keyboard-first access to the nine-screen SPA, including when the sidebar is collapsed. */
+.skip-link{position:fixed;top:8px;left:8px;z-index:120;transform:translateY(-170%);background:#f3f0ff;color:#171926;border:2px solid #827cdb;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;box-shadow:0 6px 20px #0008}
+.skip-link:focus-visible{transform:translateY(0);outline:3px solid #f1cc76;outline-offset:2px}
+#conteudo-principal:focus{outline:none}
+#conteudo-principal:focus-visible{outline:3px solid #b3a9ff;outline-offset:-3px}
+.nav-link[aria-current="page"]{color:#e1e5ff}
+@media(prefers-reduced-motion:reduce){.sidebar,.nav-link,.game-tile,.mod-card{transition:none!important}}
