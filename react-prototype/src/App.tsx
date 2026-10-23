@@ -43,7 +43,7 @@ function ModArtwork({mod}:{mod:Mod}){
  return <div className="mod-cover" style={{'--mod-first':art.first,'--mod-second':art.second} as React.CSSProperties}>
   <span className="mod-cover-glyph" aria-hidden="true">{art.glyph}</span>
   <div className="mod-cover-caption"><strong>{mod.title}</strong><small>VISUAL ILUSTRATIVO</small></div>
- </div></>;
+ </div>;
 }
 const nav:{id:Screen;label:string;icon:typeof House}[]=[
  {id:'home',label:'Início',icon:House},{id:'games',label:'Jogos',icon:Gamepad2},
@@ -193,5 +193,5 @@ export default function App(){
     {screen==='security'&&<><div className="page-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>A inspeção local é manual e só conta entradas diretas de pastas conhecidas, sem ler conteúdo de arquivos.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}
    </main><footer className="footer"><span>OMSI Manager · Interface React independente</span><span><ShieldCheck size={13}/> Modo demonstração seguro</span></footer>
   </div>{toast&&<div className="toast" role="status"><LockKeyhole size={16}/>{toast}<button aria-label="Fechar aviso" onClick={()=>setToast('')}>×</button></div>}
- </div>;
+ </div></>;
 }
