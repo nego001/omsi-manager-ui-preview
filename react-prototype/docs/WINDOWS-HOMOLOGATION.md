@@ -56,3 +56,11 @@ O protótipo oferece **Pular para o conteúdo principal** como primeiro elemento
 A CI também testa se botões, entradas e seletores visíveis não passam pelas bordas horizontais da janela a 1024 e 850 pixels; isso é diferente de apenas verificar a ausência de uma barra de rolagem horizontal. O CSS respeita `prefers-reduced-motion` para animações decorativas. Testes do navegador exercitam teclado, foco, menu compacto, movimentação reduzida e limites de controles.
 
 Na homologação física, também confira `Tab`, `Shift+Tab` e `Enter` nas nove telas; indicadores de foco, escolha de pastas com o diálogo nativo e navegação sem mouse. Os testes **não** substituem auditoria completa com leitor de tela, contraste ou verificação de DPI real do Windows.
+
+## Auditoria automatizada de contraste (escopo declarado)
+
+Uma rotina Playwright agora mede o **contraste calculado de textos representativos** em fundos sólidos das nove telas, usando 4,5:1 para texto comum e 3:1 para texto grande, com a fórmula de contraste do WCAG 2.x. A rotina também confere a presença de contorno visível no foco da barra de navegação, gera `test-results/contrast-audit.json` e publica esse relatório com as capturas no artefato `react-prototype-visual-review`.
+
+A primeira correção foi no rótulo lateral `EXPLORAR`, cuja cor anterior tinha contraste insuficiente. A auditoria não cobre texto sobre gradientes complexos, capas Steam, ilustrações, translucidez, ícones isolados, imagens com texto, nem uma avaliação completa de WCAG, de leitores de tela ou de similaridade visual com Hydra. Esses itens exigem inspeção humana e, quando aplicável, ferramentas especializadas.
+
+**Critério da CI:** um texto amostrado com relação de contraste abaixo do limiar reprova o teste, e o JSON identifica a tela, o seletor, as cores e a razão encontrada.
