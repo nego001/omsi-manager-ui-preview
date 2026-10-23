@@ -127,11 +127,31 @@ try{
        mainWidth:document.querySelector('main')?.clientWidth??0
      }));
      assert.ok(dimensions.mainWidth>0,'Main content must remain rendered');
-     // Capture actual layout for manual review; overflow is measured and reported separately.
+     // Pages must not introduce a horizontal document scrollbar at supported window sizes.
+     const overflow=Math.max(0,dimensions.width-dimensions.viewport);
+     console.log('WINDOWS VISUAL CHECK',width,name,'horizontal overflow px:',overflow);
+     assert.ok(overflow<=3,'Horizontal document overflow on '+name+' at '+width+': '+overflow+'px');
      await window.screenshot({path:join(shots,'07-'+file+'-'+width+'.png'),animations:'disabled',fullPage:true});
-     console.log('WINDOWS VISUAL CHECK',width,name,'horizontal overflow px:',Math.max(0,dimensions.width-dimensions.viewport));
    }
  }
+ // Chromium zoom tests text scaling inside the packaged runtime; does not claim to test Windows DPI.
+ await application.evaluate(({BrowserWindow})=>{
+   BrowserWindow.getAllWindows()[0].setContentSize(1024,768);
+ });
+ for(const factor of [1.25,1.5]){
+   await application.evaluate(({BrowserWindow},zoom)=>{
+     BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(zoom);
+   },factor);
+   await window.waitForTimeout(160);
+   await navigate('Detalhes','Ônibus Urbano Clássico');
+   assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
+   assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
+   await window.getByRole('region',{name:'Relatório consolidado'}).waitFor({timeout:12000});
+   await window.screenshot({path:join(shots,'08-detalhes-zoom-'+Math.round(factor*100)+'.png'),animations:'disabled',fullPage:true});
+ }
+ await application.evaluate(({BrowserWindow})=>{
+   BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1);
+ });
  assert.deepEqual(jsErrors,[],'Renderer emitted uncaught JavaScript exceptions during screen sweep');
  console.log('WINDOWS NINE SCREENS: OK. 9 pages visited at 1440, 1024 and 850 CSS px; screenshots captured.');
 
