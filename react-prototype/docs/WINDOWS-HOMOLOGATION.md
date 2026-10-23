@@ -48,3 +48,11 @@ Compare o `Hash` com o conteúdo do `OMSI-Manager-Preview-Windows-x64.sha256`.
 Anote o Windows (edição e compilação), resolução/escala da tela, versão do pacote ou link exato da CI e se ocorreram: erro de abertura, falha de navegação, erro de leitura, congelamento, diferença visual, alerta de segurança. Não anexe logs contendo nomes de pastas pessoais sem remover essas informações.
 
 **Critérios para sair do modo de rascunho:** execução da CI Windows verde, homologação manual documentada, revisão visual das nove telas, auditoria do backup original e desenho separado de permissões/backup/rollback. Não mesclar ou permitir operações destrutivas apenas porque o executável abriu.
+
+## Teclado e acessibilidade (novos testes)
+
+O protótipo oferece **Pular para o conteúdo principal** como primeiro elemento focável com `Tab` após abrir o aplicativo. `Enter` leva o foco ao conteúdo central. Os nove botões da navegação declaram nome acessível, inclusive quando a barra lateral está compacta, e só a tela ativa tem `aria-current="page"`.
+
+A CI também testa se botões, entradas e seletores visíveis não passam pelas bordas horizontais da janela a 1024 e 850 pixels; isso é diferente de apenas verificar a ausência de uma barra de rolagem horizontal. O CSS respeita `prefers-reduced-motion` para animações decorativas. Testes do navegador exercitam teclado, foco, menu compacto, movimentação reduzida e limites de controles.
+
+Na homologação física, também confira `Tab`, `Shift+Tab` e `Enter` nas nove telas; indicadores de foco, escolha de pastas com o diálogo nativo e navegação sem mouse. Os testes **não** substituem auditoria completa com leitor de tela, contraste ou verificação de DPI real do Windows.
