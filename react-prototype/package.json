@@ -13,7 +13,8 @@
     "test:security": "node --test electron/*.test.cjs",
     "test:desktop": "node scripts/desktop-smoke.mjs",
     "package:win": "node scripts/package-windows.mjs",
-    "test:inspection:e2e": "node scripts/desktop-inspection-e2e.mjs"
+    "test:inspection:e2e": "node scripts/desktop-inspection-e2e.mjs",
+    "test:portable:windows": "node scripts/portable-windows-smoke.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
