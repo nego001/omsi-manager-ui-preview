@@ -9,7 +9,7 @@ test('navegador exibe inspeção somente leitura desativada fora do desktop',asy
  for(const button of await page.getByRole('button',{name:'Selecionar pasta e inspecionar'}).all()){
   await expect(button).toBeDisabled();
  }
- await expect(page.getByText('Nenhum caminho completo ou nome de arquivo é enviado à interface.')).toBeVisible();
+ await expect(page.locator('.inspection-note')).toContainText('Não enviamos caminhos completos nem nomes de arquivos à interface.');
 });
 
 test('inspeção não ativa operações de instalação ou exclusão',async({page})=>{
