@@ -104,3 +104,11 @@ No **aplicativo Electron**, em **Jogos → Inspeção local**, clique em `Seleci
 A inspeção é **experimental e somente leitura**, não substitui detecção automática de instalações e não comprova a compatibilidade dos mods. A inspeção de arquivos reais do usuário ainda precisa ser homologada num Windows físico; os testes de CI usam exclusivamente pastas temporárias sintéticas.
 
 Comandos de validação: `npm run test:security`, `npm test` e `npm run test:desktop`.
+
+## Homologação automatizada do seletor nativo
+
+O teste `npm run test:inspection:e2e` abre a janela Electron e intercepta o **seletor de pastas apenas no processo de teste**, fornecendo um diretório temporário sintético. Confere a contagem de subpastas OMSI 2 na interface, cancelamento, rejeição de IDs inválidos, ausência de divulgação do caminho absoluto, bloqueio de diálogos simultâneos e preservação de um arquivo sentinela.
+
+No Linux sem tela: `xvfb-run -a npm run test:inspection:e2e`. A CI executa esse teste antes de considerar o protótipo aprovado.
+
+A janela real de escolha de pasta ainda precisa ser testada presencialmente no Windows. O teste com simulação não autentica detecção de instalações Steam, não lê nenhum mod verdadeiro e não libera instalação/desinstalação.
