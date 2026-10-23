@@ -12,7 +12,7 @@ test('capas de jogos mantêm título e fundo íntegros sem acesso ao servidor de
  await expect(hero).toHaveCount(3);
  await expect(hero.locator('.cover-fallback strong').first()).toHaveText('OMSI 2');
  await expect(hero.locator('img').first()).toHaveCSS('opacity','0');
- await expect(hero.locator('[data-cover-loaded="true"]')).toHaveCount(0);
+ await expect(page.locator('.hero-art .game-cover[data-cover-loaded="true"]')).toHaveCount(0);
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
  const covers=page.locator('.game-tile .game-cover');
  await expect(covers).toHaveCount(3);
@@ -94,10 +94,9 @@ test('ícones de status renderizados contrastam com seus fundos sólidos',async(
    let background:string|null=null;
    while(element){
     const bg=getComputedStyle(element).backgroundColor;
-    if(bg&&parseFloat(bg.match(/[\d.]+(?=\))$/)?.[0]??'1')===1&&!bg.startsWith('rgba(0, 0, 0, 0)')){
-     // Only opaque backgrounds, not transparent rgba layers.
-     if(bg.startsWith('rgb(')||!bg.endsWith(', 0)')){background=bg;break;}
-    }
+    const opaque=bg.startsWith('rgb(')||
+     (bg.startsWith('rgba(')&&Number(bg.slice(bg.lastIndexOf(',')+1,-1).trim())===1);
+    if(opaque){background=bg;break;}
     element=element.parentElement;
    }
    if(!background)throw new Error('No solid background for '+selector);
