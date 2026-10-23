@@ -113,3 +113,28 @@
 /* Steam covers are optional: retain a readable, deterministic card without network. */
 .game-cover img.cover-loaded{opacity:1}
 @media(prefers-reduced-motion:reduce){.game-cover img{transition:none!important}}
+
+
+/* Hydra-inspired neutral framing. This prototype keeps its own name, icons and mod-specific functionality.
+   The design comparison is directional, not a claim of Hydra 1:1 reproduction. */
+:root{--frame:#111214;--panel:#1b1d20;--panel-hover:#26282c;--edge:#32353b;--muted:#aeb3bd;--accent:#d5d8e2}
+.sidebar{background:var(--frame);border-right-color:var(--edge)}
+.topbar{background:var(--frame);border-bottom-color:var(--edge)}
+.nav-link:hover{background:var(--panel-hover)}
+.nav-link.active{background:#292c31;color:#f1f3f7}
+.nav-link.active svg{color:#d0d6df}
+.nav-link[aria-current="page"]{color:#f1f3f7}
+.brand-mark{background:#242831;border:1px solid #626b7b;color:#e7ebf5}
+.mode-indicator{background:#202a27;color:#bfe0cc}
+.hero{background:radial-gradient(circle at 81% 23%,#30384466,transparent 41%),linear-gradient(115deg,#242830,#181c21 74%);border-color:#414751}
+.eyebrow{color:#ccd1df}
+.game-tile,.mod-card{background:var(--panel);border-color:var(--edge)}
+.game-tile:hover,.mod-card:hover{border-color:#7e8899}
+.tabs button.selected{background:#393d46;border-color:#818998}
+.btn.primary{background:#eceef5;color:#1b2028}
+.search{background:#202227;border-color:#43464e}
+.search input{color:#f2f3f6}
+.footer{border-top-color:var(--edge)}
+/* Hidden for pointer users and screenshots; keyboard focus remains visible. */
+.skip-link{visibility:hidden;opacity:0;pointer-events:none}
+.skip-link:focus-visible{visibility:visible;opacity:1;pointer-events:auto}
