@@ -89,7 +89,7 @@ test('projeções limitam cada módulo às pistas declarativas de que precisa',(
 });
 test('extensões não reconhecidas viram desconhecidas, não instruções executáveis',()=>{
  const i=ready(['x/malware.exe','x/file.bat','x/random.foo','mod/truck_ats.scs']);
- expect(i.entries.map(e=>e.suffix)).toEqual(['unknown','unknown','unknown','scs']);
+ expect(i.entries.map(e=>e.suffix)).toEqual(['scs','unknown','unknown','unknown']);
  expect(i.gameVerified).toBe(false);
  expect(projectSyntheticIndex(i,'definitions').entries).toHaveLength(0);
 });
