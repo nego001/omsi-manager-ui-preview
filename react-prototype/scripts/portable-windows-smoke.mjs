@@ -96,6 +96,11 @@ try{
  await window.getByRole('region',{name:'Relatório consolidado'}).waitFor({timeout:12000});
  const relations=window.getByRole('region',{name:'Simulação de dependências'});
  assert.equal(await relations.locator('.relation-overview > div').count(),3,'Three catalog-only relation summary counts');
+ assert.equal(await relations.locator('.relation-timeline > li').count(),1,'Demo selection must display one declared stage');
+ assert.equal(await relations.locator('.relation-timeline > li').first().getAttribute('data-stage-role'),'selected');
+ assert.match(await relations.innerText(),/Este mod não declara dependências/);
+ await relations.locator('.relation-stage-detail summary').first().click();
+ assert.match(await relations.locator('.relation-stage-detail').first().innerText(),/não verificadas/);
  assert.match(await relations.innerText(),/Nenhuma relação inconsistente declarada para este mod/);
  assert.match(await relations.innerText(),/Nenhum aviso resolvido ou ausente comprova que o mod funciona/);
  assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
