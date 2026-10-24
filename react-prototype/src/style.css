@@ -321,3 +321,14 @@
  .relation-stage-number{flex-basis:30px;height:30px}
  .relation-stage-body{padding:10px 11px}
 }
+
+/* Diagnostic jump: one relevant action per favorite with a declared catalog issue.
+   Never offer this as an install/repair shortcut or for issue-free metadata. */
+.library-diagnostic-link{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:28px;width:fit-content;text-align:left;margin:7px 0 0;padding:5px 3px;border:0;background:transparent;color:#dce8fc;font-size:11px;font-weight:650;line-height:1.4;cursor:pointer;overflow-wrap:anywhere}
+.library-diagnostic-link span{min-width:0;overflow-wrap:anywhere}
+.library-diagnostic-link svg{flex-shrink:0}
+.library-diagnostic-link:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
+.library-diagnostic-link:focus-visible{outline:2px solid #b9caff;outline-offset:3px;border-radius:4px}
+#relacoes-declaradas{scroll-margin-top:20px}
+#relacoes-declaradas:focus{outline:2px solid #a5bbeb;outline-offset:4px}
+@media(max-width:480px){.library-diagnostic-link{font-size:11px;min-height:32px}}
