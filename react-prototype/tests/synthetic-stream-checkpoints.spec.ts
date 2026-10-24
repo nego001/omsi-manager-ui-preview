@@ -18,7 +18,7 @@ function screen(entries:readonly {path:string;kind:'file'|'directory';encodedByt
  const h=createSyntheticContainerReview(session,{format:'zip-declared',entries:entries.map(e=>({
   ...e,compression:'deflate'
  }))});
- for(let i=0;i<entries.length;i++)advanceSyntheticContainerReview(h);
+ for(let i=0;i<Math.max(1,entries.length);i++)advanceSyntheticContainerReview(h);
  return h;
 }
 const validScreen=()=>screen([
@@ -145,10 +145,10 @@ test('bloco acima do tempo declarado e total acumulado acima de cinco segundos b
  const s=source(),f=good(s);
  const tooSlow=run(createSyntheticStreamReview(s,[{...f[0],elapsedMs:251},f[1]]));
  expect(tooSlow.failure).toBe('time-limit');
- const entries=screen([{path:'def/long.sii',kind:'file',encodedBytes:10000,expandedBytes:10000}]);
+ const entries=screen([{path:'def/long.sii',kind:'file',encodedBytes:10400,expandedBytes:10400}]);
  const longSource=issueSyntheticStreamDeclarationSource(entries);
  const many=Array.from({length:26},(_,i)=>({
-  entryOrdinal:1,encodedBytes:i===25?0:400,expandedBytes:i===25?0:400,
+  entryOrdinal:1,encodedBytes:400,expandedBytes:400,
   elapsedMs:200,endOfEntry:i===25
  }));
  const total=run(createSyntheticStreamReview(longSource,many));
