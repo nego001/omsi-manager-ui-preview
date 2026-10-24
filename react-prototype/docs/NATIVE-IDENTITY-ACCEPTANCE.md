@@ -45,3 +45,14 @@ A referência de processo é emitida por `WeakMap`; cópias e relatos externos n
 - Homologação física no Windows, assinaturas e liberação do instalador permanecem pendentes.
 
 **A PR #1 continua DRAFT, sem merge.**
+
+
+## Ensaio nativo Windows no laboratório temporário (não incorporado ao aplicativo)
+
+`scripts/temp-native-file-id.ps1` chama `CreateFileW` (acesso `GENERIC_READ`, compartilhamento de leitura/escrita/exclusão e `FILE_FLAG_OPEN_REPARSE_POINT`) e `GetFileInformationByHandleEx(FileAttributeTagInfo/FileIdInfo)` por P/Invoke. Essa abordagem observa **volume serial e FileId de 128 bits por handle nativo do Windows**, sem depender apenas de PID, horário ou nome de arquivo. O conteúdo dos arquivos inventados é limitado a 4096 bytes; duas aberturas distintas produzem observações que são comparadas antes de retornar. A impressão digital enviada ao Node só vincula a sessão temporária às observações, sem conter caminho, FileId bruto ou bytes privados.
+
+A PowerShell exige pasta temporária direta com prefixo de teste, verifica que ela não é um reparse point e exige o marcador aleatório antes de abrir o nome fixo `identity-target.bin`. O handle verifica o tipo de arquivo e rejeita atributos de reparse, diretório, arquivo vazio ou grande. Erros retornam apenas mensagem genérica.
+
+São **10 testes novos exclusivamente de Windows**, integrados a `npm run test:recovery:fixture`, totalizando **78 cenários Node** em Windows e **68 cenários executados + 10 skips intencionais** em Linux. No Windows os testes exercitam uma troca entre observações; **não garantem resistência a substituições concorrentes exatamente durante a janela de abertura**.
+
+A saída permite `nativeFileIdObserved:true`, pois um handle de teste realmente foi consultado. Isso **não** equivale a `identityAuthorizedForRealMods`, `atomicPathIdentityProven`, `directoryDurabilityProven` ou `operationsEnabled`, que continuam todos `false`. Implementação nativa de identidade de processos externos permanece pendente. Não é mecanismo instalado de leitura ou recuperação de arquivos reais.
