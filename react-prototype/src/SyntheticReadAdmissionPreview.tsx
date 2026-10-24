@@ -1,4 +1,5 @@
 import {useState} from 'react';
+import SyntheticContainerScreenPreview from './SyntheticContainerScreenPreview';
 import {LockKeyhole,ShieldAlert} from 'lucide-react';
 import {
  assessSyntheticReadClaim,createSyntheticReadAdmissionSession,
@@ -78,6 +79,7 @@ export default function SyntheticReadAdmissionPreview({readiness}:{readiness:Syn
     <ShieldAlert size={14} aria-hidden="true"/>{reasonLabels[reason]}
    </li>)}
   </ul>
+  <SyntheticContainerScreenPreview readiness={readiness}/>
   <p className="synthetic-admission-note">Este módulo não recebe caminhos, não abre seletores do sistema e não produz permissões ou tokens. Um futuro leitor nativo precisará validar consentimento, identidade e isolamento sem confiar nessas declarações.</p>
  </section>;
 }
