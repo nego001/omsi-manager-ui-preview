@@ -75,6 +75,10 @@ export function createSyntheticReadAdmissionSession(
  bindings.set(session,readiness);
  return session;
 }
+// An opaque simulation identity only: NEVER an OS file handle or reader grant.
+export function isIssuedSyntheticReadAdmissionSession(value:unknown):value is SyntheticReadAdmissionSession{
+ return !!value&&typeof value==='object'&&bindings.has(value);
+}
 export function assessSyntheticReadClaim(
  session:SyntheticReadAdmissionSession,raw:unknown
 ):SyntheticReadAdmission{
