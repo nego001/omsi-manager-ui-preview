@@ -3,13 +3,13 @@ import {
  SYNTHETIC_MODULE_IDS,coordinateSyntheticEvidence,
  type SyntheticModuleId,type SyntheticModuleReport,type SyntheticSnapshot
 } from './distributed-reader-contract';
-import {projectSyntheticIndex,type SyntheticPackageIndex,type SyntheticIndexEntry} from './synthetic-package-index';
+import {projectSyntheticIndex,matchesSyntheticRevisionTicket,type SyntheticPackageIndex,type SyntheticIndexEntry,type SyntheticRevisionTicket} from './synthetic-package-index';
 import type {GameId} from './catalog';
 
 const specialistIds=SYNTHETIC_MODULE_IDS.filter((id):id is Exclude<SyntheticModuleId,'container'>=>id!=='container');
 const specialists:ReadonlySet<string>=new Set(specialistIds);
 const identifying:ReadonlySet<string>=new Set(['structure','manifest','definitions']);
-export type SyntheticWorkerReason='none'|'invalid-fixture'|'out-of-scope-handle'|'missing-module'|'module-blocked';
+export type SyntheticWorkerReason='none'|'invalid-fixture'|'out-of-scope-handle'|'stale-revision'|'missing-module'|'module-blocked';
 export type SyntheticWorkerOutcome=Readonly<{
  status:'complete'|'incomplete'|'blocked';
  reason:SyntheticWorkerReason;
@@ -27,8 +27,9 @@ export type SyntheticWorkerOutcome=Readonly<{
 export type SyntheticWorkerDeclaration=Readonly<{
  moduleId:Exclude<SyntheticModuleId,'container'>;
  fixtureDigest:string;
+ revisionTicket:SyntheticRevisionTicket;
  status:'ok'|'incomplete'|'blocked';
- observations:readonly Readonly<{handle:string;game:GameId}>[];
+ observations:readonly Readonly<{handle:string;game:GameId;revisionTicket:SyntheticRevisionTicket}>[];
 }>;
 function obj(x:unknown):x is Record<string,unknown>{
  return x!==null&&typeof x==='object'&&!Array.isArray(x)&&Object.getPrototypeOf(x)===Object.prototype;
@@ -76,7 +77,7 @@ export function runSyntheticIndexedWorkers(index:SyntheticPackageIndex,declarati
  const inputs=new Map<Exclude<SyntheticModuleId,'container'>,SyntheticWorkerDeclaration>();
  // Validate the full batch before publishing ANY report.
  for(const raw of declarations as unknown[]){
-  if(!obj(raw)||!exact(raw,['moduleId','fixtureDigest','status','observations'])||
+  if(!obj(raw)||!exact(raw,['moduleId','fixtureDigest','revisionTicket','status','observations'])||
      typeof raw.moduleId!=='string'||!specialists.has(raw.moduleId)||inputs.has(raw.moduleId as Exclude<SyntheticModuleId,'container'>)||
      raw.fixtureDigest!==digest||
      (raw.status!=='ok'&&raw.status!=='incomplete'&&raw.status!=='blocked')||
@@ -84,17 +85,24 @@ export function runSyntheticIndexedWorkers(index:SyntheticPackageIndex,declarati
      (raw.status!=='ok'&&raw.observations.length!==0))
    return fail(digest,'invalid-fixture');
   const id=raw.moduleId as Exclude<SyntheticModuleId,'container'>;
+  // A declared SHA-like fixture digest or a positional handle is NOT a revision proof.
+  if(!matchesSyntheticRevisionTicket(index,id,null,raw.revisionTicket))
+   return fail(digest,'stale-revision');
   if(!identifying.has(id)&&raw.observations.length>0)
    return fail(digest,'invalid-fixture');
   const view=projectSyntheticIndex(index,id);
   const visible=new Map(view.entries.map(item=>[item.handle,item] as const));
   const found=new Set<string>();
   for(const observation of raw.observations as unknown[]){
-   if(!obj(observation)||!exact(observation,['handle','game'])||
+   if(!obj(observation)||!exact(observation,['handle','game','revisionTicket'])||
       typeof observation.handle!=='string'||!game(observation.game))
     return fail(digest,'invalid-fixture');
    const item:SyntheticIndexEntry|undefined=visible.get(observation.handle);
    if(!item||item.kind!=='file')return fail(digest,'out-of-scope-handle');
+   // Per-observation ticket prevents old claims from being transplanted into
+   // a newly stamped worker report for another issued revision.
+   if(!matchesSyntheticRevisionTicket(index,id,observation.handle,observation.revisionTicket))
+    return fail(digest,'stale-revision');
    const key=observation.handle+'|'+observation.game;
    if(found.has(key))return fail(digest,'invalid-fixture');
    found.add(key);
