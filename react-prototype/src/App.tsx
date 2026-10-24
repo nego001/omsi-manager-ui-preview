@@ -90,6 +90,7 @@ export default function App(){
  const [librarySearch,setLibrarySearch]=useState('');
  const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'>('catalog');
  const [detailOrigin,setDetailOrigin]=useState<'home'|'catalog'|'library'>('catalog');
+ const [detailFocus,setDetailFocus]=useState<'overview'|'relations'>('overview');
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
@@ -139,7 +140,8 @@ export default function App(){
   return list;
  },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,librarySearch,librarySort,declaredStatuses]);
  function goto(id:Screen){setScreen(id);setToast('')}
- function detail(id:string){setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
+ function detail(id:string){setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
+ function openDeclaredDiagnostic(id:string){setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
  async function importCatalogFile(event:React.ChangeEvent<HTMLInputElement>){
   const file=event.currentTarget.files?.[0];
@@ -175,7 +177,13 @@ export default function App(){
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
   setFavorites([]);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySearch('');setLibrarySort('catalog');
  }
- const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>})()}<button className="text-button" onClick={()=>detail(m.id)}>{m.title}</button><div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} onClick={()=>setFavorites(a=>a.includes(m.id)?a.filter(x=>x!==m.id):[...a,m.id])}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
+ const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <><span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>{status&&status.issueCount>0&&<button type="button" className="library-diagnostic-link" aria-label={'Ver diagnóstico de '+m.title} onClick={()=>openDeclaredDiagnostic(m.id)}><AlertTriangle size={13}/><span>Consultar {status.issueCount} {status.issueCount===1?'alerta declarado':'alertas declarados'}</span><ChevronRight size={13}/></button>}</>})()}<button className="text-button" onClick={()=>detail(m.id)}>{m.title}</button><div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} onClick={()=>setFavorites(a=>a.includes(m.id)?a.filter(x=>x!==m.id):[...a,m.id])}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
+ useEffect(()=>{
+  if(screen!=='details'||detailFocus!=='relations')return;
+  const target=document.getElementById('relacoes-declaradas');
+  if(target){target.scrollIntoView({block:'start'});target.focus({preventScroll:true})}
+  setDetailFocus('overview');
+ },[screen,detailFocus,selectedMod]);
  const title=nav.find(n=>n.id===screen)?.label??'Início';
  return <><a className="skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a><div className="shell">
   <aside className={'sidebar '+(!sidebar?'collapsed':'')}>
@@ -239,7 +247,7 @@ export default function App(){
   </div>
   <div className="detail-checklist-actions"><a className="detail-report-link" href="#relatorio-consolidado">Consultar evidências e limitações <ChevronRight size={15}/></a><button className="btn secondary" type="button" onClick={()=>goto('games')}>Inspecionar pasta manualmente <ChevronRight size={15}/></button></div>
  </section><div className="detail-actions"><button className="btn disabled-action" disabled title="Instalação desativada"><Download size={17}/> Instalar (bloqueado)</button><button className="btn disabled-action" disabled title="Desinstalação desativada"><Trash2 size={17}/> Remover (bloqueado)</button><button className="btn secondary" onClick={()=>setFavorites(a=>a.includes(selected.id)?a.filter(x=>x!==selected.id):[...a,selected.id])}>{favorites.includes(selected.id)?'Remover dos favoritos':'Adicionar aos favoritos'}</button></div><p className="lock-note"><LockKeyhole size={16}/> Nenhum mod será aplicado enquanto o pipeline de testes não estiver liberado.</p>
- <section className="relation-panel" aria-label="Simulação de dependências">
+ <section id="relacoes-declaradas" tabIndex={-1} className="relation-panel" aria-label="Simulação de dependências">
   <h2>Dependências e conflitos · simulação</h2>
   <label className="version-simulator"><strong>Versão hipotética do jogo</strong><input aria-label="Versão hipotética do jogo" placeholder="Ex.: 1.52.0 (opcional)" value={hypotheticalGameVersion} onChange={e=>setHypotheticalGameVersion(e.target.value.slice(0,30))}/><small>Valor digitado por você. Não detectamos a versão instalada no computador.</small></label>
   <p>Somente metadados declarados no catálogo. Não é uma análise dos arquivos do jogo.</p>
