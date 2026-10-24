@@ -83,3 +83,32 @@ Todos esses arquivos, junto com o relatório anterior `contrast-audit.json`, fic
 A revisão de capturas encontrou um erro de nomenclatura: o runner Windows limitava a largura inicial disponível, mas o arquivo tinha o sufixo `1440`. O novo teste não faz essa suposição. Cada captura de varredura possui entradas em `windows-portable-runtime-screenshots/screenshot-manifest.json`: largura e altura efetivas do viewport, escala de pixel, tamanho nativo da área de conteúdo e dimensões PNG. O sufixo das capturas iniciais agora usa `initial-<largura-real>`.
 
 Uma avaliação visual comparativa foi iniciada e documentada em [HYDRA-VISUAL-REVIEW.md](./HYDRA-VISUAL-REVIEW.md), com referência pública da página oficial do Hydra. A paleta do protótipo foi aproximada de tons neutros; a organização e os cartões ainda **não** constituem réplica 1:1. Não usar o tamanho esperado da janela do Electron como se fosse a resolução de fato capturada.
+
+## Rodada presencial: quadro de verificação em Detalhes
+
+**Agora que o teste pode ser feito em um PC Windows**, manter a homologação manual dentro da prévia isolada, sem usar pastas com mods reais. Executar **somente a versão de uma CI verde**, após verificar o ZIP e seu checksum.
+
+### Preparação sem risco
+
+1. Abra [GitHub Actions da branch de prévia](https://github.com/nego001/omsi-manager-ui-preview/actions), selecione o último run **com jobs Linux e Windows verdes** e baixe o artefato `OMSI-Manager-Preview-Windows-x64-UNSIGNED`.
+2. Dentro do artefato há um ZIP do aplicativo e o arquivo `.sha256`. Extraia ambos para uma pasta temporária. No PowerShell, sem administrador, execute `Get-FileHash .\OMSI-Manager-Preview-Windows-x64.zip -Algorithm SHA256` no diretório em que estiver o ZIP. Compare os caracteres da saída com os presentes no arquivo `.sha256`. **Se forem diferentes, não execute**.
+3. Extraia o ZIP interno **inteiro**, mantendo `resources\app.asar` e os demais arquivos junto do `OMSI-Manager-Preview.exe`. Execute sem administrador. O build é **não assinado**; não desative o antivírus ou ignore alertas inesperados.
+4. Crie uma pasta **fictícia** em um diretório próprio do Windows, por exemplo `OMSI-Manager-Teste-Vazio`, e, dentro dela, apenas subpastas vazias chamadas `Vehicles` e `Maps`. Nunca aponte inicialmente para diretórios verdadeiros do jogo.
+
+### Verificações no aplicativo
+
+- [ ] **Detalhes** abre o quadro `O que já sabemos sobre este mod` com quatro estados separados: metadados do catálogo, pasta do jogo, conteúdo do mod e compatibilidade com o jogo.
+- [ ] Sem escolher pasta, o estado informa **Nenhuma inspeção de pasta realizada**; não mostra jogo/mod compatível ou instalado.
+- [ ] **Consultar evidências e limitações** conduz ao `Relatório consolidado` sem acionar instalador.
+- [ ] **Inspecionar pasta manualmente** apenas muda para a tela Jogos; não abre o seletor sozinho e não modifica nada.
+- [ ] Em **Jogos**, clique em **Selecionar pasta e inspecionar** para OMSI 2 e escolha **somente** a pasta fictícia criada. O programa deve mostrar contagens de entradas e manter a conclusão **Compatibilidade não verificada**, nunca assumir que o jogo está instalado.
+- [ ] Volte aos **Detalhes**. A etapa de pasta pode passar a indicar nomes de entradas examinados manualmente, mas **conteúdo do mod** e **compatibilidade** continuam não verificados.
+- [ ] **Instalar (bloqueado)** e **Remover (bloqueado)** continuam desabilitados, antes e depois da inspeção.
+- [ ] Confira a Biblioteca com favoritos, filtro por jogo/categoria, busca contextual, ordenação e retorno à Biblioteca a partir de Detalhes sem perder os filtros.
+- [ ] Redimensione a janela e teste escala de exibição do Windows 100%, 125% e 150%, quando disponíveis. Anote cortes, textos ilegíveis e problemas de foco.
+
+### Se encontrar um problema
+
+Registre a **tela**, **passos exatos**, **largura/escala do Windows**, texto do alerta e, se possível, uma captura de tela sem dados pessoais. Não envie pastas de jogos, mods privados nem caminhos completos. Uma captura e os passos são suficientes para começar a reproduzir o defeito.
+
+**Importante:** o seletor de pasta é real nesta verificação manual, enquanto o teste automático do Windows usa um retorno controlado. Inspecionar nomes de pasta não equivale a analisar arquivos internos do mod, validar sua compatibilidade ou instalar algo. O aplicativo original e backup permanecem fora do escopo.
