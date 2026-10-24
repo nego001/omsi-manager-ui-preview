@@ -31,6 +31,24 @@ const roots:ReadonlySet<string>=new Set(['vehicles','maps','sceneryobjects','spl
 const suffixes:ReadonlySet<string>=new Set(['scs','zip','bus','cfg','sco','sli','sii','dds','png','jpg','wav','ogg','bank','json']);
 const moduleSet:ReadonlySet<string>=new Set(SYNTHETIC_MODULE_IDS);
 const issuedIndexes=new WeakSet<object>();
+// Canonical fixture paths remain PRIVATE to this module, never returned by index or views.
+// Ordinal handles alone must never be compared between revisions.
+type PrivateIndexedEntry=Readonly<{path:string;entry:SyntheticIndexEntry}>;
+const internalDeclarations=new WeakMap<object,readonly PrivateIndexedEntry[]>();
+export type SyntheticIndexDelta=Readonly<{
+ status:'compared'|'invalid-index';
+ sameDeclaredDigest:boolean;
+ declaredStructureChanged:boolean;
+ added:number;removed:number;modified:number;
+ changes:readonly Readonly<{
+  change:'added'|'removed'|'modified';
+  root:SyntheticEntryRoot;suffix:SyntheticSuffix;kind:'file'|'directory';
+ }>[];
+ pathsExposed:false;
+ digestVerified:false;
+ previousEvidenceReusable:false;
+}>;
+
 const permittedSuffixes:Readonly<Record<SyntheticModuleId,ReadonlySet<SyntheticSuffix>|null>>=Object.freeze({
  container:new Set<SyntheticSuffix>(),structure:null,manifest:new Set<SyntheticSuffix>(['json','sii']),
  definitions:new Set<SyntheticSuffix>(['bus','cfg','sco','sli','sii']),
@@ -125,6 +143,7 @@ export function buildSyntheticPackageIndex(fixtureDigest:unknown,input:unknown):
   gameVerified:false,operationsEnabled:false
  });
  issuedIndexes.add(index);
+ internalDeclarations.set(index,Object.freeze(entries.map(({path},i)=>Object.freeze({path,entry:safeEntries[i]}))));
  return Object.freeze({status:'ready',reason:'none',index});
 }
 
@@ -140,5 +159,49 @@ export function projectSyntheticIndex(index:SyntheticPackageIndex,moduleId:Synth
  return Object.freeze({
   source:'synthetic-fixture',moduleId,fixtureDigest:index.fixtureDigest,
   verified:false as const,entries:filtered,operationsEnabled:false as const
+ });
+}
+
+
+// Compare issued fixture indexes using PRIVATE canonical declarations, not ordinal handles.
+// Only sanitized change categories leave this module. No content hash is verified.
+export function compareSyntheticIndexDeclarations(previous:unknown,next:unknown):SyntheticIndexDelta{
+ const a=previous&&typeof previous==='object'?internalDeclarations.get(previous):undefined;
+ const b=next&&typeof next==='object'?internalDeclarations.get(next):undefined;
+ if(!a||!b)return Object.freeze({
+  status:'invalid-index' as const,sameDeclaredDigest:false,declaredStructureChanged:true,
+  added:0,removed:0,modified:0,changes:Object.freeze([]),
+  pathsExposed:false as const,digestVerified:false as const,previousEvidenceReusable:false as const
+ });
+ const oldIndex=previous as SyntheticPackageIndex,newIndex=next as SyntheticPackageIndex;
+ const oldEntries=new Map(a.map(({path,entry})=>[path,entry] as const));
+ const nextEntries=new Map(b.map(({path,entry})=>[path,entry] as const));
+ const changes:Array<{change:'added'|'removed'|'modified';root:SyntheticEntryRoot;suffix:SyntheticSuffix;kind:'file'|'directory'}>=[];
+ for(const {path,entry} of a){
+  const newer=nextEntries.get(path);
+  if(!newer){
+   changes.push({change:'removed',root:entry.root,suffix:entry.suffix,kind:entry.kind});
+  }else if(entry.root!==newer.root||entry.kind!==newer.kind||
+           entry.suffix!==newer.suffix||entry.depth!==newer.depth||
+           entry.encodedBytes!==newer.encodedBytes||entry.expandedBytes!==newer.expandedBytes){
+   changes.push({change:'modified',root:entry.root,suffix:entry.suffix,kind:entry.kind});
+   // Also preserve the new classification when the kind/suffix changes.
+   if(entry.suffix!==newer.suffix||entry.kind!==newer.kind||entry.root!==newer.root){
+    changes.push({change:'modified',root:newer.root,suffix:newer.suffix,kind:newer.kind});
+   }
+  }
+ }
+ for(const {path,entry} of b){
+  if(!oldEntries.has(path))changes.push({change:'added',root:entry.root,suffix:entry.suffix,kind:entry.kind});
+ }
+ const immutable=Object.freeze(changes.map(c=>Object.freeze({...c})));
+ return Object.freeze({
+  status:'compared' as const,sameDeclaredDigest:oldIndex.fixtureDigest===newIndex.fixtureDigest,
+  declaredStructureChanged:immutable.length>0,
+  added:immutable.filter(c=>c.change==='added').length,
+  removed:immutable.filter(c=>c.change==='removed').length,
+  modified:immutable.filter(c=>c.change==='modified').length,
+  changes:immutable,pathsExposed:false as const,digestVerified:false as const,
+  previousEvidenceReusable:false as const
  });
 }
