@@ -5,6 +5,7 @@ import {filterSyntheticDiagnosticTimeline,type SyntheticTimelineFilter} from './
 import {compareSyntheticRevisions} from './synthetic-revision-comparison';
 import {reviewSyntheticComparison,type SyntheticReviewPriority} from './synthetic-comparison-review';
 import {explainSyntheticDiagnosticDecision} from './synthetic-decision-explanation';
+import SyntheticValidationReadinessPreview from './SyntheticValidationReadinessPreview';
 import type {HistoryState,HistoryModuleStatus} from './synthetic-evidence-history';
 import type {SyntheticModuleId} from './distributed-reader-contract';
 
@@ -98,6 +99,7 @@ export default function SyntheticDiagnosticPreview(){
    </details>
    <p className="synthetic-decision-guard">Nenhum resultado desta seção comprova identidade, integridade, compatibilidade ou instalação real. Instalar, editar, remover e atualizar continuam bloqueados.</p>
   </section>
+  <SyntheticValidationReadinessPreview timeline={step.timeline}/>
   <div className="synthetic-diag-filter-bar">
    <label htmlFor="synthetic-module-filter">Filtrar especialistas fictícios</label>
    <select id="synthetic-module-filter" value={moduleFilter} onChange={e=>setModuleFilter(e.target.value as SyntheticTimelineFilter)}>
