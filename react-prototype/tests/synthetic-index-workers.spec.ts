@@ -89,7 +89,7 @@ test('proíbe definição OMSI baseada em índice de som não permitido ao módu
  const i=index(),fixture=declarations(i);
  const audioHandle=handle(i,'audio','wav');
  const defs=fixture.find(x=>x.moduleId==='definitions')!;
- const altered=fixture.map(x=>x===defs?{...x,observations:[{handle:audioHandle,game:'omsi' as const}]}:x);
+ const altered=fixture.map(x=>x===defs?{...x,observations:[{handle:audioHandle,game:'omsi' as const,revisionTicket:defs.revisionTicket}]}:x);
  const a=runSyntheticIndexedWorkers(i,altered);
  expect(a.status).toBe('blocked');
  expect(a.reason).toBe('out-of-scope-handle');
@@ -100,7 +100,7 @@ test('manifesto não consulta DDS, ainda que DDS esteja no índice global',()=>{
  const i=index(),fixture=declarations(i);
  const imageHandle=handle(i,'media','dds');
  const a=runSyntheticIndexedWorkers(i,fixture.map(x=>x.moduleId==='manifest'
-  ?{...x,observations:[{handle:imageHandle,game:'omsi' as const}]}:x));
+  ?{...x,observations:[{handle:imageHandle,game:'omsi' as const,revisionTicket:x.revisionTicket}]}:x));
  expect(a.reason).toBe('out-of-scope-handle');
  expect(a.reports).toHaveLength(0);
 });
@@ -114,7 +114,7 @@ test('módulo de áudio não pode emitir classificação arbitrária de jogo',()
 test('referência inexistente não pode virar evidência',()=>{
  const i=index(),fixture=declarations(i);
  const a=runSyntheticIndexedWorkers(i,fixture.map(x=>x.moduleId==='definitions'
-  ?{...x,observations:[{handle:'synthetic-entry-9999',game:'ats' as const}]}:x));
+  ?{...x,observations:[{handle:'synthetic-entry-9999',game:'ats' as const,revisionTicket:x.revisionTicket}]}:x));
  expect(a.reason).toBe('out-of-scope-handle');
 });
 test('diretórios não são evidência de conteúdo do jogo',()=>{
@@ -122,7 +122,7 @@ test('diretórios não são evidência de conteúdo do jogo',()=>{
  const i=buildSyntheticPackageIndex(digest,entries).index!;
  const fixture=declarations(index()).map(x=>({...x,observations:[],revisionTicket:issueSyntheticRevisionTicket(i,x.moduleId)}));
  const a=runSyntheticIndexedWorkers(i,fixture.map(x=>x.moduleId==='structure'
-  ?{...x,observations:[{handle:i.entries[0].handle,game:'omsi' as const}]}:x));
+  ?{...x,observations:[{handle:i.entries[0].handle,game:'omsi' as const,revisionTicket:x.revisionTicket}]}:x));
  expect(a.reason).toBe('out-of-scope-handle');
 });
 test('mod sem módulo de áudio é análise incompleta, mesmo com outros indícios concordantes',()=>{
