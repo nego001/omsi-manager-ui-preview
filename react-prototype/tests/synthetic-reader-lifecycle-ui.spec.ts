@@ -60,7 +60,7 @@ test('falha de bloco força limpeza automática sem botão de fechar',async({pag
  await lifecycle.getByRole('button',{name:'Abrir sessão fictícia'}).click();
  await lifecycle.getByRole('button',{name:'Avançar etapa de leitura fictícia'}).click();
  await expect(lifecycle.getByTestId('synthetic-lifecycle-phase')).toHaveText('Fechado');
- await expect(lifecycle.getByTestId('synthetic-lifecycle-reason')).toContainText('limpeza automática');
+ await expect(lifecycle.getByTestId('synthetic-lifecycle-reason')).toContainText('descarte automático dos resultados');
  await expect(lifecycle.getByRole('button',{name:'Fechar e limpar'})).toBeDisabled();
  await expect(lifecycle.getByTestId('synthetic-lifecycle-native-open')).toHaveText('0');
 });
