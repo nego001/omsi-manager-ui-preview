@@ -124,6 +124,12 @@ try{
  }
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
  assert.match(await window.locator('.library-filter-results').innerText(),/3 favoritos exibidos/);
+ const declaredStatusFilter=window.getByRole('combobox',{name:'Filtrar alertas declarados'});
+ await declaredStatusFilter.selectOption('blocking');
+ await window.getByRole('heading',{name:'Nenhum favorito nesses filtros'}).waitFor();
+ assert.match(await window.locator('.library-declared-alerts').innerText(),/Ausência de alertas declarados não comprova compatibilidade/);
+ await declaredStatusFilter.selectOption('all');
+ assert.match(await window.locator('.library-filter-results').innerText(),/3 favoritos exibidos/);
  await window.getByRole('textbox',{name:'Buscar favoritos'}).fill('serra');
  assert.match(await window.locator('.library-filter-results').innerText(),/1 favorito exibido/);
  await window.getByRole('button',{name:'Serra do Vale',exact:true}).click();
