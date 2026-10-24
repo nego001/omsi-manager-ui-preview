@@ -80,3 +80,16 @@ Sem trocar a identidade visual já aprovada, esta etapa melhora **a continuidade
 Novos testes de navegador em `tests/library-workflow.spec.ts` verificam pesquisa contextual, filtros, ordenação, ida/volta e controles em 390 px. A implementação segue **somente metadados**, não mede compatibilidade real e não altera arquivos de jogos.
 
 Documentação de visão futura permanece em `PRODUCT-DECISIONS-REGISTER.md`. Leitura espalhada, Oficina, instalação e atualização seguem como requisitos de fases posteriores.
+
+## Quinta rodada: estados declarados, sem prometer compatibilidade
+
+Na Biblioteca, cada favorito passou a reutilizar o **mesmo analisador de relações JSON** já usado em Detalhes. Isso evita duas lógicas que discordam sobre dependências, faixas declaradas ou conflitos.
+
+- **Bloqueios declarados:** dependência ausente, versão insuficiente, referência de jogo indevida, ciclo ou conflito **conforme os metadados**. Isso impede considerar o plano teórico livre de conflitos.
+- **Avisos declarados:** faixa de versão sem versão hipotética informada, conflito potencial ou requisito que ainda precisa de validação. Não representam detecção de falha de execução.
+- **Sem alertas declarados:** apenas ausência de problemas lógicos encontrados no JSON; **não significa** mod compatível, atualizado ou instalado. O cartão continua `não verificado`.
+- Campo **Alertas** na barra de filtros: todos, bloqueios, avisos e sem alertas. A busca textual, jogo, categoria e ordenação continuam funcionando em conjunto.
+- Resumo contextual de quantos favoritos contêm bloqueios/avisos **declarados**, com ressalva explícita. O botão de limpar filtros restaura também a seleção de alertas.
+- Testes de unidade e Playwright em `tests/library-declared-status.spec.ts`, usando `examples/catalog.versions.example.json`, que possui uma dependência de áudio declaradamente abaixo do requisito e outra faixa de versão sem hipótese informada. O teste do executável Windows empacotado também verifica o filtro sem conteúdo de jogo real.
+
+Isso é apenas **apresentação e consistência das evidências declarativas** na etapa visual. Nenhum leitor de arquivos de mod, detector de jogo, motor de instalação ou atualizador real foi ativado.
