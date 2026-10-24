@@ -263,6 +263,39 @@ try{
      await recordScreenshot('07-'+file+'-'+width+'.png');
    }
  }
+ // Exercise the native-boundary contract in the actual packaged Windows EXE.
+ // All reports are invented and read only.
+ await navigate('Histórico','Histórico');
+ const historyFixture=window.getByRole('region',{name:'Triagem fictícia de arquivos ZIP e SCS'});
+ const advance=historyFixture.getByRole('button',{name:'Verificar próxima declaração'});
+ await advance.click();await advance.click();
+ const readerFixture=historyFixture.getByRole('region',{name:'Ciclo fictício do futuro leitor nativo'});
+ await readerFixture.getByRole('button',{name:'Abrir sessão fictícia'}).click();
+ await readerFixture.getByRole('button',{name:'Simular perda do processo'}).click();
+ const failureMatrix=readerFixture.getByRole('region',{name:'Matriz fictícia de falhas de armazenamento'});
+ const injectFailure=failureMatrix.getByRole('button',{name:'Executar falha ou etapa seguinte'});
+ for(let i=0;i<3;i++)await injectFailure.click();
+ const quarantine=failureMatrix.getByRole('region',{name:'Política fictícia de revisão da quarentena'});
+ const nativePanel=quarantine.getByRole('region',{name:'Contrato de fronteira nativa fictícia'});
+ await nativePanel.waitFor({timeout:12000});
+ assert.equal(await nativePanel.getAttribute('data-native-ready'),'false');
+ assert.equal(await nativePanel.getAttribute('data-operations-enabled'),'false');
+ assert.equal(await nativePanel.locator('[data-native-verified="false"]').count(),4);
+ const nativeCases=nativePanel.getByRole('combobox',{name:'Cenário do contrato nativo fictício'});
+ await nativeCases.selectOption('all');
+ assert.match(await nativePanel.getByTestId('synthetic-native-boundary-status').innerText(),
+  /Todas declaradas, mas nenhuma verificada/);
+ await recordScreenshot('11-historico-contrato-nativo-ficticio.png');
+ await nativeCases.selectOption('forged');
+ assert.match(await nativePanel.getByTestId('synthetic-native-boundary-status').innerText(),
+  /campos inválidos recusado/);
+ await quarantine.getByRole('button',{name:'Simular mudança concorrente na matriz'}).click();
+ assert.match(await nativePanel.getByTestId('synthetic-native-boundary-status').innerText(),
+  /revisão anterior invalidada/);
+ await navigate('Detalhes','Ônibus Urbano Clássico');
+ assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
+ assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
+ console.log('WINDOWS NATIVE BOUNDARY FIXTURE SMOKE: OK (no real files touched).');
  // Chromium zoom tests text scaling inside the packaged runtime; does not claim to test Windows DPI.
  await application.evaluate(({BrowserWindow})=>{
    BrowserWindow.getAllWindows()[0].setContentSize(1024,768);
@@ -317,7 +350,7 @@ try{
    note:'Initial width is measured from the runner, not assumed to be 1440px. 1024/850 are requested native content sizes. Recorded pixel dimensions include full-page height.',
    screenshots:screenshotManifest
  },null,2),'utf8');
- assert.equal(screenshotManifest.length,31,'Expected 9 initial + 18 resized + 2 zoom + 2 diagnostic-jump screenshots');
+ assert.equal(screenshotManifest.length,32,'Expected 9 initial + 18 resized + 2 zoom + 2 diagnostic-jump + 1 native-boundary screenshots');
  console.log('WINDOWS NINE SCREENS: OK. 9 pages at measured initial size, requested 1024 and 850 content widths, plus 2 zoom screenshots.');
 
  console.log('WINDOWS PORTABLE EXE SMOKE: OK. EXE empacotado abriu; sandbox, IPC, inspeção sintética, relatório e bloqueios verificados.');
