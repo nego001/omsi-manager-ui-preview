@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {DatabaseZap,LockKeyhole} from 'lucide-react';
 import SyntheticStorageFailureMatrixPreview from './SyntheticStorageFailureMatrixPreview';
+import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
 import type {SyntheticOrphanRecovery} from './synthetic-orphan-recovery';
 import {createSyntheticRestartDraft,type SyntheticRestartDraft} from './synthetic-restart-handoff';
 import {
@@ -32,7 +33,7 @@ const recoveryLabels={
  'retained-untrusted':'Registro anterior retido, sem confiança',
  'empty-untrusted':'Nenhuma conclusão recuperável'
 } as const;
-export default function SyntheticTransactionPreview({record}:{record:SyntheticOrphanRecovery}){
+export default function SyntheticTransactionPreview({record,readiness}:{record:SyntheticOrphanRecovery;readiness:SyntheticValidationReadiness}){
  const [scenario,setScenario]=useState<Case>('complete');
  const [steps,setSteps]=useState(0);
  const store=createSyntheticTransactionStore();
@@ -83,7 +84,7 @@ export default function SyntheticTransactionPreview({record}:{record:SyntheticOr
   {rejection&&<p className="synthetic-transaction-warning" data-testid="synthetic-transaction-rejected">Transação recusada: {rejection}</p>}
   {state.discardedPending&&<p className="synthetic-transaction-warning" data-testid="synthetic-transaction-discarded">Gravação pendente descartada. Nenhuma confirmação parcial foi recuperada.</p>}
   {state.phase==='recorded'&&<p className="synthetic-transaction-warning" data-testid="synthetic-transaction-untrusted">Registro anotado apenas no modelo. Sua origem e integridade real não estão comprovadas e uma reanálise continua obrigatória.</p>}
-  <SyntheticStorageFailureMatrixPreview record={record}/>
+  <SyntheticStorageFailureMatrixPreview record={record} readiness={readiness}/>
   <p className="synthetic-transaction-guard">Sem journal persistente, sincronização em disco, assinatura criptográfica, reinicialização real ou acesso a mods. Um registro fictício nunca habilita instalação, remoção ou edição.</p>
  </section>;
 }
