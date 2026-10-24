@@ -258,3 +258,14 @@ A revisão fictícia passou a capturar o estado da matriz ao ser aberta (geraç�
 - Foram acrescentados **7 testes de contrato e 3 de interface** para a checagem de frescor, invalidar avaliação previamente concluída, rejeitar concorrência e preservar os bloqueios dos mods.
 
 **Limites:** comparação de estado em memória não protege contra corridas reais, quedas de energia ou corrupção no disco. O protótipo não mantém lock do Windows, não grava journal, não executa `fsync`, não lê arquivo de mod e não concede permissões. A PR permanece em rascunho e sem merge.
+
+
+## Contrato de fronteira nativa futura: identidade, durabilidade, reanálise e consentimento (24/10/2026)
+
+- A tela Histórico, na revisão de quarentena, apresenta o painel **Contrato de fronteira nativa fictícia**, que diferencia quatro exigências reais independentes. Cada uma mostra separadamente o que foi *declarado* no fixture e o que foi realmente *verificado* (nenhuma).
+- `synthetic-native-recovery-boundary.ts` usa um handle emitido e guardado em `WeakMap`, vinculado por identidade à revisão de quarentena e à matriz de falhas. Uma cópia JSON, uma matriz de outra recuperação, um registro com getters, símbolos, campos extras, versão desconhecida ou propriedades de tipo incorreto não tem autoridade.
+- A inspeção compara geração de origem e validade atual da revisão, recusando documentos velhos, estados alterados e relatórios adulterados. Mesmo o cenário **Quatro declarações de sucesso** permanece `untrusted-declarations`. Nunca há `nativeFileIdentityVerified:true`, `durableRecoveryProven:true`, `operationsEnabled:true` ou leitura de arquivo real.
+- O painel simula declaração ausente de identidade, registro de gravação incompleto, geração desatualizada e tentativa de inventar autorização. Trata todos os resultados como planejamento e mantém a interface em somente leitura.
+- Foram adicionados **17 testes de contrato** e **8 de interface**, incluindo rebinding, fraude por propriedades getters, geração antiga, concorrência, imutabilidade, mobile/teclado e operações de mod bloqueadas.
+
+A arquitetura e os critérios de aceite reais ficam documentados em `NATIVE-RECOVERY-BOUNDARY-CONTRACT.md`. Não foi adicionada implementação nativa, persistência de journal, acesso IPC, sessão de consentimento, autenticação de evidências ou capacidade de modificar mods. PR DRAFT e sem merge; a validação automatizada Linux/Windows e a homologação Windows física continuam exigidas.

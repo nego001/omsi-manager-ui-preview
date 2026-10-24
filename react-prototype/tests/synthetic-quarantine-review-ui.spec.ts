@@ -148,3 +148,87 @@ test('ação concorrente no teclado não libera ações de mod',async({page})=>{
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
 });
+
+async function nativePanel(page:Page){
+ const {matrix,panel}=await start(page);
+ const next=matrix.getByRole('button',{name:'Executar falha ou etapa seguinte'});
+ for(let i=0;i<3;i++)await next.click();
+ return {matrix,panel,native:panel.getByRole('region',{name:'Contrato de fronteira nativa fictícia'})};
+}
+test('contrato nativo só surge em revisão de incidente, sem habilitar operações',async({page})=>{
+ const {native,matrix}=await nativePanel(page);
+ await expect(native).toBeVisible();
+ await expect(native).toHaveAttribute('data-native-ready','false');
+ await expect(native).toHaveAttribute('data-operations-enabled','false');
+ await expect(native.locator('[data-gate]')).toHaveCount(4);
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('Declarações incompletas');
+ await matrix.getByRole('button',{name:'Reiniciar matriz fictícia'}).click();
+ await expect(native).toHaveCount(0);
+});
+test('quatro declarações artificiais de sucesso continuam não verificadas',async({page})=>{
+ const {native}=await nativePanel(page);
+ await native.getByRole('combobox',{name:'Cenário do contrato nativo fictício'}).selectOption('all');
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('Todas declaradas, mas nenhuma verificada');
+ await expect(native.locator('[data-native-verified="false"]')).toHaveCount(4);
+ await expect(native.getByTestId('synthetic-native-boundary-notice')).toContainText('continuam bloqueados');
+});
+test('falta de identidade e confirmação incompleta mostram qual verificação falta',async({page})=>{
+ const {native}=await nativePanel(page);
+ const picker=native.getByRole('combobox',{name:'Cenário do contrato nativo fictício'});
+ await picker.selectOption('identity');
+ await expect(native.locator('[data-gate="fileIdentity"] strong')).toContainText('Não declarada');
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('3 de 4');
+ await picker.selectOption('intent');
+ await expect(native.locator('[data-gate="journalDurability"] strong')).toContainText('Não declarada');
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('Declarações incompletas');
+});
+test('geração hipotética errada e permissão falsa são bloqueadas',async({page})=>{
+ const {native}=await nativePanel(page);
+ const picker=native.getByRole('combobox',{name:'Cenário do contrato nativo fictício'});
+ await picker.selectOption('stale');
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('Geração do relatório não corresponde');
+ await picker.selectOption('forged');
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('campos inválidos recusado');
+ await expect(native).toHaveAttribute('data-operations-enabled','false');
+});
+test('mudança concorrente invalida também a apresentação do contrato nativo',async({page})=>{
+ const {native,panel}=await nativePanel(page);
+ await panel.getByRole('button',{name:'Simular mudança concorrente na matriz'}).click();
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('revisão anterior invalidada');
+ await expect(panel.getByTestId('synthetic-quarantine-invalidated')).toBeVisible();
+ await expect(native.getByTestId('synthetic-native-boundary-notice')).toContainText('bloqueados');
+});
+test('teclado altera cenário sem acesso aos mods',async({page})=>{
+ const {native}=await nativePanel(page);
+ const picker=native.getByRole('combobox',{name:'Cenário do contrato nativo fictício'});
+ await picker.focus();await page.keyboard.press('End');
+ await expect(picker).toHaveValue('forged');
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+});
+test('quatro verificações exibidas sem transbordamento mobile e desktop',async({page})=>{
+ const {native}=await nativePanel(page);
+ for(const width of [390,850,1440]){
+  await page.setViewportSize({width,height:900});
+  await expect(native).toBeVisible();
+  const dims=await page.evaluate(()=>{
+   const p=document.querySelector('.synthetic-native-boundary')!;
+   const rect=p.getBoundingClientRect();
+   return {scroll:document.documentElement.scrollWidth-document.documentElement.clientWidth,
+    left:rect.left,right:rect.right,width:document.documentElement.clientWidth};
+  });
+  expect(dims.scroll).toBeLessThanOrEqual(3);
+  expect(dims.left).toBeGreaterThanOrEqual(-3);
+  expect(dims.right).toBeLessThanOrEqual(dims.width+3);
+ }
+});
+test('restauração do cenário mantém todas as quatro provas ainda pendentes',async({page})=>{
+ const {native}=await nativePanel(page);
+ const picker=native.getByRole('combobox',{name:'Cenário do contrato nativo fictício'});
+ await picker.selectOption('all');
+ await picker.selectOption('empty');
+ await expect(native.getByTestId('synthetic-native-boundary-status')).toContainText('0 de 4');
+ await expect(native.locator('[data-gate]')).toHaveCount(4);
+ await expect(native.locator('[data-native-verified="false"]')).toHaveCount(4);
+});

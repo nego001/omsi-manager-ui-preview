@@ -1,4 +1,6 @@
 import {test,expect} from '@playwright/test';
+import {createSyntheticNativeRecoveryBoundary,inspectSyntheticNativeRecoveryClaims,
+ type SyntheticNativeBoundary} from '../src/synthetic-native-recovery-boundary';
 import {createSyntheticDiagnosticDemo} from '../src/synthetic-diagnostic-demo';
 import {createSyntheticValidationReadiness} from '../src/synthetic-validation-readiness';
 import {createSyntheticReadAdmissionSession} from '../src/synthetic-read-admission';
@@ -295,4 +297,161 @@ test('revisão invalidada não revive por clonagem e não libera ações',()=>{
  expect(x.operationsEnabled).toBe(false);
  releaseSyntheticStorageLease(m,lease);
  expect(snapshotSyntheticQuarantineReview(review).reviewInvalidated).toBe(true);
+});
+
+function nativeClaims(epoch:number){
+ return {schemaVersion:1 as const,source:'synthetic-fixture' as const,capturedEpoch:epoch,
+  fileIdentity:'declared' as const,journalDurability:'declared' as const,
+  freshByteAnalysis:'declared' as const,userAuthorization:'declared' as const};
+}
+test('fronteira nativa fictícia é pareada com revisão original e nunca autoriza operação',()=>{
+ const {m,record}=setup('corrupt');
+ const review=createSyntheticQuarantineReview(m,record);
+ const boundary=createSyntheticNativeRecoveryBoundary(m,review);
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch));
+ expect(x.status).toBe('untrusted-declarations');
+ expect(x.declaredGates).toBe(4);
+ expect(x.gates.every(g=>g.claimed&&!g.nativeVerified)).toBe(true);
+ expect(x.durableRecoveryProven).toBe(false);
+ expect(x.approvedForOperations).toBe(false);
+ expect(x.operationsEnabled).toBe(false);
+});
+test('fronteira recusa pareamento de matriz e revisão diferentes',()=>{
+ const a=setup('corrupt'),b=setup('corrupt');
+ const review=createSyntheticQuarantineReview(a.m,a.record);
+ expect(()=>createSyntheticNativeRecoveryBoundary(b.m,review)).toThrow('não vinculada');
+});
+test('fronteira não aceita revisão clonada nem matriz clonada',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ expect(()=>createSyntheticNativeRecoveryBoundary(m,{...review})).toThrow('não vinculada');
+ expect(()=>createSyntheticNativeRecoveryBoundary({...m},review)).toThrow('não vinculada');
+});
+test('clone serializado da fronteira não permite consultar o parecer',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ const boundary=createSyntheticNativeRecoveryBoundary(m,review);
+ for(const copy of [{...boundary},JSON.parse(JSON.stringify(boundary))] as SyntheticNativeBoundary[]){
+  expect(()=>inspectSyntheticNativeRecoveryClaims(copy,nativeClaims(1))).toThrow('não emitido');
+ }
+});
+test('ausência de todas as declarações não libera resultado',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,{
+  ...nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch),
+  fileIdentity:'missing',journalDurability:'missing',freshByteAnalysis:'missing',
+  userAuthorization:'missing'
+ });
+ expect(x.status).toBe('incomplete-declarations');expect(x.declaredGates).toBe(0);
+ expect(x.nativeFileIdentityVerified).toBe(false);expect(x.realBytesRead).toBe(0);
+});
+test('somente identidade declarada nunca supre persistência ou autorização',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,{
+  ...nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch),
+  journalDurability:'missing',freshByteAnalysis:'missing',userAuthorization:'missing'
+ });
+ expect(x.declaredGates).toBe(1);expect(x.status).toBe('incomplete-declarations');
+ expect(x.nativeJournalDurabilityVerified).toBe(false);
+});
+test('somente declaração de autorização não dispensa reanálise dos bytes',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,{
+  ...nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch),
+  fileIdentity:'missing',journalDurability:'missing',freshByteAnalysis:'missing'
+ });
+ expect(x.declaredGates).toBe(1);
+ expect(x.freshNativeByteAnalysisVerified).toBe(false);
+ expect(x.explicitNativeAuthorizationVerified).toBe(false);
+});
+test('relatório com geração antiga ou futura é rejeitado sem promover confiança',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const now=snapshotSyntheticStorageFailureMatrix(m).epoch;
+ for(const epoch of [now+1,...(now>0?[now-1]:[])]){
+  const x=inspectSyntheticNativeRecoveryClaims(boundary,nativeClaims(epoch));
+  expect(x.status).toBe('stale-epoch');expect(x.operationsEnabled).toBe(false);
+ }
+});
+test('campo inventado de permissão é rejeitado, mesmo com quatro declarações',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,{
+  ...nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch),operationsEnabled:true
+ });
+ expect(x.status).toBe('claim-rejected');expect(x.approvedForOperations).toBe(false);
+});
+test('versões e tipos inválidos de relatório falham fechados',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const fixture=nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch);
+ for(const raw of [null,[],42,'validado',{}, {...fixture,schemaVersion:2},
+  {...fixture,capturedEpoch:-1},{...fixture,capturedEpoch:0.5},
+  {...fixture,journalDurability:true},{...fixture,source:'native-trusted'}]){
+  expect(inspectSyntheticNativeRecoveryClaims(boundary,raw).status).toBe('claim-rejected');
+ }
+});
+test('propriedade getter não é executada nem validada como prova',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const raw=Object.defineProperty({...nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch)},
+  'fileIdentity',{get(){throw Error('getter executado');},enumerable:true});
+ expect(inspectSyntheticNativeRecoveryClaims(boundary,raw).status).toBe('claim-rejected');
+});
+test('protótipos manipulados e chaves simbólicas são rejeitados',()=>{
+ const {m,record}=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,createSyntheticQuarantineReview(m,record));
+ const payload=nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch);
+ expect(inspectSyntheticNativeRecoveryClaims(boundary,Object.assign(Object.create(null),payload)).status).toBe('claim-rejected');
+ expect(inspectSyntheticNativeRecoveryClaims(boundary,{...payload,[Symbol('authority')]:true}).status).toBe('claim-rejected');
+});
+test('concorrência posterior invalida contrato mesmo após lease liberado',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ const boundary=createSyntheticNativeRecoveryBoundary(m,review);
+ const raw=nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch);
+ expect(inspectSyntheticNativeRecoveryClaims(boundary,raw).reviewCurrent).toBe(true);
+ const lease=acquireSyntheticStorageLease(m,'session-b',snapshotSyntheticStorageFailureMatrix(m).epoch)!;
+ releaseSyntheticStorageLease(m,lease);
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,raw);
+ expect(x.status).toBe('review-invalidated');
+ expect(x.reviewCurrent).toBe(false);expect(x.operationsEnabled).toBe(false);
+});
+test('tentativa recusada após quarentena invalida contrato mesmo na mesma geração',()=>{
+ const {m,record}=setup('quarantine'),review=createSyntheticQuarantineReview(m,record);
+ const boundary=createSyntheticNativeRecoveryBoundary(m,review);
+ const now=snapshotSyntheticStorageFailureMatrix(m).epoch;
+ expect(acquireSyntheticStorageLease(m,'session-a',now)).toBeNull();
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,nativeClaims(now));
+ expect(x.status).toBe('review-invalidated');
+ expect(x.originalMatrixStillQuarantined).toBe(true);
+});
+test('contrato permanece bloqueado após revisão fictícia completa',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ acknowledgeSyntheticOrphanRecovery(record);
+ expect(assessSyntheticQuarantineCandidate(review,completed()).status).toBe('new-fixture-reviewed');
+ const boundary=createSyntheticNativeRecoveryBoundary(m,review);
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch));
+ expect(x.status).toBe('untrusted-declarations');
+ expect(x.nativeFileIdentityVerified).toBe(false);
+ expect(x.explicitNativeAuthorizationVerified).toBe(false);
+ expect(x.realFilesModified).toBe(0);
+});
+test('parecer retorna dados imutáveis e sem nomes de arquivos privados',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ const boundary=createSyntheticNativeRecoveryBoundary(m,review);
+ const x=inspectSyntheticNativeRecoveryClaims(boundary,nativeClaims(snapshotSyntheticStorageFailureMatrix(m).epoch));
+ expect(Object.isFrozen(x)).toBe(true);
+ expect(Object.isFrozen(x.gates)).toBe(true);
+ expect(x.gates.every(g=>Object.isFrozen(g))).toBe(true);
+ for(const forbidden of ['def/demo.sii','sound/demo.ogg','PRIVATE_FILE','C:\\\\']){
+  expect(JSON.stringify(x)+JSON.stringify(boundary)).not.toContain(forbidden);
+ }
+});
+test('decisão sobre uma matriz não sofre interferência de outra independente',()=>{
+ const a=setup('corrupt'),b=setup('corrupt');
+ const boundary=createSyntheticNativeRecoveryBoundary(a.m,createSyntheticQuarantineReview(a.m,a.record));
+ const lease=acquireSyntheticStorageLease(b.m,'session-b',snapshotSyntheticStorageFailureMatrix(b.m).epoch)!;
+ expect(inspectSyntheticNativeRecoveryClaims(boundary,nativeClaims(snapshotSyntheticStorageFailureMatrix(a.m).epoch)).reviewCurrent).toBe(true);
+ releaseSyntheticStorageLease(b.m,lease);
 });

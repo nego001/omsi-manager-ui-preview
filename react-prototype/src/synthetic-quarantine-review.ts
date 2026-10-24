@@ -113,6 +113,11 @@ export function createSyntheticQuarantineReview(
  });
  return review;
 }
+// Identity-only pairing. A serialized/cloned review is never authoritative.
+export function isSyntheticQuarantineReviewForMatrix(review:unknown,matrix:unknown):boolean{
+ if(!review||typeof review!=='object'||!matrix||typeof matrix!=='object')return false;
+ return issuedReviews.get(review)?.matrix===matrix;
+}
 export function snapshotSyntheticQuarantineReview(review:SyntheticQuarantineReview):SyntheticQuarantineSnapshot{
  return snapshot(lookup(review));
 }

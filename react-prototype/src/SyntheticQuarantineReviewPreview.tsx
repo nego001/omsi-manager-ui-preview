@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {ShieldCheck,LockKeyhole} from 'lucide-react';
+import SyntheticNativeRecoveryBoundaryPreview from './SyntheticNativeRecoveryBoundaryPreview';
 import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
 import {createSyntheticReadAdmissionSession} from './synthetic-read-admission';
 import {createSyntheticContainerReview,advanceSyntheticContainerReview,
@@ -89,5 +90,6 @@ export default function SyntheticQuarantineReviewPreview({
   {state.reviewInvalidated&&<p className="synthetic-quarantine-warning" data-testid="synthetic-quarantine-invalidated">A matriz mudou depois da abertura. Uma revisão anterior não pode ser reaproveitada; nenhuma permissão foi liberada.</p>}
   {state.originalMatrixStillQuarantined&&<p className="synthetic-quarantine-warning" data-testid="synthetic-quarantine-still-locked">A matriz anterior permanece em quarentena, inclusive depois da revisão fictícia.</p>}
   <p className="synthetic-quarantine-warning">Esta decisão não reabre o armazenamento antigo, não comprova limpeza de recursos Windows e não habilita instalar, remover ou atualizar mods.</p>
+  <SyntheticNativeRecoveryBoundaryPreview review={review} matrix={matrix}/>
  </section>;
 }
