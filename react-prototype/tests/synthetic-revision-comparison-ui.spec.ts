@@ -22,7 +22,7 @@ test('pintura fictícia exibe comparação lado a lado das revisões 1 e 2',asyn
  await expect(pane.getByTestId('synthetic-comparison-count')).toContainText('7 de 7');
  await expect(pane.locator('.synthetic-compare-list>li')).toHaveCount(7);
  await expect(pane.locator('.synthetic-compare-list>li[data-change="status-changed"]')).toHaveCount(7);
- await expect(pane.getByText('Candidato fictício')).toBeVisible();
+ await expect(pane.getByText('Candidato fictício',{exact:true})).toBeVisible();
  await expect(pane.getByText('Reanálise pendente')).toBeVisible();
 });
 test('comparação da reanálise incompleta destaca áudio ausente e conserva estados declarados iguais',async({page})=>{
