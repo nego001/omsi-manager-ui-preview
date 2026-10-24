@@ -18,7 +18,7 @@ function workers(i:SyntheticPackageIndex,omitAudio:boolean):SyntheticWorkerDecla
    const suffix=moduleId==='structure'?'bus':moduleId==='manifest'?'json':moduleId==='definitions'?'sii':null;
    const file=suffix?projectSyntheticIndex(i,moduleId).entries.find(e=>e.suffix===suffix):undefined;
    return {
-    moduleId,fixtureDigest:DIGEST,status:'ok',
+    moduleId,fixtureDigest:DIGEST,status:'ok' as const,
     revisionTicket:issueSyntheticRevisionTicket(i,moduleId),
     observations:file?[{
      handle:file.handle,game:'omsi' as const,revisionTicket:issueSyntheticRevisionTicket(i,moduleId,file.handle)
