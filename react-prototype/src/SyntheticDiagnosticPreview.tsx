@@ -2,6 +2,7 @@ import {useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,Clock3,History,LockKeyhole,ShieldCheck} from 'lucide-react';
 import {createSyntheticDiagnosticDemo} from './synthetic-diagnostic-demo';
 import {filterSyntheticDiagnosticTimeline,type SyntheticTimelineFilter} from './synthetic-timeline-filter';
+import {compareSyntheticRevisions} from './synthetic-revision-comparison';
 import type {HistoryState,HistoryModuleStatus} from './synthetic-evidence-history';
 import type {SyntheticModuleId} from './distributed-reader-contract';
 
@@ -23,9 +24,16 @@ export default function SyntheticDiagnosticPreview(){
  const steps=useMemo(()=>createSyntheticDiagnosticDemo(),[]);
  const [selected,setSelected]=useState(3);
  const [moduleFilter,setModuleFilter]=useState<SyntheticTimelineFilter>('all');
+ const [compareBefore,setCompareBefore]=useState(2);
+ const [compareAfter,setCompareAfter]=useState(3);
  const step=steps[selected];
  const timeline=filterSyntheticDiagnosticTimeline(step.timeline,moduleFilter);
  const latest=timeline.revisions[timeline.revisions.length-1];
+ const revisionCount=step.timeline.revisions.length;
+ const beforeRevision=Math.min(compareBefore,Math.max(1,revisionCount-1));
+ const afterRevision=revisionCount>1?Math.max(beforeRevision+1,Math.min(compareAfter,revisionCount)):1;
+ // Always compare the unfiltered, issued snapshot. Visual filters MUST NOT change conclusions.
+ const comparison=revisionCount>1?compareSyntheticRevisions(step.timeline,beforeRevision,afterRevision):null;
  return <section className="synthetic-diag" role="region" aria-label="Laboratório de diagnóstico fictício" data-demo-only="true">
   <header className="synthetic-diag-intro">
    <div>
@@ -56,6 +64,54 @@ export default function SyntheticDiagnosticPreview(){
    </select>
    <p data-testid="synthetic-filter-count" role="status">{timeline.visibleModules} de {timeline.totalModules} registros de especialistas visíveis. As revisões continuam no histórico.</p>
   </div>
+  <section className="synthetic-compare" aria-label="Comparação fictícia de revisões" role="region">
+   <header className="synthetic-compare-intro">
+    <div><span className="eyebrow">COMPARAÇÃO DE DECLARAÇÕES · SOMENTE DEMONSTRAÇÃO</span>
+     <h3>Antes e depois de cada revisão</h3>
+     <p>Compare dois estados fictícios. Identificadores iguais não provam arquivos iguais e nenhum resultado autoriza instalação.</p>
+    </div>
+   </header>
+   {comparison===null?
+    <p className="synthetic-compare-empty">Apenas uma revisão disponível neste cenário. A comparação exige duas revisões distintas.</p>:
+    <>
+     <div className="synthetic-compare-controls" role="group" aria-label="Escolher revisões para comparar">
+      <label htmlFor="synthetic-compare-before">Revisão anterior
+       <select id="synthetic-compare-before" value={beforeRevision} onChange={e=>{
+        const next=Number(e.target.value);setCompareBefore(next);if(next>=compareAfter)setCompareAfter(next+1);
+       }}>
+        {step.timeline.revisions.filter(r=>r.revision<revisionCount).map(r=><option key={r.revision} value={r.revision}>Revisão {r.revision}</option>)}
+       </select>
+      </label>
+      <label htmlFor="synthetic-compare-after">Revisão posterior
+       <select id="synthetic-compare-after" value={afterRevision} onChange={e=>setCompareAfter(Number(e.target.value))}>
+        {step.timeline.revisions.filter(r=>r.revision>beforeRevision).map(r=><option key={r.revision} value={r.revision}>Revisão {r.revision}</option>)}
+       </select>
+      </label>
+     </div>
+     <div className="synthetic-compare-heads">
+      <div><small>ANTES · REVISÃO {comparison.before.revision}</small><strong>{stateLabels[comparison.before.state]}</strong><span>{comparison.before.candidateGame?gameLabels[comparison.before.candidateGame]+' · candidato fictício':'Não identificado'}</span></div>
+      <div><small>DEPOIS · REVISÃO {comparison.after.revision}</small><strong>{stateLabels[comparison.after.state]}</strong><span>{comparison.after.candidateGame?gameLabels[comparison.after.candidateGame]+' · candidato fictício':'Não identificado'}</span></div>
+     </div>
+     <p className="synthetic-compare-summary" data-testid="synthetic-comparison-count" role="status">
+      {comparison.changedModules} de 7 especialistas tiveram indicadores declarados alterados; {comparison.unchangedModules} sem alteração nos indicadores. {comparison.stateChanged?'O estado geral mudou.':'O estado geral declarado permaneceu igual.'}
+     </p>
+     <p className="synthetic-compare-explanation">{comparison.explanation}</p>
+     <ol className="synthetic-compare-list" aria-label="Diferenças declaradas por especialista">
+      {comparison.modules.map(item=><li key={item.moduleId} data-module={item.moduleId} data-change={item.change}>
+       <div className="synthetic-compare-module-header">
+        <strong>{moduleLabels[item.moduleId]}</strong>
+        <span>{item.changed?'Indicadores alterados':'Sem diferença declarada'}</span>
+       </div>
+       <div className="synthetic-compare-pair">
+        <div data-side="before"><small>ANTES</small><strong>{statusLabels[item.beforeStatus]}</strong><span>{item.beforeObservations} {item.beforeObservations===1?'observação':'observações'} fictícias</span></div>
+        <div data-side="after"><small>DEPOIS</small><strong>{statusLabels[item.afterStatus]}</strong><span>{item.afterObservations} {item.afterObservations===1?'observação':'observações'} fictícias</span></div>
+       </div>
+       <p>{item.explanation}</p>
+      </li>)}
+     </ol>
+     <p className="synthetic-compare-footnote">Esta comparação sempre considera os sete especialistas, independentemente do filtro da linha do tempo. Não verifica bytes, instalações ou compatibilidade reais.</p>
+    </>}
+  </section>
   <ol className="synthetic-diag-timeline" aria-label="Revisões da análise de demonstração" key={step.id}>
    {timeline.revisions.map(revision=><li key={revision.revision} data-revision={revision.revision} data-current={revision.current?'true':'false'} data-superseded={revision.superseded?'true':'false'}>
     <details className="synthetic-diag-revision" open={revision.current?true:undefined}>
