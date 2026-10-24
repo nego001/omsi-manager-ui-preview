@@ -1,9 +1,10 @@
 // Failure-injection MATRIX, strictly in memory. This is neither a filesystem
 // lock nor a persistent transaction journal. No native I/O, disk or real mods.
 import {
- isIssuedSyntheticRestartDraft,inspectSyntheticRestartDraft,
+ isIssuedSyntheticRestartDraft,isSyntheticRestartDraftForRecovery,inspectSyntheticRestartDraft,
  type SyntheticRestartDraft
 } from './synthetic-restart-handoff';
+import type {SyntheticOrphanRecovery} from './synthetic-orphan-recovery';
 
 export const SYNTHETIC_STORAGE_FAILURE_LIMITS=Object.freeze({
  retainedAttempts:8,maxRecoveryFailures:3,maxAttempts:64
@@ -39,7 +40,7 @@ export type SyntheticStorageMatrixSnapshot=Readonly<{
  realBytesRead:0;operationsEnabled:false;requiresNewAnalysis:true;
 }>;
 type State={
- epoch:number;owner:SyntheticStorageActor|null;active:SyntheticStorageLease|null;
+ epoch:number;originDraft:SyntheticRestartDraft;owner:SyntheticStorageActor|null;active:SyntheticStorageLease|null;
  failures:number;quarantined:boolean;attemptCount:number;
  attempts:SyntheticStorageAttempt[];last:SyntheticStorageOutcome;
  corrupt:boolean;discarded:boolean;
@@ -99,10 +100,19 @@ export function createSyntheticStorageFailureMatrix(draft:SyntheticRestartDraft)
   scope:'synthetic-storage-failure-matrix',nativeFileHandles:0,operationsEnabled:false
  });
  matrixStates.set(handle,{
-  epoch:0,owner:null,active:null,failures:0,quarantined:false,
+  epoch:0,originDraft:draft,owner:null,active:null,failures:0,quarantined:false,
   attempts:[],attemptCount:0,last:'none',corrupt:false,discarded:false
  });
  return handle;
+}
+// Identity-bound pairing for the optional quarantine review. Neither the
+// matrix nor the draft are proofs of any filesystem origin.
+export function isSyntheticStorageMatrixForRecovery(
+ matrix:unknown,recovery:unknown
+):boolean{
+ if(!matrix||typeof matrix!=='object')return false;
+ const s=matrixStates.get(matrix);
+ return !!s&&isSyntheticRestartDraftForRecovery(s.originDraft,recovery);
 }
 export function snapshotSyntheticStorageFailureMatrix(
  matrix:SyntheticStorageFailureMatrix
