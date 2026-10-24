@@ -127,3 +127,15 @@ A nova etapa visual usa o mesmo analisador de **relações em metadados JSON** n
 8. Repita em janela estreita e confira se os quatro controles (jogo, categoria, alertas e ordenação) não cortam o conteúdo.
 
 **Limite essencial:** "sem alertas declarados" não significa compatibilidade, instalação, segurança ou funcionamento garantido. A amostra é fictícia e não contém um único caminhão, ônibus, mapa, textura ou áudio de jogo real.
+
+## Teste no PC: linha do tempo de dependências declaradas
+
+**Sem mods reais:** baixe o arquivo [catalog.dependencies.example.json](../examples/catalog.dependencies.example.json) do repositório e importe na tela **Catálogo de mods** da prévia Windows obtida de uma CI verde.
+
+1. Abra **Sons do OF-1721 (exemplo)** e vá a **Dependências e conflitos · simulação**.
+2. Confira as três etapas na ordem: **Pacote base OMSI** (indireta), **Ônibus OF-1721** (direta) e **Sons do OF-1721** (mod selecionado).
+3. Abra **Ver dados declarados** no pacote base; aparecem versão, categoria e jogo, mas **não** instalação confirmada.
+4. Confira os alertas de qualquer mod fictício que possua um conflito no catálogo. **Instalar (bloqueado)** e **Remover (bloqueado)** devem continuar indisponíveis.
+5. Reduza a janela para observar se a linha do tempo mantém conectores, rótulos e textos sem cortes. Use Tab e Enter para abrir os expansores.
+
+O exemplo é **apenas um grafo de metadados**. Nenhuma sequência desta tela autoriza copiar, atualizar ou ativar um mod real. A inspeção física do PC continua limitada às pastas fictícias previstas neste documento.
