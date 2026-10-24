@@ -1,5 +1,6 @@
 import {ClipboardList,LockKeyhole} from 'lucide-react';
 import SyntheticRestartPreview from './SyntheticRestartPreview';
+import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
 import {
  projectSyntheticRecoveryAudit,type SyntheticOrphanRecovery,type SyntheticRecoveryEventCode
 } from './synthetic-orphan-recovery';
@@ -13,7 +14,7 @@ const eventLabels:Readonly<Record<SyntheticRecoveryEventCode,string>>={
  'new-evidence-incomplete':'Nova análise fictícia incompleta recusada',
  'new-evidence-recorded':'Nova triagem fictícia independente registrada'
 };
-export default function SyntheticRecoveryAuditPreview({record}:{record:SyntheticOrphanRecovery}){
+export default function SyntheticRecoveryAuditPreview({record,readiness}:{record:SyntheticOrphanRecovery;readiness:SyntheticValidationReadiness}){
  const audit=projectSyntheticRecoveryAudit(record);
  return <section className="synthetic-recovery-audit" role="region" aria-label="Registro sequencial fictício da recuperação" data-persistent="false" data-verified="false">
   <header>
@@ -38,7 +39,7 @@ export default function SyntheticRecoveryAuditPreview({record}:{record:Synthetic
     </div>
    </li>)}
   </ol>
-  <SyntheticRestartPreview record={record}/>
+  <SyntheticRestartPreview record={record} readiness={readiness}/>
   <p className="synthetic-recovery-audit-warning" data-testid="synthetic-audit-notice">Este registro não é uma auditoria criptográfica nem persiste após reiniciar o aplicativo. Mesmo com novos eventos, nenhum mod foi recuperado, verificado ou autorizado para instalação.</p>
  </section>;
 }
