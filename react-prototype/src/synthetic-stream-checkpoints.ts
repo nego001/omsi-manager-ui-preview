@@ -108,6 +108,11 @@ export function createSyntheticStreamReview(source:SyntheticStreamDeclarationSou
  });
  return handle;
 }
+// Recognizes only the original locally issued in-memory simulation object.
+// Not an OS capability, file handle or proof of real file consent.
+export function isIssuedSyntheticStreamReview(value:unknown):value is SyntheticStreamReview{
+ return !!value&&typeof value==='object'&&issuedStreams.has(value);
+}
 export function snapshotSyntheticStreamReview(review:SyntheticStreamReview):SyntheticStreamCheckpoint{
  return snapshot(get(review));
 }
