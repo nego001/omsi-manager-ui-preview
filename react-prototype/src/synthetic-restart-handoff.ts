@@ -70,10 +70,11 @@ export function createSyntheticRestartDraft(record:SyntheticOrphanRecovery):Synt
  const audit=projectSyntheticRecoveryAudit(record);
  const raw=audit.events;
  const root=raw.slice(0,SYNTHETIC_RESTART_RETENTION.rootEvents);
- const recent=raw.slice(-Math.min(
+ const tailCount=Math.min(
   raw.length-SYNTHETIC_RESTART_RETENTION.rootEvents,
   SYNTHETIC_RESTART_RETENTION.maxEvents-SYNTHETIC_RESTART_RETENTION.rootEvents
- ));
+ );
+ const recent=tailCount===0?[]:raw.slice(-tailCount);
  const events=Object.freeze([...root,...recent].map(e=>Object.freeze({
   sequence:e.sequence,code:e.code
  })));
