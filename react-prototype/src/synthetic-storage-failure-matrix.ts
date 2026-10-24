@@ -51,10 +51,13 @@ function get(matrix:SyntheticStorageFailureMatrix):State{
  if(!state)throw Error('Matriz de falhas fictícia não emitida.');
  return state;
 }
-function log(s:State,outcome:SyntheticStorageOutcome,actor:SyntheticStorageActor|null){
- // This is bounded even if the UI sends a storm of invalid requests.
+function ensureCapacity(s:State){
  if(s.attemptCount>=SYNTHETIC_STORAGE_FAILURE_LIMITS.maxAttempts)
   throw Error('Limite global de tentativas fictícias atingido.');
+}
+function log(s:State,outcome:SyntheticStorageOutcome,actor:SyntheticStorageActor|null){
+ // This is bounded even if the UI sends a storm of invalid requests.
+ ensureCapacity(s);
  const entry:SyntheticStorageAttempt=Object.freeze({
   attempt:s.attemptCount+1,outcome,actor,epoch:s.epoch,dataTrusted:false
  });
@@ -133,6 +136,7 @@ export function inspectSyntheticStorageRecord(
  matrix:SyntheticStorageFailureMatrix,lease:SyntheticStorageLease,raw:unknown
 ):SyntheticStorageMatrixSnapshot{
  const s=requireLease(matrix,lease);
+ ensureCapacity(s);
  const check=inspectSyntheticRestartDraft(raw);
  if(check.status==='rejected'){
   s.corrupt=true;log(s,'corrupt-record-rejected',s.owner);
@@ -150,6 +154,7 @@ export function interruptSyntheticStorageRecovery(
  matrix:SyntheticStorageFailureMatrix,lease:SyntheticStorageLease
 ):SyntheticStorageMatrixSnapshot{
  const s=requireLease(matrix,lease);
+ ensureCapacity(s);
  // A simulated crash always invalidates the lease and its attempted result.
  s.failures++;s.discarded=true;s.owner=null;s.active=null;s.epoch++;
  if(s.failures>=SYNTHETIC_STORAGE_FAILURE_LIMITS.maxRecoveryFailures)s.quarantined=true;
