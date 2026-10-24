@@ -1,6 +1,9 @@
 # Leitura espalhada: analisador e instalador com módulos cooperativos
 
-**Status: arquitetura futura, não implementada. Etapa atual: acabamento visual de Biblioteca e Detalhes.** Jogos-alvo: OMSI 2, ETS2 e ATS. Outros títulos dependem de regras verificadas.
+**Status: leitura e instalação reais ainda não implementadas. Etapa atual: Biblioteca/Detalhes + contratos de fusão sobre fixtures sintéticos, sem leitura real.** Jogos-alvo: OMSI 2, ETS2 e ATS. Outros títulos dependem de regras verificadas.
+
+
+> **Implementação limitada disponível:** o [contrato sintético do leitor cooperativo](SYNTHETIC-READER-CONTRACT.md) já modela módulos, bloqueios, consenso e projeções em memória, com testes. Não lê arquivos de mods reais, não executa o gate de segurança nem habilita operações.
 
 ## Conceito exigido
 
