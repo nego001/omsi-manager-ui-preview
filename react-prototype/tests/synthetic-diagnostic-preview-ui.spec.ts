@@ -44,7 +44,7 @@ test('áudio não analisado continua ausente, sem transformar relatório em inst
  await lab.getByRole('button',{name:'3. Áudio não analisado'}).click();
  await expect(lab.getByTestId('synthetic-current-state')).toHaveText('Incompleto');
  const current=lab.locator('.synthetic-diag-timeline>li[data-current="true"]');
- const audio=current.locator('.synthetic-diag-modules>li').filter({has:page.getByText('Áudio',exact:true)});
+ const audio=current.locator('.synthetic-diag-modules>li').filter({has:page.getByText('Áudio',{exact:true})});
  await expect(audio).toHaveAttribute('data-status','missing');
  await expect(audio.getByText('Relatório não recebido')).toBeVisible();
  await audio.getByText('Entender este estado').click();
