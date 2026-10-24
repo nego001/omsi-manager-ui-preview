@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {FileArchive,LockKeyhole} from 'lucide-react';
+import SyntheticStreamCheckpointPreview from './SyntheticStreamCheckpointPreview';
 import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
 import {createSyntheticReadAdmissionSession} from './synthetic-read-admission';
 import {
@@ -79,6 +80,7 @@ export default function SyntheticContainerScreenPreview({readiness}:{readiness:S
   </div>
   {result.reason&&<p className="synthetic-container-reason" data-testid="synthetic-container-reason">{labels[result.reason]}</p>}
   {result.status==='declarations-reviewed'&&<p className="synthetic-container-explainer">O catálogo inventado passou somente pelos testes declarativos. Não há aprovação de arquivo, jogo ou instalação.</p>}
+  {result.status==='declarations-reviewed'&&<SyntheticStreamCheckpointPreview key={scenario} review={handle}/>}
   <p className="synthetic-container-guard">Mesmo que o catálogo fictício termine sem alertas, nenhuma entrada real foi lida, nenhum caminho foi resolvido no Windows e nenhum arquivo foi descompactado. Permissões de leitura e operações permanecem bloqueadas.</p>
  </section>;
 }
