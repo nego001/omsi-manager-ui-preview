@@ -119,6 +119,9 @@ try{
  await window.getByRole('textbox',{name:'Buscar favoritos'}).fill('');
  await window.getByRole('combobox',{name:'Ordenar biblioteca'}).selectOption('title');
  assert.match(await window.locator('.library-filter-results').innerText(),/3 favoritos exibidos/);
+ // Restore the canonical details fixture expected by the nine-screen sweep.
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Catálogo de mods'}).click();
+ await window.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true}).click();
  // Visual evidence of all nine real screens, not just the four main destinations.
  // Use content size to exercise native BrowserWindow resizing, not a CSS-only mock.
  const screens=[
