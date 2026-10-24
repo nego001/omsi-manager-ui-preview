@@ -8,6 +8,7 @@ param(
 )
 $ErrorActionPreference='Stop'
 $stage='fixture-validation'
+$compileDiagnostics=@()
 $child=$null
 $witness=$null
 try {
@@ -108,7 +109,8 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
   if(!disposed){disposed=true;if(handle!=null)handle.Dispose();}
  }
 }
-'@ -ErrorAction Stop
+'@ -ErrorAction SilentlyContinue -ErrorVariable compileDiagnostics
+ if($compileDiagnostics.Count -gt 0){ throw 'CSharp compilation refused' }
  # Use an executable under the PowerShell installation, not a user-supplied PID
  # or executable path. No filesystem game access and no child stdout/stderr.
  $stage='owned-child-start'
@@ -183,9 +185,17 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
  $codes='none'
  if($stage -eq 'native-compilation'){
   $compilerText=[string]$_.Exception.Message + ' ' + [string]$_
+  foreach($issue in $compileDiagnostics){
+   $compilerText+=' '+[string]$issue.Exception.Message+' '+[string]$issue
+  }
   $found=[regex]::Matches($compilerText,'CS[0-9]{4}')
   if($found.Count -gt 0){
    $codes=([string[]]@($found | ForEach-Object { $_.Value } | Select-Object -Unique)) -join ','
+  }
+  $safeExplanation=[regex]::Match($compilerText,'(?:error|warning)\s+CS[0-9]{4}:?[^\r\n]{0,120}')
+  if($safeExplanation.Success){
+   $plain=($safeExplanation.Value -replace '(?i)[a-z]:\\[^\s]+','[temporary-path]')
+   [Console]::Error.WriteLine('Compiler '+$plain)
   }
  }
  [Console]::Error.WriteLine("Temporary native process identity fixture refused. stage=$stage category=$category code=$codes")
