@@ -469,3 +469,22 @@
 .synthetic-compare-why summary{cursor:pointer;font-size:10px;font-weight:700;color:#e6eaf6;line-height:1.6}
 .synthetic-compare-why p{font-size:10px;line-height:1.6;color:#d2daea;overflow-wrap:anywhere}
 @media(max-width:480px){.synthetic-compare-review{padding:10px}.synthetic-compare-review-counts>div{padding:8px}.synthetic-compare-review-counts small{font-size:9px}.synthetic-compare-review-counts strong{font-size:17px}}
+
+
+/* Sanitized fixture declaration hints: correlations, NEVER proven causes. */
+.synthetic-declaration-links{min-width:0;margin:13px 0;padding:14px;background:#252e40;border:1px solid #5a6a82;border-radius:10px}
+.synthetic-declaration-links header h4{font-size:12px;line-height:1.45;color:#f1f4ff;margin:0 0 5px}
+.synthetic-declaration-links header p{font-size:10px;line-height:1.6;color:#c7d3e6;margin:0 0 10px;overflow-wrap:anywhere}
+.synthetic-declaration-links-total{display:flex;flex-wrap:wrap;gap:7px 13px;padding:9px 11px;border-radius:8px;background:#344156;border:1px solid #556882;margin-bottom:11px}
+.synthetic-declaration-links-total span{font-size:10px;line-height:1.6;color:#d7dfef}
+.synthetic-declaration-links-total strong{color:#f4f5fd;font-variant-numeric:tabular-nums}
+.synthetic-declaration-link-list{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0;margin:0}
+.synthetic-declaration-link-list>li{background:#2f3a4e;padding:11px;border:1px solid #61728a;border-radius:9px;min-width:0}
+.synthetic-declaration-link-list>li>strong{display:block;font-size:11px;line-height:1.55;overflow-wrap:anywhere}
+.synthetic-declaration-link-list>li>p{font-size:10px;line-height:1.6;color:#d1dbea;margin:7px 0;overflow-wrap:anywhere}
+.synthetic-declaration-link-list>li>span{display:block;font-size:10px;line-height:1.5;color:#c5d3e5;margin-top:9px}
+.synthetic-declaration-link-list ul{display:flex;flex-wrap:wrap;list-style:none;gap:6px;padding:0;margin:7px 0 0}
+.synthetic-declaration-link-list ul li{display:inline-flex;padding:5px 8px;background:#424d65;border:1px solid #677894;border-radius:7px;font-size:10px;line-height:1.3;color:#eef2fa}
+.synthetic-declaration-guard,.synthetic-declaration-empty{font-size:10px;line-height:1.65;color:#ead9b8;background:#41382f;border:1px solid #776448;padding:10px;border-radius:8px;margin:11px 0 0;overflow-wrap:anywhere}
+@media(max-width:860px){.synthetic-declaration-link-list{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){.synthetic-declaration-links{padding:10px}.synthetic-declaration-links-total{gap:4px 10px}.synthetic-declaration-link-list>li{padding:9px}}
