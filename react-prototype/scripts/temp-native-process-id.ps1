@@ -7,6 +7,7 @@ param(
  [Parameter(Mandatory=$true)][string]$Scenario
 )
 $ErrorActionPreference='Stop'
+$stage='fixture-validation'
 $child=$null
 $witness=$null
 try {
@@ -34,6 +35,7 @@ try {
     [IO.File]::ReadAllText($marker) -cne $Nonce) {
   throw 'fixture marker invalid'
  }
+ $stage='native-compilation'
  Add-Type -TypeDefinition @'
 using System;
 using System.IO;
@@ -109,6 +111,7 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
 '@ -ErrorAction Stop
  # Use an executable under the PowerShell installation, not a user-supplied PID
  # or executable path. No filesystem game access and no child stdout/stderr.
+ $stage='owned-child-start'
  $executable=Join-Path $PSHOME 'powershell.exe'
  $startInfo=New-Object System.Diagnostics.ProcessStartInfo
  $startInfo.FileName=$executable
@@ -118,7 +121,9 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
  $startInfo.WindowStyle=[System.Diagnostics.ProcessWindowStyle]::Hidden
  $child=[System.Diagnostics.Process]::Start($startInfo)
  if ($null -eq $child) { throw 'fixture child failed to start' }
+ $stage='open-native-process-witness'
  $witness=[OmsiTestOwnedProcessWitness]::new($child.Id)
+ $stage='read-native-process-witness'
  $initialStable=$witness.Recheck()
  $firstAlive=(-not $witness.IsExited())
  $secondStable=$witness.Recheck()
@@ -148,6 +153,7 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
  if (-not $initialStable -or -not $secondStable -or -not $firstAlive) {
   throw 'native process witness unstable'
  }
+ $stage='format-untrusted-observation'
  $report=[ordered]@{
   source='temporary-windows-native-process-fixture'
   scenario=$Scenario
@@ -173,7 +179,8 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
  [Console]::Out.WriteLine(($report | ConvertTo-Json -Compress -Depth 3))
  exit 0
 } catch {
- [Console]::Error.WriteLine('Temporary native process identity fixture refused.')
+ $category=$_.Exception.GetType().Name
+ [Console]::Error.WriteLine("Temporary native process identity fixture refused. stage=$stage category=$category")
  exit 3
 } finally {
  if($null -ne $witness){$witness.Dispose()}
