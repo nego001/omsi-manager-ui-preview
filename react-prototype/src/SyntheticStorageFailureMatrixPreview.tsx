@@ -1,6 +1,8 @@
 import {useState} from 'react';
 import {LockKeyhole,ShieldAlert} from 'lucide-react';
 import type {SyntheticOrphanRecovery} from './synthetic-orphan-recovery';
+import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
+import SyntheticQuarantineReviewPreview from './SyntheticQuarantineReviewPreview';
 import {createSyntheticRestartDraft} from './synthetic-restart-handoff';
 import {
  createSyntheticStorageFailureMatrix,acquireSyntheticStorageLease,
@@ -32,7 +34,7 @@ const labels={
  'recovery-interrupted':'Recuperação interrompida',
  quarantined:'Quarentena obrigatória','history-limit-reached':'Histórico no limite'
 } as const;
-export default function SyntheticStorageFailureMatrixPreview({record}:{record:SyntheticOrphanRecovery}){
+export default function SyntheticStorageFailureMatrixPreview({record,readiness}:{record:SyntheticOrphanRecovery;readiness:SyntheticValidationReadiness}){
  const [scenario,setScenario]=useState<Fault>('corrupt');
  const [steps,setSteps]=useState(0);
  const draft=createSyntheticRestartDraft(record);
@@ -87,6 +89,7 @@ export default function SyntheticStorageFailureMatrixPreview({record}:{record:Sy
   {state.historyWindowExceeded&&<p className="synthetic-storage-matrix-warning" data-testid="synthetic-matrix-history">A janela de histórico excedeu oito entradas. Eventos antigos foram omitidos, sem se tornarem reutilizáveis.</p>}
   {state.quarantined&&<p className="synthetic-storage-matrix-warning" data-testid="synthetic-matrix-quarantined">Após três interrupções, novas sessões são recusadas neste modelo fictício.</p>}
   {error&&<p className="synthetic-storage-matrix-warning" data-testid="synthetic-matrix-error">{error}</p>}
+  {(state.quarantined||state.corruptionDetected||state.historyWindowExceeded)&&state.leaseOwner===null&&<SyntheticQuarantineReviewPreview record={record} matrix={matrix} readiness={readiness}/>}
   <p className="synthetic-storage-matrix-guard">Nem o bloqueio, nem a corrupção, nem as falhas foram aplicados ao Windows. Não há journal persistente, proteção criptográfica ou validação real de arquivos. A reanálise permanece obrigatória.</p>
  </section>;
 }
