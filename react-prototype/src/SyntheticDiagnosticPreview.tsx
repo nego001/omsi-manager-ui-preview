@@ -1,6 +1,7 @@
 import {useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,Clock3,History,LockKeyhole,ShieldCheck} from 'lucide-react';
 import {createSyntheticDiagnosticDemo} from './synthetic-diagnostic-demo';
+import {filterSyntheticDiagnosticTimeline,type SyntheticTimelineFilter} from './synthetic-timeline-filter';
 import type {HistoryState,HistoryModuleStatus} from './synthetic-evidence-history';
 import type {SyntheticModuleId} from './distributed-reader-contract';
 
@@ -21,8 +22,9 @@ const gameLabels={omsi:'OMSI 2',ets2:'ETS2',ats:'ATS'} as const;
 export default function SyntheticDiagnosticPreview(){
  const steps=useMemo(()=>createSyntheticDiagnosticDemo(),[]);
  const [selected,setSelected]=useState(3);
+ const [moduleFilter,setModuleFilter]=useState<SyntheticTimelineFilter>('all');
  const step=steps[selected];
- const timeline=step.timeline;
+ const timeline=filterSyntheticDiagnosticTimeline(step.timeline,moduleFilter);
  const latest=timeline.revisions[timeline.revisions.length-1];
  return <section className="synthetic-diag" role="region" aria-label="Laboratório de diagnóstico fictício" data-demo-only="true">
   <header className="synthetic-diag-intro">
@@ -44,6 +46,16 @@ export default function SyntheticDiagnosticPreview(){
    <div><small>Especialistas pendentes</small><strong>{latest.pendingSpecialists} de 7</strong></div>
    <div><small>Jogo sugerido</small><strong>{timeline.currentGameCandidate?gameLabels[timeline.currentGameCandidate]+' · fictício':'Não identificado'}</strong></div>
   </div>
+  <div className="synthetic-diag-filter-bar">
+   <label htmlFor="synthetic-module-filter">Filtrar especialistas fictícios</label>
+   <select id="synthetic-module-filter" value={moduleFilter} onChange={e=>setModuleFilter(e.target.value as SyntheticTimelineFilter)}>
+    <option value="all">Todos os especialistas</option>
+    <option value="pending">Pendentes, ausentes e incompletos</option>
+    <option value="blocked">Somente bloqueados</option>
+    <option value="changed">Afetados por mudanças declaradas</option>
+   </select>
+   <p data-testid="synthetic-filter-count" role="status">{timeline.visibleModules} de {timeline.totalModules} registros de especialistas visíveis. As revisões continuam no histórico.</p>
+  </div>
   <ol className="synthetic-diag-timeline" aria-label="Revisões da análise de demonstração" key={step.id}>
    {timeline.revisions.map(revision=><li key={revision.revision} data-revision={revision.revision} data-current={revision.current?'true':'false'} data-superseded={revision.superseded?'true':'false'}>
     <details className="synthetic-diag-revision" open={revision.current?true:undefined}>
@@ -53,11 +65,12 @@ export default function SyntheticDiagnosticPreview(){
        <strong>Revisão {revision.revision} · {revision.superseded?'Histórica, substituída':stateLabels[revision.state]}</strong>
        <small>{revision.events[0].title}</small>
       </span>
-      <span className="synthetic-diag-revision-count">{revision.completedSpecialists}/7 relatórios fictícios OK</span>
+      <span className="synthetic-diag-revision-count">{revision.completedSpecialists}/7 relatórios fictícios OK · {revision.matchingModules} exibidos</span>
      </summary>
      <div className="synthetic-diag-revision-content">
       <p>{revision.events[0].description}</p>
       {revision.candidateGame&&<p className="synthetic-diag-candidate">Jogo sugerido nesta revisão: {gameLabels[revision.candidateGame]} · dado fictício {revision.candidateIsHistorical?'· não é a conclusão atual':''}.</p>}
+      {revision.matchingModules===0&&<p className="synthetic-diag-filter-empty">Nenhum especialista corresponde a este filtro nesta revisão. O contexto da revisão foi preservado.</p>}
       <ul className="synthetic-diag-modules" aria-label={'Especialistas da revisão '+revision.revision}>
        {revision.events.filter(event=>event.kind==='specialist').map(event=><li key={event.moduleId} data-status={event.status}>
         <div className="synthetic-diag-module-title">

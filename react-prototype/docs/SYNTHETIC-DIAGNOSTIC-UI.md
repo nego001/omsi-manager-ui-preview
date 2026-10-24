@@ -11,3 +11,11 @@ A demonstração tem título e limites visíveis, sem confundir execução real 
 - `tests/synthetic-diagnostic-preview-ui.spec.ts` cobre 9 cenários de UI, incluindo navegação por teclado, separação entre evento real e fictício, revisões, priorização, segurança e geometria.
 
 Não existe parser ZIP/SCS, leitura real, hash de conteúdo ou certificação de compatibilidade. A demo não lê arquivos escolhidos pelo usuário e não salva dados em disco. Instalar, remover, atualizar, oficina de skin e áudio seguem indisponíveis. PR em rascunho, sem merge; homologação do executável na máquina pessoal do usuário não foi feita.
+
+## Filtros de diagnóstico sintético
+
+- Novo módulo puro `src/synthetic-timeline-filter.ts`. Aceita apenas `all`, `pending`, `blocked` e `changed`: todos, pendentes/ausentes/incompletos, bloqueados e afetados por mudanças declaradas.
+- `SyntheticDiagnosticPreview.tsx` usa um filtro nativo acessível por teclado e mostra a contagem de registros visíveis entre todas as revisões do cenário fictício. O filtro permanece selecionado ao navegar entre etapas do cenário.
+- Nenhuma revisão é removida pelos filtros. Seus títulos, situação, eventual candidato histórico e o resultado total de sete especialistas continuam apresentados, mesmo quando nenhum especialista corresponde à seleção. A situação geral não é recalculada por ocultação visual.
+- Os dados de entrada e saída são imutáveis; as opções de instalação, remoção e edição permanecem desativadas. A seleção atua somente na apresentação, não reanalisa arquivos nem libera ações.
+- Testes de funções e de interface cobrem ausência de correspondências, seleção persistente, ordenação, histórico substituído, navegação por teclado e responsividade.

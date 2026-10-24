@@ -403,3 +403,12 @@
 .synthetic-diag-scope{display:flex;align-items:flex-start;gap:8px;color:#b4c0d4;font-size:10px;line-height:1.65;margin:12px 0 0}
 @media(max-width:900px){.synthetic-diag-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){.synthetic-diag{padding:14px;margin-top:18px}.synthetic-diag-steps button{flex:1 1 135px}.synthetic-diag-mark{font-size:9px}.synthetic-diag-summary{gap:7px}.synthetic-diag-summary>div{padding:10px}.synthetic-diag-revision>summary{padding:10px;gap:7px;flex-wrap:wrap}.synthetic-diag-revision-count{flex:1 1 100%;padding-left:38px}.synthetic-diag-revision-content{padding:0 10px 10px}.synthetic-diag-modules{grid-template-columns:minmax(0,1fr)}.synthetic-diag-modules>li{padding:9px}.synthetic-diag-revision-number{flex-basis:29px;height:29px}}
+
+/* Read-only synthetic timeline filters preserve revision headers and full totals. */
+.synthetic-diag-filter-bar{display:flex;align-items:center;flex-wrap:wrap;gap:9px 14px;min-width:0;margin:0 0 15px;padding:13px 14px;border:1px solid #495367;background:#222a39;border-radius:10px}
+.synthetic-diag-filter-bar label{font-size:11px;font-weight:700;color:#e9edf8}
+.synthetic-diag-filter-bar select{flex:1 1 225px;max-width:360px;min-width:0;padding:9px 11px;border:1px solid #626c84;border-radius:8px;color:#f4f5fd;background:#30394b;font-size:11px;line-height:1.4}
+.synthetic-diag-filter-bar select:focus-visible{outline:2px solid #c2c3ff;outline-offset:3px}
+.synthetic-diag-filter-bar p{margin:0;flex:1 1 220px;font-size:10px;line-height:1.6;color:#bfcbe0;overflow-wrap:anywhere}
+.synthetic-diag-filter-empty{background:#2b3344;color:#d7dfef!important;border:1px dashed #67728c;padding:12px;border-radius:8px;font-size:11px!important;line-height:1.65;overflow-wrap:anywhere}
+@media(max-width:640px){.synthetic-diag-filter-bar{padding:10px;gap:8px}.synthetic-diag-filter-bar label,.synthetic-diag-filter-bar select,.synthetic-diag-filter-bar p{flex-basis:100%;max-width:none}}
