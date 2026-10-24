@@ -53,7 +53,7 @@ test('Detalhes explica requisitos declarados com detalhes expansíveis e versão
  await expect(dep.getByText(/A versão instalada no jogo não foi consultada/)).toBeVisible();
  await expect(dep.getByText(/Uma atualização real só poderá ser proposta após leitura segura/)).toBeVisible();
  await page.getByRole('textbox',{name:'Versão hipotética do jogo'}).fill('1.57');
- await expect(relation.getByText('Versão hipotética fora da faixa declarada')).toBeVisible();
+ await expect(relation.locator('.relation-issues').getByText('Versão hipotética fora da faixa declarada')).toBeVisible();
  await expect(relation.locator('.relation-issues li.blocking')).toHaveCount(2);
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
