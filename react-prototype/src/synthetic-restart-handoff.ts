@@ -30,6 +30,12 @@ export type SyntheticRestartInspection=Readonly<{
  realCleanupVerified:false;operationsEnabled:false;
  notice:string;
 }>;
+// Only the original issued fixture can be staged in the transaction simulator.
+// This is process-local provenance, not authentication or an OS capability.
+const issuedRestartDrafts=new WeakSet<object>();
+export function isIssuedSyntheticRestartDraft(value:unknown):value is SyntheticRestartDraft{
+ return !!value&&typeof value==='object'&&issuedRestartDrafts.has(value);
+}
 const codes=new Set<SyntheticRecoveryEventCode>([
  'orphan-detected','old-evidence-invalidated','previously-acknowledged',
  'orphan-acknowledged','acknowledgement-required','old-evidence-rejected',
@@ -78,7 +84,7 @@ export function createSyntheticRestartDraft(record:SyntheticOrphanRecovery):Synt
  const events=Object.freeze([...root,...recent].map(e=>Object.freeze({
   sequence:e.sequence,code:e.code
  })));
- return Object.freeze({
+ const draft:SyntheticRestartDraft=Object.freeze({
   format:'synthetic-restart-draft' as const,schemaVersion:1 as const,
   fixtureRevision:audit.fixtureRevision,
   previousState:audit.activeEvidenceRevision===2?'fixture-only' as const:'incomplete' as const,
@@ -87,6 +93,8 @@ export function createSyntheticRestartDraft(record:SyntheticOrphanRecovery):Synt
   oldEvidenceInvalidated:true as const,oldEvidenceReusable:false as const,
   realVerified:false as const,operationsEnabled:false as const
  });
+ issuedRestartDrafts.add(draft);
+ return draft;
 }
 // Strict *structural* screening, NOT cryptographic validation. An attacker can
 // fabricate a structurally valid copy, which still cannot become trusted.
