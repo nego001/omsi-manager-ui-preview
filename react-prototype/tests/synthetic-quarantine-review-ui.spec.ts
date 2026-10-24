@@ -106,3 +106,45 @@ test('política pode ser usada pelo teclado e não habilita instalação nem rem
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
 });
+
+test('mudança entre abertura e reanálise invalida o parecer no painel',async({page})=>{
+ const {matrix,panel}=await start(page);
+ const next=matrix.getByRole('button',{name:'Executar falha ou etapa seguinte'});
+ for(let i=0;i<3;i++)await next.click();
+ await panel.getByRole('button',{name:'Reconhecer abandono no exemplo'}).click();
+ await panel.getByRole('button',{name:'Simular mudança concorrente na matriz'}).click();
+ await panel.getByRole('button',{name:'Conferir nova triagem fictícia'}).click();
+ await expect(panel.getByTestId('synthetic-quarantine-freshness')).toHaveText('Não, invalidada');
+ await expect(panel.getByTestId('synthetic-quarantine-decision')).toContainText('A matriz mudou');
+ await expect(panel.getByTestId('synthetic-quarantine-declarations')).toHaveText('0');
+ await expect(panel.getByTestId('synthetic-quarantine-invalidated')).toBeVisible();
+});
+
+test('reanálise demonstrativa previamente concluída perde validade com concorrência',async({page})=>{
+ const {matrix,panel}=await start(page);
+ const next=matrix.getByRole('button',{name:'Executar falha ou etapa seguinte'});
+ for(let i=0;i<3;i++)await next.click();
+ await panel.getByRole('button',{name:'Reconhecer abandono no exemplo'}).click();
+ await panel.getByRole('button',{name:'Conferir nova triagem fictícia'}).click();
+ await expect(panel.getByTestId('synthetic-quarantine-phase')).toContainText('revista');
+ await panel.getByRole('button',{name:'Simular mudança concorrente na matriz'}).click();
+ await expect(panel.getByTestId('synthetic-quarantine-phase')).toHaveText('Reanálise pendente');
+ await expect(panel.getByTestId('synthetic-quarantine-declarations')).toHaveText('0');
+ await expect(panel.getByTestId('synthetic-quarantine-invalidated')).toContainText('nenhuma permissão');
+ await panel.getByRole('button',{name:'Reiniciar revisão'}).click();
+ await expect(panel.getByTestId('synthetic-quarantine-freshness')).toHaveText('Sim, apenas no exemplo');
+ await expect(panel.getByTestId('synthetic-quarantine-declarations')).toHaveText('0');
+});
+
+test('ação concorrente no teclado não libera ações de mod',async({page})=>{
+ const {matrix,panel}=await start(page);
+ const next=matrix.getByRole('button',{name:'Executar falha ou etapa seguinte'});
+ for(let i=0;i<3;i++)await next.click();
+ const race=panel.getByRole('button',{name:'Simular mudança concorrente na matriz'});
+ await race.focus();await page.keyboard.press('Enter');
+ await expect(panel.getByTestId('synthetic-quarantine-invalidated')).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+});

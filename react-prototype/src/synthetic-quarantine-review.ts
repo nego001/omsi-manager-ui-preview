@@ -19,7 +19,8 @@ export type SyntheticQuarantineReview=Readonly<{
 }>;
 export type SyntheticQuarantineDecision=
  'acknowledgement-required'|'candidate-not-independent'|
- 'candidate-incomplete'|'candidate-reused'|'new-fixture-reviewed';
+ 'candidate-incomplete'|'candidate-reused'|'new-fixture-reviewed'|
+ 'matrix-state-changed';
 export type SyntheticQuarantineSnapshot=Readonly<{
  schemaVersion:1;source:'synthetic-fixture';
  status:'awaiting-recheck'|'new-fixture-reviewed';
@@ -27,6 +28,7 @@ export type SyntheticQuarantineSnapshot=Readonly<{
  originalMatrixStillQuarantined:boolean;originalEvidenceInvalidated:true;
  originalEvidenceReusable:false;reviewedNewDeclarations:number;
  independentlyScreenedFixture:boolean;priorFailures:number;
+ reviewCurrent:boolean;reviewInvalidated:boolean;
  corruptionDetected:boolean;historyTruncated:boolean;
  realStorageRepaired:false;realLockRecovered:false;
  realIntegrityVerified:false;realCleanupVerified:false;
@@ -37,6 +39,10 @@ type State={
  matrix:SyntheticStorageFailureMatrix;recovery:SyntheticOrphanRecovery;
  status:SyntheticQuarantineSnapshot['status'];
  decision:SyntheticQuarantineDecision|null;declarations:number;
+ baseline:Readonly<{
+  epoch:number;totalAttempts:number;recoveryFailures:number;
+  quarantined:boolean;corruptionDetected:boolean;historyWindowExceeded:boolean;
+ }>;
 };
 const issuedReviews=new WeakMap<object,State>();
 const usedCandidates=new WeakSet<object>();
@@ -45,15 +51,30 @@ function lookup(review:SyntheticQuarantineReview):State{
  if(!s)throw Error('Revisão de quarentena fictícia não emitida.');
  return s;
 }
+function hasMatrixChanged(s:State):boolean{
+ const now=snapshotSyntheticStorageFailureMatrix(s.matrix);
+ const before=s.baseline;
+ // A new lease (even in the same epoch), a rejected acquisition, or any
+ // later epoch/tamper/failure invalidates the review opened earlier.
+ return now.leaseOwner!==null||now.epoch!==before.epoch||
+  now.totalAttempts!==before.totalAttempts||
+  now.recoveryFailures!==before.recoveryFailures||
+  now.quarantined!==before.quarantined||
+  now.corruptionDetected!==before.corruptionDetected||
+  now.historyWindowExceeded!==before.historyWindowExceeded;
+}
 function snapshot(s:State):SyntheticQuarantineSnapshot{
  const matrix=snapshotSyntheticStorageFailureMatrix(s.matrix);
+ const invalidated=hasMatrixChanged(s);
+ const status=invalidated?'awaiting-recheck' as const:s.status;
  return Object.freeze({
   schemaVersion:1 as const,source:'synthetic-fixture' as const,
-  status:s.status,decision:s.decision,
+  status,decision:invalidated?'matrix-state-changed' as const:s.decision,
   originalMatrixStillQuarantined:matrix.quarantined,
   originalEvidenceInvalidated:true as const,originalEvidenceReusable:false as const,
-  reviewedNewDeclarations:s.status==='new-fixture-reviewed'?s.declarations:0,
-  independentlyScreenedFixture:s.status==='new-fixture-reviewed',
+  reviewedNewDeclarations:status==='new-fixture-reviewed'?s.declarations:0,
+  independentlyScreenedFixture:status==='new-fixture-reviewed',
+  reviewCurrent:!invalidated,reviewInvalidated:invalidated,
   priorFailures:matrix.recoveryFailures,
   corruptionDetected:matrix.corruptionDetected,
   historyTruncated:matrix.historyWindowExceeded,
@@ -82,7 +103,13 @@ export function createSyntheticQuarantineReview(
   realQuarantineLifted:false,operationsEnabled:false
  });
  issuedReviews.set(review,{
-  matrix,recovery,status:'awaiting-recheck',decision:null,declarations:0
+  matrix,recovery,status:'awaiting-recheck',decision:null,declarations:0,
+  baseline:Object.freeze({
+   epoch:current.epoch,totalAttempts:current.totalAttempts,
+   recoveryFailures:current.recoveryFailures,quarantined:current.quarantined,
+   corruptionDetected:current.corruptionDetected,
+   historyWindowExceeded:current.historyWindowExceeded
+  })
  });
  return review;
 }
@@ -93,6 +120,7 @@ export function assessSyntheticQuarantineCandidate(
  review:SyntheticQuarantineReview,candidate:SyntheticReaderLifecycle
 ):SyntheticQuarantineSnapshot{
  const s=lookup(review);
+ if(hasMatrixChanged(s))return snapshot(s);
  if(s.status==='new-fixture-reviewed')return snapshot(s);
  const recovery=snapshotSyntheticOrphanRecovery(s.recovery);
  if(recovery.phase==='acknowledgement-required'){

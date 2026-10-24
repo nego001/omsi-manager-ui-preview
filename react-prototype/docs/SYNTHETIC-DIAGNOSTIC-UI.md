@@ -246,3 +246,15 @@ O laboratório da tela Histórico ganhou `src/synthetic-quarantine-review.ts` e 
 - **29 testes novos**: `tests/synthetic-quarantine-review.spec.ts` (20) e `tests/synthetic-quarantine-review-ui.spec.ts` (9), cobrindo vínculo por identidade, bloqueios, reconhecimento, reincidência, privacidade, imutabilidade, interface móvel/teclado e instalação/remoção desativadas.
 
 Isto é uma especificação executável do comportamento desejado, **não uma recuperação de arquivos de produção**. Não existe handle real, journal durável, persistência entre reinícios, reparo do sistema de arquivos, reinicialização nativa nem integridade autenticada. A PR permanece DRAFT sem merge; validação física no Windows do usuário ainda pendente.
+
+
+## Invalidação de revisão por concorrência durante quarentena (24/10/2026)
+
+A revisão fictícia passou a capturar o estado da matriz ao ser aberta (geração, total de tentativas, número de falhas e indicadores de incidente). **Qualquer mudança posterior**, inclusive uma nova sessão com lease ainda na mesma geração, invalida o parecer antigo. Uma aquisição recusada em quarentena também altera a contagem de tentativas e invalida a revisão. Uma liberação posterior do lease não ressuscita a revisão anterior, pois a geração avança.
+
+- `snapshotSyntheticQuarantineReview()` recalcula a validade sempre que é consultado. Se a matriz mudou, retorna `reviewCurrent:false`, `reviewInvalidated:true`, `status:'awaiting-recheck'`, `decision:'matrix-state-changed'`, `reviewedNewDeclarations:0`, sem apresentar uma triagem antiga como ainda aprovada no laboratório.
+- `assessSyntheticQuarantineCandidate()` recusa candidatos sob revisão obsoleta **antes** de consumi-los. Uma revisão nova, criada depois da liberação do lease e com a matriz novamente elegível, pode considerar um candidato genuíno independente ainda não consumido. O vínculo por identidade e o bloqueio de replay continuam valendo.
+- O painel da tela Histórico ganhou **Simular mudança concorrente na matriz**, um resultado de revisão invalidada e reinício da revisão. São apenas transições em objetos `WeakMap` do mesmo processo, sem sincronização interprocessos.
+- Foram acrescentados **7 testes de contrato e 3 de interface** para a checagem de frescor, invalidar avaliação previamente concluída, rejeitar concorrência e preservar os bloqueios dos mods.
+
+**Limites:** comparação de estado em memória não protege contra corridas reais, quedas de energia ou corrupção no disco. O protótipo não mantém lock do Windows, não grava journal, não executa `fsync`, não lê arquivo de mod e não concede permissões. A PR permanece em rascunho e sem merge.

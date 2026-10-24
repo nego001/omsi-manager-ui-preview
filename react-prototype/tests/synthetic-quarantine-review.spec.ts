@@ -214,3 +214,85 @@ test('qualquer decisão mantém recurso real inacessível e nova análise nativa
   expect(x.operationsEnabled).toBe(false);expect(x.freshNativeAnalysisRequired).toBe(true);
  }
 });
+
+test('revisão recém-aberta tem fotografia consistente da matriz fictícia',()=>{
+ const {m,record}=setup('corrupt');
+ const review=createSyntheticQuarantineReview(m,record);
+ const x=snapshotSyntheticQuarantineReview(review);
+ expect(x.reviewCurrent).toBe(true);
+ expect(x.reviewInvalidated).toBe(false);
+ expect(snapshotSyntheticQuarantineReview(review)).toEqual(x);
+});
+
+test('lease concorrente invalida revisão, mesmo sem avançar geração',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ acknowledgeSyntheticOrphanRecovery(record);
+ const before=snapshotSyntheticStorageFailureMatrix(m);
+ const lease=acquireSyntheticStorageLease(m,'session-b',before.epoch)!;
+ expect(snapshotSyntheticStorageFailureMatrix(m).epoch).toBe(before.epoch);
+ const rejected=assessSyntheticQuarantineCandidate(review,completed());
+ expect(rejected.decision).toBe('matrix-state-changed');
+ expect(rejected.reviewCurrent).toBe(false);
+ expect(rejected.reviewedNewDeclarations).toBe(0);
+ expect(rejected.status).toBe('awaiting-recheck');
+ releaseSyntheticStorageLease(m,lease);
+ expect(assessSyntheticQuarantineCandidate(review,completed()).reviewInvalidated).toBe(true);
+});
+
+test('mudança posterior revoga apresentação de análise fictícia já aceita',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ acknowledgeSyntheticOrphanRecovery(record);
+ expect(assessSyntheticQuarantineCandidate(review,completed()).reviewCurrent).toBe(true);
+ expect(snapshotSyntheticQuarantineReview(review).reviewedNewDeclarations).toBe(2);
+ const lease=acquireSyntheticStorageLease(m,'session-b',snapshotSyntheticStorageFailureMatrix(m).epoch)!;
+ const stale=snapshotSyntheticQuarantineReview(review);
+ expect(stale.reviewInvalidated).toBe(true);
+ expect(stale.status).toBe('awaiting-recheck');
+ expect(stale.reviewedNewDeclarations).toBe(0);
+ expect(stale.independentlyScreenedFixture).toBe(false);
+ expect(stale.operationsEnabled).toBe(false);
+ releaseSyntheticStorageLease(m,lease);
+ expect(snapshotSyntheticQuarantineReview(review).reviewInvalidated).toBe(true);
+});
+
+test('tentativa recusada depois de quarentena também invalida a revisão antiga',()=>{
+ const {m,record}=setup('quarantine'),review=createSyntheticQuarantineReview(m,record);
+ const epoch=snapshotSyntheticStorageFailureMatrix(m).epoch;
+ expect(acquireSyntheticStorageLease(m,'session-b',epoch)).toBeNull();
+ const stale=snapshotSyntheticQuarantineReview(review);
+ expect(stale.reviewInvalidated).toBe(true);
+ expect(stale.decision).toBe('matrix-state-changed');
+ expect(stale.originalMatrixStillQuarantined).toBe(true);
+});
+
+test('tentativas em outra matriz não afetam uma revisão independente',()=>{
+ const a=setup('corrupt'),b=setup('corrupt');
+ const review=createSyntheticQuarantineReview(a.m,a.record);
+ const lease=acquireSyntheticStorageLease(b.m,'session-b',snapshotSyntheticStorageFailureMatrix(b.m).epoch)!;
+ expect(snapshotSyntheticQuarantineReview(review).reviewCurrent).toBe(true);
+ releaseSyntheticStorageLease(b.m,lease);
+});
+
+test('a revisão invalidada não consome candidato novo de outra revisão',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ acknowledgeSyntheticOrphanRecovery(record);
+ const lease=acquireSyntheticStorageLease(m,'session-b',snapshotSyntheticStorageFailureMatrix(m).epoch)!;
+ const candidate=completed();
+ expect(assessSyntheticQuarantineCandidate(review,candidate).reviewInvalidated).toBe(true);
+ releaseSyntheticStorageLease(m,lease);
+ const freshReview=createSyntheticQuarantineReview(m,record);
+ expect(assessSyntheticQuarantineCandidate(freshReview,candidate).decision).toBe('new-fixture-reviewed');
+});
+
+test('revisão invalidada não revive por clonagem e não libera ações',()=>{
+ const {m,record}=setup('corrupt'),review=createSyntheticQuarantineReview(m,record);
+ const lease=acquireSyntheticStorageLease(m,'session-b',snapshotSyntheticStorageFailureMatrix(m).epoch)!;
+ const x=snapshotSyntheticQuarantineReview(review);
+ expect(Object.isFrozen(x)).toBe(true);
+ expect(x.originalEvidenceReusable).toBe(false);
+ expect(x.actualFilesRechecked).toBe(false);
+ expect(x.realStorageRepaired).toBe(false);
+ expect(x.operationsEnabled).toBe(false);
+ releaseSyntheticStorageLease(m,lease);
+ expect(snapshotSyntheticQuarantineReview(review).reviewInvalidated).toBe(true);
+});
