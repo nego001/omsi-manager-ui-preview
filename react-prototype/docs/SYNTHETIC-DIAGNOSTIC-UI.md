@@ -82,3 +82,20 @@ A interface `SyntheticValidationReadinessPreview.tsx`, dentro do laboratório do
 Testes adicionados: `tests/synthetic-validation-readiness.spec.ts` (14) e `tests/synthetic-validation-readiness-ui.spec.ts` (8), totalizando **22 cenários** para estado sempre fechado, navegação por teclado, privacidade, filtros e responsividade em 390/850/1440 pixels.
 
 A prévia continua isolada de arquivos de usuários, mods, jogos, instaladores e backups; sem parse real, IO de pacotes, atualização, edição, remoção ou instalação. PR draft, sem merge, e homologação manual física pendente.
+
+
+## Contrato de admissão do futuro leitor de arquivos (24/10/2026)
+
+Implementado **somente como simulação em memória**, não como permissão real:
+
+- `src/synthetic-read-admission.ts` estabelece um contrato declarativo estrito: revisão atual, alegação de consentimento por arquivo, escopo de entrada única, intenção de leitura sem escrita/execução, confinamento declarado e recusa de symlinks/junctions, orçamento de bytes e expansão, quantidade de entradas, profundidade, tempo e cancelamento.
+- Todos os pedidos terminam com `status:'blocked'`, `permittedReadBytes:0`, `realConsentVerified:false`, `realPathVerified:false`, `nativeHandleIssued:false` e `operationsEnabled:false`. **Nenhum valor declarado por um fixture pode simular consentimento nativo e liberar leitura real.**
+- Mesmo com alegações adequadas, há três bloqueios permanentes: consentimento real não adquirido pelo sistema operacional, ausência de confinamento canônico verificado na origem e ausência de backend de leitura real.
+- `createSyntheticReadAdmissionSession()` exige um plano `createSyntheticValidationReadiness()` emitido na memória; os vínculos são privados num `WeakMap`. Sessões copiadas, forjadas, com revisão incorreta e contratos malformados falham fechado. Não há ID de arquivo, caminho, token, digest, handle nativo ou acesso ao disco.
+- A validação de entrada rejeita campos desconhecidos/ausentes, protótipos não padrão, propriedades getter, enums inventados, números negativos/decimais, limites de recursos excessivos, escape de caminhos, links não rejeitados e pedido cancelado. O limite é uma simulação de orçamento, não uma garantia efetiva de processamento de arquivos hostis.
+- `SyntheticReadAdmissionPreview.tsx`, embutido na lista de 12 pré-requisitos, mostra sete cenários exclusivamente fictícios e os motivos do bloqueio; nenhuma seleção de arquivo, botão de acesso ou caixa de aprovação. Filtros/etapas não podem mudar uma decisão de acesso.
+- Testes `tests/synthetic-read-admission.spec.ts` (21) e `tests/synthetic-read-admission-ui.spec.ts` (10) verificam contrato, rejeição por padrão, intenção única, limites, revogação, replay por revisão, cópias forjadas, isolamento de apresentação, teclado, tamanhos móveis e ações destrutivas bloqueadas.
+
+**O que continua faltando para um leitor real:** confirmação genuína de um arquivo escolhido por interação do usuário; handles do sistema operacional com permissões mínimas e escopo restrito, checagem real de caminhos canônicos, symlinks/junctions e arquivos alterados entre abertura/uso; parser robusto sem extração; limites de leitura efetivamente aplicados em I/O real; vinculação de hash a bytes e revisão; cancelamento efetivo; revisões de segurança e homologação no computador Windows físico. Nenhuma dessas capacidades foi habilitada aqui.
+
+O código não deve ser usado como um controle de acesso de produção: o verificador confiável precisa ser implementado separadamente, na camada nativa, com auditoria. Instalação, remoção, edição e atualização continuam desativadas. O PR permanece DRAFT, sem merge.
