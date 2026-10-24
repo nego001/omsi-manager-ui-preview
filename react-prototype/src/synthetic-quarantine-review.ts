@@ -6,10 +6,10 @@ import {
 } from './synthetic-storage-failure-matrix';
 import {
  snapshotSyntheticOrphanRecovery,isFreshSyntheticOrphanCandidate,
+ isIndependentSyntheticOrphanCandidate,
  type SyntheticOrphanRecovery
 } from './synthetic-orphan-recovery';
 import {
- isIssuedSyntheticReaderLifecycle,areIndependentSyntheticReaderLifecycles,
  snapshotSyntheticReaderLifecycle,type SyntheticReaderLifecycle
 } from './synthetic-reader-lifecycle';
 
@@ -98,8 +98,7 @@ export function assessSyntheticQuarantineCandidate(
  if(recovery.phase==='acknowledgement-required'){
   s.decision='acknowledgement-required';return snapshot(s);
  }
- if(!isIssuedSyntheticReaderLifecycle(candidate)||
-    !areIndependentSyntheticReaderLifecyclesForReview(s.recovery,candidate)){
+ if(!isIndependentSyntheticOrphanCandidate(s.recovery,candidate)){
   s.decision='candidate-not-independent';return snapshot(s);
  }
  if(usedCandidates.has(candidate)){
@@ -113,13 +112,4 @@ export function assessSyntheticQuarantineCandidate(
  s.decision='new-fixture-reviewed';s.declarations=outcome.completedDeclarations;
  usedCandidates.add(candidate);
  return snapshot(s);
-}
-function areIndependentSyntheticReaderLifecyclesForReview(
- recovery:SyntheticOrphanRecovery,candidate:SyntheticReaderLifecycle
-):boolean{
- // A genuine independently issued cycle is checked by the private origin
- // binder inside the recovery module; an incomplete independent candidate
- // must still be distinguished from a forged or stale-cycle candidate.
- return isFreshSyntheticOrphanCandidate(recovery,candidate)||
-  isIssuedSyntheticReaderLifecycle(candidate);
 }
