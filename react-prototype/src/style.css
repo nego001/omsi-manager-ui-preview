@@ -680,3 +680,27 @@
 .synthetic-recovery-audit-warning{font-size:10px;line-height:1.7;color:#f1dfc0;background:#493b2e;border:1px solid #8d795e;padding:10px;border-radius:8px;margin:12px 0 0;overflow-wrap:anywhere}
 @media(max-width:850px){.synthetic-recovery-audit-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.synthetic-recovery-audit{padding:10px}.synthetic-recovery-audit-metrics>div{padding:7px}.synthetic-recovery-audit-metrics small{font-size:9px}.synthetic-recovery-audit-events li{padding:8px}}
+
+
+/* Restart handoff inspection: no OS restart, disk storage or trusted capability. */
+.synthetic-restart{min-width:0;margin:14px 0 7px;padding:13px;border:1px solid #788ca6;border-radius:10px;background:#2a3d53;color:#eef3ff}
+.synthetic-restart h6{display:flex;align-items:center;gap:8px;margin:7px 0 6px;font-size:12px;line-height:1.5}
+.synthetic-restart header p{margin:0 0 12px;font-size:10px;line-height:1.7;color:#cedaec;overflow-wrap:anywhere}
+.synthetic-restart-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:10px 0 13px}
+.synthetic-restart-metrics>div{min-width:0;padding:9px;border:1px solid #7086a0;border-radius:8px;background:#394e68}
+.synthetic-restart-metrics small{display:block;font-size:10px;line-height:1.55;color:#d1ddeb}
+.synthetic-restart-metrics strong{display:block;font-size:12px;line-height:1.5;color:#fff;margin-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.synthetic-restart>label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:700;line-height:1.5}
+.synthetic-restart>label select{width:100%;max-width:470px;min-width:0;padding:10px;font-size:11px;background:#425571;border:1px solid #93a6bd;color:#f6f8ff;border-radius:8px}
+.synthetic-restart>label select:focus-visible,.synthetic-restart-actions button:focus-visible{outline:2px solid #c4ceff;outline-offset:3px}
+.synthetic-restart-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+.synthetic-restart-actions button{min-height:36px;padding:9px 11px;background:#475e7b;color:#fff;border:1px solid #94a8c3;border-radius:8px;font-size:10px;font-weight:700;line-height:1.5}
+.synthetic-restart-actions button:disabled{opacity:.45;cursor:not-allowed}
+.synthetic-restart-actions button:hover:not(:disabled){background:#5c7391}
+.synthetic-restart-result{padding:11px;margin-top:13px;border:1px solid #9a815e;border-radius:9px;background:#493d31;color:#f1dfbf}
+.synthetic-restart-result strong{display:block;font-size:12px;line-height:1.5}
+.synthetic-restart-result p,.synthetic-restart-note{font-size:10px;line-height:1.7;margin:9px 0 0;overflow-wrap:anywhere}
+.synthetic-restart-result p svg{display:inline;vertical-align:-2px;margin-right:5px}
+.synthetic-restart-note{color:#dce6f5}
+@media(max-width:860px){.synthetic-restart-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.synthetic-restart{padding:10px}.synthetic-restart-metrics>div{padding:7px}.synthetic-restart-metrics small{font-size:9px}.synthetic-restart-actions button{flex:1 1 160px}}
