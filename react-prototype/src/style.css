@@ -412,3 +412,35 @@
 .synthetic-diag-filter-bar p{margin:0;flex:1 1 220px;font-size:10px;line-height:1.6;color:#bfcbe0;overflow-wrap:anywhere}
 .synthetic-diag-filter-empty{background:#2b3344;color:#d7dfef!important;border:1px dashed #67728c;padding:12px;border-radius:8px;font-size:11px!important;line-height:1.65;overflow-wrap:anywhere}
 @media(max-width:640px){.synthetic-diag-filter-bar{padding:10px;gap:8px}.synthetic-diag-filter-bar label,.synthetic-diag-filter-bar select,.synthetic-diag-filter-bar p{flex-basis:100%;max-width:none}}
+
+
+/* Synthetic revision comparison: two declarations, not two real filesystem states. */
+.synthetic-compare{min-width:0;border:1px solid #49546b;background:linear-gradient(140deg,#292d42,#1b2431);padding:17px;border-radius:12px;margin:0 0 19px;color:#edf0fa}
+.synthetic-compare-intro h3{font-size:17px;line-height:1.35;margin:7px 0}
+.synthetic-compare-intro p{margin:4px 0 15px;font-size:11px;line-height:1.65;color:#c5d0e4;overflow-wrap:anywhere}
+.synthetic-compare-controls{display:flex;gap:11px;flex-wrap:wrap;margin:0 0 13px}
+.synthetic-compare-controls label{display:flex;flex:1 1 170px;max-width:380px;min-width:0;flex-direction:column;gap:5px;font-size:10px;color:#cbd7ea;font-weight:750}
+.synthetic-compare-controls select{min-width:0;width:100%;background:#30394d;color:#fff;border:1px solid #7181a0;border-radius:8px;padding:10px;font-size:11px}
+.synthetic-compare-controls select:focus-visible{outline:2px solid #c4c5ff;outline-offset:3px}
+.synthetic-compare-heads{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.synthetic-compare-heads>div{padding:12px;border:1px solid #5e6981;background:#30374b;border-radius:9px;min-width:0}
+.synthetic-compare-heads small{display:block;font-size:10px;letter-spacing:.8px;color:#c0cce2;line-height:1.4}
+.synthetic-compare-heads strong{font-size:13px;line-height:1.45;display:block;margin-top:6px;overflow-wrap:anywhere}
+.synthetic-compare-heads span{font-size:10px;line-height:1.6;color:#cfd7e8;display:block;overflow-wrap:anywhere}
+.synthetic-compare-summary{color:#e8e6fb;font-size:12px;line-height:1.6;margin:12px 0 7px;font-weight:700}
+.synthetic-compare-explanation{font-size:11px;line-height:1.65;color:#bfcce0;margin:0 0 12px;overflow-wrap:anywhere}
+.synthetic-compare-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;list-style:none;margin:0;padding:0}
+.synthetic-compare-list>li{min-width:0;background:#30394b;border:1px solid #52617a;padding:12px;border-radius:9px}
+.synthetic-compare-list>li[data-change="no-declared-change"]{border-color:#3f5360;background:#293444}
+.synthetic-compare-module-header{display:flex;justify-content:space-between;align-items:baseline;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+.synthetic-compare-module-header strong{font-size:12px}
+.synthetic-compare-module-header span{font-size:10px;color:#c3cde0;line-height:1.4}
+.synthetic-compare-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-width:0}
+.synthetic-compare-pair>div{border:1px solid #52617a;background:#232e3f;border-radius:7px;padding:9px;min-width:0}
+.synthetic-compare-pair small{display:block;color:#afbdd3;font-size:9px;font-weight:750;letter-spacing:.7px}
+.synthetic-compare-pair strong{display:block;font-size:10px;line-height:1.5;margin:5px 0;color:#f0f2fc;overflow-wrap:anywhere}
+.synthetic-compare-pair span{display:block;font-size:9px;line-height:1.5;color:#c2cede;overflow-wrap:anywhere}
+.synthetic-compare-list>li>p{font-size:10px;color:#cbd6e8;line-height:1.65;margin:9px 0 0;overflow-wrap:anywhere}
+.synthetic-compare-footnote,.synthetic-compare-empty{font-size:11px;line-height:1.65;color:#e0cdae;background:#40382e;border:1px solid #726046;border-radius:8px;margin:12px 0 0;padding:11px;overflow-wrap:anywhere}
+@media(max-width:860px){.synthetic-compare-list{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:640px){.synthetic-compare{padding:11px}.synthetic-compare-controls label{flex-basis:100%;max-width:none}.synthetic-compare-heads>div{padding:9px}.synthetic-compare-pair>div{padding:8px}.synthetic-compare-list>li{padding:10px}}
