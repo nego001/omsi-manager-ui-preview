@@ -6,7 +6,7 @@ import {
  createSyntheticStorageFailureMatrix,acquireSyntheticStorageLease,
  inspectSyntheticStorageRecord,releaseSyntheticStorageLease,
  interruptSyntheticStorageRecovery,snapshotSyntheticStorageFailureMatrix,
- type SyntheticStorageActor,type SyntheticStorageLease
+ type SyntheticStorageLease
 } from './synthetic-storage-failure-matrix';
 
 type Fault='corrupt'|'conflict'|'exhaustion'|'repeated'|'stale';
