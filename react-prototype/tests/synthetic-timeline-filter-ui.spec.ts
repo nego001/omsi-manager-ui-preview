@@ -54,7 +54,7 @@ test('filtro persiste ao trocar cenário e não restaura sugestão de jogo antig
  await lab.getByRole('button',{name:'2. Pintura alterada'}).click();
  await expect(select).toHaveValue('pending');
  await expect(lab.getByTestId('synthetic-filter-count')).toContainText('7 de 14');
- await expect(lab.getByText('Não identificado')).toBeVisible();
+ await expect(lab.locator('.synthetic-diag-summary').getByText('Não identificado',{exact:true})).toBeVisible();
 });
 test('seletor pode ser alterado com teclado e mantém botões de instalar/remover bloqueados',async({page})=>{
  const lab=await setup(page);
