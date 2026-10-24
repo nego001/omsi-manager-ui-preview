@@ -1,7 +1,7 @@
 // Streaming threat-model using NUMERIC fixture blocks only, never file contents.
 // This is not a ZIP/SCS reader or decompressor and cannot grant OS access.
 import {
- isIssuedSyntheticStreamDeclarationSource,type SyntheticStreamDeclarationSource
+ isIssuedSyntheticStreamDeclarationSource,areIndependentSyntheticScreeningSources,type SyntheticStreamDeclarationSource
 } from './synthetic-container-screen';
 import {SYNTHETIC_READ_BUDGETS} from './synthetic-read-admission';
 
@@ -33,6 +33,7 @@ type DeclaredChunk=Readonly<{
 }>;
 type StreamState={
  chunks:readonly unknown[];expected:SyntheticStreamDeclarationSource['entries'];
+ screenedOrigin:SyntheticStreamDeclarationSource;
  revision:number;cursor:number;entryIndex:number;
  entryEncoded:number;entryExpanded:number;stagedEntries:number;
  encoded:number;expanded:number;timeMs:number;
@@ -100,7 +101,7 @@ export function createSyntheticStreamReview(source:SyntheticStreamDeclarationSou
   realReaderAvailable:false,realBytesRead:false,operationsEnabled:false
  });
  issuedStreams.set(handle,{
-  chunks:Object.freeze(chunks),expected:source.entries,revision:source.revision,
+  chunks:Object.freeze(chunks),expected:source.entries,screenedOrigin:source,revision:source.revision,
   cursor:0,entryIndex:0,entryEncoded:0,entryExpanded:0,stagedEntries:0,
   encoded:0,expanded:0,timeMs:0,
   status:tooMany?'blocked':'pending',failure:tooMany?'chunk-limit':null,
@@ -112,6 +113,15 @@ export function createSyntheticStreamReview(source:SyntheticStreamDeclarationSou
 // Not an OS capability, file handle or proof of real file consent.
 export function isIssuedSyntheticStreamReview(value:unknown):value is SyntheticStreamReview{
  return !!value&&typeof value==='object'&&issuedStreams.has(value);
+}
+// Scope validation includes the original synthetic screening, not just
+// identical-looking public revision numbers or replayable declaration objects.
+export function areIndependentlyScreenedSyntheticStreams(
+ previous:unknown,next:unknown
+):boolean{
+ if(!previous||typeof previous!=='object'||!next||typeof next!=='object')return false;
+ const a=issuedStreams.get(previous),b=issuedStreams.get(next);
+ return !!a&&!!b&&areIndependentSyntheticScreeningSources(a.screenedOrigin,b.screenedOrigin);
 }
 export function snapshotSyntheticStreamReview(review:SyntheticStreamReview):SyntheticStreamCheckpoint{
  return snapshot(get(review));
