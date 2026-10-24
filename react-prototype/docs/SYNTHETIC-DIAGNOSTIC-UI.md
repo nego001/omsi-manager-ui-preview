@@ -53,3 +53,15 @@ Limitação: todos os módulos e exemplos são simulados na memória do protóti
 - `tests/synthetic-change-explanations.spec.ts` e `tests/synthetic-change-explanations-ui.spec.ts` cobrem privacidade, associação por extensão, grupo e contagem, rejeição de índices/etapas clonados, história 1/2/3, filtros independentes, texto honesto, responsividade e instalação desativada.
 
 **Fronteira de segurança:** tudo é fictício e em memória; não acessa diretórios de jogos, arquivos reais, processos ou rede; não verifica hashes ou compatibilidade; não habilita escrita nem ações na Oficina. As nove telas aprovadas permanecem com o visual original fora desta seção de laboratório. O PR segue draft e a homologação manual em um computador Windows físico não foi realizada.
+
+
+## Parecer explicável: por que uma conclusão ainda não é confirmada
+
+- `src/synthetic-decision-explanation.ts` projeta um parecer imutável para uma revisão da **timeline completa e genuinamente emitida** pelo coordenador sintético. Um histórico clonado, falso ou filtrado não pode emitir parecer porque a procedência em memória é verificada antes de ler relatórios.
+- Mesmo em estado `candidate` com 7 de 7 especialistas OK, o parecer exibe `confirmation: not-confirmed`: consenso do fixture não confirma identidade do jogo, integridade de arquivos, compatibilidade ou instalação real.
+- Os dados publicados são SOMENTE identificadores fixos dos sete especialistas, seus status, a quantidade de observações declaradas e uma pista booleana de impacto. **Nunca** caminhos, nomes, tickets, handles, bytes, valores de hash ou arquivos privados.
+- As razões são estruturadas com códigos de falta de comprovação (fixture fictício, conteúdo real não lido, digest declarado não verificado, compatibilidade não testada e instalação não validada), acrescidas de motivos específicos conforme o estado: revisão histórica, reanálise pendente, relatório ausente, incompleto ou bloqueado, alegações contraditórias, evidências insuficientes ou candidato apenas provisório.
+- A apresentação em `src/SyntheticDiagnosticPreview.tsx` exibe o parecer da **revisão ativa** e oferece expansão por teclado dos sete indícios declarados. Ela fica isolada abaixo do histórico de atividades reais, que continua vazio. Os filtros da timeline e da comparação não alteram os fatos do parecer, que parte do resultado não filtrado.
+- `tests/synthetic-decision-explanation.spec.ts` acrescenta 18 testes de contrato e `tests/synthetic-decision-explanation-ui.spec.ts` acrescenta 8 testes de interface, incluindo os estados candidato, histórico, pendente, ausente, incompleto, bloqueado, ambíguo e não identificado; apresentação móvel, privacidade e bloqueios de operações.
+
+**Limites:** nenhuma classificação constitui análise real de bytes, malware, dependências, mods ou jogos. Não existem hashes de arquivos reais nem integração autorizada com diretórios pessoais. A interface apenas exibe fixtures em memória: operações de instalar, remover, atualizar e editar continuam indisponíveis. Nenhum histórico real é produzido. PR permanece draft, sem merge, e validação manual no Windows físico do usuário segue pendente.
