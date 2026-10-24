@@ -25,6 +25,14 @@ O programa deve prevenir problemas comuns e explicar o que encontrou, mas **nunc
 11. Desinstalar: identificar ownership pelos registros da transação e remover **apenas arquivos que o próprio gerenciador colocou**, preservando modificações manuais e outros mods, com restauração fácil.
 12. Loja/catálogo: combinar curadoria, busca e sinalização transparente de origem, autoria, licença, integridade e compatibilidade. Não atribuir a si arquivos ou screenshots dos criadores. Uploads/downloads e execução de código externo requerem mecanismos próprios de segurança.
 
+## Leitura espalhada: módulos especializados trabalhando juntos
+
+**Requisito transversal:** o usuário não quer um "leitor único". O analisador deve **distribuir a leitura entre módulos cooperativos** (estrutura, metadados, definições OMSI/ETS2/ATS, modelos/texturas, áudio, capas reais, versões, integridade e destinos), cada um responsável por uma parcela do pacote. Um coordenador reúne evidências, interpreta conflitos e produz uma **identificação conjunta**. O planejamento da instalação e sua futura validação utilizam **o mesmo resultado**, não um segundo detector desconectado.
+
+Os módulos independentes podem executar em paralelo **somente depois de um gate de segurança e índice imutável**, com limites globais de recursos e acesso restrito às entradas permitidas. Divergência ETS2/ATS, versão desconhecida, pacote híbrido ou falha de módulo **não autorizam instalar automaticamente**. Sem evidência: apresentar "Não verificado" ou "Inspeção incompleta".
+
+**Contrato específico, diagrama, módulos, testes adversariais e sequência futura:** [DISTRIBUTED-MOD-READER.md](DISTRIBUTED-MOD-READER.md). Essa leitura cooperativa será aplicada a **análise, biblioteca, atualização, instalação, conferência pós-instalação e desinstalação**; ainda não está implementada no protótipo.
+
 ## Arquitetura prevista (módulos separados)
 
 | Módulo | Responsabilidade | Limite |
