@@ -8,7 +8,7 @@ const digest='a'.repeat(64);
 const anotherDigest='b'.repeat(64);
 function reports(target='omsi' as 'omsi'|'ets2'|'ats'):SyntheticModuleReport[]{
  return SYNTHETIC_MODULE_IDS.map(moduleId=>({
-  moduleId,contractVersion:1,fixtureDigest:digest,status:'ok',
+  moduleId,contractVersion:1 as const,fixtureDigest:digest,status:'ok' as const,
   signals:moduleId==='structure'?[{game:target,evidenceId:'tree-marker'}]:
    moduleId==='manifest'?[{game:target,evidenceId:'manifest-marker'}]:
    moduleId==='definitions'?[{game:target,evidenceId:'definition-marker'}]:[]
