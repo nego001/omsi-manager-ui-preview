@@ -1,4 +1,5 @@
 import type {RelationAnalysis} from './relation-analysis';
+import type {GameId} from './catalog';
 
 // Layout/view contract over the existing declared JSON analysis. No file or game reads.
 export type TimelineRole='selected'|'direct'|'indirect';
@@ -7,7 +8,7 @@ export type TimelineStage={
  title:string;
  category:string;
  version:string;
- game:string;
+ game:GameId;
  step:number;
  role:TimelineRole;
 };
