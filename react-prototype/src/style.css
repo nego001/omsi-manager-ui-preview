@@ -278,3 +278,22 @@
 .library-declared-alerts svg{flex-shrink:0;margin-top:1px;color:#f0c489}
 .library-declared-alerts strong{color:#fff0d2}
 @media(max-width:480px){.library-declared-alerts{padding:11px 12px}}
+
+/* Relations: explain what the JSON actually declares, without claiming mod compatibility. */
+.relation-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0 17px}
+.relation-overview>div{display:flex;flex-direction:column;gap:7px;min-width:0;padding:12px;border:1px solid #465160;background:#252d38;border-radius:9px}
+.relation-overview small{color:#c6d0df;font-size:10px;line-height:1.4;overflow-wrap:anywhere}
+.relation-overview strong{color:#f2f6fb;font-size:22px;font-variant-numeric:tabular-nums}
+.relation-issues>li{padding:13px;border-radius:10px;min-width:0}
+.relation-issues li p{font-size:11px;line-height:1.65;color:inherit;margin:8px 0 0;overflow-wrap:anywhere}
+.relation-issue-title{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.relation-issue-title strong{font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.relation-issue-category{border-radius:5px;background:#ffffff19;border:1px solid #ffffff37;padding:3px 7px;white-space:normal;font-size:10px;color:#f4e8da}
+.relation-guide{margin-top:11px;padding:10px 11px;background:#171e28b3;border:1px solid #5c6470;border-radius:8px}
+.relation-guide summary{cursor:pointer;color:#e7effa;font-size:11px;font-weight:650;line-height:1.5;outline-offset:5px}
+.relation-guide summary:focus-visible{outline:2px solid #a3b7e8}
+.relation-guide p{color:#e0e5ed!important;font-size:11px;line-height:1.65}
+.relation-guide p strong{color:#fff}
+.relation-scope-note{display:flex;align-items:flex-start;gap:8px;margin-top:14px!important;color:#d9caaa!important;font-size:11px!important;line-height:1.6}
+.relation-scope-note svg{flex-shrink:0;margin-top:2px}
+@media(max-width:600px){.relation-overview{gap:6px}.relation-overview>div{padding:10px 8px}.relation-overview strong{font-size:19px}.relation-overview small{font-size:9px}.relation-issues>li{padding:10px}}
