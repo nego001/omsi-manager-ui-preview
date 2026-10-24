@@ -66,3 +66,17 @@ Estas são medições de consistência **interna** do projeto. Não alegam igual
 A primeira CI da rodada de tipografia e alinhamento identificou uma **largura extra transitória de 21 a 57 px** durante a mudança para viewport estreito. A transição de largura da barra lateral não deve rodar enquanto o breakpoint reduz o menu; ela agora é desligada abaixo de 760 px, preservando as animações no desktop. Também acrescentamos contorno de foco quando cartões recebem foco por APIs assistivas ou automaticamente, não apenas via `:focus-visible`.
 
 A etapa só pode ser considerada validada depois da nova CI verde. O teste de títulos longos continua impedindo o corte de nomes de até 100 caracteres informados em JSON.
+
+## Quarta rodada: fluxo contextual entre Biblioteca e Detalhes
+
+Sem trocar a identidade visual já aprovada, esta etapa melhora **a continuidade da navegação**:
+
+- **Busca contextual:** o campo no topo procura entre os favoritos quando o usuário está na Biblioteca. Em outras páginas conserva a busca do Catálogo; a pesquisa não troca de tela apenas porque o campo recebeu foco.
+- **Filtros combinados:** pesquisa textual, jogo e categoria funcionam simultaneamente com contagem clara. Limpar filtros restaura a seleção sem apagar favoritos.
+- **Ordenação:** ordem original do catálogo, nome A–Z ou agrupamento por jogo e nome, sem reescrever os metadados originais.
+- **Voltar de Detalhes:** o aplicativo lembra de onde o cartão foi aberto (Início, Catálogo ou Biblioteca). Ao voltar à Biblioteca, preserva busca, jogo, categoria e ordenação. Isso evita perder o contexto enquanto se examina vários mods.
+- **Evidência Windows:** o teste agora adiciona favoritos fictícios no armazenamento local e captura a Biblioteca preenchida, além de exercitar busca e retorno. Nenhum mod é instalado.
+
+Novos testes de navegador em `tests/library-workflow.spec.ts` verificam pesquisa contextual, filtros, ordenação, ida/volta e controles em 390 px. A implementação segue **somente metadados**, não mede compatibilidade real e não altera arquivos de jogos.
+
+Documentação de visão futura permanece em `PRODUCT-DECISIONS-REGISTER.md`. Leitura espalhada, Oficina, instalação e atualização seguem como requisitos de fases posteriores.
