@@ -48,10 +48,14 @@ function summarize(delta:SyntheticIndexDelta):SyntheticChangeExplanation{
   if(current)current.declarations+=1;
   else grouped.set(key,{action:item.change,suffix:item.suffix,kind:item.kind,declarations:1});
  }
- const groups=Object.freeze([...grouped.values()].map(item=>{
-  const specialists=Object.freeze(
-   affectedSyntheticModulesForDeclaration(item.suffix,item.kind).filter((id):id is Specialist=>id!=='container')
-  );
+ // Stable presentation independent of fixture path ordering: removed, modified, added;
+ // within each category, sort by format and directory/file hint.
+ const actionOrder:Readonly<Record<DeclaredAction,number>>={removed:0,modified:1,added:2};
+ const ordered=[...grouped.values()].sort((a,b)=>actionOrder[a.action]-actionOrder[b.action]||
+  a.suffix.localeCompare(b.suffix)||a.kind.localeCompare(b.kind));
+ const groups=Object.freeze(ordered.map(item=>{
+  const potentiallyAffected=new Set(affectedSyntheticModulesForDeclaration(item.suffix,item.kind));
+  const specialists=Object.freeze(specialistIds.filter(id=>potentiallyAffected.has(id)));
   const label=item.kind==='directory'?'declaração de pasta':'declaração de '+suffixNames[item.suffix];
   return Object.freeze({
    ...item,specialists,
