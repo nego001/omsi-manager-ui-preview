@@ -42,7 +42,7 @@ using System;
 using System.IO;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
+
 public sealed class OmsiTestOwnedProcessWitness : IDisposable
 {
  private SafeWaitHandle handle;
@@ -61,16 +61,15 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
  [DllImport("kernel32.dll",SetLastError=true)]
  [return:MarshalAs(UnmanagedType.Bool)]
  private static extern bool GetProcessTimes(SafeWaitHandle process,
-   out FILETIME created,out FILETIME exit,out FILETIME kernel,out FILETIME user);
+   out long created,out long exit,out long kernel,out long user);
  [DllImport("kernel32.dll",SetLastError=true)]
  private static extern uint WaitForSingleObject(SafeWaitHandle process,uint timeout);
  private static long ReadBirth(SafeWaitHandle h)
  {
-  FILETIME created,exit,kernel,user;
+  long created,exit,kernel,user;
   if(!GetProcessTimes(h,out created,out exit,out kernel,out user))
    throw new IOException("native process times unavailable");
-  return ((long)(uint)created.dwHighDateTime<<32)|
-   (long)(uint)created.dwLowDateTime;
+  return created;
  }
  public OmsiTestOwnedProcessWitness(int ownedChildPid)
  {
@@ -196,6 +195,11 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
   if($safeExplanation.Success){
    $plain=($safeExplanation.Value -replace '(?i)[a-z]:\\[^\s]+','[temporary-path]')
    [Console]::Error.WriteLine('Compiler '+$plain)
+  } elseif($compileDiagnostics.Count -gt 0){
+   $firstText=[string]$compileDiagnostics[0].Exception.Message
+   if([string]::IsNullOrWhiteSpace($firstText)){$firstText=[string]$compileDiagnostics[0]}
+   $clean=($firstText -replace '(?i)[a-z]:[\\/][^\s\)\]]+','[temporary-path]' -replace '[\r\n\t]+',' ')
+   [Console]::Error.WriteLine('Compiler detail='+$clean.Substring(0,[Math]::Min(190,$clean.Length)))
   }
  }
  [Console]::Error.WriteLine("Temporary native process identity fixture refused. stage=$stage category=$category code=$codes")
