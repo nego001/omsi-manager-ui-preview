@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {LockKeyhole,PackageSearch} from 'lucide-react';
+import SyntheticReaderLifecyclePreview from './SyntheticReaderLifecyclePreview';
 import {
  issueSyntheticStreamDeclarationSource,type SyntheticContainerReview,
  type SyntheticStreamDeclarationSource
@@ -94,6 +95,7 @@ export default function SyntheticStreamCheckpointPreview({review}:{review:Synthe
   {result.failure&&<p className="synthetic-stream-warning" data-testid="synthetic-stream-failure">{failureLabels[result.failure]}</p>}
   {result.discardedPartialResults&&<p className="synthetic-stream-warning" data-testid="synthetic-stream-discarded">Todos os resultados parciais foram descartados; nenhuma entrada foi publicada.</p>}
   {result.status==='declarations-reviewed'&&<p className="synthetic-stream-success">Somente as contagens fictícias fecharam. Integridade, conteúdo e formato reais continuam sem verificação.</p>}
+  <SyntheticReaderLifecyclePreview source={source}/>
   <p className="synthetic-stream-guard">Nenhum bloco contém bytes de um arquivo real, nenhum descompressor foi executado e nenhuma ação sobre mods foi autorizada. O tempo mostrado é declarado, não um limite aplicado a CPU ou disco.</p>
  </section>;
 }
