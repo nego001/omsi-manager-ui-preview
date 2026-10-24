@@ -38,6 +38,10 @@ function moduleMessage(status:HistoryModuleStatus,affected:boolean):Readonly<[Ti
  if(status==='blocked')return ['module-blocked','Especialista bloqueado','O especialista relatou bloqueio fictício. Não foram liberadas operações.'];
  return ['module-reported','Relatório fictício recebido','O especialista informou OK no teste. Isso não comprova leitura, integridade ou compatibilidade de mods reais.'];
 }
+const issuedTimelines=new WeakSet<object>();
+export function isIssuedSyntheticDiagnosticTimeline(value:unknown):value is SyntheticDiagnosticTimeline{
+ return !!value&&typeof value==='object'&&issuedTimelines.has(value);
+}
 export function projectSyntheticDiagnosticTimeline(history:SyntheticEvidenceHistory):SyntheticDiagnosticTimeline{
  projectSyntheticEvidenceHistory(history); // Reject copied or forged histories.
  const revisions=Object.freeze(history.revisions.map(r=>{
@@ -67,10 +71,12 @@ export function projectSyntheticDiagnosticTimeline(history:SyntheticEvidenceHist
    verified:false as const,operationsEnabled:false as const
   });
  }));
- return Object.freeze({
+ const result=Object.freeze({
   schemaVersion:1,source:'synthetic-fixture',activeRevision:history.activeRevision,
   revisionCount:history.revisionCount,state:history.state,
   currentGameCandidate:history.currentGameCandidate,
   revisions,previousEvidenceReusable:false,digestVerified:false,operationsEnabled:false
  });
+ issuedTimelines.add(result);
+ return result;
 }
