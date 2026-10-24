@@ -30,6 +30,7 @@ export type SyntheticIndexView=Readonly<{
 const roots:ReadonlySet<string>=new Set(['vehicles','maps','sceneryobjects','splines','mod','def']);
 const suffixes:ReadonlySet<string>=new Set(['scs','zip','bus','cfg','sco','sli','sii','dds','png','jpg','wav','ogg','bank','json']);
 const moduleSet:ReadonlySet<string>=new Set(SYNTHETIC_MODULE_IDS);
+const issuedIndexes=new WeakSet<object>();
 const permittedSuffixes:Readonly<Record<SyntheticModuleId,ReadonlySet<SyntheticSuffix>|null>>=Object.freeze({
  container:new Set(),structure:null,manifest:new Set(['json','sii']),
  definitions:new Set(['bus','cfg','sco','sli','sii']),
@@ -103,6 +104,14 @@ export function buildSyntheticPackageIndex(fixtureDigest:unknown,input:unknown):
    depth:segments.length,encodedBytes:raw.encodedBytes,expandedBytes:raw.expandedBytes
   }});
  }
+ // A file cannot be a parent directory of another entry.
+ const declaredFiles=new Set(entries.filter(e=>e.item.kind==='file').map(e=>e.path));
+ for(const {path} of entries){
+  const parts=path.split('/');
+  for(let i=1;i<parts.length;i++){
+   if(declaredFiles.has(parts.slice(0,i).join('/')))return rejection('unsafe-entry');
+  }
+ }
  // Stable handles are ordinal, fixture-only and cannot resolve into files.
  // Canonical paths are discarded; index and views never expose raw names.
  entries.sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
@@ -115,12 +124,13 @@ export function buildSyntheticPackageIndex(fixtureDigest:unknown,input:unknown):
   encodedBytes:encoded,expandedBytes:expanded,entries:safeEntries,
   gameVerified:false,operationsEnabled:false
  });
+ issuedIndexes.add(index);
  return Object.freeze({status:'ready',reason:'none',index});
 }
 
 // Restricted *informational* views only. Not a capability or filesystem permission.
 export function projectSyntheticIndex(index:SyntheticPackageIndex,moduleId:SyntheticModuleId):SyntheticIndexView{
- if(!moduleSet.has(moduleId)||index.source!=='synthetic-fixture'||
+ if(!moduleSet.has(moduleId)||!issuedIndexes.has(index)||index.source!=='synthetic-fixture'||
     index.digestVerified!==false||index.operationsEnabled!==false)
   throw new Error('Projeção sintética inválida.');
  const allowed=permittedSuffixes[moduleId];
