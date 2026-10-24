@@ -36,6 +36,13 @@ function impacted(suffix:SyntheticSuffix,kind:'file'|'directory'):readonly Synth
   return ['structure','definitions','relations','audio','resources'];
  return SYNTHETIC_MODULE_IDS;
 }
+// Narrow, declarative influence hints. Not a dependency graph or a proven cause.
+export function affectedSyntheticModulesForDeclaration(
+ suffix:SyntheticSuffix,kind:'file'|'directory'
+):readonly SyntheticModuleId[]{
+ return Object.freeze([...impacted(suffix,kind)]);
+}
+
 export function planSyntheticRevalidation(
  previous:unknown,next:unknown
 ):SyntheticRevalidationPlan{
