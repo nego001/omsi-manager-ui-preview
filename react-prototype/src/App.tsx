@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {analyzeModRelations} from './relation-analysis';
+import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {consolidateDiagnostic} from './diagnostic-report';
 import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declared-status';
 import type {FolderInspection} from './inspection-types';
@@ -109,6 +110,7 @@ export default function App(){
  },[favorites,sidebar,dense]);
  const selected=catalogMods.find(m=>m.id===selectedMod)??catalogMods[0];
  const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
+ const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&(`${m.title} ${m.category} ${games[m.game].title}`.toLowerCase().includes(search.toLowerCase()))),[catalogMods,selectedGame,category,search]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
@@ -240,9 +242,22 @@ export default function App(){
   <label className="version-simulator"><strong>Versão hipotética do jogo</strong><input aria-label="Versão hipotética do jogo" placeholder="Ex.: 1.52.0 (opcional)" value={hypotheticalGameVersion} onChange={e=>setHypotheticalGameVersion(e.target.value.slice(0,30))}/><small>Valor digitado por você. Não detectamos a versão instalada no computador.</small></label>
   <p>Somente metadados declarados no catálogo. Não é uma análise dos arquivos do jogo.</p>
   <div className="relation-verdict" role="status">{relationAnalysis.logicalBlockers?'Inconsistências lógicas encontradas':'Nenhum bloqueio lógico encontrado no JSON'}</div>
+  <div className="relation-overview" aria-label="Resumo das relações declaradas">
+   <div><small>Bloqueios no catálogo</small><strong>{relationSummary.blocking}</strong></div>
+   <div><small>Avisos no catálogo</small><strong>{relationSummary.attention}</strong></div>
+   <div><small>Etapas teóricas</small><strong>{relationAnalysis.sequence.length}</strong></div>
+  </div>
   <h3>Sequência teórica de dependências</h3>
   <ol className="relation-order">{relationAnalysis.sequence.map(m=><li key={m.id}>{m.title} <small>({m.id})</small></li>)}</ol>
-  {relationAnalysis.issues.length>0?<ul className="relation-issues">{relationAnalysis.issues.map((issue,index)=><li key={issue.code+index} className={issue.severity}><strong>{issue.severity==='blocking'?'Bloqueio no catálogo':'Atenção'}:</strong> {issue.message}</li>)}</ul>:<p className="relation-clean">Nenhuma relação inconsistente declarada para este mod.</p>}
+  {relationAnalysis.issues.length>0?<><h3>O que significam os alertas</h3><ul className="relation-issues">{relationAnalysis.issues.map((issue,index)=>{
+   const guide=explainRelationIssue(issue);
+   return <li key={issue.code+index} className={issue.severity}>
+    <div className="relation-issue-title"><span className="relation-issue-category">{guide.group}</span><strong>{guide.heading}</strong></div>
+    <p><strong>{issue.severity==='blocking'?'Bloqueio no catálogo':'Atenção'}:</strong> {issue.message}</p>
+    <details className="relation-guide"><summary>Entender e conferir este alerta</summary><p>{guide.meaning}</p><p><strong>Próxima verificação:</strong> {guide.nextStep}</p></details>
+   </li>;
+  })}</ul></>:<p className="relation-clean">Nenhuma relação inconsistente declarada para este mod.</p>}
+  <p className="relation-scope-note"><LockKeyhole size={14}/> Estes alertas usam apenas registros declarados. Nenhum aviso resolvido ou ausente comprova que o mod funciona.</p>
   <p className="relation-disclaimer"><LockKeyhole size={15}/> A versão informada é hipotética. Compatibilidade real, versão instalada, integridade dos mods e instalação NÃO verificadas. Nenhuma ação é executada.</p>
  </section></div></div>
  <section id="relatorio-consolidado" tabIndex={-1} className="diagnostic-report" aria-label="Relatório consolidado">
