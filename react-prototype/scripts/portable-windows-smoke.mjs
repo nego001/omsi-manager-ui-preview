@@ -99,7 +99,7 @@ try{
  assert.match(await window.getByRole('region',{name:'Relatório consolidado'}).innerText(),/Compatibilidade não verificada/);
  const verification=window.getByRole('region',{name:'Etapas de verificação do mod'});
  assert.equal(await verification.locator('.detail-check-item').count(),4);
- assert.match(await verification.innerText(),/Nenhuma inspeção de pasta realizada/);
+ assert.match(await verification.innerText(),/Nomes de entradas examinados manualmente/);
  assert.match(await verification.innerText(),/Conteúdo do mod/);
  assert.match(await verification.innerText(),/Compatibilidade com o jogo/);
  await verification.getByRole('link',{name:'Consultar evidências e limitações'}).click();
@@ -108,7 +108,7 @@ try{
  // The shortcut must never auto-open a file picker or scan any real game directory.
  await verification.getByRole('button',{name:'Inspecionar pasta manualmente'}).click();
  await window.getByRole('heading',{name:'Escolha seu simulador'}).waitFor();
- assert.equal(await window.locator('.inspection-result').count(),0,'No automatic file inspection');
+ assert.equal(await window.locator('.inspection-result').count(),1,'Earlier synthetic inspection remains in session; no new inspection should run');
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Segurança'}).click();
  await window.getByRole('heading',{name:'Central de segurança'}).waitFor({timeout:12000});
