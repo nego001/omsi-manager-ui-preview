@@ -328,7 +328,7 @@
 .library-diagnostic-link span{min-width:0;overflow-wrap:anywhere}
 .library-diagnostic-link svg{flex-shrink:0}
 .library-diagnostic-link:hover{color:#fff;text-decoration:underline;text-underline-offset:3px}
-.library-diagnostic-link:focus-visible{outline:2px solid #b9caff;outline-offset:3px;border-radius:4px}
+.library-diagnostic-link:focus,.library-diagnostic-link:focus-visible{outline:2px solid #b9caff;outline-offset:3px;border-radius:4px}
 #relacoes-declaradas{scroll-margin-top:20px}
 #relacoes-declaradas:focus{outline:2px solid #a5bbeb;outline-offset:4px}
 @media(max-width:480px){.library-diagnostic-link{font-size:11px;min-height:32px}}
