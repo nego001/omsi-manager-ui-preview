@@ -121,6 +121,7 @@ export function isFreshSyntheticOrphanCandidate(
  if(!recovery||typeof recovery!=='object'||!candidate||typeof candidate!=='object')return false;
  const s=recoveries.get(recovery);
  if(!s||s.phase==='acknowledgement-required'||
+    !isIssuedSyntheticReaderLifecycle(candidate)||
     !isIndependentSyntheticOrphanCandidate(recovery,candidate))return false;
  const current=snapshotSyntheticReaderLifecycle(candidate);
  return current.phase==='closed'&&current.closeReason==='completed'&&
