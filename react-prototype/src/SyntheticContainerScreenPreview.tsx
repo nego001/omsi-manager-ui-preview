@@ -80,7 +80,7 @@ export default function SyntheticContainerScreenPreview({readiness}:{readiness:S
   </div>
   {result.reason&&<p className="synthetic-container-reason" data-testid="synthetic-container-reason">{labels[result.reason]}</p>}
   {result.status==='declarations-reviewed'&&<p className="synthetic-container-explainer">O catálogo inventado passou somente pelos testes declarativos. Não há aprovação de arquivo, jogo ou instalação.</p>}
-  {result.status==='declarations-reviewed'&&<SyntheticStreamCheckpointPreview key={scenario} review={handle}/>}
+  {result.status==='declarations-reviewed'&&<SyntheticStreamCheckpointPreview key={scenario} review={handle} readiness={readiness}/>}
   <p className="synthetic-container-guard">Mesmo que o catálogo fictício termine sem alertas, nenhuma entrada real foi lida, nenhum caminho foi resolvido no Windows e nenhum arquivo foi descompactado. Permissões de leitura e operações permanecem bloqueadas.</p>
  </section>;
 }
