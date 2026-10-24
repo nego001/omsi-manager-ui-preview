@@ -74,3 +74,16 @@ O arquivo `scripts/temp-recovery-concurrency.cjs` funciona **exclusivamente dent
 - A suíte adiciona **13 testes Node** aos 15 anteriores, totalizando 28 cenários esperados no laboratório. A CI executa ambos com `npm run test:recovery:fixture` em Linux e Windows.
 
 **Importante:** proteção real contra links/reparse points e TOCTOU, detecção de proprietário morto, políticas de limpeza, relógio monotônico, identidade de handle, lock interprocesso nativo, `fsync` do diretório, durabilidade após pane elétrica e testes físicos ainda são requisitos futuros. O arquivo de reivindicação é deliberadamente conservador: ficar órfão resulta em indisponibilidade do fixture, nunca em liberação automática. Nenhuma capacidade de modificar mods foi habilitada.
+
+
+## Revisão de órfãos por observação restrita e sem limpeza automática
+
+A extensão `scripts/temp-recovery-orphan-review.cjs` emite um identificador de revisão mantido em `WeakMap`, sem API para remover ou renomear arquivos ou recuperar privilégios. Um objeto clonado não herda autoridade. Ao abrir, valida a pasta temporária e obtém um fingerprint experimental do arquivo de reivindicação: atributos de `lstat`, `FileHandle.stat` e SHA-256 do conteúdo limitado a 512 bytes. Revalida marcador/caminho a cada consulta. Se tamanho, status, metadados expostos pelo sistema ou digest mudarem, retorna `claim-changed`; um arquivo malformado gera `invalid-claim`. Não elimina o arquivo nem concede autorização.
+
+A leitura usa `O_NOFOLLOW` nos sistemas que disponibilizam essa constante e examina se o arquivo é regular, mas **não reivindica garantia contra ataques de troca entre validação e uso** (TOCTOU), especialmente em Windows/reparse points ou quando metadados do filesystem são insuficientes. O fingerprint pode não distinguir todos os cenários adversariais, como substituições ABA. Não se trata de identidade de arquivo validada nativamente.
+
+O laboratório recebe indícios **não autenticados** de PID, PID observado, etiqueta sintética de início e informação declarada sobre processo ativo. Exige formato estrito de dados próprios, não executa getters e não consulta o cadastro real do SO. Classifica `same-incarnation-claimed`, `pid-reuse-suspected`, `different-pid-reported`, `reported-not-running` e `unusable-hint` sem jamais inferir vida real, propriedade confiável, permissão, limpeza automática ou recuperação.
+
+Mesmo depois de terminar um subprocesso por `SIGKILL`, o processo recém-iniciado **apenas observa** o arquivo residual. Até uma revisão nativa e homologação completa, um arquivo órfão leva a indisponibilidade conservadora, não a exclusão ou reuso. Nenhum PID é exibido no relatório e nenhum dado pessoal ou conteúdo de mods integra o experimento.
+
+**18 novos testes Node, total de 46 cenários do laboratório** em `npm run test:recovery:fixture`, no Linux e Windows. Não altera UI, `preload`, IPC, empacotador nem arquivos de jogo. Instalação e remoção seguem bloqueadas.

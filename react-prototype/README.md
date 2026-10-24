@@ -192,3 +192,8 @@ O mesmo laboratório passou a incluir `scripts/temp-recovery-concurrency.test.cj
 A leitura do arquivo é sempre não confiável, mesmo com conteúdo bem formado; fraude, sessão falsa, arquivo truncado, marcador de outra pasta e caminho arbitrário são recusados. A suíte executa em Linux e Windows pelo mesmo `npm run test:recovery:fixture`, separado de Electron e da prévia distribuída.
 
 **Isto não implementa lock de sistema operacional, lease com expiração confiável, remoção segura de arquivo órfão, escrita em mods ou recuperação de dados reais.**
+
+
+### Revisão somente leitura de registros órfãos
+O comando `npm run test:recovery:orphan` cobre mais 18 testes sobre arquivos artificiais: processo detentor vivo ou encerrado, troca de conteúdo com o mesmo tamanho, remoção e substituição de arquivos entre inspeções, links simbólicos quando permitidos, adulteração do marcador de origem, privacidade e isolamento entre fixtures.
+A nova inspeção calcula uma impressão digital **somente para detectar mudanças no laboratório**, sem conceder identidade nativa ao arquivo. Comparações de PID e de uma etiqueta de início de processo são apenas **informações artificiais fornecidas aos testes**. Um PID igual pode pertencer a outro processo; nenhum PID ou etiqueta, mesmo coincidente, libera recuperação ou limpeza. O teste reaproveita a CI Linux e Windows existente: `npm run test:recovery:fixture` passa a reunir **46 casos Node de laboratório** (15 iniciais, 13 de disputa e 18 de revisão órfã).
