@@ -56,3 +56,12 @@ A PowerShell exige pasta temporária direta com prefixo de teste, verifica que e
 São **10 testes novos exclusivamente de Windows**, integrados a `npm run test:recovery:fixture`, totalizando **78 cenários Node** em Windows e **68 cenários executados + 10 skips intencionais** em Linux. No Windows os testes exercitam uma troca entre observações; **não garantem resistência a substituições concorrentes exatamente durante a janela de abertura**.
 
 A saída permite `nativeFileIdObserved:true`, pois um handle de teste realmente foi consultado. Isso **não** equivale a `identityAuthorizedForRealMods`, `atomicPathIdentityProven`, `directoryDurabilityProven` ou `operationsEnabled`, que continuam todos `false`. Implementação nativa de identidade de processos externos permanece pendente. Não é mecanismo instalado de leitura ou recuperação de arquivos reais.
+
+
+## Ensaio de identidade nativa de processo Windows: subprocesso de teste, não serviço de produção
+
+`scripts/temp-native-process-id.ps1` cria e controla um subprocesso que fica temporariamente dormindo. **Somente após iniciar esse subprocesso** o mesmo script chama `OpenProcess` com direitos mínimos de observação (`PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE`), conferindo `GetProcessId`, `GetProcessTimes` e `WaitForSingleObject` no **handle detido pelo teste**. Compara PID e data de criação da mesma referência, observa o estado vivo ou encerrado e libera o handle e o filho ao terminar, inclusive em erro.
+
+Uma simulação local de PID diferente ou de horário de criação falsificado é rejeitada; nenhum valor de PID ou horário bruto sai no JSON do resultado. **Não houve reprodução real de reutilização de PID**, nem autorização para sondar processos externos ao laboratório. A checagem de horário não é considerada, isoladamente, identidade de processo autenticada de produção. A comprovação de propriedade de locks, o rastreio seguro de outros processos e a prevenção de TOCTOU hostil continuam pendentes.
+
+**11 novos testes Windows**, total de **89 casos Node da suíte**, com 68 gerais e 21 Windows-only. Todos os testes de laboratório conservam `operationsEnabled:false`, `canInstall:false`, `canRecover:false` e `automaticCleanupAllowed:false`. A sonda não aceita PID arbitrário, não abre caminhos de jogos e não integra o executável. A aprovação da CI mede o laboratório, **não a prontidão para operações reais**.

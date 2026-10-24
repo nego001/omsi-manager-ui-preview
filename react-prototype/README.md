@@ -213,3 +213,12 @@ A prévia adicionou uma sonda `scripts/temp-native-file-id.ps1` que usa PowerShe
 `npm run test:identity:windows` roda dez testes desta rotina em Windows; em Linux, os testes específicos da API Windows são ignorados, mantendo o restante da suíte multiplataforma ativo. `npm run test:recovery:fixture` executa todas as suítes de laboratório, **78 casos no total**, com estes dez verificados somente no Windows. Os testes cobrem identidade estável, mudança de bytes, substituição por outro arquivo idêntico, arquivo inválido, link, caminho fora do escopo e uma sentinela externa preservada.
 
 **Isso é uma prova de laboratório, não um adaptador de recuperação em produção.** Ainda não demonstra segurança contra TOCTOU/ABA hostil, reparse points em todos os volumes, persistência após falta de energia ou permissão de instalação. A pasta `scripts/` segue excluída do executável portátil. Nenhum IPC novo ou leitura de arquivos de jogos foi acrescentado.
+
+
+### Windows: observação nativa de subprocesso controlado pelo laboratório
+
+`scripts/temp-native-process-id.ps1` inicia **seu próprio subprocesso descartável** (PowerShell em repouso) e obtém uma referência nativa por `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE)`. A partir do mesmo handle, consulta `GetProcessId`, `GetProcessTimes` e `WaitForSingleObject`, observa o encerramento real de um processo **que o próprio teste criou** e fecha todos os handles. Não recebe PIDs arbitrários do usuário, nem consulta outros processos do computador.
+
+`npm run test:identity:process:windows` inclui 11 testes Windows: processo próprio vivo ou encerrado, estabilidade no mesmo handle, PID e tempo de criação falsificados, recusa de pasta/marcador inválidos, cenário não permitido, privacidade e sentinela externa. `npm run test:recovery:fixture` reúne **89 testes Node de laboratório** (68 gerais + 10 FileIdInfo + 11 processo Windows); no Linux, os 21 testes exclusivos do Windows são ignorados intencionalmente.
+
+**Importante:** a observação real por handle vale apenas para o subprocesso artificial controlado pela suíte. Não demonstra proteção completa contra PID reciclado, posse de locks de outro processo, acesso a mods, recuperação ou autorização para instalar. Esta rotina fica na pasta `scripts/`, excluída do pacote Electron, sem novos comandos IPC.
