@@ -2,6 +2,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {analyzeModRelations} from './relation-analysis';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
+import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
 import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declared-status';
 import type {FolderInspection} from './inspection-types';
@@ -111,6 +112,7 @@ export default function App(){
  const selected=catalogMods.find(m=>m.id===selectedMod)??catalogMods[0];
  const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
+ const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&(`${m.title} ${m.category} ${games[m.game].title}`.toLowerCase().includes(search.toLowerCase()))),[catalogMods,selectedGame,category,search]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
@@ -248,7 +250,22 @@ export default function App(){
    <div><small>Etapas teóricas</small><strong>{relationAnalysis.sequence.length}</strong></div>
   </div>
   <h3>Sequência teórica de dependências</h3>
-  <ol className="relation-order">{relationAnalysis.sequence.map(m=><li key={m.id}>{m.title} <small>({m.id})</small></li>)}</ol>
+  {relationTimeline.hasCycle&&<p className="relation-sequence-warning" role="alert">O catálogo declara uma dependência circular. A ordem abaixo é apenas ilustrativa e não representa uma sequência válida de instalação.</p>}
+  {relationTimeline.hasMissingOrCrossGameDependency&&<p className="relation-sequence-warning" role="note">Existe dependência ausente ou declarada para outro jogo. A lista abaixo não inclui esses componentes e está incompleta.</p>}
+  {relationTimeline.noDeclaredDependencies&&<p className="relation-no-deps">Este mod não declara dependências. Isso não comprova que funcione sozinho.</p>}
+  <ol className="relation-order relation-timeline" aria-label="Etapas declaradas do mod">{relationTimeline.stages.map(stage=><li key={stage.id} data-stage-role={stage.role}>
+    <div className="relation-stage-number" aria-hidden="true">{stage.step}</div>
+    <div className="relation-stage-body">
+      <span className="relation-stage-role">{stage.role==='selected'?'MOD SELECIONADO':stage.role==='direct'?'DEPENDÊNCIA DIRETA':'DEPENDÊNCIA INDIRETA'}</span>
+      <strong>{stage.title}</strong>
+      <small>{stage.id}</small>
+      <details className="relation-stage-detail">
+       <summary>Ver dados declarados</summary>
+       <p>Categoria: {stage.category} · Versão declarada: {stage.version} · Jogo: {games[stage.game as GameId].title}.</p>
+       <p>Presença, versão instalada, ativação e integridade deste componente não verificadas.</p>
+      </details>
+    </div>
+   </li>)}</ol>
   {relationAnalysis.issues.length>0?<><h3>O que significam os alertas</h3><ul className="relation-issues">{relationAnalysis.issues.map((issue,index)=>{
    const guide=explainRelationIssue(issue);
    return <li key={issue.code+index} className={issue.severity}>
