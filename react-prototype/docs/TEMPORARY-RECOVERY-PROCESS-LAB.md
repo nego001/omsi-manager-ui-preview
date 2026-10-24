@@ -87,3 +87,14 @@ O laboratório recebe indícios **não autenticados** de PID, PID observado, eti
 Mesmo depois de terminar um subprocesso por `SIGKILL`, o processo recém-iniciado **apenas observa** o arquivo residual. Até uma revisão nativa e homologação completa, um arquivo órfão leva a indisponibilidade conservadora, não a exclusão ou reuso. Nenhum PID é exibido no relatório e nenhum dado pessoal ou conteúdo de mods integra o experimento.
 
 **18 novos testes Node, total de 46 cenários do laboratório** em `npm run test:recovery:fixture`, no Linux e Windows. Não altera UI, `preload`, IPC, empacotador nem arquivos de jogo. Instalação e remoção seguem bloqueadas.
+
+
+## Observações do sistema operacional e identidade nativa futura
+
+`scripts/temp-recovery-identity.cjs` abre o arquivo artificial `identity-target.bin` **somente para leitura**, limitado a 4096 bytes, em diretório temporário com marcador validado. Guarda o `FileHandle` em `WeakMap`, verifica dados de `lstat` e `fstat` no mesmo ciclo e compara digest do conteúdo com uma observação anterior. Uma mudança detectável causa `changed-or-unavailable`. O retorno não revela bytes, caminho, digest nem o identificador privado da fixture. O handle de referência pode ser fechado explicitamente, mas não há método de escrita ou exclusão.
+
+Para observação de subprocesso, uma referência real de `ChildProcess` é guardada em `WeakMap`. A API só observa `exitCode/signalCode` do subprocesso criado pelo próprio teste, sem sondar PIDs arbitrários do computador, sem `OpenProcess`, `pidfd` ou autenticação nativa do proprietário. Relatórios JSON externos, mesmo com PID aparentemente coincidente, continuam não confiáveis.
+
+**22 testes Node adicionais**, total alvo **68 cenários**, abrangem arquivos ausentes ou muito grandes, links, alterações após abertura, troca de caminho quando permitida pelo SO, referências clonadas, fechamento, privacidade, subprocessos reais encerrados, PID falsificado/reutilizado, getters e independência entre sessões. Algumas operações de mutação da fixture podem ser proibidas pelo compartilhamento do Windows; nesse caso, os testes registram `skip` justificável e não alegam que a substituição foi exercitada.
+
+O laboratório mede observações do SO **apenas em arquivos descartáveis**. Não comprova exclusão de reparse points no Windows, ausência de TOCTOU/ABA, identidade nativa inviolável, sincronização durável, assinatura de evidências, processo externo de fato dono do lock nem poder de limpar órfãos. A implementação e os critérios de aceite necessários estão descritos em `NATIVE-IDENTITY-ACCEPTANCE.md`. Nenhuma operação real foi habilitada.
