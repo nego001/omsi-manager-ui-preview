@@ -156,7 +156,7 @@ export default function SyntheticReaderLifecyclePreview({source,readiness}:{sour
    {recovery.phase==='new-fixture-reported'&&<p className="synthetic-recovery-warning" data-testid="synthetic-recovery-observed">Somente novas declarações inventadas foram conferidas. Identidade, integridade e compatibilidade reais continuam não verificadas.</p>}
    <p className="synthetic-recovery-warning">Sem journal persistente, sem watchdog e sem recuperação de arquivos reais. Nenhuma instalação ou edição de mods está autorizada.</p>
   </section>}
-  {auditRecord&&<SyntheticRecoveryAuditPreview record={auditRecord}/>}
+  {auditRecord&&<SyntheticRecoveryAuditPreview record={auditRecord} readiness={readiness}/>}
   {current.recoveryRequired&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-recovery">A sessão foi interrompida na simulação. Não é possível confirmar que um handle real teria sido fechado. Nenhum resultado pode ser recuperado.</p>}
   {current.abandonedWithoutConfirmedClose&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-unverified-cleanup">Fechamento não comprovado: reconhecer o abandono não equivale à limpeza de recursos do Windows.</p>}
   {actions.includes('reopen')&&current.phase==='closed'&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-replay-denied">Reabertura recusada: a mesma sessão encerrada não pode ser reutilizada.</p>}
