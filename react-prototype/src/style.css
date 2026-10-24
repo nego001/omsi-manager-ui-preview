@@ -641,3 +641,21 @@
 /* Loss of a simulated process never means that native resource cleanup was proven. */
 .synthetic-lifecycle-uncertain{margin:11px 0 0;padding:10px;border:1px solid #a18a66;border-radius:8px;background:#4a392b;color:#f6e2bf;font-size:10px;line-height:1.75;overflow-wrap:anywhere}
 .synthetic-lifecycle-actions button:disabled{pointer-events:none}
+
+
+/* Fresh synthetic screening is never verified real crash recovery or authorization. */
+.synthetic-recovery{min-width:0;margin:14px 0 8px;padding:14px;border:1px solid #8292af;background:#26384d;border-radius:10px;color:#edf3ff}
+.synthetic-recovery h5{font-size:12px;line-height:1.5;margin:0 0 5px}
+.synthetic-recovery header p{font-size:10px;line-height:1.7;color:#d2dced;margin:0 0 12px;overflow-wrap:anywhere}
+.synthetic-recovery-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:12px}
+.synthetic-recovery-metrics>div{padding:9px;min-width:0;background:#384b64;border:1px solid #6b809e;border-radius:8px}
+.synthetic-recovery-metrics small{display:block;font-size:10px;color:#cfdded;line-height:1.55}
+.synthetic-recovery-metrics strong{display:block;font-size:12px;line-height:1.5;color:#fff;margin-top:5px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.synthetic-recovery-actions{display:flex;flex-wrap:wrap;gap:7px}
+.synthetic-recovery-actions button{padding:9px 10px;min-height:36px;max-width:100%;border-radius:8px;border:1px solid #8b9bb5;background:#455a76;color:#f7f9ff;font-size:10px;font-weight:700;line-height:1.5}
+.synthetic-recovery-actions button:hover:not(:disabled){background:#58718f}
+.synthetic-recovery-actions button:disabled{opacity:.45;cursor:not-allowed}
+.synthetic-recovery-actions button:focus-visible{outline:2px solid #c4ceff;outline-offset:3px}
+.synthetic-recovery-warning{font-size:10px;line-height:1.7;padding:10px;border:1px solid #937d5c;background:#463b30;color:#f3dfc1;border-radius:8px;margin:12px 0 0;overflow-wrap:anywhere}
+@media(max-width:820px){.synthetic-recovery-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.synthetic-recovery{padding:10px}.synthetic-recovery-metrics>div{padding:7px}.synthetic-recovery-metrics small{font-size:9px}.synthetic-recovery-actions button{flex:1 1 165px}}
