@@ -35,6 +35,13 @@ const issuedIndexes=new WeakSet<object>();
 // Ordinal handles alone must never be compared between revisions.
 type PrivateIndexedEntry=Readonly<{path:string;entry:SyntheticIndexEntry}>;
 const internalDeclarations=new WeakMap<object,readonly PrivateIndexedEntry[]>();
+// Opaque, in-memory REVISION binding for fixture declarations and observations.
+// Not cryptographic, serializable, transferable between revisions, or a real access grant.
+export type SyntheticRevisionTicket=Readonly<{
+ scope:'synthetic-revision-fixture';verified:false;operationsEnabled:false;
+}>;
+type TicketBinding=Readonly<{index:SyntheticPackageIndex;moduleId:SyntheticModuleId;handle:string|null}>;
+const issuedTickets=new WeakMap<object,TicketBinding>();
 export type SyntheticIndexDelta=Readonly<{
  status:'compared'|'invalid-index';
  sameDeclaredDigest:boolean;
@@ -204,4 +211,29 @@ export function compareSyntheticIndexDeclarations(previous:unknown,next:unknown)
   changes:immutable,pathsExposed:false as const,digestVerified:false as const,
   previousEvidenceReusable:false as const
  });
+}
+
+
+// The ticket can be issued ONLY from a gate-issued index and a legitimate specialist view.
+// Even a cloned index with identical declared digest and ordinal handles cannot mint tickets.
+// A ticket records object identity, not real-file provenance, and grants no file access.
+export function issueSyntheticRevisionTicket(
+ index:SyntheticPackageIndex,moduleId:SyntheticModuleId,handle:string|null=null
+):SyntheticRevisionTicket{
+ if(moduleId==='container')throw new Error('Gate não é especialista sintético.');
+ const view=projectSyntheticIndex(index,moduleId);
+ if(handle!==null&&(!view.entries.some(e=>e.kind==='file'&&e.handle===handle)))
+  throw new Error('Entrada fora da visão sintética do módulo.');
+ const ticket:SyntheticRevisionTicket=Object.freeze({
+  scope:'synthetic-revision-fixture',verified:false,operationsEnabled:false
+ });
+ issuedTickets.set(ticket,Object.freeze({index,moduleId,handle}));
+ return ticket;
+}
+export function matchesSyntheticRevisionTicket(
+ index:SyntheticPackageIndex,moduleId:SyntheticModuleId,handle:string|null,ticket:unknown
+):boolean{
+ if(!ticket||typeof ticket!=='object')return false;
+ const binding=issuedTickets.get(ticket);
+ return binding!==undefined&&binding.index===index&&binding.moduleId===moduleId&&binding.handle===handle;
 }
