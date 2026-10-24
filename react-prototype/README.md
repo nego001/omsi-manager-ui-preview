@@ -184,3 +184,11 @@ Há um teste de integração do Node.js em `scripts/temp-recovery-fixture.test.c
 Execute com `npm run test:recovery:fixture`. A suíte é exigida nas CI Linux e Windows **antes do empacotamento** e os arquivos da pasta `scripts` são excluídos do aplicativo portátil por `scripts/package-windows.mjs`.
 
 **Limites:** término explícito por `process.exit(91)` não é queda de energia nem crash do sistema operacional; sincronização de arquivos não prova durabilidade do diretório. Os registros encontrados continuam **não confiáveis** e não autorizam recuperar, editar, instalar, remover ou atualizar mods. Não existe journal real nem qualquer novo IPC. Detalhes: [TEMPORARY-RECOVERY-PROCESS-LAB.md](docs/TEMPORARY-RECOVERY-PROCESS-LAB.md). A PR permanece draft e não deve ser mesclada sem homologação física.
+
+
+### Concorrência e encerramento forçado em duas sessões artificiais
+O mesmo laboratório passou a incluir `scripts/temp-recovery-concurrency.test.cjs`. Dois processos Node distintos disputam um único **arquivo de reivindicação fictício** criado com `open('wx')`. Somente um consegue criá-lo enquanto o outro recebe `busy`. O processo vencedor pode ser encerrado à força por `SIGKILL` (ou terminação de processo equivalente no Windows); o arquivo remanescente não é removido automaticamente nem tratado como um bloqueio nativo válido.
+
+A leitura do arquivo é sempre não confiável, mesmo com conteúdo bem formado; fraude, sessão falsa, arquivo truncado, marcador de outra pasta e caminho arbitrário são recusados. A suíte executa em Linux e Windows pelo mesmo `npm run test:recovery:fixture`, separado de Electron e da prévia distribuída.
+
+**Isto não implementa lock de sistema operacional, lease com expiração confiável, remoção segura de arquivo órfão, escrita em mods ou recuperação de dados reais.**

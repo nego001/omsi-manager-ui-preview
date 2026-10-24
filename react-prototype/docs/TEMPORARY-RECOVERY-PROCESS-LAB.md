@@ -61,3 +61,16 @@ O teste de sentinela comprova que um arquivo temporário situado **fora** do dir
 ## Critério para uma etapa posterior
 
 Antes de construir um journal nativo real, exigir design de durabilidade por plataforma, revisão do sandbox e escopo IPC, fixtures com falhas de processo e filesystem, proteção de identity/reparse/TOCTOU, logs sem dados privados e homologação em Windows físico. Qualquer futura escrita nos diretórios de mods exigirá outro PR, consentimento e estratégia de backup/rollback; continua **explicitamente bloqueada nesta PR**.
+
+
+## Concorrência real entre processos Node e encerramento forçado (extensão de laboratório)
+
+O arquivo `scripts/temp-recovery-concurrency.cjs` funciona **exclusivamente dentro das mesmas pastas temporárias** e usa `session.claim.json` como reivindicação de uso. `fsp.open(path,'wx')` testa exclusão na criação do arquivo dentro do diretório descartável e dois processos disputam o mesmo nome. O processo vencedor relata `claimed`, o perdedor relata `busy`. O processo detentor pode ficar vivo no modo `hold`, até que o teste pai o encerre explicitamente com `child.kill('SIGKILL')`. No Windows, o sinal corresponde à terminação forçada suportada pelo Node; **isso não equivale a falha de energia**.
+
+- Após encerramento forçado, a reivindicação permanece no disco; **não é automaticamente limpa, roubada, renovada ou reutilizada**, e nenhuma permissão nova é concedida.
+- `inspectTemporaryClaim` interpreta qualquer arquivo sintaticamente correto como `present-untrusted`, sem afirmar identidade ou vida do proprietário. Um arquivo adulterado ou maior que 512 bytes produz `corrupt-untrusted` e também não é reaproveitado.
+- Duas instâncias simultâneas em pastas diferentes não disputam a mesma reivindicação. Duas instâncias no mesmo diretório disputam apenas a criação exclusiva do arquivo, **não um lock de kernel**.
+- Os testes cobrem detentor vivo, concorrente recusado, detentor encerrado à força, recusa de replay/roubo da reivindicação, corrupção, sessão inválida, pares de diretórios independentes e sentinela externa preservada.
+- A suíte adiciona **13 testes Node** aos 15 anteriores, totalizando 28 cenários esperados no laboratório. A CI executa ambos com `npm run test:recovery:fixture` em Linux e Windows.
+
+**Importante:** proteção real contra links/reparse points e TOCTOU, detecção de proprietário morto, políticas de limpeza, relógio monotônico, identidade de handle, lock interprocesso nativo, `fsync` do diretório, durabilidade após pane elétrica e testes físicos ainda são requisitos futuros. O arquivo de reivindicação é deliberadamente conservador: ficar órfão resulta em indisponibilidade do fixture, nunca em liberação automática. Nenhuma capacidade de modificar mods foi habilitada.
