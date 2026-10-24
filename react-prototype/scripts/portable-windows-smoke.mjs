@@ -302,6 +302,11 @@ try{
  const focusOnRelations=await window.getByRole('region',{name:'Simulação de dependências'}).evaluate(el=>document.activeElement===el);
  assert.equal(focusOnRelations,true,'Diagnostic jump must focus the declared-relations panel');
  assert.match(await window.locator('.relation-issues').innerText(),/Versão declarada da dependência abaixo do mínimo/);
+ const alertIndex=window.getByRole('navigation',{name:'Índice dos alertas declarados'});
+ assert.equal(await alertIndex.getByRole('button',{name:/Abrir orientação do alerta/}).count(),1);
+ await alertIndex.getByRole('button',{name:/Abrir orientação do alerta/}).click();
+ assert.equal(await window.locator('#relation-guide-0').evaluate(el=>el.open),true,'Alert guidance should expand');
+ assert.equal(await window.locator('#relation-guide-0 summary').evaluate(el=>document.activeElement===el),true,'Focus must move to explanation');
  assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
  assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
  await window.getByRole('button',{name:'Voltar à biblioteca'}).click();
