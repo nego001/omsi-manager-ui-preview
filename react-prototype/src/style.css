@@ -547,3 +547,25 @@
 .synthetic-readiness-guard{font-size:10px;line-height:1.75;background:#43382d;border:1px solid #786448;color:#f2dfbb;margin:14px 0 0;padding:11px;border-radius:8px;overflow-wrap:anywhere}
 @media(max-width:860px){.synthetic-readiness-phase ol{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:480px){.synthetic-readiness{padding:11px}.synthetic-readiness-summary{gap:5px}.synthetic-readiness-summary>div{padding:8px}.synthetic-readiness-summary small{font-size:9px}.synthetic-readiness-summary strong{font-size:16px}.synthetic-readiness-filter select{flex-basis:100%;max-width:none}}
+
+
+/* Read-admission is a fixture-only, ALWAYS DENIED policy simulation. */
+.synthetic-admission{min-width:0;margin:13px 0 4px;padding:14px;border:1px solid #64728a;border-radius:10px;background:#222d3f;color:#edf1fb}
+.synthetic-admission>header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:9px}
+.synthetic-admission h4{font-size:13px;line-height:1.45;margin:6px 0}
+.synthetic-admission header p{font-size:10px;color:#cfd9eb;line-height:1.65;margin:0 0 10px;max-width:670px;overflow-wrap:anywhere}
+.synthetic-admission-denied{display:inline-flex;align-items:center;gap:6px;color:#efd6aa;background:#3c352c;border:1px solid #766344;padding:8px 10px;border-radius:99px;font-size:10px;white-space:nowrap}
+.synthetic-admission>label{display:flex;align-items:flex-start;flex-wrap:wrap;gap:9px;flex-direction:column;font-weight:700;color:#e2eafb;font-size:11px;margin-bottom:11px}
+.synthetic-admission>label select{width:100%;max-width:420px;min-width:0;padding:10px;font-size:11px;background:#344056;color:#fff;border:1px solid #8291aa;border-radius:8px}
+.synthetic-admission>label select:focus-visible{outline:2px solid #c4c5ff;outline-offset:3px}
+.synthetic-admission-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.synthetic-admission-stats>div{min-width:0;border:1px solid #546781;background:#303d51;border-radius:8px;padding:10px}
+.synthetic-admission-stats small{display:block;font-size:10px;line-height:1.5;color:#cbd5e8}
+.synthetic-admission-stats strong{display:block;font-size:15px;line-height:1.5;margin-top:3px;color:#f3f6ff;font-variant-numeric:tabular-nums}
+.synthetic-admission-context{font-size:10px;line-height:1.65;color:#dce3f1;margin:12px 0 8px;overflow-wrap:anywhere}
+.synthetic-admission-reasons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;list-style:none;padding:0;margin:0}
+.synthetic-admission-reasons li{display:flex;align-items:flex-start;gap:7px;background:#334157;border:1px solid #5c7089;border-radius:8px;padding:9px;color:#dce6f5;line-height:1.55;font-size:10px;overflow-wrap:anywhere}
+.synthetic-admission-reasons li svg{flex-shrink:0;margin-top:2px;color:#e7c78e}
+.synthetic-admission-note{font-size:10px;line-height:1.7;color:#f1dfbb;background:#44382a;border:1px solid #826a46;border-radius:8px;padding:10px;margin:12px 0 0;overflow-wrap:anywhere}
+@media(max-width:780px){.synthetic-admission-reasons{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){.synthetic-admission{padding:10px}.synthetic-admission-stats{gap:5px}.synthetic-admission-stats>div{padding:8px}.synthetic-admission-stats small{font-size:9px}.synthetic-admission-stats strong{font-size:13px}}
