@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {FileLock2,LockKeyhole} from 'lucide-react';
+import SyntheticRecoveryAuditPreview from './SyntheticRecoveryAuditPreview';
 import {createSyntheticContainerReview,advanceSyntheticContainerReview,
  issueSyntheticStreamDeclarationSource,type SyntheticStreamDeclarationSource} from './synthetic-container-screen';
 import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
@@ -92,8 +93,10 @@ export default function SyntheticReaderLifecyclePreview({source,readiness}:{sour
  const current=snapshotSyntheticReaderLifecycle(lifecycle);
  const orphaned=current.closeReason==='process-lost'||current.closeReason==='close-interrupted';
  let recovery: SyntheticOrphanRecoveryCheckpoint|null=null;
+ let auditRecord:ReturnType<typeof createSyntheticOrphanRecovery>|null=null;
  if(orphaned){
   const record=createSyntheticOrphanRecovery(lifecycle);
+  auditRecord=record;
   for(const action of recoveryActions){
    if(action==='ack')acknowledgeSyntheticOrphanRecovery(record);
    else if(action==='reuse')assessFreshSyntheticOrphanAnalysis(record,lifecycle);
@@ -153,6 +156,7 @@ export default function SyntheticReaderLifecyclePreview({source,readiness}:{sour
    {recovery.phase==='new-fixture-reported'&&<p className="synthetic-recovery-warning" data-testid="synthetic-recovery-observed">Somente novas declarações inventadas foram conferidas. Identidade, integridade e compatibilidade reais continuam não verificadas.</p>}
    <p className="synthetic-recovery-warning">Sem journal persistente, sem watchdog e sem recuperação de arquivos reais. Nenhuma instalação ou edição de mods está autorizada.</p>
   </section>}
+  {auditRecord&&<SyntheticRecoveryAuditPreview record={auditRecord}/>}
   {current.recoveryRequired&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-recovery">A sessão foi interrompida na simulação. Não é possível confirmar que um handle real teria sido fechado. Nenhum resultado pode ser recuperado.</p>}
   {current.abandonedWithoutConfirmedClose&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-unverified-cleanup">Fechamento não comprovado: reconhecer o abandono não equivale à limpeza de recursos do Windows.</p>}
   {actions.includes('reopen')&&current.phase==='closed'&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-replay-denied">Reabertura recusada: a mesma sessão encerrada não pode ser reutilizada.</p>}
