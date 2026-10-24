@@ -29,3 +29,14 @@ Não existe parser ZIP/SCS, leitura real, hash de conteúdo ou certificação de
 - A comparação utiliza a timeline **completa**, mesmo quando a interface principal está filtrada em "Somente bloqueados" ou outro filtro. Os cartões lado a lado deixam visível que o candidato da revisão anterior é apenas histórico; uma revisão pendente não reutiliza classificações anteriores.
 - Layout adaptativo em 390/850/1440 px, sem criar décima tela, alterar o registro real de atividades ou habilitar instalação, remoção, Oficina ou atualização. 13 testes do contrato e 11 testes de interface foram adicionados.
 - Contrato de dados puro, isolado e ficcional: não há parser real, acesso às pastas de jogos, SHA-256 de arquivos reais, confirmação de instalações ou gravações. A validação automatizada não substitui homologação manual em um PC Windows real.
+
+
+## Orientação de conferência, não análise de risco (etapa nova)
+
+- `src/synthetic-revision-comparison.ts` marca em um `WeakSet` privado as comparações realmente produzidas pelo comparador fictício. Uma cópia JSON, comparação fabricada ou resultado filtrado não passa por essa associação de identidade em memória. Ela não é autenticação.
+- `src/synthetic-comparison-review.ts` recebe apenas comparações emitidas, classifica os sete especialistas em `investigate-first` (relatório bloqueado, ausente, incompleto ou pista de impacto declarada), `recheck-required` (estado pendente sem pista de impacto) e `informational` (somente mudança de estado/quantidade declarada ou indicadores inalterados). **Prioridade significa ordem sugerida de conferência de fixtures, jamais risco, vulnerabilidade, compatibilidade ou falha real comprovados.**
+- Cada especialista informa *se* houve alteração de estado, de contagem de observações ou da pista declarada de impacto, e fornece uma justificativa curta. A classificação não afirma diferenças reais em arquivos, não revalida hashes e não reaproveita observações.
+- O laboratório em `src/SyntheticDiagnosticPreview.tsx` possui contadores das três classes e filtro exclusivo da **apresentação da comparação**. A linha do tempo independente e seus filtros não alteram a classificação. Totais e resumo das revisões continuam intactos mesmo que zero especialistas sejam exibidos.
+- `tests/synthetic-comparison-review.spec.ts` e `tests/synthetic-comparison-review-ui.spec.ts` cobrem tipos de evidência, ausência de relatórios, estados pendentes, pistas de impacto, contradições de exibição, histórico, imutabilidade, segurança e tamanhos 390/850/1440 px.
+
+Limitação: todos os módulos e exemplos são simulados na memória do protótipo. A prioridade não gera uma fila real nem permite ações de instalação, edição, remoção ou atualização. Não há inspeção dos arquivos de jogos/mods, comunicação externa, hashes reais ou homologação manual em Windows físico.
