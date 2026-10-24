@@ -10,6 +10,11 @@ import type {GameId} from './catalog';
 
 type Specialist=Exclude<SyntheticModuleId,'container'>;
 const specialists=SYNTHETIC_MODULE_IDS.filter((id):id is Specialist=>id!=='container');
+// Issuance attests ONLY that this in-memory result came from the synthetic comparator.
+const issuedComparisons=new WeakSet<object>();
+export function isIssuedSyntheticRevisionComparison(value:unknown):value is SyntheticRevisionComparison{
+ return !!value&&typeof value==='object'&&issuedComparisons.has(value);
+}
 export type ComparisonChange='status-changed'|'observations-changed'|
  'affected-marker-changed'|'no-declared-change';
 export type SyntheticModuleComparison=Readonly<{
@@ -94,7 +99,7 @@ export function compareSyntheticRevisions(
  const changedModules=modules.filter(m=>m.changed).length;
  const stateChanged=before.state!==after.state;
  const candidateChanged=before.candidateGame!==after.candidateGame;
- return Object.freeze({
+ const result=Object.freeze({
   schemaVersion:1,source:'synthetic-fixture',before:snapshot(before),after:snapshot(after),
   modules,changedModules,unchangedModules:modules.length-changedModules,
   stateChanged,candidateChanged,
@@ -104,4 +109,6 @@ export function compareSyntheticRevisions(
   actualContentCompared:false as const,compatibilityVerified:false as const,
   previousEvidenceReusable:false as const,operationsEnabled:false as const
  });
+ issuedComparisons.add(result);
+ return result;
 }
