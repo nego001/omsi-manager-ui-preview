@@ -5,15 +5,20 @@ import {createSyntheticStreamReview} from './synthetic-stream-checkpoints';
 import {
  createSyntheticReaderLifecycle,openSyntheticReaderLifecycle,stepSyntheticReaderLifecycle,
  cancelSyntheticReaderLifecycle,closeSyntheticReaderLifecycle,
+ beginSyntheticReaderLifecycleClose,finishSyntheticReaderLifecycleClose,
+ simulateSyntheticReaderLifecycleProcessLoss,acknowledgeSyntheticReaderLifecycleLoss,
  snapshotSyntheticReaderLifecycle
 } from './synthetic-reader-lifecycle';
-type Scenario='normal'|'cancel'|'early-close'|'error';
-type Command='open'|'step'|'cancel'|'close';
+type Scenario='normal'|'cancel'|'early-close'|'error'|'process-loss'|'close-interruption'|'replay';
+type Command='open'|'step'|'cancel'|'close'|'begin-close'|'finish-close'|'lose-process'|'acknowledge-loss'|'reopen';
 const scenarios:Readonly<Record<Scenario,string>>={
  normal:'Abertura, etapas e fechamento completo',
  cancel:'Cancelar durante a leitura fictícia',
  'early-close':'Fechar antes de conferir todos os blocos',
- error:'Falha declarada e limpeza automática'
+ error:'Falha declarada e limpeza automática',
+ 'process-loss':'Perda inesperada do processo no meio do fluxo',
+ 'close-interruption':'Interrupção durante o fechamento em duas etapas',
+ replay:'Tentativa de reutilizar uma sessão encerrada'
 };
 function data(source:SyntheticStreamDeclarationSource,scenario:Scenario){
  return source.entries.map((e,i)=>({
@@ -24,6 +29,8 @@ function data(source:SyntheticStreamDeclarationSource,scenario:Scenario){
 const phaseLabels={
  created:'Ainda não aberto', 'simulated-open':'Aberto somente na simulação',
  'ready-to-close':'Todos os blocos conferidos; fechamento pendente',
+ closing:'Fechamento iniciado, resultado ainda não publicado',
+ interrupted:'Processo fictício perdido; recuperação pendente',
  closed:'Fechado'
 } as const;
 const reasonLabels={
@@ -32,7 +39,9 @@ const reasonLabels={
  blocked:'Falha e descarte automático dos resultados',
  'closed-before-open':'Fechado sem abrir',
  'premature-close':'Fechamento antecipado: resultados descartados',
- 'external-mutation':'Mudança externa da simulação detectada'
+ 'external-mutation':'Mudança externa da simulação detectada',
+ 'process-lost':'Perda simulada do processo; fechamento não confirmado',
+ 'close-interrupted':'Processo interrompido no meio do fechamento; nenhuma conclusão publicada'
 } as const;
 export default function SyntheticReaderLifecyclePreview({source}:{source:SyntheticStreamDeclarationSource}){
  const [scenario,setScenario]=useState<Scenario>('normal');
@@ -44,6 +53,11 @@ export default function SyntheticReaderLifecyclePreview({source}:{source:Synthet
   if(cmd==='open')openSyntheticReaderLifecycle(lifecycle);
   else if(cmd==='step')stepSyntheticReaderLifecycle(lifecycle);
   else if(cmd==='cancel')cancelSyntheticReaderLifecycle(lifecycle);
+  else if(cmd==='begin-close')beginSyntheticReaderLifecycleClose(lifecycle);
+  else if(cmd==='finish-close')finishSyntheticReaderLifecycleClose(lifecycle);
+  else if(cmd==='lose-process')simulateSyntheticReaderLifecycleProcessLoss(lifecycle);
+  else if(cmd==='acknowledge-loss')acknowledgeSyntheticReaderLifecycleLoss(lifecycle);
+  else if(cmd==='reopen')openSyntheticReaderLifecycle(lifecycle);
   else closeSyntheticReaderLifecycle(lifecycle);
  }
  const current=snapshotSyntheticReaderLifecycle(lifecycle);
@@ -70,10 +84,18 @@ export default function SyntheticReaderLifecyclePreview({source}:{source:Synthet
   <div className="synthetic-lifecycle-actions">
    <button type="button" onClick={()=>append('open')} disabled={current.phase!=='created'}><FileLock2 size={13} aria-hidden="true"/> Abrir sessão fictícia</button>
    <button type="button" onClick={()=>append('step')} disabled={current.phase!=='simulated-open'}>Avançar etapa de leitura fictícia</button>
-   <button type="button" onClick={()=>append('cancel')} disabled={current.phase==='closed'}>Cancelar e limpar</button>
-   <button type="button" onClick={()=>append('close')} disabled={current.phase==='closed'}>Fechar e limpar</button>
+   <button type="button" onClick={()=>append('begin-close')} disabled={current.phase!=='ready-to-close'}>Iniciar fechamento em duas etapas</button>
+   <button type="button" onClick={()=>append('finish-close')} disabled={current.phase!=='closing'}>Concluir fechamento fictício</button>
+   <button type="button" onClick={()=>append('lose-process')} disabled={current.phase==='closed'||current.phase==='interrupted'}>Simular perda do processo</button>
+   <button type="button" onClick={()=>append('acknowledge-loss')} disabled={current.phase!=='interrupted'}>Reconhecer sessão abandonada</button>
+   <button type="button" onClick={()=>append('reopen')} disabled={current.phase!=='closed'}>Tentar reabrir sessão encerrada</button>
+   <button type="button" onClick={()=>append('cancel')} disabled={current.phase==='closed'||current.phase==='interrupted'}>Cancelar e limpar</button>
+   <button type="button" onClick={()=>append('close')} disabled={current.phase==='closed'||current.phase==='interrupted'}>Fechar e limpar</button>
    <button type="button" onClick={()=>setActions([])}>Reiniciar ciclo</button>
   </div>
+  {current.recoveryRequired&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-recovery">A sessão foi interrompida na simulação. Não é possível confirmar que um handle real teria sido fechado. Nenhum resultado pode ser recuperado.</p>}
+  {current.abandonedWithoutConfirmedClose&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-unverified-cleanup">Fechamento não comprovado: reconhecer o abandono não equivale à limpeza de recursos do Windows.</p>}
+  {actions.includes('reopen')&&current.phase==='closed'&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-replay-denied">Reabertura recusada: a mesma sessão encerrada não pode ser reutilizada.</p>}
   {current.closeReason&&<p data-testid="synthetic-lifecycle-reason" className="synthetic-lifecycle-reason">{reasonLabels[current.closeReason]}</p>}
   {current.discardedPartialResults&&<p data-testid="synthetic-lifecycle-discarded" className="synthetic-lifecycle-reason">Nenhuma declaração foi publicada depois da interrupção. Totais parciais zerados.</p>}
   <p className="synthetic-lifecycle-guard">A limpeza é de contadores simulados, não de recursos do Windows. A execução real, o acesso ao sistema de arquivos e qualquer operação sobre mods continuam indisponíveis.</p>
