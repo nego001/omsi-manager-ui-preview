@@ -21,7 +21,7 @@ function workers(i:SyntheticPackageIndex,omitAudio:boolean):SyntheticWorkerDecla
     moduleId,fixtureDigest:DIGEST,status:'ok',
     revisionTicket:issueSyntheticRevisionTicket(i,moduleId),
     observations:file?[{
-     handle:file.handle,game:'omsi',revisionTicket:issueSyntheticRevisionTicket(i,moduleId,file.handle)
+     handle:file.handle,game:'omsi' as const,revisionTicket:issueSyntheticRevisionTicket(i,moduleId,file.handle)
     }]:[]
    };
   });
