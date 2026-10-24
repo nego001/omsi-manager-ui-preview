@@ -180,7 +180,15 @@ public sealed class OmsiTestOwnedProcessWitness : IDisposable
  exit 0
 } catch {
  $category=$_.Exception.GetType().Name
- [Console]::Error.WriteLine("Temporary native process identity fixture refused. stage=$stage category=$category")
+ $codes='none'
+ if($stage -eq 'native-compilation'){
+  $compilerText=[string]$_.Exception.Message + ' ' + [string]$_
+  $found=[regex]::Matches($compilerText,'CS[0-9]{4}')
+  if($found.Count -gt 0){
+   $codes=([string[]]@($found | ForEach-Object { $_.Value } | Select-Object -Unique)) -join ','
+  }
+ }
+ [Console]::Error.WriteLine("Temporary native process identity fixture refused. stage=$stage category=$category code=$codes")
  exit 3
 } finally {
  if($null -ne $witness){$witness.Dispose()}
