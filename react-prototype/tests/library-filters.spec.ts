@@ -60,7 +60,7 @@ test('filtros da biblioteca permanecem utilizáveis em 390 e 850 pixels',async({
  for(const width of [390,850]){
   await page.setViewportSize({width,height:820});
   const selects=page.locator('.library-toolbar select');
-  await expect(selects).toHaveCount(2);
+  await expect(selects).toHaveCount(3);
   const layout=await page.evaluate(()=>{
    const doc=document.documentElement;
    return {overflow:Math.max(0,doc.scrollWidth-doc.clientWidth),controls:[...document.querySelectorAll('.library-toolbar select')].map(el=>{
