@@ -100,6 +100,10 @@ export function createSyntheticValidationReadiness(timeline:SyntheticDiagnosticT
  issued.add(result);
  return result;
 }
+// Identity-only contract: does not attest any real checks, consent or file access.
+export function isIssuedSyntheticValidationReadiness(value:unknown):value is SyntheticValidationReadiness{
+ return !!value&&typeof value==='object'&&issued.has(value);
+}
 export function filterSyntheticValidationReadiness(
  plan:SyntheticValidationReadiness,phase:ValidationReadinessFilter
 ):FilteredValidationReadiness{
