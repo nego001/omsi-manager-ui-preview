@@ -74,3 +74,46 @@ test('atalho funciona por teclado e não fica recortado no mobile',async({page})
  await expect(page.getByRole('region',{name:'Simulação de dependências'})).toBeFocused();
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
 });
+
+
+test('índice do diagnóstico abre a orientação específica com foco pelo teclado',async({page})=>{
+ await prepare(page);
+ await page.getByRole('combobox',{name:'Filtrar alertas declarados'}).selectOption('blocking');
+ await page.getByRole('button',{name:'Ver diagnóstico de Som de motor (exemplo)'}).click();
+ const index=page.getByRole('navigation',{name:'Índice dos alertas declarados'});
+ const shortcuts=index.getByRole('button',{name:/Abrir orientação do alerta/});
+ await expect(shortcuts).toHaveCount(2);
+ await shortcuts.first().focus();
+ await page.keyboard.press('Enter');
+ const explanation=page.locator('#relation-guide-0');
+ await expect(explanation).toHaveAttribute('open','');
+ await expect(explanation.locator('summary')).toBeFocused();
+ await expect(explanation.getByText('Próxima verificação:')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+});
+
+test('índice atualiza quando a hipótese de versão muda, sem declarar compatibilidade',async({page})=>{
+ await prepare(page);
+ await page.getByRole('button',{name:'Ver diagnóstico de Som de motor (exemplo)'}).click();
+ const index=page.getByRole('navigation',{name:'Índice dos alertas declarados'});
+ const shortcuts=index.getByRole('button',{name:/Abrir orientação do alerta/});
+ await expect(shortcuts).toHaveCount(2);
+ await page.getByRole('textbox',{name:'Versão hipotética do jogo'}).fill('1.52');
+ await expect(shortcuts).toHaveCount(1);
+ await expect(index).toContainText('Versão declarada da dependência abaixo do mínimo');
+ await expect(page.getByText('Compatibilidade não verificada',{exact:true}).first()).toBeVisible();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+});
+
+test('retornar e reabrir um alerta limpa hipótese antiga e mantém contagem da biblioteca',async({page})=>{
+ await prepare(page);
+ await page.getByRole('button',{name:'Som de motor (exemplo)',exact:true}).click();
+ await page.getByRole('textbox',{name:'Versão hipotética do jogo'}).fill('1.52');
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ const jump=page.getByRole('button',{name:'Ver diagnóstico de Som de motor (exemplo)'});
+ await expect(jump).toContainText('Consultar 2 alertas declarados');
+ await jump.click();
+ await expect(page.getByRole('textbox',{name:'Versão hipotética do jogo'})).toHaveValue('');
+ await expect(page.getByRole('navigation',{name:'Índice dos alertas declarados'}).getByRole('button',{name:/Abrir orientação do alerta/})).toHaveCount(2);
+ await expect(page.getByRole('region',{name:'Simulação de dependências'})).toBeFocused();
+});
