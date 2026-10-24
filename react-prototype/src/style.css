@@ -516,3 +516,34 @@
 .synthetic-decision-guard{background:#41372c;border:1px solid #766046;color:#f0debd;border-radius:8px;font-size:10px;line-height:1.65;padding:10px 12px;margin:14px 0 0;overflow-wrap:anywhere}
 @media(max-width:860px){.synthetic-decision-reasons ul,.synthetic-decision-evidence ul{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:480px){.synthetic-decision{padding:11px}.synthetic-decision-stats{gap:5px}.synthetic-decision-stats>div{padding:8px}.synthetic-decision-stats small{font-size:9px}.synthetic-decision-stats strong{font-size:15px}}
+
+
+/* Non-interactive future validation checklist. It CANNOT grant permissions. */
+.synthetic-readiness{min-width:0;margin:0 0 16px;padding:16px;background:#242d3c;border:1px solid #607088;border-radius:12px;color:#eef1fa}
+.synthetic-readiness>header{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px}
+.synthetic-readiness h3{font-size:16px;line-height:1.4;margin:7px 0 5px}
+.synthetic-readiness>header p{font-size:11px;line-height:1.65;color:#d0daeb;margin:0 0 13px;max-width:640px;overflow-wrap:anywhere}
+.synthetic-readiness-lock{display:inline-flex;align-items:center;gap:7px;font-size:10px;white-space:nowrap;color:#f3dab7;border:1px solid #756344;border-radius:99px;background:#41372c;padding:8px 11px}
+.synthetic-readiness-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:4px 0 14px}
+.synthetic-readiness-summary>div{min-width:0;background:#303c4f;border:1px solid #5b6c81;border-radius:9px;padding:11px}
+.synthetic-readiness-summary small{display:block;font-size:10px;line-height:1.5;color:#c8d4e4}
+.synthetic-readiness-summary strong{display:block;margin-top:5px;font-size:18px;color:#f2f5ff;font-variant-numeric:tabular-nums}
+.synthetic-readiness-filter{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;font-size:11px;font-weight:700;color:#e3eefa}
+.synthetic-readiness-filter select{flex:1 1 190px;min-width:0;max-width:360px;background:#303c51;color:#f1f5ff;border:1px solid #7888a3;border-radius:8px;padding:10px;font-size:11px}
+.synthetic-readiness-filter select:focus-visible,.synthetic-readiness details summary:focus-visible{outline:2px solid #c3c4ff;outline-offset:3px}
+.synthetic-readiness-count{font-size:10px;color:#cfdbed;line-height:1.6;margin:10px 0 14px}
+.synthetic-readiness-phases{display:grid;gap:13px}
+.synthetic-readiness-phase{min-width:0}
+.synthetic-readiness-phase h4{margin:0 0 9px;font-size:12px;color:#eef0ff}
+.synthetic-readiness-phase ol{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.synthetic-readiness-phase li{min-width:0;border:1px solid #566a83;border-radius:9px;background:#303c50;padding:11px}
+.synthetic-readiness-item-heading{display:flex;gap:6px 12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.synthetic-readiness-item-heading strong{font-size:11px;line-height:1.5;color:#f1f3fa}
+.synthetic-readiness-item-heading span{display:inline-flex;align-items:center;gap:5px;font-size:10px;line-height:1.5;color:#eddbba}
+.synthetic-readiness-phase li>p{font-size:10px;line-height:1.65;color:#d1dcec;margin:9px 0 0;overflow-wrap:anywhere}
+.synthetic-readiness details{margin-top:9px;border-top:1px solid #5c6e82;padding-top:8px}
+.synthetic-readiness details summary{font-size:10px;line-height:1.6;font-weight:700;color:#e8eafc;cursor:pointer}
+.synthetic-readiness details p{font-size:10px;line-height:1.65;color:#cdd6e7;margin:7px 0 0;overflow-wrap:anywhere}
+.synthetic-readiness-guard{font-size:10px;line-height:1.75;background:#43382d;border:1px solid #786448;color:#f2dfbb;margin:14px 0 0;padding:11px;border-radius:8px;overflow-wrap:anywhere}
+@media(max-width:860px){.synthetic-readiness-phase ol{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){.synthetic-readiness{padding:11px}.synthetic-readiness-summary{gap:5px}.synthetic-readiness-summary>div{padding:8px}.synthetic-readiness-summary small{font-size:9px}.synthetic-readiness-summary strong{font-size:16px}.synthetic-readiness-filter select{flex-basis:100%;max-width:none}}
