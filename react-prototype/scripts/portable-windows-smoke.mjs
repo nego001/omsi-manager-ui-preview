@@ -94,6 +94,10 @@ try{
 
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
  await window.getByRole('region',{name:'Relatório consolidado'}).waitFor({timeout:12000});
+ const relations=window.getByRole('region',{name:'Simulação de dependências'});
+ assert.equal(await relations.locator('.relation-overview > div').count(),3,'Three catalog-only relation summary counts');
+ assert.match(await relations.innerText(),/Nenhuma relação inconsistente declarada para este mod/);
+ assert.match(await relations.innerText(),/Nenhum aviso resolvido ou ausente comprova que o mod funciona/);
  assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
  assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
  assert.match(await window.getByRole('region',{name:'Relatório consolidado'}).innerText(),/Compatibilidade não verificada/);
