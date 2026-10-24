@@ -93,3 +93,16 @@ Na Biblioteca, cada favorito passou a reutilizar o **mesmo analisador de relaç�
 - Testes de unidade e Playwright em `tests/library-declared-status.spec.ts`, usando `examples/catalog.versions.example.json`, que possui uma dependência de áudio declaradamente abaixo do requisito e outra faixa de versão sem hipótese informada. O teste do executável Windows empacotado também verifica o filtro sem conteúdo de jogo real.
 
 Isso é apenas **apresentação e consistência das evidências declarativas** na etapa visual. Nenhum leitor de arquivos de mod, detector de jogo, motor de instalação ou atualizador real foi ativado.
+
+## Sexta rodada: explicações para dependências e conflitos na tela Detalhes
+
+A seção `Dependências e conflitos · simulação` agora reaproveita `analyzeModRelations` como **fonte única** de análise e inclui uma camada de apresentação estritamente informativa (`relation-guidance.ts`). A intenção é que o usuário compreenda as incoerências declaradas no catálogo sem precisar interpretar códigos técnicos.
+
+- **Resumo com três contadores:** bloqueios no catálogo, avisos no catálogo e número de etapas teóricas da sequência. Os números não representam mods instalados.
+- **Explicações por tipo de problema:** dependência ausente, referência a outro jogo, ciclo, versão mínima não atendida, comparação de versões inviável, faixa hipotética do jogo não informada/inválida/incompatível, conflitos dentro e fora da sequência e referência de conflito ambígua.
+- Cada problema permanece visível com a mensagem original do analisador. Um expansor acessível `Entender e conferir este alerta` mostra o significado e uma **próxima verificação manual** não destrutiva. Não existem botões de corrigir/instalar nesta seção.
+- A comparação de versões continua **hipotética**; nunca inferimos a versão instalada. Se o catálogo não apresenta erros, isto tampouco prova a compatibilidade.
+- `tests/relation-guidance.spec.ts` cobre os 11 códigos de inconsistência, simulação de faixa fora do limite, conflito na sequência, execução sem escrita e reflow a 390/850 CSS px.
+- O smoke do EXE Windows verifica a presença dos contadores, ausência de inconsistências declaradas no demo e a ressalva de que a instalação não está autorizada.
+
+Não houve alteração nos arquivos dos jogos ou no OMSI Manager principal. A etapa segue visual/informativa; as futuras capacidades de leitura espalhada, Oficina de skins e sons e instalador continuam no registro mestre.
