@@ -26,6 +26,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: npm run test:security
+      - name: Isolated temporary recovery / process restart fixture
+        run: npm run test:recovery:fixture
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - name: Electron desktop smoke test
@@ -64,6 +66,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: npm run test:security
+      - name: Isolated temporary recovery / process restart fixture
+        run: npm run test:recovery:fixture
       - run: npm run package:win
       - name: Test packaged Windows executable (real GUI)
         timeout-minutes: 5

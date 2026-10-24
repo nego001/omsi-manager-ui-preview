@@ -175,3 +175,12 @@ O relatório é calculado em memória. Não grava histórico, não envia dados �
 A primeira seção **Dependências e conflitos · simulação** permanece para mostrar a ordem detalhada; o relatório abaixo dela resume as informações e separa suas origens. Sua contagem de entradas não equivale a número de mods.
 
 Os testes automatizados cobrem catálogo sem bloqueios, versão incompatível, inspeção ausente/erro/parcial, proteção contra mistura de jogos, apresentação dos resultados na interface e E2E do Electron com pastas inteiramente sintéticas. O processo de instalação e desinstalação permanece bloqueado.
+
+
+## Laboratório isolado: recuperação após término de processos
+
+Há um teste de integração do Node.js em `scripts/temp-recovery-fixture.test.cjs` que cria **somente diretórios temporários e fictícios**, grava marcadores de preparo/intenção/publicação, encerra um processo filho intencionalmente e inicia outro processo para verificar o estado encontrado. Também testa corrupção, gerações/sessões incompatíveis, tentativa de reutilização, proteção de caminho e arquivo sentinela.
+
+Execute com `npm run test:recovery:fixture`. A suíte é exigida nas CI Linux e Windows **antes do empacotamento** e os arquivos da pasta `scripts` são excluídos do aplicativo portátil por `scripts/package-windows.mjs`.
+
+**Limites:** término explícito por `process.exit(91)` não é queda de energia nem crash do sistema operacional; sincronização de arquivos não prova durabilidade do diretório. Os registros encontrados continuam **não confiáveis** e não autorizam recuperar, editar, instalar, remover ou atualizar mods. Não existe journal real nem qualquer novo IPC. Detalhes: [TEMPORARY-RECOVERY-PROCESS-LAB.md](docs/TEMPORARY-RECOVERY-PROCESS-LAB.md). A PR permanece draft e não deve ser mesclada sem homologação física.
