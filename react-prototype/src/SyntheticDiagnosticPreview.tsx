@@ -4,6 +4,7 @@ import {createSyntheticDiagnosticDemo,explainSyntheticDemoRevisions} from './syn
 import {filterSyntheticDiagnosticTimeline,type SyntheticTimelineFilter} from './synthetic-timeline-filter';
 import {compareSyntheticRevisions} from './synthetic-revision-comparison';
 import {reviewSyntheticComparison,type SyntheticReviewPriority} from './synthetic-comparison-review';
+import {explainSyntheticDiagnosticDecision} from './synthetic-decision-explanation';
 import type {HistoryState,HistoryModuleStatus} from './synthetic-evidence-history';
 import type {SyntheticModuleId} from './distributed-reader-contract';
 
@@ -31,6 +32,8 @@ export default function SyntheticDiagnosticPreview(){
  const step=steps[selected];
  const timeline=filterSyntheticDiagnosticTimeline(step.timeline,moduleFilter);
  const latest=timeline.revisions[timeline.revisions.length-1];
+ // Explanation always uses the full issued timeline, never the filtered presentation.
+ const decision=explainSyntheticDiagnosticDecision(step.timeline,step.timeline.activeRevision);
  const revisionCount=step.timeline.revisions.length;
  const beforeRevision=Math.min(compareBefore,Math.max(1,revisionCount-1));
  const afterRevision=revisionCount>1?Math.max(beforeRevision+1,Math.min(compareAfter,revisionCount)):1;
@@ -61,6 +64,40 @@ export default function SyntheticDiagnosticPreview(){
    <div><small>Especialistas pendentes</small><strong>{latest.pendingSpecialists} de 7</strong></div>
    <div><small>Jogo sugerido</small><strong>{timeline.currentGameCandidate?gameLabels[timeline.currentGameCandidate]+' · fictício':'Não identificado'}</strong></div>
   </div>
+  <section className="synthetic-decision" role="region" aria-label="Parecer sintético da revisão" data-confirmed="false">
+   <header>
+    <div>
+     <span className="eyebrow">PARECER EXPLICÁVEL · NÃO CONFIRMADO</span>
+     <h3>Por que ainda não é possível confirmar?</h3>
+     <p data-testid="synthetic-decision-headline">{decision.headline}. Revisão {decision.revision} {decision.isHistorical?'(histórica)':'(atual)'}.</p>
+    </div>
+    <span className="synthetic-decision-locked"><LockKeyhole size={14} aria-hidden="true"/> Sem validação real</span>
+   </header>
+   <div className="synthetic-decision-stats">
+    <div><small>Relatórios fictícios recebidos</small><strong data-testid="synthetic-evidence-reports">{decision.receivedReports} de 7</strong></div>
+    <div><small>Pendentes ou incompletos</small><strong data-testid="synthetic-evidence-waiting">{decision.waitingReports}</strong></div>
+    <div><small>Observações declaradas</small><strong data-testid="synthetic-evidence-observations">{decision.totalDeclaredObservations}</strong></div>
+   </div>
+   <div className="synthetic-decision-reasons">
+    <h4>Limitações e motivos</h4>
+    <ul aria-label="Motivos de conclusão não confirmada">
+     {decision.reasons.map(reason=><li key={reason.code} data-reason={reason.code}>
+      <strong>{reason.title}</strong><span>{reason.description}</span>
+     </li>)}
+    </ul>
+   </div>
+   <details className="synthetic-decision-evidence">
+    <summary>Consultar os sete relatórios declarados</summary>
+    <ul aria-label="Indícios fictícios por especialista">
+     {decision.declaredEvidence.map(item=><li key={item.moduleId} data-module={item.moduleId} data-status={item.status}>
+      <strong>{moduleLabels[item.moduleId]}</strong>
+      <span>{statusLabels[item.status]} · {item.observations} {item.observations===1?'observação':'observações'}</span>
+      <p>{item.description}{item.declaredImpactHint?' Mudança declarada pode afetar este especialista.':''}</p>
+     </li>)}
+    </ul>
+   </details>
+   <p className="synthetic-decision-guard">Nenhum resultado desta seção comprova identidade, integridade, compatibilidade ou instalação real. Instalar, editar, remover e atualizar continuam bloqueados.</p>
+  </section>
   <div className="synthetic-diag-filter-bar">
    <label htmlFor="synthetic-module-filter">Filtrar especialistas fictícios</label>
    <select id="synthetic-module-filter" value={moduleFilter} onChange={e=>setModuleFilter(e.target.value as SyntheticTimelineFilter)}>
