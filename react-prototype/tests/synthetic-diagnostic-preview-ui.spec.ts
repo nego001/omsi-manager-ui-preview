@@ -30,14 +30,14 @@ test('pintura alterada invalida candidato anterior e destaca só módulos priori
  const lab=await openLab(page);
  await lab.getByRole('button',{name:'2. Pintura alterada'}).click();
  await expect(lab.getByTestId('synthetic-current-state')).toHaveText('Reanálise pendente');
- await expect(lab.getByText('7 de 7')).toBeVisible();
+ await expect(lab.locator('.synthetic-diag-summary').getByText('7 de 7',{exact:true})).toBeVisible();
  const current=lab.locator('.synthetic-diag-timeline>li[data-current="true"]');
  await expect(current).toHaveAttribute('data-revision','2');
  await expect(current.locator('.synthetic-diag-modules>li[data-status="pending"]')).toHaveCount(7);
  await expect(current.getByText('Reanálise prioritária')).toHaveCount(4);
  await expect(current.getByText('Aguardando nova análise')).toHaveCount(3);
  await expect(lab.locator('.synthetic-diag-timeline>li[data-superseded="true"]')).toHaveCount(1);
- await expect(lab.getByText('Não identificado')).toBeVisible();
+ await expect(lab.locator('.synthetic-diag-summary').getByText('Não identificado',{exact:true})).toBeVisible();
 });
 test('áudio não analisado continua ausente, sem transformar relatório em instalação',async({page})=>{
  const lab=await openLab(page);
@@ -49,7 +49,7 @@ test('áudio não analisado continua ausente, sem transformar relatório em inst
  await expect(audio.getByText('Relatório não recebido')).toBeVisible();
  await audio.getByText('Entender este estado').click();
  await expect(audio.getByText(/Ausência não significa aprovação/)).toBeVisible();
- await expect(lab.getByText('Não identificado')).toBeVisible();
+ await expect(lab.locator('.synthetic-diag-summary').getByText('Não identificado',{exact:true})).toBeVisible();
 });
 test('nova revisão de som exibe três revisões e permanece pendente',async({page})=>{
  const lab=await openLab(page);
