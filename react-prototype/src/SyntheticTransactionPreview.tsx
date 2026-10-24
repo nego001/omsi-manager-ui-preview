@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {DatabaseZap,LockKeyhole} from 'lucide-react';
+import SyntheticStorageFailureMatrixPreview from './SyntheticStorageFailureMatrixPreview';
 import type {SyntheticOrphanRecovery} from './synthetic-orphan-recovery';
 import {createSyntheticRestartDraft,type SyntheticRestartDraft} from './synthetic-restart-handoff';
 import {
@@ -82,6 +83,7 @@ export default function SyntheticTransactionPreview({record}:{record:SyntheticOr
   {rejection&&<p className="synthetic-transaction-warning" data-testid="synthetic-transaction-rejected">Transação recusada: {rejection}</p>}
   {state.discardedPending&&<p className="synthetic-transaction-warning" data-testid="synthetic-transaction-discarded">Gravação pendente descartada. Nenhuma confirmação parcial foi recuperada.</p>}
   {state.phase==='recorded'&&<p className="synthetic-transaction-warning" data-testid="synthetic-transaction-untrusted">Registro anotado apenas no modelo. Sua origem e integridade real não estão comprovadas e uma reanálise continua obrigatória.</p>}
+  <SyntheticStorageFailureMatrixPreview record={record}/>
   <p className="synthetic-transaction-guard">Sem journal persistente, sincronização em disco, assinatura criptográfica, reinicialização real ou acesso a mods. Um registro fictício nunca habilita instalação, remoção ou edição.</p>
  </section>;
 }
