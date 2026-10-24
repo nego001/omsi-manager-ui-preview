@@ -3,6 +3,7 @@ import {AlertTriangle,CheckCircle2,Clock3,History,LockKeyhole,ShieldCheck} from 
 import {createSyntheticDiagnosticDemo} from './synthetic-diagnostic-demo';
 import {filterSyntheticDiagnosticTimeline,type SyntheticTimelineFilter} from './synthetic-timeline-filter';
 import {compareSyntheticRevisions} from './synthetic-revision-comparison';
+import {reviewSyntheticComparison,type SyntheticReviewPriority} from './synthetic-comparison-review';
 import type {HistoryState,HistoryModuleStatus} from './synthetic-evidence-history';
 import type {SyntheticModuleId} from './distributed-reader-contract';
 
@@ -26,6 +27,7 @@ export default function SyntheticDiagnosticPreview(){
  const [moduleFilter,setModuleFilter]=useState<SyntheticTimelineFilter>('all');
  const [compareBefore,setCompareBefore]=useState(2);
  const [compareAfter,setCompareAfter]=useState(3);
+ const [reviewFilter,setReviewFilter]=useState<'all'|SyntheticReviewPriority>('all');
  const step=steps[selected];
  const timeline=filterSyntheticDiagnosticTimeline(step.timeline,moduleFilter);
  const latest=timeline.revisions[timeline.revisions.length-1];
@@ -34,6 +36,10 @@ export default function SyntheticDiagnosticPreview(){
  const afterRevision=revisionCount>1?Math.max(beforeRevision+1,Math.min(compareAfter,revisionCount)):1;
  // Always compare the unfiltered, issued snapshot. Visual filters MUST NOT change conclusions.
  const comparison=revisionCount>1?compareSyntheticRevisions(step.timeline,beforeRevision,afterRevision):null;
+ const review=comparison?reviewSyntheticComparison(comparison):null;
+ const comparedModules=comparison&&review?comparison.modules.filter(item=>
+  reviewFilter==='all'||review.items.find(entry=>entry.moduleId===item.moduleId)?.priority===reviewFilter
+ ):[];
  return <section className="synthetic-diag" role="region" aria-label="Laboratório de diagnóstico fictício" data-demo-only="true">
   <header className="synthetic-diag-intro">
    <div>
@@ -96,8 +102,32 @@ export default function SyntheticDiagnosticPreview(){
       {comparison.changedModules} de 7 especialistas tiveram indicadores declarados alterados; {comparison.unchangedModules} sem alteração nos indicadores. {comparison.stateChanged?'O estado geral mudou.':'O estado geral declarado permaneceu igual.'}
      </p>
      <p className="synthetic-compare-explanation">{comparison.explanation}</p>
+     <div className="synthetic-compare-review" role="group" aria-label="Orientação de conferência fictícia">
+      <h4>Orientação de conferência</h4>
+      <p>As prioridades são apenas pistas declaradas para investigação no teste. Não medem risco, gravidade ou integridade de mods reais.</p>
+      <div className="synthetic-compare-review-counts" data-testid="synthetic-review-counts">
+       <div><small>Conferir primeiro</small><strong>{review?.investigateFirst??0}</strong></div>
+       <div><small>Reanalisar</small><strong>{review?.recheckRequired??0}</strong></div>
+       <div><small>Informativo</small><strong>{review?.informational??0}</strong></div>
+      </div>
+      <label htmlFor="synthetic-review-filter">Exibir orientação
+       <select id="synthetic-review-filter" value={reviewFilter}
+        onChange={e=>setReviewFilter(e.target.value as 'all'|SyntheticReviewPriority)}>
+        <option value="all">Todos os sete especialistas</option>
+        <option value="investigate-first">Conferir primeiro</option>
+        <option value="recheck-required">Reanálise obrigatória</option>
+        <option value="informational">Somente informativos</option>
+       </select>
+      </label>
+      <p className="synthetic-compare-review-visible" data-testid="synthetic-review-visible" role="status">
+       {comparedModules.length} de 7 especialistas exibidos. As contagens totais e as conclusões da comparação não são alteradas pelo filtro.
+      </p>
+     </div>
+     {comparedModules.length===0&&<p className="synthetic-compare-empty-review">Nenhum especialista corresponde a esta orientação no cenário fictício. A comparação completa permanece registrada.</p>}
      <ol className="synthetic-compare-list" aria-label="Diferenças declaradas por especialista">
-      {comparison.modules.map(item=><li key={item.moduleId} data-module={item.moduleId} data-change={item.change}>
+      {comparedModules.map(item=>{
+       const tip=review!.items.find(entry=>entry.moduleId===item.moduleId)!;
+       return <li key={item.moduleId} data-module={item.moduleId} data-change={item.change} data-priority={tip.priority} data-cause={tip.cause}>
        <div className="synthetic-compare-module-header">
         <strong>{moduleLabels[item.moduleId]}</strong>
         <span>{item.changed?'Indicadores alterados':'Sem diferença declarada'}</span>
@@ -106,8 +136,12 @@ export default function SyntheticDiagnosticPreview(){
         <div data-side="before"><small>ANTES</small><strong>{statusLabels[item.beforeStatus]}</strong><span>{item.beforeObservations} {item.beforeObservations===1?'observação':'observações'} fictícias</span></div>
         <div data-side="after"><small>DEPOIS</small><strong>{statusLabels[item.afterStatus]}</strong><span>{item.afterObservations} {item.afterObservations===1?'observação':'observações'} fictícias</span></div>
        </div>
-       <p>{item.explanation}</p>
-      </li>)}
+       <div className="synthetic-compare-priority"><strong>{tip.headline}</strong><small>{tip.priority==='investigate-first'?'Conferir primeiro':tip.priority==='recheck-required'?'Reanálise obrigatória':'Informativo'}</small></div>
+       <p>{tip.detail}</p>
+       <p className="synthetic-compare-signal-types">Estado: {tip.statusChanged?'alterado':'igual'} · Observações: {tip.observationCountChanged?'alteradas':'iguais'} · Pista de impacto: {tip.declaredImpactChanged?'alterada':'igual'}</p>
+       <details className="synthetic-compare-why"><summary>Explicação da diferença</summary><p>{item.explanation}</p></details>
+      </li>;
+      })}
      </ol>
      <p className="synthetic-compare-footnote">Esta comparação sempre considera os sete especialistas, independentemente do filtro da linha do tempo. Não verifica bytes, instalações ou compatibilidade reais.</p>
     </>}
