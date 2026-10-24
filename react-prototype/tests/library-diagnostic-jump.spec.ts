@@ -31,7 +31,7 @@ test('atalho da Biblioteca abre diretamente a explicação do bloqueio declarado
  await expect(page.getByRole('heading',{name:'Som de motor (exemplo)',exact:true})).toBeVisible();
  const report=page.getByRole('region',{name:'Simulação de dependências'});
  await expect(report).toBeFocused();
- await expect(report.getByText('Versão declarada da dependência abaixo do mínimo')).toBeVisible();
+ await expect(report.locator('.relation-issues').getByText('Versão declarada da dependência abaixo do mínimo')).toBeVisible();
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
  await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
