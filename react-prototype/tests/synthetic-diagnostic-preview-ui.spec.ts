@@ -34,8 +34,8 @@ test('pintura alterada invalida candidato anterior e destaca só módulos priori
  const current=lab.locator('.synthetic-diag-timeline>li[data-current="true"]');
  await expect(current).toHaveAttribute('data-revision','2');
  await expect(current.locator('.synthetic-diag-modules>li[data-status="pending"]')).toHaveCount(7);
- await expect(current.getByText('Reanálise prioritária')).toHaveCount(3);
- await expect(current.getByText('Aguardando nova análise')).toHaveCount(4);
+ await expect(current.getByText('Reanálise prioritária')).toHaveCount(4);
+ await expect(current.getByText('Aguardando nova análise')).toHaveCount(3);
  await expect(lab.locator('.synthetic-diag-timeline>li[data-superseded="true"]')).toHaveCount(1);
  await expect(lab.getByText('Não identificado')).toBeVisible();
 });
