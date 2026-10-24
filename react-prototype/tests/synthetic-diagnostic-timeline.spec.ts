@@ -72,7 +72,7 @@ test('declarações idênticas não validam conteúdo e não reutilizam indício
 test('mudança do digest declarado obriga todos os módulos',()=>{
  const {h}=start(),i=index(names,'2'.repeat(64));
  const t=projectSyntheticDiagnosticTimeline(beginSyntheticHistoryRevision(h,i));
- expect(t.revisions[1].events[0].description).toContain('não é hash verificado');
+ expect(t.revisions[1].events[0].description).toContain('Não é hash verificado');
  expect(t.revisions[1].events.slice(1).every(e=>e.affectedByDeclaredChange)).toBe(true);
 });
 test('reanálise nova pode indicar ATS mantendo OMSI apenas no histórico',()=>{
