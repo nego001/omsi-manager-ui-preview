@@ -1,0 +1,105 @@
+name: React Prototype Validation
+on:
+  push:
+    branches: [feat/react-nine-screens-safe]
+  pull_request:
+    paths:
+      - 'react-prototype/**'
+      - '.github/workflows/react-prototype.yml'
+concurrency:
+  group: react-prototype-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm run test:security
+      - name: Isolated temporary recovery / process restart fixture
+        run: npm run test:recovery:fixture
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Electron desktop smoke test
+        run: xvfb-run -a npm run test:desktop
+      - name: Native folder inspection IPC E2E
+        run: xvfb-run -a npm run test:inspection:e2e
+      - name: Public UI screenshots and test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-prototype-visual-review
+          path: |
+            react-prototype/test-results/screenshots/
+            react-prototype/test-results/contrast-audit.json
+            react-prototype/test-results/gradient-sample.json
+            react-prototype/test-results/icon-contrast.json
+            react-prototype/test-results/card-layout-audit.json
+            react-prototype/test-results/offline-game-covers.png
+            react-prototype/test-results/**/error-context.md
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows_portable:
+    name: Windows portable preview (not signed)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm run test:security
+      - name: Isolated temporary recovery / process restart fixture
+        run: npm run test:recovery:fixture
+      - run: npm run package:win
+      - name: Test packaged Windows executable (real GUI)
+        timeout-minutes: 5
+        run: npm run test:portable:windows
+      - name: Upload Windows runtime screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-runtime-screenshots
+          path: react-prototype/test-results/screenshots/portable-windows/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Validate portable package and compress
+        shell: pwsh
+        run: |
+          $output = "release/OMSI-Manager-Preview-win32-x64"
+          if (!(Test-Path "$output/OMSI-Manager-Preview.exe")) {
+            throw "Portable executable not found."
+          }
+          if (!(Test-Path "$output/resources/app.asar")) {
+            throw "Embedded application archive not found."
+          }
+          Compress-Archive -Path "$output" -DestinationPath "release/OMSI-Manager-Preview-Windows-x64.zip" -Force
+          $zip = "release/OMSI-Manager-Preview-Windows-x64.zip"
+          $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  OMSI-Manager-Preview-Windows-x64.zip" | Set-Content "release/OMSI-Manager-Preview-Windows-x64.sha256" -Encoding ascii
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Windows-x64-UNSIGNED
+          path: |
+            react-prototype/release/OMSI-Manager-Preview-Windows-x64.zip
+            react-prototype/release/OMSI-Manager-Preview-Windows-x64.sha256
+          if-no-files-found: error
+          retention-days: 14
