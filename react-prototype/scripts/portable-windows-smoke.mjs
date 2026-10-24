@@ -103,6 +103,9 @@ try{
  await window.screenshot({path:join(shots,'05-seguranca.png'),animations:'disabled'});
  // Prepare local-only favorite entries so the visual review checks a populated Library, not only its empty state.
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Catálogo de mods'}).click();
+ // The earlier hero test intentionally filters ETS2; reset its catalog scope for mixed-game fixtures.
+ await window.getByRole('button',{name:'Todos os jogos',exact:true}).click();
+ assert.equal(await window.locator('.mod-card').count(),7);
  for(const title of ['Ônibus Urbano Clássico','Serra do Vale','Caminhão Rodoviário']){
    const card=window.locator('.mod-card').filter({has:window.getByRole('button',{name:title,exact:true})});
    await card.getByRole('button',{name:'Favoritar'}).click();
