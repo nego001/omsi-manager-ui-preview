@@ -101,6 +101,32 @@ export function createSyntheticContainerReview(
  });
  return handle;
 }
+// Sanitized streaming source is issued ONLY after complete declaration screening.
+// It lists ordinal, fictitious byte totals, never paths, contents or native handles.
+export type SyntheticStreamDeclarationSource=Readonly<{
+ scope:'synthetic-stream-declarations';revision:number;
+ entries:readonly Readonly<{ordinal:number;encodedBytes:number;expandedBytes:number}>[];
+ realBytesRead:false;nativeHandleIssued:false;operationsEnabled:false;
+}>;
+const issuedStreamSources=new WeakSet<object>();
+export function isIssuedSyntheticStreamDeclarationSource(value:unknown):value is SyntheticStreamDeclarationSource{
+ return !!value&&typeof value==='object'&&issuedStreamSources.has(value);
+}
+export function issueSyntheticStreamDeclarationSource(handle:SyntheticContainerReview):SyntheticStreamDeclarationSource{
+ const s=get(handle);
+ if(s.status!=='declarations-reviewed')throw Error('Triagem declarativa incompleta ou bloqueada.');
+ const entries=Object.freeze(s.entries.flatMap((raw,index)=>
+  exactPlain(raw,entryNames)&&raw.kind==='file'?
+  [Object.freeze({ordinal:index+1,encodedBytes:raw.encodedBytes as number,expandedBytes:raw.expandedBytes as number})]:[]
+ ));
+ const source:SyntheticStreamDeclarationSource=Object.freeze({
+  scope:'synthetic-stream-declarations',revision:handle.revision,entries,
+  realBytesRead:false,nativeHandleIssued:false,operationsEnabled:false
+ });
+ issuedStreamSources.add(source);
+ return source;
+}
+
 export function snapshotSyntheticContainerReview(handle:SyntheticContainerReview):SyntheticContainerCheckpoint{
  return checkpoint(get(handle));
 }
