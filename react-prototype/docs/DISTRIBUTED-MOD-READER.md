@@ -86,6 +86,14 @@ Um painel expansível mostra exatamente qual módulo verificou cada conclusão, 
 - Nenhuma leitura transmite dados ou caminhos pessoais a servidores sem consentimento; fontes e licenças de previews são registradas.
 - Escrita/desinstalação somente após homologar consentimento, isolamento, logs, backup, restauração e testes de falha parcial num Windows real.
 
+## Distribuição do resultado aos demais setores
+
+A saída consolidada do coordenador não termina no Analisador/Instalador: constitui o **núcleo de conhecimento compartilhado do mod**. A Biblioteca recebe identidade, categorias e estado; a Oficina recebe capacidades comprovadas de pintura e áudio; Atualizador, Loja e Diagnósticos recebem apenas os campos autorizados para cada tarefa. Uma `CapabilityProjection` com proveniência e motivos de indisponibilidade impede que a interface ofereça editores para materiais, UVs ou eventos que não foram identificados.
+
+**Oficina de skins:** usa referências verificadas de materiais/texturas/UV e modelos para prévia e edição, sempre em workspace derivado. **Oficina de som:** usa os arquivos, eventos e mapeamentos realmente suportados pelo adaptador do simulador; não promete reautoria universal de bancos FMOD ou arquivos proprietários. Ao concluir uma alteração, a Oficina produz um derivado: os módulos relevantes reanalisam só as partes modificadas e a conclusão se transforma em um **novo snapshot imutável**. O instalador futuro recebe o novo snapshot e um plano revalidado.
+
+A especificação completa de setores, contratos, exemplos de skin/som e ciclo bidirecional está em [SHARED-ANALYSIS-ECOSYSTEM.md](SHARED-ANALYSIS-ECOSYSTEM.md). **Ainda é arquitetura futura, não uma leitura/edição real já habilitada.**
+
 ## Ordem para não perder a etapa atual
 
 1. **Agora:** apresentação visual e filtros da Biblioteca/Detalhes com metadados fictícios, status honestos e testes de UI.
