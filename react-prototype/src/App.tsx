@@ -140,8 +140,8 @@ export default function App(){
   return list;
  },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,librarySearch,librarySort,declaredStatuses]);
  function goto(id:Screen){setScreen(id);setToast('')}
- function detail(id:string){setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
- function openDeclaredDiagnostic(id:string){setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
+ function detail(id:string){setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
+ function openDeclaredDiagnostic(id:string){setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
  async function importCatalogFile(event:React.ChangeEvent<HTMLInputElement>){
   const file=event.currentTarget.files?.[0];
@@ -257,6 +257,23 @@ export default function App(){
    <div><small>Avisos no catálogo</small><strong>{relationSummary.attention}</strong></div>
    <div><small>Etapas teóricas</small><strong>{relationAnalysis.sequence.length}</strong></div>
   </div>
+  {relationAnalysis.issues.length>0&&<nav className="relation-alert-index" aria-label="Índice dos alertas declarados">
+   <div className="relation-alert-index-heading"><strong>Ir direto a um alerta</strong><small>Orientações baseadas apenas no JSON, sem modificar jogos ou mods.</small></div>
+   <ol>{relationAnalysis.issues.map((issue,index)=>{
+    const guide=explainRelationIssue(issue);
+    return <li key={issue.code+index}><button type="button" aria-label={'Abrir orientação do alerta '+(index+1)+': '+guide.heading} onClick={()=>{
+      const explanation=document.getElementById('relation-guide-'+index) as HTMLDetailsElement|null;
+      if(!explanation)return;
+      explanation.open=true;
+      explanation.scrollIntoView({block:'center'});
+      explanation.querySelector('summary')?.focus({preventScroll:true});
+     }}>
+      <span className={'relation-alert-index-severity '+issue.severity}>{issue.severity==='blocking'?'Bloqueio':'Aviso'} {index+1}</span>
+      <span className="relation-alert-index-name">{guide.heading}</span>
+      <ChevronRight size={14} aria-hidden="true"/>
+     </button></li>;
+   })}</ol>
+  </nav>}
   <h3>Sequência teórica de dependências</h3>
   {relationTimeline.hasCycle&&<p className="relation-sequence-warning" role="alert">O catálogo declara uma dependência circular. A ordem abaixo é apenas ilustrativa e não representa uma sequência válida de instalação.</p>}
   {relationTimeline.hasMissingOrCrossGameDependency&&<p className="relation-sequence-warning" role="note">Existe dependência ausente ou declarada para outro jogo. A lista abaixo não inclui esses componentes e está incompleta.</p>}
@@ -279,7 +296,7 @@ export default function App(){
    return <li key={issue.code+index} className={issue.severity}>
     <div className="relation-issue-title"><span className="relation-issue-category">{guide.group}</span><strong>{guide.heading}</strong></div>
     <p><strong>{issue.severity==='blocking'?'Bloqueio no catálogo':'Atenção'}:</strong> {issue.message}</p>
-    <details className="relation-guide"><summary>Entender e conferir este alerta</summary><p>{guide.meaning}</p><p><strong>Próxima verificação:</strong> {guide.nextStep}</p></details>
+    <details id={'relation-guide-'+index} className="relation-guide"><summary>Entender e conferir este alerta</summary><p>{guide.meaning}</p><p><strong>Próxima verificação:</strong> {guide.nextStep}</p></details>
    </li>;
   })}</ul></>:<p className="relation-clean">Nenhuma relação inconsistente declarada para este mod.</p>}
   <p className="relation-scope-note"><LockKeyhole size={14}/> Estes alertas usam apenas registros declarados. Nenhum aviso resolvido ou ausente comprova que o mod funciona.</p>
