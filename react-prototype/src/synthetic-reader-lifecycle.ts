@@ -5,9 +5,9 @@ import {
  snapshotSyntheticStreamReview,type SyntheticStreamReview,type SyntheticStreamCheckpoint
 } from './synthetic-stream-checkpoints';
 
-export type LifecyclePhase='created'|'simulated-open'|'ready-to-close'|'closed';
+export type LifecyclePhase='created'|'simulated-open'|'ready-to-close'|'closing'|'interrupted'|'closed';
 export type LifecycleCloseReason='completed'|'cancelled'|'blocked'|
- 'closed-before-open'|'premature-close'|'external-mutation';
+ 'closed-before-open'|'premature-close'|'external-mutation'|'process-lost'|'close-interrupted';
 export type SyntheticReaderLifecycle=Readonly<{
  scope:'synthetic-lifecycle-contract';revision:number;
  nativeHandleIssued:false;realResourcesAllocated:false;operationsEnabled:false;
@@ -19,6 +19,7 @@ export type SyntheticReaderLifecycleCheckpoint=Readonly<{
  completedDeclarations:number;discardedPartialResults:boolean;
  cleanupPerformed:boolean;simulatedLeaseActive:boolean;
  completedCleanupCount:0|1;declaredBytesProcessed:number;
+ recoveryRequired:boolean;abandonedWithoutConfirmedClose:boolean;
  realBytesRead:0;nativeHandlesOpen:0;realResourcesAllocated:false;
  realCleanupVerified:false;realFileAccessGranted:false;
  operationsEnabled:false;
@@ -43,9 +44,12 @@ function snap(handle:SyntheticReaderLifecycle,s:State):SyntheticReaderLifecycleC
   processedChunks:s.processed,declaredChunks:stream.totalDeclaredChunks,
   completedDeclarations:s.phase==='closed'&&s.reason==='completed'?s.complete:0,
   discardedPartialResults:s.discarded,
-  cleanupPerformed:s.cleanupCount===1,simulatedLeaseActive:s.phase==='simulated-open'||s.phase==='ready-to-close',
+  cleanupPerformed:s.cleanupCount===1,
+  simulatedLeaseActive:s.phase==='simulated-open'||s.phase==='ready-to-close'||s.phase==='closing',
   completedCleanupCount:s.cleanupCount,
-  declaredBytesProcessed:s.phase==='simulated-open'||s.phase==='ready-to-close'?s.staged:0,
+  declaredBytesProcessed:s.phase==='simulated-open'||s.phase==='ready-to-close'||s.phase==='closing'?s.staged:0,
+  recoveryRequired:s.phase==='interrupted',
+  abandonedWithoutConfirmedClose:s.reason==='process-lost'||s.reason==='close-interrupted',
   realBytesRead:0 as const,nativeHandlesOpen:0 as const,
   realResourcesAllocated:false as const,realCleanupVerified:false as const,
   realFileAccessGranted:false as const,operationsEnabled:false as const
@@ -110,16 +114,57 @@ export function stepSyntheticReaderLifecycle(handle:SyntheticReaderLifecycle):Sy
 }
 export function cancelSyntheticReaderLifecycle(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
  const s=get(handle);
- if(s.phase==='closed')return snap(handle,s);
+ if(s.phase==='closed'||s.phase==='interrupted')return snap(handle,s);
  if(!synchronize(s))return snap(handle,s);
  cancelSyntheticStreamReview(s.stream);
  cleanup(s,'cancelled');
  return snap(handle,s);
 }
+// Two-step close models the dangerous window between declaring a close and
+// committing its result. Nothing becomes public in the 'closing' state.
+export function beginSyntheticReaderLifecycleClose(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
+ const s=get(handle);
+ if(s.phase!=='ready-to-close')return snap(handle,s);
+ if(!synchronize(s))return snap(handle,s);
+ s.phase='closing';
+ return snap(handle,s);
+}
+export function finishSyntheticReaderLifecycleClose(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
+ const s=get(handle);
+ if(s.phase!=='closing')return snap(handle,s);
+ if(!synchronize(s))return snap(handle,s);
+ const stream=snapshotSyntheticStreamReview(s.stream);
+ if(stream.status!=='declarations-reviewed'){
+  cleanup(s,'external-mutation');return snap(handle,s);
+ }
+ cleanup(s,'completed',stream.releasedEntries);
+ return snap(handle,s);
+}
+// Models loss of the controller before finally/RAII could run. This is NOT a
+// real process crash, not proof that the OS closed a native handle, and
+// emphatically NOT a successful cleanup.
+export function simulateSyntheticReaderLifecycleProcessLoss(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
+ const s=get(handle);
+ if(s.phase==='closed'||s.phase==='interrupted')return snap(handle,s);
+ const duringClose=s.phase==='closing';
+ cancelSyntheticStreamReview(s.stream);
+ s.phase='interrupted';s.reason=duringClose?'close-interrupted':'process-lost';
+ s.staged=0;s.complete=0;s.discarded=true;
+ s.cleanupCount=0;
+ return snap(handle,s);
+}
+// Acknowledging an orphan only closes the *local model*. The proof of real
+// resource cleanup remains false, and the original stream stays unusable.
+export function acknowledgeSyntheticReaderLifecycleLoss(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
+ const s=get(handle);
+ if(s.phase==='interrupted')s.phase='closed';
+ return snap(handle,s);
+}
 export function closeSyntheticReaderLifecycle(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
  const s=get(handle);
- if(s.phase==='closed')return snap(handle,s);
+ if(s.phase==='closed'||s.phase==='interrupted')return snap(handle,s);
  if(!synchronize(s))return snap(handle,s);
+ if(s.phase==='closing')return finishSyntheticReaderLifecycleClose(handle);
  if(s.phase==='ready-to-close'){
   const stream=snapshotSyntheticStreamReview(s.stream);
   cleanup(s,'completed',stream.releasedEntries);
