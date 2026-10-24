@@ -101,6 +101,24 @@ try{
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Segurança'}).click();
  await window.getByRole('heading',{name:'Central de segurança'}).waitFor({timeout:12000});
  await window.screenshot({path:join(shots,'05-seguranca.png'),animations:'disabled'});
+ // Prepare local-only favorite entries so the visual review checks a populated Library, not only its empty state.
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale','Caminhão Rodoviário']){
+   const card=window.locator('.mod-card').filter({has:window.getByRole('button',{name:title,exact:true})});
+   await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
+ assert.match(await window.locator('.library-filter-results').innerText(),/3 favoritos exibidos/);
+ await window.getByRole('textbox',{name:'Buscar favoritos'}).fill('serra');
+ assert.match(await window.locator('.library-filter-results').innerText(),/1 favorito exibido/);
+ await window.getByRole('button',{name:'Serra do Vale',exact:true}).click();
+ await window.getByRole('heading',{name:'Serra do Vale',exact:true}).waitFor();
+ assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
+ await window.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ assert.equal(await window.getByRole('textbox',{name:'Buscar favoritos'}).inputValue(),'serra');
+ await window.getByRole('textbox',{name:'Buscar favoritos'}).fill('');
+ await window.getByRole('combobox',{name:'Ordenar biblioteca'}).selectOption('title');
+ assert.match(await window.locator('.library-filter-results').innerText(),/3 favoritos exibidos/);
  // Visual evidence of all nine real screens, not just the four main destinations.
  // Use content size to exercise native BrowserWindow resizing, not a CSS-only mock.
  const screens=[
