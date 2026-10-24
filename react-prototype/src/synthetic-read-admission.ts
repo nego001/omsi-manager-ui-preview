@@ -51,7 +51,7 @@ function plainExact(value:unknown):value is Record<string,unknown>{
   typeof key==='string'&&allowedKeys.includes(key as typeof allowedKeys[number])&&
   Object.hasOwn(descriptors,key)&&Object.hasOwn(descriptors[key],'value'));
 }
-function count(value:unknown){return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0;}
+function count(value:unknown):value is number{return typeof value==='number'&&Number.isSafeInteger(value)&&value>=0;}
 function reasonResult(reasons:readonly AdmissionReason[],revision:number|null):SyntheticReadAdmission{
  const unique=Object.freeze([...new Set(reasons)]);
  return Object.freeze({
