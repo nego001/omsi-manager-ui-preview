@@ -7,6 +7,11 @@ import {planSyntheticRevalidation} from './synthetic-index-revalidation';
 type Specialist=Exclude<SyntheticModuleId,'container'>;
 const specialists=SYNTHETIC_MODULE_IDS.filter((id):id is Specialist=>id!=='container');
 const MAX_REVISIONS=24;
+export type HistoryModuleStatus='ok'|'pending'|'missing'|'incomplete'|'blocked';
+export type HistoryModuleResult=Readonly<{
+ moduleId:Specialist;status:HistoryModuleStatus;observations:number;
+ affectedByDeclaredChange:boolean;
+}>;
 export type HistoryReason='initial-analysis'|'source-revision-changed'|'declared-digest-changed'|
  'declarations-same-unverified'|'reanalysis-complete'|'reanalysis-incomplete'|'reanalysis-blocked';
 export type HistoryState=SyntheticSnapshotState|'recheck-required';
@@ -14,6 +19,7 @@ export type HistoryRevision=Readonly<{
  revision:number;phase:'analysis'|'pending';state:HistoryState;reason:HistoryReason;
  superseded:boolean;candidateGame:GameId|null;evidenceCount:number;
  findings:readonly SyntheticFindingCode[];pendingModules:readonly Specialist[];
+ moduleResults:readonly HistoryModuleResult[];
  affectedModules:readonly SyntheticModuleId[];
  changes:Readonly<{added:number;removed:number;modified:number}>;
  previousRevision:number|null;verified:false;operationsEnabled:false;
@@ -32,6 +38,7 @@ function frozenRevision(r:HistoryRevision):HistoryRevision{
  return Object.freeze({...r,findings:Object.freeze([...r.findings]),
   pendingModules:Object.freeze([...r.pendingModules]),
   affectedModules:Object.freeze([...r.affectedModules]),
+  moduleResults:Object.freeze(r.moduleResults.map(m=>Object.freeze({...m}))),
   changes:Object.freeze({...r.changes})});
 }
 function seal(revisions:readonly HistoryRevision[],index:SyntheticPackageIndex,pending:boolean):SyntheticEvidenceHistory{
@@ -57,11 +64,19 @@ function verified(index:SyntheticPackageIndex,outcome:unknown):SyntheticWorkerOu
  return outcome as SyntheticWorkerOutcome;
 }
 function analyzed(revision:number,outcome:SyntheticWorkerOutcome,reason:HistoryReason,prior:number|null):HistoryRevision{
+ const coverage=new Map(outcome.coverage.map(c=>[c.moduleId,c] as const));
+ const moduleResults=Object.freeze(specialists.map(moduleId=>{
+  const c=coverage.get(moduleId);
+  return Object.freeze({
+   moduleId,status:c?.status??'missing' as HistoryModuleStatus,
+   observations:c?.observations??0,affectedByDeclaredChange:false
+  });
+ }));
  return frozenRevision({
   revision,phase:'analysis',state:outcome.snapshot.state,reason,superseded:false,
   candidateGame:outcome.snapshot.state==='candidate'?outcome.snapshot.candidateGame:null,
   evidenceCount:outcome.snapshot.evidence.length,findings:outcome.snapshot.findings,
-  pendingModules:pendingWorkers(outcome),affectedModules:[],
+  pendingModules:pendingWorkers(outcome),affectedModules:[],moduleResults,
   changes:{added:0,removed:0,modified:0},previousRevision:prior,
   verified:false,operationsEnabled:false
  });
@@ -84,7 +99,11 @@ export function beginSyntheticHistoryRevision(history:SyntheticEvidenceHistory,n
  const pending=frozenRevision({
   revision:last.revision+1,phase:'pending',state:'recheck-required',reason,superseded:false,
   candidateGame:null,evidenceCount:0,findings:[],pendingModules:specialists,
-  affectedModules:plan.affectedModules,changes:plan.changeCounts,
+  affectedModules:plan.affectedModules,
+  moduleResults:Object.freeze(specialists.map(moduleId=>Object.freeze({
+   moduleId,status:'pending' as const,observations:0,
+   affectedByDeclaredChange:plan.affectedModules.includes(moduleId)
+  }))),changes:plan.changeCounts,
   previousRevision:last.revision,verified:false,operationsEnabled:false
  });
  return seal([...old,pending],nextIndex,true);
@@ -97,9 +116,14 @@ export function completeSyntheticHistoryRevision(history:SyntheticEvidenceHistor
  const last=history.revisions[history.revisions.length-1];
  const reason:HistoryReason=accepted.status==='complete'?'reanalysis-complete':
   accepted.status==='blocked'?'reanalysis-blocked':'reanalysis-incomplete';
+ const renewed=analyzed(last.revision,accepted,reason,last.previousRevision);
  const currentRevision=frozenRevision({
-  ...analyzed(last.revision,accepted,reason,last.previousRevision),
-  affectedModules:last.affectedModules,changes:last.changes
+  ...renewed,
+  affectedModules:last.affectedModules,changes:last.changes,
+  moduleResults:Object.freeze(renewed.moduleResults
+   .map(m=>Object.freeze({
+    ...m,affectedByDeclaredChange:last.affectedModules.includes(m.moduleId)
+   })))
  });
  return seal([...history.revisions.slice(0,-1),currentRevision],current.index,false);
 }
