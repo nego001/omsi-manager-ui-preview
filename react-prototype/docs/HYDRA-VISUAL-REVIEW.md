@@ -106,3 +106,18 @@ A seção `Dependências e conflitos · simulação` agora reaproveita `analyzeM
 - O smoke do EXE Windows verifica a presença dos contadores, ausência de inconsistências declaradas no demo e a ressalva de que a instalação não está autorizada.
 
 Não houve alteração nos arquivos dos jogos ou no OMSI Manager principal. A etapa segue visual/informativa; as futuras capacidades de leitura espalhada, Oficina de skins e sons e instalador continuam no registro mestre.
+
+## Sétima rodada: linha do tempo das dependências declaradas
+
+A tela Detalhes passa a apresentar uma **linha do tempo visual, apenas informativa**, sobre a sequência teórica de dependências do JSON. Cada cartão identifica sua função com uma explicação simples:
+
+- **Dependência indireta:** exigida por outro componente da cadeia.
+- **Dependência direta:** exigida diretamente pelo mod selecionado.
+- **Mod selecionado:** objetivo final da sequência.
+- **Ver dados declarados:** expansor acessível revela ID, categoria, versão e jogo do registro; deixa explícito que presença, instalação e integridade não foram verificadas.
+
+**Importante:** a lista não é um plano de instalação nem uma prova de ordem válida. Se existir **ciclo**, o sistema informa que a ordem é ilustrativa e inválida para instalação. Se faltar uma dependência ou houver referência a outro simulador, avisa que a linha do tempo está **incompleta**. Pacotes sem dependências declaradas recebem aviso de que isso não comprova autonomia real.
+
+A implementação usa `buildRelationTimeline` em `src/relation-timeline.ts`, derivado do analisador JSON já existente. **Não cria segundo leitor** nem acessa arquivos de mods. Playwright valida papel direto/indireto, ciclos, IDs ausentes, abertura via teclado e reflow em 390/850/1440 CSS px. Smoke Windows do `.exe` empacotado confere a linha do tempo na prévia, sem alterar jogos.
+
+**Etapa atual preservada:** Biblioteca/Detalhes com segurança e CI. Leitor espalhado, Oficina de skins/sons, imagens reais dos mods e instalação transacional continuam no roadmap/documento mestre, não são funcionalidades prontas.
