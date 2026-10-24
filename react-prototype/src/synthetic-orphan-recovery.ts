@@ -105,6 +105,20 @@ export function createSyntheticOrphanRecovery(lifecycle:SyntheticReaderLifecycle
  if(current.phase==='closed')recordEvent(handle,state,'previously-acknowledged');
  return handle;
 }
+// Read-only assessment for a quarantine policy. This does not record success
+// or restore the previous result, even if the fresh fixture is complete.
+export function isFreshSyntheticOrphanCandidate(
+ recovery:unknown,candidate:unknown
+):boolean{
+ if(!recovery||typeof recovery!=='object'||!candidate||typeof candidate!=='object')return false;
+ const s=recoveries.get(recovery);
+ if(!s||s.phase==='acknowledgement-required'||
+    !isIssuedSyntheticReaderLifecycle(candidate)||
+    !areIndependentSyntheticReaderLifecycles(s.original,candidate))return false;
+ const current=snapshotSyntheticReaderLifecycle(candidate);
+ return current.phase==='closed'&&current.closeReason==='completed'&&
+  !current.discardedPartialResults&&current.revision===(recovery as SyntheticOrphanRecovery).revision;
+}
 export function snapshotSyntheticOrphanRecovery(handle:SyntheticOrphanRecovery):SyntheticOrphanRecoveryCheckpoint{
  return snapshot(handle,stateFor(handle));
 }
