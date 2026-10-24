@@ -9,6 +9,11 @@ import type {GameId} from './catalog';
 const specialistIds=SYNTHETIC_MODULE_IDS.filter((id):id is Exclude<SyntheticModuleId,'container'>=>id!=='container');
 const specialists:ReadonlySet<string>=new Set(specialistIds);
 const identifying:ReadonlySet<string>=new Set(['structure','manifest','definitions']);
+// Provenance of the PURE synthetic coordinator result, never serialized.
+const issuedOutcomes=new WeakMap<object,SyntheticPackageIndex>();
+export function matchesSyntheticWorkerOutcome(index:SyntheticPackageIndex,outcome:unknown):boolean{
+ return !!outcome&&typeof outcome==='object'&&issuedOutcomes.get(outcome)===index;
+}
 export type SyntheticWorkerReason='none'|'invalid-fixture'|'out-of-scope-handle'|'stale-revision'|'missing-module'|'module-blocked';
 export type SyntheticWorkerOutcome=Readonly<{
  status:'complete'|'incomplete'|'blocked';
@@ -52,12 +57,12 @@ function fail(digest:string,reason:Exclude<SyntheticWorkerReason,'none'|'missing
  });
 }
 function finish(
- digest:string,reports:readonly SyntheticModuleReport[],coverage:SyntheticWorkerOutcome['coverage'],
+ index:SyntheticPackageIndex,digest:string,reports:readonly SyntheticModuleReport[],coverage:SyntheticWorkerOutcome['coverage'],
  reason:SyntheticWorkerReason
 ):SyntheticWorkerOutcome{
  const snapshot=coordinateSyntheticEvidence(digest,reports);
  const status=snapshot.state==='blocked'?'blocked':snapshot.state==='incomplete'?'incomplete':'complete';
- return Object.freeze({
+ const result=Object.freeze({
   status,reason,fixtureDigest:digest,snapshot,
   reports:Object.freeze(reports.map(report=>Object.freeze({
    ...report,signals:Object.freeze(report.signals.map(signal=>Object.freeze({...signal})))
@@ -65,6 +70,8 @@ function finish(
   coverage:Object.freeze(coverage.map(item=>Object.freeze({...item}))),
   operationsEnabled:false as const,realPackageRead:false as const
  });
+ issuedOutcomes.set(result,index);
+ return result;
 }
 // Gate must have issued the index. Each worker receives only its own projection.
 // Claims cite opaque handles that exist in THAT module's scoped view.
@@ -124,5 +131,5 @@ export function runSyntheticIndexedWorkers(index:SyntheticPackageIndex,declarati
  const snapshot=coordinateSyntheticEvidence(digest,reports);
  const reason=snapshot.state==='blocked'?'module-blocked':
   snapshot.state==='incomplete'?'missing-module':'none';
- return finish(digest,reports,coverage,reason);
+ return finish(index,digest,reports,coverage,reason);
 }
