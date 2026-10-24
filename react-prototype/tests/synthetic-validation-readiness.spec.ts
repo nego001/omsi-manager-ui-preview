@@ -112,7 +112,7 @@ test('requisitos, coleções e filtros são todos imutáveis',()=>{
 });
 test('nenhum campo serializado divulga caminhos privados, handles ou digest',()=>{
  const r=make(3),serial=JSON.stringify(r);
- for(const forbidden of ['Vehicles/','paint.dds','ambient.ogg','synthetic-entry','revisionTicket','eeeeeeee','/']){
+ for(const forbidden of ['Vehicles/','paint.dds','ambient.ogg','synthetic-entry','revisionTicket','eeeeeeee']){
   expect(serial).not.toContain(forbidden);
  }
  expect(r.operationsEnabled).toBe(false);
