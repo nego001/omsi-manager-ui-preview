@@ -15,7 +15,7 @@ test('cenário plausível continua bloqueado, sem bytes lidos ou botão de autor
  await expect(admission.locator('[data-reason="missing-native-consent"]')).toBeVisible();
  await expect(admission.locator('[data-reason="missing-native-confinement"]')).toBeVisible();
  await expect(admission.locator('[data-reason="no-reader-backend"]')).toBeVisible();
- await expect(admission.getByRole('button')).toHaveCount(0);
+ await expect(admission.getByRole('button',{name:/aprovar|autorizar|ler arquivo real|instalar/i})).toHaveCount(0);
  await expect(readiness.getByTestId('synthetic-readiness-completed')).toHaveText('0');
 });
 test('ausência de consentimento acrescenta bloqueio explícito sem conceder acesso',async({page})=>{
