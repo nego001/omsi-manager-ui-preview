@@ -10,7 +10,7 @@ import {createSyntheticReaderLifecycle,openSyntheticReaderLifecycle,
  type SyntheticReaderLifecycle} from './synthetic-reader-lifecycle';
 import {acknowledgeSyntheticOrphanRecovery,
  type SyntheticOrphanRecovery} from './synthetic-orphan-recovery';
-import {acquireSyntheticStorageLease,snapshotSyntheticStorageFailureMatrix,
+import {acquireSyntheticStorageLease,releaseSyntheticStorageLease,snapshotSyntheticStorageFailureMatrix,
  type SyntheticStorageFailureMatrix} from './synthetic-storage-failure-matrix';
 import {createSyntheticQuarantineReview,assessSyntheticQuarantineCandidate,
  snapshotSyntheticQuarantineReview} from './synthetic-quarantine-review';
@@ -54,7 +54,10 @@ export default function SyntheticQuarantineReviewPreview({
   else if(action==='reuse')assessSyntheticQuarantineCandidate(review,{} as SyntheticReaderLifecycle);
   else if(action==='race'){
    const epoch=snapshotSyntheticStorageFailureMatrix(matrix).epoch;
-   acquireSyntheticStorageLease(matrix,'session-b',epoch);
+   const competingLease=acquireSyntheticStorageLease(matrix,'session-b',epoch);
+   // A completed competing session must release the fixture lease before
+   // this conditional panel is rendered again; the epoch stays changed.
+   if(competingLease)releaseSyntheticStorageLease(matrix,competingLease);
   }else assessSyntheticQuarantineCandidate(review,syntheticCandidate(readiness,action==='fresh'));
  }
  const state=snapshotSyntheticQuarantineReview(review);
