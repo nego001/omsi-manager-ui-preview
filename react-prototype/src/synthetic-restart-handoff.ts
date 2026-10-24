@@ -33,6 +33,13 @@ export type SyntheticRestartInspection=Readonly<{
 // Only the original issued fixture can be staged in the transaction simulator.
 // This is process-local provenance, not authentication or an OS capability.
 const issuedRestartDrafts=new WeakSet<object>();
+const draftRecoveryOrigins=new WeakMap<object,SyntheticOrphanRecovery>();
+export function isSyntheticRestartDraftForRecovery(
+ draft:unknown,recovery:unknown
+):boolean{
+ return !!draft&&typeof draft==='object'&&
+  !!recovery&&typeof recovery==='object'&&draftRecoveryOrigins.get(draft)===recovery;
+}
 export function isIssuedSyntheticRestartDraft(value:unknown):value is SyntheticRestartDraft{
  return !!value&&typeof value==='object'&&issuedRestartDrafts.has(value);
 }
@@ -94,6 +101,7 @@ export function createSyntheticRestartDraft(record:SyntheticOrphanRecovery):Synt
   realVerified:false as const,operationsEnabled:false as const
  });
  issuedRestartDrafts.add(draft);
+ draftRecoveryOrigins.set(draft,record);
  return draft;
 }
 // Strict *structural* screening, NOT cryptographic validation. An attacker can
