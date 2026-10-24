@@ -1,6 +1,6 @@
 import {useMemo,useState} from 'react';
 import {AlertTriangle,CheckCircle2,Clock3,History,LockKeyhole,ShieldCheck} from 'lucide-react';
-import {createSyntheticDiagnosticDemo} from './synthetic-diagnostic-demo';
+import {createSyntheticDiagnosticDemo,explainSyntheticDemoRevisions} from './synthetic-diagnostic-demo';
 import {filterSyntheticDiagnosticTimeline,type SyntheticTimelineFilter} from './synthetic-timeline-filter';
 import {compareSyntheticRevisions} from './synthetic-revision-comparison';
 import {reviewSyntheticComparison,type SyntheticReviewPriority} from './synthetic-comparison-review';
@@ -36,6 +36,7 @@ export default function SyntheticDiagnosticPreview(){
  const afterRevision=revisionCount>1?Math.max(beforeRevision+1,Math.min(compareAfter,revisionCount)):1;
  // Always compare the unfiltered, issued snapshot. Visual filters MUST NOT change conclusions.
  const comparison=revisionCount>1?compareSyntheticRevisions(step.timeline,beforeRevision,afterRevision):null;
+ const changeStory=comparison?explainSyntheticDemoRevisions(step,beforeRevision,afterRevision):null;
  const review=comparison?reviewSyntheticComparison(comparison):null;
  const comparedModules=comparison&&review?comparison.modules.filter(item=>
   reviewFilter==='all'||review.items.find(entry=>entry.moduleId===item.moduleId)?.priority===reviewFilter
@@ -102,6 +103,30 @@ export default function SyntheticDiagnosticPreview(){
       {comparison.changedModules} de 7 especialistas tiveram indicadores declarados alterados; {comparison.unchangedModules} sem alteração nos indicadores. {comparison.stateChanged?'O estado geral mudou.':'O estado geral declarado permaneceu igual.'}
      </p>
      <p className="synthetic-compare-explanation">{comparison.explanation}</p>
+     {changeStory&&<section className="synthetic-declaration-links" aria-label="Relações declaradas entre mudanças e especialistas" data-testid="synthetic-declaration-links">
+      <header>
+       <h4>O que pode estar relacionado às mudanças?</h4>
+       <p>{changeStory.note}</p>
+      </header>
+      <div className="synthetic-declaration-links-total" data-testid="synthetic-declaration-counts">
+       <span>Incluídas: <strong>{changeStory.counts.added}</strong></span>
+       <span>Retiradas: <strong>{changeStory.counts.removed}</strong></span>
+       <span>Classificações modificadas: <strong>{changeStory.counts.modified}</strong></span>
+      </div>
+      {changeStory.groups.length===0?
+       <p className="synthetic-declaration-empty">Nenhuma mudança estrutural declarada encontrada. Mesmo assim, uma nova revisão requer reanálise dos sete especialistas.</p>:
+       <ol className="synthetic-declaration-link-list">
+        {changeStory.groups.map((group,i)=><li key={group.action+'-'+group.kind+'-'+group.suffix} data-suffix={group.suffix} data-action={group.action}>
+         <strong>{group.kind==='directory'?'Pasta declarada':'Formato .'+group.suffix.toUpperCase()} · {group.action==='added'?'incluído':group.action==='removed'?'retirado':'modificado'} · {group.declarations} {group.declarations===1?'declaração':'declarações'}</strong>
+         <p>{group.description}</p>
+         <span>Especialistas potencialmente envolvidos:</span>
+         <ul aria-label={'Áreas indicadas para mudança '+String(i+1)}>
+          {group.specialists.map(id=><li key={id}>{moduleLabels[id]}</li>)}
+         </ul>
+        </li>)}
+       </ol>}
+      <p className="synthetic-declaration-guard" data-testid="synthetic-causation-guard">Vínculo indicativo de tipos de arquivos fictícios, não uma causa comprovada. Nenhum byte real foi analisado. Todos os sete especialistas continuam sujeitos à revalidação.</p>
+     </section>}
      <div className="synthetic-compare-review" role="group" aria-label="Orientação de conferência fictícia">
       <h4>Orientação de conferência</h4>
       <p>As prioridades são apenas pistas declaradas para investigação no teste. Não medem risco, gravidade ou integridade de mods reais.</p>
