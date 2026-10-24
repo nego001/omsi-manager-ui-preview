@@ -121,3 +121,18 @@ A tela Detalhes passa a apresentar uma **linha do tempo visual, apenas informati
 A implementação usa `buildRelationTimeline` em `src/relation-timeline.ts`, derivado do analisador JSON já existente. **Não cria segundo leitor** nem acessa arquivos de mods. Playwright valida papel direto/indireto, ciclos, IDs ausentes, abertura via teclado e reflow em 390/850/1440 CSS px. Smoke Windows do `.exe` empacotado confere a linha do tempo na prévia, sem alterar jogos.
 
 **Etapa atual preservada:** Biblioteca/Detalhes com segurança e CI. Leitor espalhado, Oficina de skins/sons, imagens reais dos mods e instalação transacional continuam no roadmap/documento mestre, não são funcionalidades prontas.
+
+## Oitava rodada: da Biblioteca direto ao alerta correspondente
+
+A Biblioteca agora pode exibir um pequeno comando **Consultar N alertas declarados** em cada cartão de favorito cujos metadados JSON têm bloqueios ou avisos lógicos. Esse atalho:
+
+- Utiliza `summarizeDeclaredStatus` do **mesmo analisador de relações** usado em Detalhes: não executa uma segunda leitura do mod.
+- Abre `Detalhes` **do favorito certo**, desloca a visualização até `Dependências e conflitos · simulação` e coloca foco de acessibilidade na seção. Não abre o relatório de outro mod.
+- Oferece o retorno **Voltar à biblioteca**, preservando filtros, pesquisa e ordenação anteriores.
+- Só aparece quando há alertas **declarados**; ausência de alertas deixa a etiqueta `Sem alertas declarados · não verificado` e **não** cria um falso CTA de compatibilidade.
+- Continua a identificar compatibilidade, instalação, integridade e conteúdo do pacote como **não verificados**. Não oferece atalhos de instalação, correção, leitura ou edição.
+- Exibe foco visível por teclado ou foco programático e é responsivo em 390 CSS px.
+
+`tests/library-diagnostic-jump.spec.ts` cobre bloqueios, avisos, ausência de alertas, foco, retorno com filtro e janela estreita. O teste do **executável Windows empacotado** agora importa um JSON gerado em diretório temporário (somente metadados de ETS2 fictício), percorre o atalho de diagnóstico, confirma foco e bloqueio dos botões instalar/remover e publica duas capturas adicionais da Biblioteca. O manifesto de capturas Windows registra **31 imagens** em vez de 29.
+
+A identidade aprovada é preservada, assim como a etapa **visual/informativa**. A Oficina e o analisador distribuído continuam no registro mestre para fases futuras.
