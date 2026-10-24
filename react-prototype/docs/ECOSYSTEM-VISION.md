@@ -33,6 +33,14 @@ Os módulos independentes podem executar em paralelo **somente depois de um gate
 
 **Contrato específico, diagrama, módulos, testes adversariais e sequência futura:** [DISTRIBUTED-MOD-READER.md](DISTRIBUTED-MOD-READER.md). Essa leitura cooperativa será aplicada a **análise, biblioteca, atualização, instalação, conferência pós-instalação e desinstalação**; ainda não está implementada no protótipo.
 
+## Núcleo de conhecimento: distribuição do resultado para todos os setores
+
+A leitura espalhada produz um retrato comum `AnalysisSnapshot` que **não é exclusivo do Analisador nem do Instalador**. Outros setores recebem **projeções especializadas** dos dados necessários, sem acesso indiscriminado ao arquivo ou aos caminhos do usuário. A Biblioteca recebe identidade, filtros, mídia e estados; o Instalador recebe o retrato e suas evidências para construir plano simulado; o Atualizador recebe versões/diferenças; diagnósticos recebem constatações sanitizadas.
+
+A **Oficina** recebe capacidades comprovadas do mod: para **skins**, referências permitidas de texturas, materiais, UVs e templates; para **sons**, mapeamentos, eventos, arquivos e configurações suportados pelo jogo/versão. Ela só oferece o editor realmente compatível com o pacote, mantém o original íntegro e salva derivados em workspace isolado. Uma skin ou configuração sonora modificada **volta aos leitores responsáveis pela parte alterada**, produz um novo snapshot, atualiza a Biblioteca e obriga o plano futuro de instalação a ser revalidado. Ausência de suporte não deve ser mascarada por IA.
+
+**Contrato transversal detalhado:** [SHARED-ANALYSIS-ECOSYSTEM.md](SHARED-ANALYSIS-ECOSYSTEM.md). O núcleo e os editores da Oficina são **arquitetura prevista**, não recursos operacionais do protótipo.
+
 ## Arquitetura prevista (módulos separados)
 
 | Módulo | Responsabilidade | Limite |
