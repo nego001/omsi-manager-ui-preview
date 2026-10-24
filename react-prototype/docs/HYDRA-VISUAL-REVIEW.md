@@ -136,3 +136,11 @@ A Biblioteca agora pode exibir um pequeno comando **Consultar N alertas declarad
 `tests/library-diagnostic-jump.spec.ts` cobre bloqueios, avisos, ausência de alertas, foco, retorno com filtro e janela estreita. O teste do **executável Windows empacotado** agora importa um JSON gerado em diretório temporário (somente metadados de ETS2 fictício), percorre o atalho de diagnóstico, confirma foco e bloqueio dos botões instalar/remover e publica duas capturas adicionais da Biblioteca. O manifesto de capturas Windows registra **31 imagens** em vez de 29.
 
 A identidade aprovada é preservada, assim como a etapa **visual/informativa**. A Oficina e o analisador distribuído continuam no registro mestre para fases futuras.
+
+## Nona rodada: índice de alertas, com orientação e foco preciso
+
+Em **Dependências e conflitos · simulação**, o usuário encontra um índice navegável dos bloqueios e avisos declarados. Cada botão é identificado pelo tipo e título do alerta e, ao ser acionado com mouse ou teclado, expande **a orientação correspondente**, rola até ela e leva o foco ao resumo da explicação.
+
+O índice é derivado da mesma `relationAnalysis.issues` já usada na Biblioteca e no Relatório, sem leituras de arquivos, novas classificações ou execução de correções. Quando a versão hipotética do jogo muda, a lista se atualiza. Ao abrir outro mod (ou voltar da Biblioteca ao diagnóstico), a hipótese anterior é limpa, para a contagem declarativa inicial ser coerente com o atalho exibido no cartão.
+
+Playwright cobre orientação por teclado, contagem dinâmica, retorno Biblioteca/Detalhes e bloqueio contínuo de instalação/remoção. O smoke do Windows empacotado também exercita um item do índice. A identidade visual permanece; o roadmap do leitor cooperativo e da Oficina não é tratado como implementado.
