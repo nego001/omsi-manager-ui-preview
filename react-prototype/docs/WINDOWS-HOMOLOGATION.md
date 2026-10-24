@@ -139,3 +139,16 @@ A nova etapa visual usa o mesmo analisador de **relações em metadados JSON** n
 5. Reduza a janela para observar se a linha do tempo mantém conectores, rótulos e textos sem cortes. Use Tab e Enter para abrir os expansores.
 
 O exemplo é **apenas um grafo de metadados**. Nenhuma sequência desta tela autoriza copiar, atualizar ou ativar um mod real. A inspeção física do PC continua limitada às pastas fictícias previstas neste documento.
+
+## Teste no PC: atalho dos alertas da Biblioteca para Detalhes
+
+Usando somente [catalog.versions.example.json](../examples/catalog.versions.example.json), sem mods reais:
+
+1. Importe esse JSON fictício pelo Catálogo e adicione **Som de motor (exemplo)** aos favoritos.
+2. Abra **Minha biblioteca** e selecione **Alertas → Bloqueios declarados**. No cartão, clique em **Consultar 2 alertas declarados**. O programa deve abrir Detalhes já na seção **Dependências e conflitos · simulação**, com os problemas do mesmo mod.
+3. Expanda `Entender e conferir este alerta` e confira a descrição da dependência com versão insuficiente. **Instalar (bloqueado)** e **Remover (bloqueado)** permanecem indisponíveis.
+4. Clique em **Voltar à biblioteca**. O filtro deve continuar em **Bloqueios declarados**, com o mesmo favorito.
+5. Selecione **Alertas → Sem alertas declarados**. Um mod dessa categoria continua identificado como **não verificado** e não oferece o atalho de alerta.
+6. Teste novamente com Tab/Enter e uma janela estreita. O foco precisa aparecer, sem botão recortado ou rolagem horizontal.
+
+**Limite:** esse fluxo abre informações **declaradas no catálogo**. Não compara jogo ou arquivos reais, nem corrige conflitos automaticamente.
