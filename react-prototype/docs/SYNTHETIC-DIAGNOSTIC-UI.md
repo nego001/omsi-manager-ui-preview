@@ -65,3 +65,20 @@ Limitação: todos os módulos e exemplos são simulados na memória do protóti
 - `tests/synthetic-decision-explanation.spec.ts` acrescenta 18 testes de contrato e `tests/synthetic-decision-explanation-ui.spec.ts` acrescenta 8 testes de interface, incluindo os estados candidato, histórico, pendente, ausente, incompleto, bloqueado, ambíguo e não identificado; apresentação móvel, privacidade e bloqueios de operações.
 
 **Limites:** nenhuma classificação constitui análise real de bytes, malware, dependências, mods ou jogos. Não existem hashes de arquivos reais nem integração autorizada com diretórios pessoais. A interface apenas exibe fixtures em memória: operações de instalar, remover, atualizar e editar continuam indisponíveis. Nenhum histórico real é produzido. PR permanece draft, sem merge, e validação manual no Windows físico do usuário segue pendente.
+
+
+## Requisitos para uma futura validação real (24/10/2026)
+
+O módulo `src/synthetic-validation-readiness.ts` descreve **12 requisitos de engenharia distribuídos em quatro etapas**, sempre com `status: not-evaluated`, `completed: false`, `approvedForOperations: false` e `operationsEnabled: false`.
+
+Etapa **Origem e isolamento**: consentimento para um arquivo específico, confinamento de caminhos/symlinks/junctions, limites de tamanho/expansão/tempo/cancelamento de arquivos potencialmente hostis. Etapa **Integridade e leitura**: hash SHA-256 calculado sobre bytes reais e associado à revisão, parser ZIP/SCS/OMSI seguro e relatórios independentes dos especialistas. Etapa **Dependências e compatibilidade**: avaliação efetiva de dependências/conflitos, critérios reais de jogo/versão e homologação supervisionada em Windows físico. Etapa **Segurança antes de operações**: backup e restauração testados, rechecagem de integridade/identidade contra TOCTOU imediatamente antes da escrita e aprovação explícita da ação e do destino pelo usuário.
+
+A lista é **design futuro, não auditoria**. Nenhum item pode ser marcado como verificado com evidência fictícia ou uma simples interação na UI. Mesmo depois de uma futura implementação comprovada dos requisitos, será necessário desenvolver e auditar um mecanismo independente de autorização por operação. Não existe hoje tal mecanismo nem aprovação implícita.
+
+`createSyntheticValidationReadiness()` somente aceita timelines sintéticas emitidas de verdade pelo coordenador em memória, nunca clones, cópias ou apresentações filtradas. `filterSyntheticValidationReadiness()` somente modifica os itens VISÍVEIS e exige um plano emitido no WeakSet interno. Nenhuma conclusão sobre mods reais, validação de bytes, hashes ou permissões é inferida do consenso entre os sete especialistas fictícios.
+
+A interface `SyntheticValidationReadinessPreview.tsx`, dentro do laboratório do Histórico, mostra os doze itens não avaliados, suas provas exigidas e o motivo por trás de cada requisito (expandível por teclado). Não possui botões ou checkboxes para aprovar ações. As outras oito telas, atividades reais vazias e operações bloqueadas permanecem inalteradas.
+
+Testes adicionados: `tests/synthetic-validation-readiness.spec.ts` (14) e `tests/synthetic-validation-readiness-ui.spec.ts` (8), totalizando **22 cenários** para estado sempre fechado, navegação por teclado, privacidade, filtros e responsividade em 390/850/1440 pixels.
+
+A prévia continua isolada de arquivos de usuários, mods, jogos, instaladores e backups; sem parse real, IO de pacotes, atualização, edição, remoção ou instalação. PR draft, sem merge, e homologação manual física pendente.
