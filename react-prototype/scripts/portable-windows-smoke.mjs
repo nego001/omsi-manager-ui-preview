@@ -281,12 +281,38 @@ try{
  await application.evaluate(({BrowserWindow})=>{
    BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1);
  });
+ // Focused catalog-only diagnostic jump on the REAL packaged Windows app.
+ // The fixture is generated inside our temporary test directory, never the user's games.
+ const alertFixture=join(root,'catalog-abstract-alert.json');
+ await writeFile(alertFixture,JSON.stringify({schemaVersion:1,mods:[
+  {id:'audio-base',title:'Biblioteca sonora fictícia',game:'ets2',category:'Sons',version:'1.0',size:'20 MB',description:'Metadados fictícios somente para testar o leitor lógico.'},
+  {id:'audio-engine',title:'Som de motor fictício',game:'ets2',category:'Sons',version:'2.0',size:'60 MB',description:'Dependência simulada e versão abaixo da exigida.',requires:['audio-base'],requiresMinVersions:[{id:'audio-base',minVersion:'2.0'}]}
+ ]}),'utf8');
+ await navigate('Catálogo de mods','Catálogo de mods');
+ await window.getByLabel('Arquivo JSON do catálogo').setInputFiles(alertFixture);
+ const engine=window.locator('.mod-card').filter({has:window.getByRole('button',{name:'Som de motor fictício',exact:true})});
+ await engine.getByRole('button',{name:'Favoritar'}).click();
+ await navigate('Minha biblioteca','Minha biblioteca');
+ const directJump=window.getByRole('button',{name:'Ver diagnóstico de Som de motor fictício'});
+ await directJump.waitFor();
+ assert.match(await directJump.innerText(),/Consultar 1 alerta declarado/);
+ await recordScreenshot('09-biblioteca-com-alerta-declarado.png');
+ await directJump.click();
+ await window.getByRole('heading',{name:'Som de motor fictício',exact:true}).waitFor();
+ const focusOnRelations=await window.getByRole('region',{name:'Simulação de dependências'}).evaluate(el=>document.activeElement===el);
+ assert.equal(focusOnRelations,true,'Diagnostic jump must focus the declared-relations panel');
+ assert.match(await window.locator('.relation-issues').innerText(),/Versão declarada da dependência abaixo do mínimo/);
+ assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
+ assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
+ await window.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ assert.equal(await window.getByRole('button',{name:'Ver diagnóstico de Som de motor fictício'}).count(),1);
+ await recordScreenshot('10-biblioteca-alerta-retornado.png');
  assert.deepEqual(jsErrors,[],'Renderer emitted uncaught JavaScript exceptions during screen sweep');
  await writeFile(join(shots,'screenshot-manifest.json'),JSON.stringify({
    note:'Initial width is measured from the runner, not assumed to be 1440px. 1024/850 are requested native content sizes. Recorded pixel dimensions include full-page height.',
    screenshots:screenshotManifest
  },null,2),'utf8');
- assert.equal(screenshotManifest.length,29,'Expected 9 initial + 18 resized + 2 zoom screenshots');
+ assert.equal(screenshotManifest.length,31,'Expected 9 initial + 18 resized + 2 zoom + 2 diagnostic-jump screenshots');
  console.log('WINDOWS NINE SCREENS: OK. 9 pages at measured initial size, requested 1024 and 850 content widths, plus 2 zoom screenshots.');
 
  console.log('WINDOWS PORTABLE EXE SMOKE: OK. EXE empacotado abriu; sandbox, IPC, inspeção sintética, relatório e bloqueios verificados.');
