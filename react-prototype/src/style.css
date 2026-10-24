@@ -269,3 +269,12 @@
 @media(max-width:1200px){.detail-checklist-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.detail-checklist{padding:15px}.detail-checklist-actions{align-items:stretch}.detail-checklist-actions .btn{width:100%;justify-content:center}}
 @media(max-width:480px){.detail-checklist{padding:12px}.detail-check-item{padding:11px}.detail-checklist-actions{gap:6px}}
+
+/* Library diagnostic status: catalog metadata only. Visual severity never certifies game compatibility. */
+.library-mod-status.blocking{background:#402b34;border-color:#97576b;color:#ffdae3}
+.library-mod-status.attention{background:#433629;border-color:#927148;color:#fbe3be}
+.library-mod-status.no-issues{background:#27343e;border-color:#536e80;color:#d6e5f0}
+.library-declared-alerts{display:flex;align-items:flex-start;gap:10px;min-width:0;margin:-8px 0 20px;padding:12px 15px;background:#252c35;border:1px solid #485461;border-radius:10px;color:#d3dce7;font-size:11px;line-height:1.6}
+.library-declared-alerts svg{flex-shrink:0;margin-top:1px;color:#f0c489}
+.library-declared-alerts strong{color:#fff0d2}
+@media(max-width:480px){.library-declared-alerts{padding:11px 12px}}
