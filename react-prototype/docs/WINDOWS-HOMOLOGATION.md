@@ -112,3 +112,18 @@ Uma avaliação visual comparativa foi iniciada e documentada em [HYDRA-VISUAL-R
 Registre a **tela**, **passos exatos**, **largura/escala do Windows**, texto do alerta e, se possível, uma captura de tela sem dados pessoais. Não envie pastas de jogos, mods privados nem caminhos completos. Uma captura e os passos são suficientes para começar a reproduzir o defeito.
 
 **Importante:** o seletor de pasta é real nesta verificação manual, enquanto o teste automático do Windows usa um retorno controlado. Inspecionar nomes de pasta não equivale a analisar arquivos internos do mod, validar sua compatibilidade ou instalar algo. O aplicativo original e backup permanecem fora do escopo.
+
+## Teste no PC: alertas declarados da Biblioteca
+
+A nova etapa visual usa o mesmo analisador de **relações em metadados JSON** na Biblioteca e em Detalhes. Para reproduzir com segurança **sem abrir nenhum mod verdadeiro**:
+
+1. Baixe o JSON fictício [catalog.versions.example.json](../examples/catalog.versions.example.json) pelo GitHub, mantendo a extensão `.json`.
+2. Na prévia portátil extraída de uma CI **verde**, entre em **Catálogo de mods > Importar catálogo JSON** e selecione esse exemplo. Esse carregamento só altera registros em memória, **não instala nem lê mods**.
+3. Marque os três registros como favoritos: **Biblioteca de áudio (exemplo)**, **Som de motor (exemplo)** e **Pintura demonstrativa**.
+4. Na **Minha biblioteca**, confira três cartões: o som de motor tem **bloqueio declarado** (a biblioteca de áudio declara versão menor que a exigida), a pintura tem **aviso declarado** (versão hipotética do jogo não informada) e a biblioteca de áudio fica **sem alertas declarados**.
+5. No filtro **Alertas**, alterne entre essas opções. Cada uma mostra um dos registros da amostra. A etiqueta deve incluir **não verificado** em todos os casos, inclusive na opção sem alertas.
+6. Abra o mod com bloqueio e confira o **Relatório consolidado**. O erro declarado deve aparecer no relatório, mas os botões **Instalar** e **Remover** permanecem desabilitados.
+7. Use **Voltar à biblioteca** e confira se o filtro anterior foi preservado. Use **Limpar filtros da biblioteca** para restaurar a lista.
+8. Repita em janela estreita e confira se os quatro controles (jogo, categoria, alertas e ordenação) não cortam o conteúdo.
+
+**Limite essencial:** "sem alertas declarados" não significa compatibilidade, instalação, segurança ou funcionamento garantido. A amostra é fictícia e não contém um único caminhão, ônibus, mapa, textura ou áudio de jogo real.
