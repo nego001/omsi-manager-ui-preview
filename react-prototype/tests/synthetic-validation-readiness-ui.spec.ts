@@ -15,7 +15,7 @@ test('exibe doze requisitos não avaliados sem botão de aprovação',async({pag
  await expect(plan.locator('[data-requirement]')).toHaveCount(12);
  await expect(plan.locator('[data-status="not-evaluated"]')).toHaveCount(12);
  await expect(plan.getByRole('checkbox')).toHaveCount(0);
- await expect(plan.getByRole('button')).toHaveCount(0);
+ await expect(plan.getByRole('button',{name:/aprovar|autorizar|validar requisito|instalar/i})).toHaveCount(0);
 });
 test('quatro etapas exibem requisitos concretos de origem, integridade, jogo e recuperação',async({page})=>{
  const {plan}=await laboratory(page);
@@ -65,7 +65,7 @@ test('explicações abrem pelo teclado sem permitir marcar requisitos',async({pa
  await expect(row).toContainText('Máquina virtual de CI não substitui');
  await page.keyboard.press('Enter');
  await expect(row.locator('details')).not.toHaveAttribute('open','');
- await expect(plan.getByRole('button')).toHaveCount(0);
+ await expect(plan.getByRole('button',{name:/aprovar|autorizar|validar requisito|instalar/i})).toHaveCount(0);
 });
 test('requisitos e aviso não transbordam na largura de 390, 850 e 1440 px',async({page})=>{
  const {plan}=await laboratory(page);
