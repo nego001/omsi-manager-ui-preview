@@ -1,7 +1,7 @@
 // IN-MEMORY lifecycle threat model. A simulated "open" NEVER opens a real file.
 // No fs, native handles, IPC, timers, buffers, content, network or OS permissions.
 import {
- isIssuedSyntheticStreamReview,advanceSyntheticStreamReview,cancelSyntheticStreamReview,
+ isIssuedSyntheticStreamReview,areIndependentlyScreenedSyntheticStreams,advanceSyntheticStreamReview,cancelSyntheticStreamReview,
  snapshotSyntheticStreamReview,type SyntheticStreamReview,type SyntheticStreamCheckpoint
 } from './synthetic-stream-checkpoints';
 
@@ -85,6 +85,15 @@ export function createSyntheticReaderLifecycle(stream:SyntheticStreamReview):Syn
  });
  claimedStreams.add(stream);
  return handle;
+}
+// Identity is held privately; public lifecycle props are not capabilities.
+export function isIssuedSyntheticReaderLifecycle(value:unknown):value is SyntheticReaderLifecycle{
+ return !!value&&typeof value==='object'&&state.has(value);
+}
+export function areIndependentSyntheticReaderLifecycles(previous:unknown,next:unknown):boolean{
+ if(!previous||typeof previous!=='object'||!next||typeof next!=='object')return false;
+ const a=state.get(previous),b=state.get(next);
+ return !!a&&!!b&&areIndependentlyScreenedSyntheticStreams(a.stream,b.stream);
 }
 export function snapshotSyntheticReaderLifecycle(handle:SyntheticReaderLifecycle):SyntheticReaderLifecycleCheckpoint{
  return snap(handle,get(handle));
