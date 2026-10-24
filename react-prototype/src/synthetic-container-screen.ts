@@ -109,6 +109,7 @@ export type SyntheticStreamDeclarationSource=Readonly<{
  realBytesRead:false;nativeHandleIssued:false;operationsEnabled:false;
 }>;
 const issuedStreamSources=new WeakSet<object>();
+const streamScreeningOrigins=new WeakMap<object,SyntheticContainerReview>();
 export function isIssuedSyntheticStreamDeclarationSource(value:unknown):value is SyntheticStreamDeclarationSource{
  return !!value&&typeof value==='object'&&issuedStreamSources.has(value);
 }
@@ -124,9 +125,20 @@ export function issueSyntheticStreamDeclarationSource(handle:SyntheticContainerR
   realBytesRead:false,nativeHandleIssued:false,operationsEnabled:false
  });
  issuedStreamSources.add(source);
+ streamScreeningOrigins.set(source,handle);
  return source;
 }
 
+// Two separately issued sources from the SAME screening are NOT fresh evidence.
+// Only a genuinely new synthetic gate-screening instance can be treated as a
+// separate simulated iteration. This is not a real content revision attestation.
+export function areIndependentSyntheticScreeningSources(
+ older:unknown,newer:unknown
+):boolean{
+ if(!older||typeof older!=='object'||!newer||typeof newer!=='object')return false;
+ const a=streamScreeningOrigins.get(older),b=streamScreeningOrigins.get(newer);
+ return !!a&&!!b&&a!==b;
+}
 export function snapshotSyntheticContainerReview(handle:SyntheticContainerReview):SyntheticContainerCheckpoint{
  return checkpoint(get(handle));
 }
