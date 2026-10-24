@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {RotateCcw,ShieldAlert} from 'lucide-react';
 import SyntheticTransactionPreview from './SyntheticTransactionPreview';
+import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
 import {createSyntheticRestartDraft,inspectSyntheticRestartDraft} from './synthetic-restart-handoff';
 import type {SyntheticOrphanRecovery} from './synthetic-orphan-recovery';
 
@@ -11,7 +12,7 @@ const labels:Readonly<Record<Case,string>>={
  'fake-approval':'Permissão artificial inserida no registro',
  'future-version':'Versão do registro não reconhecida'
 };
-export default function SyntheticRestartPreview({record}:{record:SyntheticOrphanRecovery}){
+export default function SyntheticRestartPreview({record,readiness}:{record:SyntheticOrphanRecovery;readiness:SyntheticValidationReadiness}){
  const [scenario,setScenario]=useState<Case>('as-issued');
  const [simulated,setSimulated]=useState(false);
  const draft=createSyntheticRestartDraft(record);
@@ -61,7 +62,7 @@ export default function SyntheticRestartPreview({record}:{record:SyntheticOrphan
     'Estrutura recusada: não é possível conceder permissões por um registro copiado.'}</p>
    <p data-testid="synthetic-restart-guard"><ShieldAlert size={13} aria-hidden="true"/> Mesmo após esta simulação, nenhuma evidência foi restaurada, nenhuma análise real foi concluída e nenhuma operação foi autorizada.</p>
   </div>}
-  <SyntheticTransactionPreview record={record}/>
+  <SyntheticTransactionPreview record={record} readiness={readiness}/>
   <p className="synthetic-restart-note">Retenção máxima de 12 eventos por cópia, preservando os dois eventos iniciais quando válidos. Esta é uma inspeção de formato, não uma validação criptográfica ou recuperação persistente.</p>
  </section>;
 }
