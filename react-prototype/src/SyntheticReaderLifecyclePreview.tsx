@@ -1,7 +1,13 @@
 import {useState} from 'react';
 import {FileLock2,LockKeyhole} from 'lucide-react';
-import type {SyntheticStreamDeclarationSource} from './synthetic-container-screen';
+import {createSyntheticContainerReview,advanceSyntheticContainerReview,
+ issueSyntheticStreamDeclarationSource,type SyntheticStreamDeclarationSource} from './synthetic-container-screen';
+import type {SyntheticValidationReadiness} from './synthetic-validation-readiness';
+import {createSyntheticReadAdmissionSession} from './synthetic-read-admission';
 import {createSyntheticStreamReview} from './synthetic-stream-checkpoints';
+import {createSyntheticOrphanRecovery,acknowledgeSyntheticOrphanRecovery,
+ assessFreshSyntheticOrphanAnalysis,snapshotSyntheticOrphanRecovery,
+ type SyntheticOrphanRecoveryCheckpoint} from './synthetic-orphan-recovery';
 import {
  createSyntheticReaderLifecycle,openSyntheticReaderLifecycle,stepSyntheticReaderLifecycle,
  cancelSyntheticReaderLifecycle,closeSyntheticReaderLifecycle,
@@ -43,9 +49,32 @@ const reasonLabels={
  'process-lost':'Perda simulada do processo; fechamento não confirmado',
  'close-interrupted':'Processo interrompido no meio do fechamento; nenhuma conclusão publicada'
 } as const;
-export default function SyntheticReaderLifecyclePreview({source}:{source:SyntheticStreamDeclarationSource}){
+type RecoveryAction='ack'|'reuse'|'fresh';
+// A new local screening is created here from a brand new fictional catalogue;
+// it NEVER reads files or opens native handles. Its separately issued identity
+// is why it can be treated as a separate synthetic reanalysis, not proof.
+function issueFreshSyntheticLifecycle(readiness:SyntheticValidationReadiness){
+ const admission=createSyntheticReadAdmissionSession(readiness);
+ const screen=createSyntheticContainerReview(admission,{format:'zip-declared',entries:[
+  {path:'def/fixture.sii',kind:'file',compression:'deflate',encodedBytes:300,expandedBytes:600},
+  {path:'sound/fixture.ogg',kind:'file',compression:'deflate',encodedBytes:200,expandedBytes:400}
+ ]});
+ advanceSyntheticContainerReview(screen);advanceSyntheticContainerReview(screen);
+ const nextSource=issueSyntheticStreamDeclarationSource(screen);
+ const stream=createSyntheticStreamReview(nextSource,nextSource.entries.map(e=>({
+  entryOrdinal:e.ordinal,encodedBytes:e.encodedBytes,expandedBytes:e.expandedBytes,
+  elapsedMs:10,endOfEntry:true
+ })));
+ const next=createSyntheticReaderLifecycle(stream);
+ openSyntheticReaderLifecycle(next);
+ for(const _entry of nextSource.entries)stepSyntheticReaderLifecycle(next);
+ closeSyntheticReaderLifecycle(next);
+ return next;
+}
+export default function SyntheticReaderLifecyclePreview({source,readiness}:{source:SyntheticStreamDeclarationSource;readiness:SyntheticValidationReadiness}){
  const [scenario,setScenario]=useState<Scenario>('normal');
  const [actions,setActions]=useState<readonly Command[]>([]);
+ const [recoveryActions,setRecoveryActions]=useState<readonly RecoveryAction[]>([]);
  // Replays numeric fixture metadata only. No OS handles are created by "open".
  const stream=createSyntheticStreamReview(source,data(source,scenario));
  const lifecycle=createSyntheticReaderLifecycle(stream);
@@ -61,6 +90,17 @@ export default function SyntheticReaderLifecyclePreview({source}:{source:Synthet
   else closeSyntheticReaderLifecycle(lifecycle);
  }
  const current=snapshotSyntheticReaderLifecycle(lifecycle);
+ const orphaned=current.closeReason==='process-lost'||current.closeReason==='close-interrupted';
+ let recovery: SyntheticOrphanRecoveryCheckpoint|null=null;
+ if(orphaned){
+  const record=createSyntheticOrphanRecovery(lifecycle);
+  for(const action of recoveryActions){
+   if(action==='ack')acknowledgeSyntheticOrphanRecovery(record);
+   else if(action==='reuse')assessFreshSyntheticOrphanAnalysis(record,lifecycle);
+   else assessFreshSyntheticOrphanAnalysis(record,issueFreshSyntheticLifecycle(readiness));
+  }
+  recovery=snapshotSyntheticOrphanRecovery(record);
+ }
  const append=(action:Command)=>setActions(old=>[...old,action]);
  return <section className="synthetic-lifecycle" role="region" aria-label="Ciclo fictício do futuro leitor nativo" data-native-open="false" data-reader-enabled="false">
   <header><div>
@@ -70,7 +110,7 @@ export default function SyntheticReaderLifecyclePreview({source}:{source:Synthet
   </div><span className="synthetic-lifecycle-locked"><LockKeyhole size={13} aria-hidden="true"/> Sem acesso ao disco</span></header>
   <label htmlFor="synthetic-lifecycle-scenario">Cenário de ciclo fictício
    <select id="synthetic-lifecycle-scenario" value={scenario} onChange={e=>{
-    setScenario(e.target.value as Scenario);setActions([]);
+    setScenario(e.target.value as Scenario);setActions([]);setRecoveryActions([]);
    }}>
     {(Object.keys(scenarios) as Scenario[]).map(key=><option value={key} key={key}>{scenarios[key]}</option>)}
    </select>
@@ -91,8 +131,28 @@ export default function SyntheticReaderLifecyclePreview({source}:{source:Synthet
    <button type="button" onClick={()=>append('reopen')} disabled={current.phase!=='closed'}>Tentar reabrir sessão encerrada</button>
    <button type="button" onClick={()=>append('cancel')} disabled={current.phase==='closed'||current.phase==='interrupted'}>Cancelar e limpar</button>
    <button type="button" onClick={()=>append('close')} disabled={current.phase==='closed'||current.phase==='interrupted'}>Fechar e limpar</button>
-   <button type="button" onClick={()=>setActions([])}>Reiniciar ciclo</button>
+   <button type="button" onClick={()=>{setActions([]);setRecoveryActions([]);}}>Reiniciar ciclo</button>
   </div>
+  {recovery&&<section className="synthetic-recovery" role="region" aria-label="Recuperação fictícia de sessão abandonada" data-real-recovery="false">
+   <header>
+    <h5>Recuperação e reanálise obrigatória</h5>
+    <p>A análise interrompida permanece invalidada. Uma confirmação de abandono não restitui suas conclusões nem atesta a limpeza real.</p>
+   </header>
+   <div className="synthetic-recovery-metrics" role="status" aria-live="polite">
+    <div><small>Etapa da recuperação</small><strong data-testid="synthetic-recovery-phase">{recovery.phase==='acknowledgement-required'?'Reconhecimento pendente':recovery.phase==='fresh-screening-required'?'Nova triagem necessária':'Nova análise fictícia recebida'}</strong></div>
+    <div><small>Declarações antigas reutilizáveis</small><strong data-testid="synthetic-recovery-old">{recovery.oldResultReusable?'Sim':'0'}</strong></div>
+    <div><small>Declarações da nova análise fictícia</small><strong data-testid="synthetic-recovery-fresh">{recovery.freshSyntheticDeclarations}</strong></div>
+    <div><small>Arquivos reais revalidados</small><strong data-testid="synthetic-recovery-real">0</strong></div>
+   </div>
+   <div className="synthetic-recovery-actions">
+    <button type="button" disabled={recovery.phase!=='acknowledgement-required'} onClick={()=>setRecoveryActions(a=>[...a,'ack'])}>Reconhecer perda no registro fictício</button>
+    <button type="button" disabled={recovery.phase!=='fresh-screening-required'} onClick={()=>setRecoveryActions(a=>[...a,'reuse'])}>Testar reutilização da sessão antiga</button>
+    <button type="button" disabled={recovery.phase!=='fresh-screening-required'} onClick={()=>setRecoveryActions(a=>[...a,'fresh'])}>Executar nova triagem independente fictícia</button>
+   </div>
+   {recovery.lastAttempt==='not-independent'&&<p className="synthetic-recovery-warning" data-testid="synthetic-recovery-rejected">Reutilização recusada: a sessão anterior não pode servir como evidência nova.</p>}
+   {recovery.phase==='new-fixture-reported'&&<p className="synthetic-recovery-warning" data-testid="synthetic-recovery-observed">Somente novas declarações inventadas foram conferidas. Identidade, integridade e compatibilidade reais continuam não verificadas.</p>}
+   <p className="synthetic-recovery-warning">Sem journal persistente, sem watchdog e sem recuperação de arquivos reais. Nenhuma instalação ou edição de mods está autorizada.</p>
+  </section>}
   {current.recoveryRequired&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-recovery">A sessão foi interrompida na simulação. Não é possível confirmar que um handle real teria sido fechado. Nenhum resultado pode ser recuperado.</p>}
   {current.abandonedWithoutConfirmedClose&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-unverified-cleanup">Fechamento não comprovado: reconhecer o abandono não equivale à limpeza de recursos do Windows.</p>}
   {actions.includes('reopen')&&current.phase==='closed'&&<p className="synthetic-lifecycle-uncertain" data-testid="synthetic-lifecycle-replay-denied">Reabertura recusada: a mesma sessão encerrada não pode ser reutilizada.</p>}
