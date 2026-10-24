@@ -75,7 +75,7 @@ const definitions:readonly RequirementSpec[]=Object.freeze([
  {id:'separate-user-approval',phase:'execution',title:'Autorização separada por operação',
   proofNeeded:'Fluxo explícito de confirmação da ação exata, destino e consequências, com permissões mínimas e bloqueio por padrão.',
   reason:'Uma lista de requisitos não é permissão para instalar, editar, remover ou atualizar.'}
-].map(x=>Object.freeze(x)));
+] satisfies readonly RequirementSpec[]);
 const issued=new WeakSet<object>();
 const requirementOrder:readonly ValidationPhase[]=['origin','integrity','compatibility','execution'];
 export function createSyntheticValidationReadiness(timeline:SyntheticDiagnosticTimeline):SyntheticValidationReadiness{
