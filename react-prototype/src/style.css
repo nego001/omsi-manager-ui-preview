@@ -297,3 +297,27 @@
 .relation-scope-note{display:flex;align-items:flex-start;gap:8px;margin-top:14px!important;color:#d9caaa!important;font-size:11px!important;line-height:1.6}
 .relation-scope-note svg{flex-shrink:0;margin-top:2px}
 @media(max-width:600px){.relation-overview{gap:6px}.relation-overview>div{padding:10px 8px}.relation-overview strong{font-size:19px}.relation-overview small{font-size:9px}.relation-issues>li{padding:10px}}
+
+/* Visual dependency timeline. Catalog-only order, never an installation queue. */
+.relation-timeline{list-style:none;padding:0 0 0 3px;display:grid;gap:0;margin:12px 0 18px}
+.relation-timeline>li{position:relative;display:flex;gap:13px;min-width:0;align-items:flex-start;padding:0 0 13px 0;line-height:1.5;color:#eef2f9}
+.relation-timeline>li:not(:last-child):before{content:'';position:absolute;left:16px;top:30px;bottom:-3px;border-left:2px solid #58677b}
+.relation-stage-number{display:grid;place-items:center;flex:0 0 34px;height:34px;font-variant-numeric:tabular-nums;font-size:12px;font-weight:750;border-radius:10px;border:1px solid #6f8297;background:#2d3b4a;color:#f0f5ff;position:relative;z-index:1}
+.relation-timeline>li[data-stage-role="selected"] .relation-stage-number{background:#e6eaf4;color:#242b36;border-color:#f0f4ff}
+.relation-stage-body{min-width:0;flex:1;background:#252d38;border:1px solid #4b5667;border-radius:10px;padding:12px 14px}
+.relation-timeline>li[data-stage-role="selected"] .relation-stage-body{background:#303a49;border-color:#7f95b0}
+.relation-stage-role{display:block;color:#c5d3e5;font-weight:700;font-size:9px;letter-spacing:1.15px;line-height:1.35}
+.relation-stage-body>strong{display:block;font-size:12px;line-height:1.45;margin:5px 0 3px;overflow-wrap:anywhere}
+.relation-stage-body>small{display:block;font-size:10px;line-height:1.4;color:#b2bed0;overflow-wrap:anywhere}
+.relation-stage-detail{margin-top:10px;padding-top:9px;border-top:1px solid #465263}
+.relation-stage-detail summary{cursor:pointer;color:#e3eaf7;font-weight:650;font-size:11px;line-height:1.6;outline-offset:4px}
+.relation-stage-detail summary:focus-visible{outline:2px solid #c1d1f9}
+.relation-stage-detail p{color:#c6d1e0!important;font-size:11px;line-height:1.6;margin:6px 0 0;overflow-wrap:anywhere}
+.relation-sequence-warning{padding:11px 13px;background:#412c32;color:#f6d9e0!important;border:1px solid #8a5364;border-radius:9px;font-size:11px;line-height:1.6}
+.relation-no-deps{padding:10px 12px;background:#27303b;color:#d5e0ee!important;border:1px solid #465970;border-radius:8px;font-size:11px;line-height:1.65}
+@media(max-width:600px){
+ .relation-timeline>li{gap:8px}
+ .relation-timeline>li:not(:last-child):before{left:14px}
+ .relation-stage-number{flex-basis:30px;height:30px}
+ .relation-stage-body{padding:10px 11px}
+}
