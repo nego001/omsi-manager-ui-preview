@@ -32,10 +32,10 @@ const suffixes:ReadonlySet<string>=new Set(['scs','zip','bus','cfg','sco','sli',
 const moduleSet:ReadonlySet<string>=new Set(SYNTHETIC_MODULE_IDS);
 const issuedIndexes=new WeakSet<object>();
 const permittedSuffixes:Readonly<Record<SyntheticModuleId,ReadonlySet<SyntheticSuffix>|null>>=Object.freeze({
- container:new Set(),structure:null,manifest:new Set(['json','sii']),
- definitions:new Set(['bus','cfg','sco','sli','sii']),
- resources:new Set(['dds','png','jpg']),audio:new Set(['wav','ogg','bank']),
- media:new Set(['dds','png','jpg']),relations:new Set(['json','sii'])
+ container:new Set<SyntheticSuffix>(),structure:null,manifest:new Set<SyntheticSuffix>(['json','sii']),
+ definitions:new Set<SyntheticSuffix>(['bus','cfg','sco','sli','sii']),
+ resources:new Set<SyntheticSuffix>(['dds','png','jpg']),audio:new Set<SyntheticSuffix>(['wav','ogg','bank']),
+ media:new Set<SyntheticSuffix>(['dds','png','jpg']),relations:new Set<SyntheticSuffix>(['json','sii'])
 });
 function record(x:unknown):x is Record<string,unknown>{
  return x!==null&&typeof x==='object'&&!Array.isArray(x)&&Object.getPrototypeOf(x)===Object.prototype;
