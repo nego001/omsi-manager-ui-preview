@@ -4,6 +4,7 @@ import {runSyntheticIndexedWorkers,type SyntheticWorkerDeclaration} from './synt
 import {SYNTHETIC_MODULE_IDS,type SyntheticModuleId} from './distributed-reader-contract';
 import {createSyntheticEvidenceHistory,beginSyntheticHistoryRevision,completeSyntheticHistoryRevision} from './synthetic-evidence-history';
 import {projectSyntheticDiagnosticTimeline,type SyntheticDiagnosticTimeline} from './synthetic-diagnostic-timeline';
+import {explainSyntheticDeclaredChanges,type SyntheticChangeExplanation} from './synthetic-change-explanations';
 type Specialist=Exclude<SyntheticModuleId,'container'>;
 const DIGEST='e'.repeat(64); // User-declared example, NOT an actual SHA-256.
 const entry=(path:string)=>({path,kind:'file',encodedBytes:100,expandedBytes:150,declaredFormat:'well-formed'});
@@ -27,6 +28,19 @@ function workers(i:SyntheticPackageIndex,omitAudio:boolean):SyntheticWorkerDecla
   });
 }
 export type SyntheticDemoStep=Readonly<{id:'initial'|'pending'|'incomplete'|'next-pending';label:string;timeline:SyntheticDiagnosticTimeline}>;
+// Bind the declared fixture indices to the original issued demo step, not to exported
+// ordinal handles, timeline clones, user-selected paths or filtered visual records.
+const demoRevisions=new WeakMap<object,readonly SyntheticPackageIndex[]>();
+export function explainSyntheticDemoRevisions(
+ step:SyntheticDemoStep,beforeRevision:number,afterRevision:number
+):SyntheticChangeExplanation{
+ const entries=step&&typeof step==='object'?demoRevisions.get(step):undefined;
+ if(!entries)throw Error('Etapa fictícia não emitida.');
+ if(!Number.isSafeInteger(beforeRevision)||!Number.isSafeInteger(afterRevision)||
+    beforeRevision<1||afterRevision>entries.length||beforeRevision>=afterRevision)
+  throw Error('Seleção inválida de revisões fictícias.');
+ return explainSyntheticDeclaredChanges(entries[beforeRevision-1],entries[afterRevision-1]);
+}
 export function createSyntheticDiagnosticDemo():readonly SyntheticDemoStep[]{
  const baseline=index(['Vehicles/demo.bus','def/settings.sii','meta/manifest.json','audio/engine.wav']);
  const initial=createSyntheticEvidenceHistory(baseline,runSyntheticIndexedWorkers(baseline,workers(baseline,false)));
@@ -35,10 +49,15 @@ export function createSyntheticDiagnosticDemo():readonly SyntheticDemoStep[]{
  const incomplete=completeSyntheticHistoryRevision(pending,runSyntheticIndexedWorkers(repainted,workers(repainted,true)));
  const soundChange=index(['Vehicles/demo.bus','def/settings.sii','meta/manifest.json','audio/engine.wav','skins/paint.dds','audio/ambient.ogg']);
  const next=beginSyntheticHistoryRevision(incomplete,soundChange);
- return Object.freeze([
+ const steps=Object.freeze([
   Object.freeze({id:'initial',label:'1. Análise inicial',timeline:projectSyntheticDiagnosticTimeline(initial)}),
   Object.freeze({id:'pending',label:'2. Pintura alterada',timeline:projectSyntheticDiagnosticTimeline(pending)}),
   Object.freeze({id:'incomplete',label:'3. Áudio não analisado',timeline:projectSyntheticDiagnosticTimeline(incomplete)}),
   Object.freeze({id:'next-pending',label:'4. Nova revisão de som',timeline:projectSyntheticDiagnosticTimeline(next)})
  ]);
+ demoRevisions.set(steps[0],Object.freeze([baseline]));
+ demoRevisions.set(steps[1],Object.freeze([baseline,repainted]));
+ demoRevisions.set(steps[2],Object.freeze([baseline,repainted]));
+ demoRevisions.set(steps[3],Object.freeze([baseline,repainted,soundChange]));
+ return steps;
 }
