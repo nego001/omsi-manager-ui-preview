@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-import {buildSyntheticPackageIndex,projectSyntheticIndex,type SyntheticPackageIndex} from '../src/synthetic-package-index';
+import {buildSyntheticPackageIndex,projectSyntheticIndex,issueSyntheticRevisionTicket,type SyntheticPackageIndex} from '../src/synthetic-package-index';
 import {runSyntheticIndexedWorkers,type SyntheticWorkerDeclaration} from '../src/synthetic-index-workers';
 import {SYNTHETIC_MODULE_IDS,projectSyntheticSnapshot,type SyntheticModuleId} from '../src/distributed-reader-contract';
 const digest='f'.repeat(64);
@@ -16,10 +16,14 @@ function handle(i:SyntheticPackageIndex,id:SyntheticModuleId,suffix:string){
 }
 function declarations(i:SyntheticPackageIndex,target:'omsi'|'ets2'|'ats'='omsi'):SyntheticWorkerDeclaration[]{
  return SYNTHETIC_MODULE_IDS.filter(id=>id!=='container').map(id=>({
-  moduleId:id as Exclude<SyntheticModuleId,'container'>,fixtureDigest:digest,status:'ok' as const,
-  observations:id==='structure'?[{handle:handle(i,id,'bus'),game:target}]:
-   id==='manifest'?[{handle:handle(i,id,'json'),game:target}]:
-   id==='definitions'?[{handle:handle(i,id,'sii'),game:target}]:[]
+  moduleId:id as Exclude<SyntheticModuleId,'container'>,fixtureDigest:digest,
+  revisionTicket:issueSyntheticRevisionTicket(i,id),status:'ok' as const,
+  observations:id==='structure'?[{handle:handle(i,id,'bus'),game:target,
+   revisionTicket:issueSyntheticRevisionTicket(i,id,handle(i,id,'bus'))}]:
+   id==='manifest'?[{handle:handle(i,id,'json'),game:target,
+   revisionTicket:issueSyntheticRevisionTicket(i,id,handle(i,id,'json'))}]:
+   id==='definitions'?[{handle:handle(i,id,'sii'),game:target,
+   revisionTicket:issueSyntheticRevisionTicket(i,id,handle(i,id,'sii'))}]:[]
  }));
 }
 test('o gate entrega apenas vistas limitadas; todos os módulos compartilham um snapshot',()=>{
@@ -63,7 +67,7 @@ test('ordem da entrega dos especialistas não altera relatório nem evidência',
 test('sufixo SCS com nome ATS não classifica jogo automaticamente',()=>{
  const i=index(['mod/Definitely_ats.scs']);
  const fixture=SYNTHETIC_MODULE_IDS.filter(id=>id!=='container').map(id=>({
-  moduleId:id,fixtureDigest:digest,status:'ok',observations:[]
+  moduleId:id,fixtureDigest:digest,revisionTicket:issueSyntheticRevisionTicket(i,id),status:'ok',observations:[]
  }));
  const a=runSyntheticIndexedWorkers(i,fixture);
  expect(a.status).toBe('complete');
@@ -73,7 +77,7 @@ test('sufixo SCS com nome ATS não classifica jogo automaticamente',()=>{
 test('conflitos declarados entre ETS2 e ATS permanecem ambíguos, sem destino',()=>{
  const i=index();
  const fixture=declarations(i,'ats').map(f=>f.moduleId==='manifest'
-  ?{...f,observations:[{handle:handle(i,'manifest','json'),game:'ets2' as const}]}:f);
+  ?{...f,observations:[{handle:handle(i,'manifest','json'),game:'ets2' as const,revisionTicket:issueSyntheticRevisionTicket(i,'manifest',handle(i,'manifest','json'))}]}:f);
  const a=runSyntheticIndexedWorkers(i,fixture);
  expect(a.status).toBe('complete');
  expect(a.snapshot.state).toBe('ambiguous');
@@ -116,7 +120,7 @@ test('referência inexistente não pode virar evidência',()=>{
 test('diretórios não são evidência de conteúdo do jogo',()=>{
  const entries=[{path:'Vehicles',kind:'directory',encodedBytes:0,expandedBytes:0,declaredFormat:'well-formed'}];
  const i=buildSyntheticPackageIndex(digest,entries).index!;
- const fixture=declarations(index()).map(x=>({...x,observations:[]}));
+ const fixture=declarations(index()).map(x=>({...x,observations:[],revisionTicket:issueSyntheticRevisionTicket(i,x.moduleId)}));
  const a=runSyntheticIndexedWorkers(i,fixture.map(x=>x.moduleId==='structure'
   ?{...x,observations:[{handle:i.entries[0].handle,game:'omsi' as const}]}:x));
  expect(a.reason).toBe('out-of-scope-handle');
