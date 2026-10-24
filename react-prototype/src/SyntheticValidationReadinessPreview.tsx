@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {LockKeyhole,ShieldAlert} from 'lucide-react';
+import SyntheticReadAdmissionPreview from './SyntheticReadAdmissionPreview';
 import type {SyntheticDiagnosticTimeline} from './synthetic-diagnostic-timeline';
 import {createSyntheticValidationReadiness,filterSyntheticValidationReadiness,type ValidationReadinessFilter,type ValidationPhase} from './synthetic-validation-readiness';
 
@@ -52,6 +53,7 @@ export default function SyntheticValidationReadinessPreview({timeline}:{timeline
     </ol>
    </section>)}
   </div>
+  <SyntheticReadAdmissionPreview readiness={plan}/>
   <p className="synthetic-readiness-guard" data-testid="synthetic-readiness-guard">Uma lista de requisitos não é uma aprovação. Mesmo que todos sejam implementados no futuro, será necessário um mecanismo de autorização independente e uma confirmação explícita para cada operação. Instalar, remover, atualizar e editar continuam bloqueados.</p>
  </section>;
 }
