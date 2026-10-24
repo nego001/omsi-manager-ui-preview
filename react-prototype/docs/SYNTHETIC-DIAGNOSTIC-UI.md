@@ -40,3 +40,16 @@ Não existe parser ZIP/SCS, leitura real, hash de conteúdo ou certificação de
 - `tests/synthetic-comparison-review.spec.ts` e `tests/synthetic-comparison-review-ui.spec.ts` cobrem tipos de evidência, ausência de relatórios, estados pendentes, pistas de impacto, contradições de exibição, histórico, imutabilidade, segurança e tamanhos 390/850/1440 px.
 
 Limitação: todos os módulos e exemplos são simulados na memória do protótipo. A prioridade não gera uma fila real nem permite ações de instalação, edição, remoção ou atualização. Não há inspeção dos arquivos de jogos/mods, comunicação externa, hashes reais ou homologação manual em Windows físico.
+
+
+## Por que um tipo de mudança pode envolver um especialista? (24/10/2026)
+
+- `src/synthetic-change-explanations.ts` explica apenas *relações indicativas por escopo declarado*: tipos fictícios .dds/.png/.jpg são associados a Estrutura/Definições/Recursos/Imagens; .wav/.ogg/.bank a Estrutura/Definições/Áudio; .json a Estrutura/Manifestos/Relações. Outros tipos seguem o contrato da revalidação. **Isso não é dependência real, diagnóstico causal ou detecção de defeito.**
+- O módulo compara **índices que foram emitidos pelo gate**, consultando os caminhos canônicos somente por meio da comparação privada. Publica exclusivamente operação (inclusão/remoção/modificação), sufixo, tipo arquivo/pasta, quantidade de declarações e módulos potencialmente envolvidos. Omite nome completo, path, raiz, digest, handles e conteúdo.
+- A renomeação aparece como *retirada + inclusão*, jamais como identidade real do arquivo renomeado. Modificações com troca de classificação podem produzir mais de uma anotação; contadores representam **declarações**, não arquivos físicos identificados.
+- Mudança **apenas de digest informado** e índices com declarações **aparentemente idênticas** são explicados sem inventar diferenças; independentemente da coincidência, a nova revisão exige a reanálise dos sete especialistas. O digest é fornecido pelo fixture, nunca calculado.
+- `src/synthetic-diagnostic-demo.ts` mantém vínculos entre o objeto de etapa original e os índices sintéticos de cada revisão via `WeakMap`. Comparações não consecutivas (revisão 1 → 3) exibem as duas alterações declaradas, sem vazar nomes ou permitir que clones de etapas recuperem índices.
+- `src/SyntheticDiagnosticPreview.tsx` apresenta `O que pode estar relacionado às mudanças?` acima das orientações de conferência, com detalhes por tipo de alteração e explicação explícita de que não existe prova de causalidade. Os filtros de timeline e de orientação **não alteram esses registros**.
+- `tests/synthetic-change-explanations.spec.ts` e `tests/synthetic-change-explanations-ui.spec.ts` cobrem privacidade, associação por extensão, grupo e contagem, rejeição de índices/etapas clonados, história 1/2/3, filtros independentes, texto honesto, responsividade e instalação desativada.
+
+**Fronteira de segurança:** tudo é fictício e em memória; não acessa diretórios de jogos, arquivos reais, processos ou rede; não verifica hashes ou compatibilidade; não habilita escrita nem ações na Oficina. As nove telas aprovadas permanecem com o visual original fora desta seção de laboratório. O PR segue draft e a homologação manual em um computador Windows físico não foi realizada.
