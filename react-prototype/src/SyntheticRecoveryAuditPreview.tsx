@@ -1,4 +1,5 @@
 import {ClipboardList,LockKeyhole} from 'lucide-react';
+import SyntheticRestartPreview from './SyntheticRestartPreview';
 import {
  projectSyntheticRecoveryAudit,type SyntheticOrphanRecovery,type SyntheticRecoveryEventCode
 } from './synthetic-orphan-recovery';
@@ -37,6 +38,7 @@ export default function SyntheticRecoveryAuditPreview({record}:{record:Synthetic
     </div>
    </li>)}
   </ol>
+  <SyntheticRestartPreview record={record}/>
   <p className="synthetic-recovery-audit-warning" data-testid="synthetic-audit-notice">Este registro não é uma auditoria criptográfica nem persiste após reiniciar o aplicativo. Mesmo com novos eventos, nenhum mod foi recuperado, verificado ou autorizado para instalação.</p>
  </section>;
 }
