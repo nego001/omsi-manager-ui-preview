@@ -332,3 +332,20 @@
 #relacoes-declaradas{scroll-margin-top:20px}
 #relacoes-declaradas:focus{outline:2px solid #a5bbeb;outline-offset:4px}
 @media(max-width:480px){.library-diagnostic-link{font-size:11px;min-height:32px}}
+
+/* Declarative alert navigation: informational only, never a verified fix. */
+.relation-alert-index{margin:13px 0 18px;padding:12px;border:1px solid #536274;border-radius:10px;background:#202a38;min-width:0}
+.relation-alert-index-heading{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:5px 12px;margin-bottom:9px}
+.relation-alert-index-heading strong{font-size:12px;color:#eaf0fa}
+.relation-alert-index-heading small{font-size:10px;color:#bdcbe0;line-height:1.5}
+.relation-alert-index ol{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.relation-alert-index li{min-width:0}
+.relation-alert-index button{display:flex;align-items:center;gap:9px;width:100%;min-width:0;min-height:39px;text-align:left;background:#2c3749;color:#edf2fb;border:1px solid #5b6b81;border-radius:8px;padding:8px 9px;font-size:11px;line-height:1.45}
+.relation-alert-index button:hover{background:#35455a;border-color:#95a9c6}
+.relation-alert-index button:focus-visible{outline:2px solid #c4d6ff;outline-offset:2px}
+.relation-alert-index-severity{flex:0 0 auto;border-radius:5px;padding:4px 7px;font-size:10px;font-weight:700;color:#ffe2d5;background:#5b3b30}
+.relation-alert-index-severity.blocking{color:#ffe0e7;background:#653340}
+.relation-alert-index-name{min-width:0;flex:1;overflow-wrap:anywhere}
+.relation-alert-index button svg{flex-shrink:0}
+.relation-guide summary:focus-visible{outline:2px solid #c4d6ff;outline-offset:3px}
+@media(max-width:480px){.relation-alert-index{padding:9px}.relation-alert-index button{padding:8px 7px;gap:7px;min-height:43px}.relation-alert-index-heading{display:block}.relation-alert-index-heading small{display:block;margin-top:5px}}
