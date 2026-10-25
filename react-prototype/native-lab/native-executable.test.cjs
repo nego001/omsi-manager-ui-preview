@@ -791,7 +791,10 @@ test('Win32 queued rename storm must attest actual loss of event details, not ju
   assert.ok([7,8].includes(code),
    'no OS-backed accumulated loss evidence, exit '+code+
    ', generic error: '+stderr.trim());
-  assert.match(stdout,/^READY\r?\nSTORM_READY\r?\n$/);
+  assert.match(stdout,/^READY\r?\nVOLUME_KIND=(NTFS|ReFS|Other|Unavailable)\r?\nSTORM_READY\r?\nSCAN_ONLY\r?\n$/);
+  const family=stdout.match(/^VOLUME_KIND=(NTFS|ReFS|Other|Unavailable)$/m)?.[1];
+  assert.ok(family);
+  t.diagnostic('native queued-change filesystem family: '+family);
   assert.equal(stderr.trim(),'Temporary standalone native directory lab refused.');
   t.diagnostic('native queued-change signal: '+(code===7
    ? 'ERROR_NOTIFY_ENUM_DIR (1022)'
@@ -868,10 +871,30 @@ test('small queued rename sequence must NOT masquerade as overflow evidence',
   child.stdin.end('STORM_DONE\n');
   const code=await bounded(finished);
   assert.equal(code,3,'small queue falsely produced overflow witness '+code);
-  assert.match(stdout,/^READY\r?\nSTORM_READY\r?\n$/);
+  assert.match(stdout,/^READY\r?\nVOLUME_KIND=(NTFS|ReFS|Other|Unavailable)\r?\nSTORM_READY\r?\n$/);
+  assert.doesNotMatch(stdout,/SCAN_ONLY/);
   assert.equal(stderr.trim(),'Temporary standalone native directory lab refused.');
   assert.equal(await fs.readFile(original,'utf8'),'SYNTHETIC CONTROL');
  }finally{
   if(child.exitCode===null)child.kill();
  }
+});
+
+test('filesystem classification uses pinned Win32 handle and has no sensitive volume identifiers',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/GetVolumeInformationByHandleW/);
+ assert.match(source,/SafeVolumeFamily\(directory\)/);
+ assert.match(source,/fileSystemName, uint fileSystemNameLength/);
+ assert.doesNotMatch(source,/Console\.Out\.WriteLine\(.*(?:VolumeSerialNumber|serialNumber|volumeName)/i);
+});
+
+test('post-overflow bounded scan is read-only and never returns the 21-key success receipt',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/AttestQueuedOverflowForSyntheticTest\(\(\)\s*=>/);
+ assert.match(source,/int\[\] afterLoss = Inspect\(heldRoot, target\)/);
+ assert.match(source,/VerifyHeldMarker\(markerPath, args\[3\], heldMarker/);
+ assert.match(source,/Console\.Out\.WriteLine\("SCAN_ONLY"\)/);
+ assert.match(source,/throw new SyntheticNotificationLossWitness/);
 });
