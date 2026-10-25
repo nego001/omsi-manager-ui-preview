@@ -700,7 +700,7 @@ test('attestation cannot be requested without opt-in watcher or extra commands',
 });
 
 test('native Win32 small notification buffer must prove a kernel loss-of-detail signal',
- {skip:!ready},async()=>{
+ {skip:!ready},async(t)=>{
  const f=await fixture();
  // Long but legal synthetic Windows file name exceeds the native 64-byte
  // FILE_NOTIFY_INFORMATION buffer without creating any real mod content.
@@ -710,6 +710,11 @@ test('native Win32 small notification buffer must prove a kernel loss-of-detail 
  },'CONTINUE',null,[],
  ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-small-buffer-loss']);
  assert.ok([5,6].includes(r.code),'kernel did not attest 1022 or zero bytes: '+JSON.stringify(r));
+ // No filenames, root paths or nonces in CI; only the exact class of OS
+ // result is exposed so we can distinguish confirmed loss from ambiguity.
+ t.diagnostic('native small-buffer signal: '+(r.code===5
+  ? 'ERROR_NOTIFY_ENUM_DIR (1022)'
+  : 'completed successfully with ZERO event-detail bytes'));
  assert.equal(r.stdout.trim(),'READY');
  assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
  assert.equal(r.stdout.includes(name),false);
