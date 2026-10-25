@@ -626,3 +626,54 @@ e pathname. Os 21 campos normais continuam com
 `guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
 `supportsRealGameInspection:false` e
 `operationsEnabled:false`.
+
+
+## USN atual por arquivo, sem percorrer o diário NTFS (25/10/2026)
+
+Um diagnóstico adicional, **exclusivamente sintético**, aceita
+`--rdcw-probe --test-usn-checkpoint` somente em fixture direta
+de TEMP autenticada por nonce. A consulta usa
+`DeviceIoControl(FSCTL_READ_FILE_USN_DATA)` no handle do
+`metadata-probe.scs`, aberto **relativamente ao diretório
+fixado, com acesso apenas a atributos**. Não abre o volume
+`\\.\X:`, não usa `FSCTL_READ_USN_JOURNAL`,
+`FSCTL_ENUM_USN_DATA` nem cria/modifica o journal.
+A leitura é de um único registro corrente do arquivo,
+validado para `USN_RECORD_V2` ou `USN_RECORD_V3`;
+somente o número USN é interpretado, sem expor nome,
+metadados identificáveis ou bytes de arquivo.
+
+Em Windows/NTFS, o runner cria um arquivo fictício e
+registra seu USN e FileId; outro processo regrava o
+conteúdo com bytes temporários e restaura o conteúdo
+original e `LastWriteTime`; a segunda consulta, no
+**mesmo handle**, confirma que o USN **aumentou**
+apesar da restauração. Somente essa condição produz
+**código 12**, que ainda é **RECUSA**, com stderr
+genérico e stdout restrito a `READY`. Um controle
+sem alterações recusa com **3** e substituição por
+outro FileId recusa com **9**. Na primeira CI nativa
+Windows dessa implementação, os cinco testes USN
+passaram, e a suíte teve 82 casos: 79 aprovados,
+3 ignorados, zero falhas.
+
+Se o journal estiver desativado/indisponível, o retorno
+for inesperado, o volume não for NTFS ou a leitura
+falhar, o helper recusa, **sem** assumir que o
+filesystem é seguro ou que o número USN é confiável.
+Não há tentativa de habilitar/criar o journal.
+A leitura do último USN é **mais um sinal de alteração
+entre checkpoints**, não uma cronologia completa,
+nem prova de ausência de eventos ocultos. O experimento
+**não restaura ChangeTime** para demonstrar
+independência de todos os atributos modificáveis.
+O journal também pode ser truncado/recriado e
+ReFS/SMB não foram validados. Não foi estabelecida
+garantia universal anti-ABA ou TOCTOU.
+`guaranteesNoABA:false`,
+`atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false`,
+`operationsEnabled:false` permanecem.
+
+API oficial:
+https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_read_file_usn_data
