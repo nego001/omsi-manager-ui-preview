@@ -114,3 +114,27 @@ e recusa sem vazamento de campos privados. Renomeação impedida pelo Windows
 recebe skip explícito, sem afirmar que a troca foi exercitada. O console
 experimental continua **fora do pacote Electron**, sem qualquer operação
 de modificação de mods, jogos ou backups.
+
+
+## Cadeia nativa de diretórios TEMP (nova etapa)
+
+A execução Windows fixa agora também **cada componente do caminho de TEMP**,
+desde a raiz do volume até a pasta temporária configurada. Cada componente
+é aberto com `CreateFileW` (somente leitura/listagem e atributos,
+`FILE_FLAG_OPEN_REPARSE_POINT`), e componentes com `FILE_ATTRIBUTE_REPARSE_POINT`
+são recusados. Os handles permanecem abertos até o fim da observação;
+`FileIdInfo` é comparado tanto nos handles originais como nas aberturas
+novas por caminho antes de emitir o JSON. Não se verifica `LastWriteTime`
+dos ancestrais: outras tarefas do sistema podem criar arquivos irmãos em
+TEMP sem comprometer a identidade do diretório.
+
+O teste aceita uma cadeia TEMP comum, recusa junction como pasta TEMP e
+recusa junction em um **diretório acima dela**. Outro caso tenta renomear
+a pasta TEMP durante a barreira com handles vivos; se o Windows impedir
+a operação, o teste registra `skip`, sem contar o ataque como exercitado.
+
+**Limites:** são checkpoints de identidade, não travessia atômica relativa a
+um handle raiz, prova geral de ausência de ABA ou permissão para inspecionar
+pastas reais. Ambientes cujo TEMP usa junctions/reparse points podem ter
+a observação experimental recusada por segurança. O contrato JSON
+permanece com 21 campos, e todas as operações de escrita continuam desativadas.
