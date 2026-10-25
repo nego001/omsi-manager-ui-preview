@@ -420,3 +420,30 @@ permanência dos nomes entre checkpoints, não
 prova ausência de TOCTOU/ABA e não habilita
 operações de recuperação/instalação/exclusão.
 O código C# segue fora da distribuição Electron.
+
+
+## Aceitação dos snapshots divergentes pós-overflow
+
+O laboratório captura um snapshot de base depois da primeira
+notificação comprovadamente completa e compara esse snapshot à
+reenumeração limitada posterior ao acúmulo de 900 ciclos de
+renomeações. Cada comparação usa as cinco contagens e o
+**conjunto ordenado de nomes de entrada**, somente em memória,
+sem leitura do conteúdo do arquivo fictício e sem vazamento no
+relatório.
+
+Casos negativos de aceitação obrigatórios:
+
+1. Entrada `.zip` extra: recusa genérica **3**, sem `SCAN_ONLY`.
+2. Arquivo `.scs` ausente: recusa **3**, sem `SCAN_ONLY`.
+3. Substituição por outro nome `.scs` com **contagens idênticas**:
+   recusa **3**, sem `SCAN_ONLY`.
+4. Marcador de fixture artificial adulterado: recusa **3**,
+   sem `SCAN_ONLY`.
+
+O controle sem divergência continua terminando em recusa,
+mesmo se a reenumeração conseguir confirmar as entradas atuais:
+`SCAN_ONLY` **não** é o recibo JSON normal e **não**
+autoriza operações. Verificação de nomes, contagens e marcador
+após perdas de notificação não comprova cronologia, identidade
+dos filhos em todos os instantes ou ausência de ABA.
