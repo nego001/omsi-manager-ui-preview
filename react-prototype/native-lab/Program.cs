@@ -93,6 +93,27 @@ internal static class Program
         ref ObjectAttributes objectAttributes, out IoStatusBlock ioStatus,
         uint shareAccess, uint openOptions);
 
+    // A one-shot native directory-change event (not a lossless event journal).
+    // Only the all-or-nothing signal is observed; no private names are read.
+    private sealed class SafeChangeNotificationHandle : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        private SafeChangeNotificationHandle() : base(true) { }
+        protected override bool ReleaseHandle() => FindCloseChangeNotification(handle);
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "FindFirstChangeNotificationW",
+        CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeChangeNotificationHandle FindFirstChangeNotification(
+        string path, [MarshalAs(UnmanagedType.Bool)] bool subtree, uint notifyFilter);
+
+    [DllImport("kernel32.dll", EntryPoint = "FindCloseChangeNotification", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindCloseChangeNotification(IntPtr handle);
+
+    [DllImport("kernel32.dll", EntryPoint = "WaitForSingleObject", SetLastError = true)]
+    private static extern uint WaitForSingleObject(
+        SafeChangeNotificationHandle handle, uint milliseconds);
+
     [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool QueryId(
@@ -225,6 +246,45 @@ internal static class Program
             Deny();
         }
         return handle!;
+    }
+
+    // A conservative event fence for the *synthetic* root and native-enum.
+    // Win32 notification signals are sticky until explicitly rearmed (we
+    // NEVER rearm). If anything might have changed, the entire observation
+    // is denied. This does not prove event delivery on every filesystem or
+    // protect against changes before registration / after final checkpoint.
+    private sealed class DirectoryChangeFence : IDisposable
+    {
+        private const uint FileName = 0x00000001, DirectoryName = 0x00000002;
+        private const uint Attributes = 0x00000004, Size = 0x00000008;
+        private const uint LastWrite = 0x00000010, Creation = 0x00000040;
+        private const uint WaitTimeout = 0x00000102;
+        private readonly SafeChangeNotificationHandle notification;
+
+        public DirectoryChangeFence(string path, SafeFileHandle heldDirectory)
+        {
+            notification = FindFirstChangeNotification(path, false,
+                FileName | DirectoryName | Attributes | Size | LastWrite | Creation);
+            if (notification is null || notification.IsInvalid)
+            {
+                notification?.Dispose();
+                Deny();
+            }
+            // Check that registration did not visibly switch the watched
+            // pathname to another directory. This is a checkpoint, NOT an
+            // atomic link between the notification and heldDirectory.
+            using SafeFileHandle reopened = OpenDirectory(path);
+            if (!Same(Identity(heldDirectory), Identity(reopened))) Deny();
+        }
+
+        public void VerifyNotSignaled()
+        {
+            // Never call FindNextChangeNotification: acknowledging an event
+            // would make a transient create/remove operation disappear.
+            if (WaitForSingleObject(notification, 0) != WaitTimeout) Deny();
+        }
+
+        public void Dispose() => notification.Dispose();
     }
 
     private static void VerifyMarkerBytes(SafeFileHandle marker, string nonce)
@@ -516,12 +576,24 @@ internal static class Program
                 if (!Same(rootId, Identity(rootPath))) Deny();
             using (SafeFileHandle markerPathHandle = OpenMarker(markerPath))
                 if (!Same(markerId, Identity(markerPathHandle))) Deny();
+            // Both watches are registered before the test barrier. The
+            // relative native handles still own the actual enumeration and
+            // marker-byte reads; watchers never grant authorization.
+            using SafeFileHandle heldTarget = OpenChildDirectory(heldRoot, "native-enum");
+            using DirectoryChangeFence rootChanges = new(root, heldRoot);
+            using DirectoryChangeFence targetChanges = new(target, heldTarget);
+            rootChanges.VerifyNotSignaled();
+            targetChanges.VerifyNotSignaled();
             int[] v = Inspect(heldRoot, target, raceBarrier ? (Action)PauseForTestMutation : null);
+            rootChanges.VerifyNotSignaled();
+            targetChanges.VerifyNotSignaled();
             VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
                 ancestors.TemporaryHandle);
             VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic,
                 heldRoot);
             ancestors.Verify();
+            rootChanges.VerifyNotSignaled();
+            targetChanges.VerifyNotSignaled();
             Console.Out.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
             {
                 ["source"] = "temporary-native-windows-directory-fixture",
