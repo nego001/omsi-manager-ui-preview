@@ -526,7 +526,7 @@ internal static class Program
         // Report only loss signalled by the Windows kernel, never inferred
         // from event count or from the Win32 one-shot change fence.
         [DoesNotReturn]
-        public void AttestQueuedOverflowForSyntheticTest(Action reconcileAfterLoss)
+        public void AttestQueuedOverflowForSyntheticTest(Action<bool> auditSnapshot)
         {
             if (!pending || directory is null || directory.IsInvalid ||
                 signal is null || signal.IsInvalid || overlapped == IntPtr.Zero)
@@ -538,6 +538,9 @@ internal static class Program
             if (WaitEvent(signal, 3000) != WaitSignaled) Deny();
             bool firstOk = ReadCompletion(directory, overlapped, out uint firstBytes, false);
             if (!firstOk || firstBytes == 0) Deny();
+            // Snapshot immediately after the first completed event batch.
+            // No pending request exists while this baseline is collected.
+            auditSnapshot(false);
 
             Console.Out.WriteLine("VOLUME_KIND=" + SafeVolumeFamily(directory));
             Console.Out.WriteLine("STORM_READY");
@@ -562,7 +565,7 @@ internal static class Program
                 // Reconcile a fresh bounded directory snapshot after evidence
                 // loss. This CANNOT reconstruct historical event order.
                 // It MUST still return refusal: no recovery authorization.
-                reconcileAfterLoss();
+                auditSnapshot(true);
                 Console.Out.WriteLine("SCAN_ONLY");
                 Console.Out.Flush();
                 throw new SyntheticNotificationLossWitness(
@@ -754,7 +757,8 @@ internal static class Program
     }
 
     private static int[] Inspect(
-        SafeFileHandle parent, string directory, Action? pauseForMutation = null)
+        SafeFileHandle parent, string directory, Action? pauseForMutation = null,
+        List<string>? syntheticNames = null)
     {
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
@@ -806,6 +810,10 @@ internal static class Program
                         // Conservative fence: 128 is refused, not accepted, because
                         // a filesystem may report only a truncated 128-record view.
                         if (++entries >= EntryLimit) Deny();
+                        // Synthetic-only comparison: never serialize or print
+                        // these names. A count-only audit misses an equal-sized
+                        // replacement of a fake .scs file.
+                        syntheticNames?.Add(name);
                         if ((attributes & 0x400) != 0) links++;
                         else if ((attributes & 0x10) != 0) folders++;
                         else
@@ -952,14 +960,34 @@ internal static class Program
             }
             if (queuedOverflowEvidence)
             {
-                targetDetail!.AttestQueuedOverflowForSyntheticTest(() =>
+                int[]? baselineCounts = null;
+                List<string> baselineNames = new();
+                targetDetail!.AttestQueuedOverflowForSyntheticTest(afterLoss =>
                 {
-                    // Purely synthetic, read-only snapshot. Directory record
-                    // counts are necessary but cannot reveal erased history.
-                    int[] afterLoss = Inspect(heldRoot, target);
-                    if (afterLoss[0] != 2 || afterLoss[1] != 0 ||
-                        afterLoss[2] != 2 || afterLoss[3] != 0 ||
-                        afterLoss[4] != 1) Deny();
+                    // Both snapshots use bounded native handle enumeration.
+                    // Compare names AS WELL as counts; same-size .scs name
+                    // substitution must not pass as a recovered snapshot.
+                    List<string> currentNames = new();
+                    int[] current = Inspect(heldRoot, target,
+                        syntheticNames: currentNames);
+                    if (current[0] != 2 || current[1] != 0 ||
+                        current[2] != 2 || current[3] != 0 ||
+                        current[4] != 1) Deny();
+                    currentNames.Sort(StringComparer.Ordinal);
+                    if (!afterLoss)
+                    {
+                        baselineCounts = current;
+                        baselineNames.AddRange(currentNames);
+                        return;
+                    }
+                    if (baselineCounts is null ||
+                        baselineCounts.Length != current.Length ||
+                        baselineNames.Count != currentNames.Count) Deny();
+                    for (int i = 0; i < current.Length; i++)
+                        if (current[i] != baselineCounts[i]) Deny();
+                    for (int i = 0; i < currentNames.Count; i++)
+                        if (!String.Equals(currentNames[i], baselineNames[i],
+                                StringComparison.Ordinal)) Deny();
                     VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
                         ancestors.TemporaryHandle);
                     VerifyHeldMarker(markerPath, args[3], heldMarker,
