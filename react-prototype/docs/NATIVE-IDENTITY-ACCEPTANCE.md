@@ -447,3 +447,34 @@ mesmo se a reenumeração conseguir confirmar as entradas atuais:
 autoriza operações. Verificação de nomes, contagens e marcador
 após perdas de notificação não comprova cronologia, identidade
 dos filhos em todos os instantes ou ausência de ABA.
+
+
+## Comparação individual de FileId após perda de eventos
+
+No teste de diretório **somente artificial**, o algoritmo de
+reconciliação captura em memória `FILE_ID_INFO` para cada arquivo
+da enumeração nativa limitada, usando handle aberto a partir do
+diretório fixado e acesso **apenas a atributos** (sem leitura
+de conteúdo). O snapshot posterior somente pode alcançar o
+marcador `SCAN_ONLY` se as **contagens, nomes e identidades
+nativas por nome** coincidirem, além das verificações da
+raiz e marcador. `SCAN_ONLY` continua sendo **recusa**,
+nunca autorização.
+
+Teste negativo obrigatório: após o primeiro snapshot, criar
+outra entrada com o **mesmo nome, extensão, tamanho e bytes**
+do pacote artificial, mas que tenha `FileId` diferente da
+entrada de base. A identidade do arquivo antigo permanece
+viva durante a criação do novo sob outro pathname, para
+evitar reutilização imediata do mesmo identificador.
+A verificação deve produzir **recusa nativa 9**, stderr fixo,
+nenhum `SCAN_ONLY`, sem publicar identidades ou nomes
+e sem oferecer alteração de arquivos. Uma recusa 3
+seria insuficiente como prova específica de comparação
+do `FileId` neste teste.
+
+A identidade não é um jornal transacional: a igualdade
+em dois snapshots não implica identidade contínua ou
+proteção contra todo ABA, TOCTOU ou substituição intermediária.
+Resultados de CI no Windows não atestam comportamento ReFS/SMB
+sem execução específica sobre esses volumes.
