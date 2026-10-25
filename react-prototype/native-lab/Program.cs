@@ -347,6 +347,32 @@ internal static class Program
             IntPtr security, [MarshalAs(UnmanagedType.Bool)] bool manualReset,
             [MarshalAs(UnmanagedType.Bool)] bool initialState, string? name);
 
+        // Query filesystem family from the SAME pinned directory handle,
+        // not from an unrelated drive letter or path. Never log volume
+        // label, serial number, UNC path or exact unknown filesystem names.
+        [DllImport("kernel32.dll", EntryPoint = "GetVolumeInformationByHandleW",
+            CharSet = CharSet.Unicode, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetVolumeClass(
+            SafeFileHandle directory, IntPtr volumeName, uint volumeNameLength,
+            IntPtr serialNumber, IntPtr maxComponentLength, IntPtr fileSystemFlags,
+            [Out] StringBuilder fileSystemName, uint fileSystemNameLength);
+
+        private static string SafeVolumeFamily(SafeFileHandle pinnedDirectory)
+        {
+            StringBuilder fileSystem = new(64);
+            if (!GetVolumeClass(pinnedDirectory, IntPtr.Zero, 0,
+                    IntPtr.Zero, IntPtr.Zero, IntPtr.Zero,
+                    fileSystem, (uint)fileSystem.Capacity))
+                return "Unavailable";
+            string family = fileSystem.ToString();
+            if (family.Equals("NTFS", StringComparison.OrdinalIgnoreCase))
+                return "NTFS";
+            if (family.Equals("ReFS", StringComparison.OrdinalIgnoreCase))
+                return "ReFS";
+            return "Other";
+        }
+
         [DllImport("kernel32.dll", EntryPoint = "ReadDirectoryChangesW", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ReadChanges(
@@ -500,7 +526,7 @@ internal static class Program
         // Report only loss signalled by the Windows kernel, never inferred
         // from event count or from the Win32 one-shot change fence.
         [DoesNotReturn]
-        public void AttestQueuedOverflowForSyntheticTest()
+        public void AttestQueuedOverflowForSyntheticTest(Action reconcileAfterLoss)
         {
             if (!pending || directory is null || directory.IsInvalid ||
                 signal is null || signal.IsInvalid || overlapped == IntPtr.Zero)
@@ -513,6 +539,7 @@ internal static class Program
             bool firstOk = ReadCompletion(directory, overlapped, out uint firstBytes, false);
             if (!firstOk || firstBytes == 0) Deny();
 
+            Console.Out.WriteLine("VOLUME_KIND=" + SafeVolumeFamily(directory));
             Console.Out.WriteLine("STORM_READY");
             Console.Out.Flush();
             if (Console.In.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(30))
@@ -530,10 +557,17 @@ internal static class Program
             if (WaitEvent(signal, 3000) != WaitSignaled) Deny();
             bool ok = ReadCompletion(directory, overlapped, out uint bytes, false);
             int error = ok ? 0 : Marshal.GetLastWin32Error();
-            if (!ok && error == ErrorNotifyEnumDir)
-                throw new SyntheticNotificationLossWitness(7);
-            if (ok && bytes == 0)
-                throw new SyntheticNotificationLossWitness(8);
+            if ((!ok && error == ErrorNotifyEnumDir) || (ok && bytes == 0))
+            {
+                // Reconcile a fresh bounded directory snapshot after evidence
+                // loss. This CANNOT reconstruct historical event order.
+                // It MUST still return refusal: no recovery authorization.
+                reconcileAfterLoss();
+                Console.Out.WriteLine("SCAN_ONLY");
+                Console.Out.Flush();
+                throw new SyntheticNotificationLossWitness(
+                    (!ok && error == ErrorNotifyEnumDir) ? 7 : 8);
+            }
             Deny();
         }
 
@@ -918,7 +952,20 @@ internal static class Program
             }
             if (queuedOverflowEvidence)
             {
-                targetDetail!.AttestQueuedOverflowForSyntheticTest();
+                targetDetail!.AttestQueuedOverflowForSyntheticTest(() =>
+                {
+                    // Purely synthetic, read-only snapshot. Directory record
+                    // counts are necessary but cannot reveal erased history.
+                    int[] afterLoss = Inspect(heldRoot, target);
+                    if (afterLoss[0] != 2 || afterLoss[1] != 0 ||
+                        afterLoss[2] != 2 || afterLoss[3] != 0 ||
+                        afterLoss[4] != 1) Deny();
+                    VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
+                        ancestors.TemporaryHandle);
+                    VerifyHeldMarker(markerPath, args[3], heldMarker,
+                        markerId, markerBasic, heldRoot);
+                    ancestors.Verify();
+                });
                 Deny();
             }
             rootChanges.VerifyNotSignaled();
