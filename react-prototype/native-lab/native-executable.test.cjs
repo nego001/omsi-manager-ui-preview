@@ -976,6 +976,14 @@ for(const scenario of [
  {title:'same-count name substitution',mutate:async({f,original})=>{
   await fs.rename(original,join(f.dir,'different-package.scs'));
  }},
+ {title:'same-name same-bytes different FileId',mutate:async({original,renamed})=>{
+  // The original inode remains alive at its temporary renamed pathname
+  // while a NEW file is created at the exact original name and length.
+  // This avoids comparing two snapshots of the same still-existing file.
+  await fs.rename(original,renamed);
+  await fs.writeFile(original,'ORIGINAL SYNTHETIC PACKAGE');
+  await fs.rm(renamed);
+ }},
  {title:'altered marker bytes',mutate:async({f})=>{
   await fs.writeFile(join(f.root,MARKER),'0'.repeat(32));
  }}
@@ -985,3 +993,16 @@ for(const scenario of [
    await assertQueuedSnapshotDivergence(scenario.mutate);
   });
 }
+
+test('native post-loss snapshot checks each child FileId without reading bytes',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/OpenRelative\(parent, name, false, attributesOnly: true\)/);
+ assert.match(source,/attributesOnly \? 0U : 0x0001U/);
+ assert.match(source,/syntheticIdentity\.TryAdd\(name, Identity\(child\)\)/);
+ assert.match(source,/baselineIds\.TryGetValue\(name,/);
+ assert.match(source,/currentIds\.TryGetValue\(name,/);
+ assert.match(source,/!Same\(beforeId, afterId\)/);
+ assert.match(source,/guaranteesNoABA\x22\] = false/);
+ assert.match(source,/operationsEnabled\x22\] = false/);
+});
