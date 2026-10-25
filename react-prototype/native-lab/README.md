@@ -228,3 +228,45 @@ ou ocorrer depois do último checkpoint. Passar nos testes não prova
 ausência geral de ABA. `guaranteesNoABA:false`,
 `atomicPathContainmentProven:false` e
 `operationsEnabled:false` continuam obrigatórios.
+
+
+## Experimento isolado `ReadDirectoryChangesW` com I/O sobreposto
+
+Foi adicionado **somente no executável C# de laboratório** o modo
+`--rdcw-probe`, opcional e limitado a fixtures artificiais. Com
+`--race-barrier --rdcw-probe`, os dois observadores são armados
+**antes** do protocolo `READY/CONTINUE`. Sem essa opção, a observação
+existente continua usando os dois sinais `FindFirstChangeNotificationW`.
+
+- Cada observador abre um handle de diretório `FILE_FLAG_OVERLAPPED`,
+  consulta `FileIdInfo` e rejeita um alvo reparse ou com identidade
+  diferente do diretório nativo previamente fixado.
+- É registrada exatamente **uma** leitura assíncrona
+  `ReadDirectoryChangesW`, apenas para criação/remoção/renomeação de
+  nomes, sem acompanhar subpastas recursivamente. O buffer é
+  intencionalmente limitado a **4 KiB**, em memória não gerenciada.
+- O programa não analisa nem emite nomes do buffer. Qualquer
+  conclusão/sinal, retorno inesperado ou operação não suportada
+  invalida a observação. Não há rearme nem caminho de autorização.
+- O término solicita `CancelIoEx` e espera no máximo dois segundos
+  pela conclusão sinalizada, antes de liberar buffer/OVERLAPPED.
+  Se não puder confirmar que o kernel terminou, o processo mantém
+  intencionalmente os pequenos buffers alocados até sair em vez de
+  arriscar desalocação com I/O pendente.
+
+Testes de laboratório abrangem pasta quieta, barreira quieta,
+criação/remoção ABA, renomeação/restauração, alterações estruturais
+na raiz, rajada de **96 pares** de criações/remoções, EOF e
+comando inválido. A rajada exige **recusa**, mas não demonstra
+que o filesystem gerou ou notificou overflow real. Não existe
+`ReadDirectoryChangesW` no aplicativo Electron distribuído.
+
+**Garantias proibidas:** o watcher é associado a um pathname,
+não atomicamente ao handle; pode haver notificações perdidas,
+limitações de filesystem, eventos anteriores à inscrição e
+eventos posteriores ao último checkpoint. Nem `FindFirstChangeNotificationW`
+nem `ReadDirectoryChangesW` são um journal durável. O relatório
+continua `observed-bounded-untrusted`; os campos
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e `operationsEnabled:false`
+continuam obrigatórios.
