@@ -388,3 +388,60 @@ buffer de 64 bytes retornou **conclusão com ZERO bytes de detalhes**
 runner. Isso comprova o retorno sem detalhes nessa execução, mas
 **não** comprova que ocorreu o erro 1022 ou que uma fila acumulada
 estourou. A distinção é obrigatória para não inflar garantias.
+
+
+## Ensaio de overflow **acumulado** de notificações Win32
+
+Foi adicionado um segundo diagnóstico estritamente descartável:
+`--rdcw-probe --test-queued-overflow`. Ao contrário do ensaio
+anterior com um único nome maior que 64 bytes, aqui o tamanho do
+buffer do `ReadDirectoryChangesW` é o **normal de 4096 bytes**.
+
+O protocolo é deliberadamente dividido em dois checkpoints:
+
+1. O processo filho arma a leitura `OVERLAPPED` e envia `READY`.
+   A fixture gera um único arquivo fictício e responde
+   `TRIGGER_DONE`. O filho **exige que a primeira leitura termine
+   normalmente com mais de zero bytes** e só então publica
+   `STORM_READY`.
+2. O observador **não rearma** essa leitura durante 900 ciclos de
+   renomeação de um `.scs` fictício (ida e volta, sem trocar
+   conteúdo). Ao receber `STORM_DONE`, rearma
+   `ReadDirectoryChangesW` no **mesmo handle de diretório**,
+   consulta `GetOverlappedResult` e recusa a operação.
+
+Os códigos de saída são somente testemunhos de teste: **7**
+indica `ERROR_NOTIFY_ENUM_DIR (1022)`; **8** indica uma
+**conclusão bem-sucedida com zero bytes de detalhes**, após uma
+primeira leitura comprovadamente normal e uma fila grande de
+renomeações; **3** significa que nenhum desses sinais foi
+comprovado. Todos devolvem a mesma recusa genérica, sem nomes,
+nonce ou caminhos, e **nenhum é autorização**.
+
+A CI Windows **observou o código 8, não o 7** no cenário de
+900 ciclos. Um controle negativo faz apenas **um ciclo de
+renomeação e exige saída 3**, de modo que uma leitura comum
+com poucos eventos não seja classificada erroneamente como
+overflow. A suíte conserva a verificação do arquivo fictício
+intacto e dos 21 campos do contrato do modo normal.
+
+Essa é evidência de **perda de detalhes após eventos acumulados
+entre duas leituras no mesmo handle**, nas condições do runner
+Windows testado. Não se identificou nem testou separadamente o
+tipo de volume (NTFS/ReFS/SMB), e não se provou a entrega
+completa de eventos nos demais sistemas de arquivos. O
+watcher experimental ainda é aberto por pathname e não elimina
+todas as corridas/ABA. A API não fornece garantia de
+journal durável. Conforme a Microsoft, quando há buffer
+insuficiente para todas as mudanças, uma leitura pode concluir
+com zero bytes, exigindo reconciliação por enumeração.
+
+Documentação oficial:
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw
+
+**Sem impacto em produção:** o código só roda no helper C#
+isolado, fora de Electron e sem acesso a jogos, mods e backups
+reais; `observed-bounded-untrusted`,
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e
+`operationsEnabled:false` são preservados.
