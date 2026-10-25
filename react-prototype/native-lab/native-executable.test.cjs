@@ -822,3 +822,56 @@ test('ordinary 4 KiB watcher retains the untrusted contract after queue-overflow
  assert.equal(result.guaranteesNoABA,false);
  assert.equal(result.supportsRealGameInspection,false);
 });
+
+test('small queued rename sequence must NOT masquerade as overflow evidence',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const original=join(f.dir,'quiet-'+('v'.repeat(70))+'.scs');
+ const other=join(f.dir,'quiet-'+('w'.repeat(70))+'.scs');
+ await fs.writeFile(original,'SYNTHETIC CONTROL');
+ const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,
+  '--rdcw-probe','--test-queued-overflow'],{
+  shell:false,windowsHide:true,stdio:['pipe','pipe','pipe']
+ });
+ let stdout='',stderr='';
+ let readyResolve,stormResolve;
+ const ready=new Promise(resolve=>{readyResolve=resolve;});
+ const stormReady=new Promise(resolve=>{stormResolve=resolve;});
+ child.stdout.on('data',part=>{
+  stdout+=part.toString();
+  if(/(?:^|\n)READY\r?\n/.test(stdout))readyResolve();
+  if(/(?:^|\n)STORM_READY\r?\n/.test(stdout))stormResolve();
+ });
+ child.stderr.on('data',part=>{stderr+=part.toString();});
+ const finished=new Promise((resolve,reject)=>{
+  child.once('error',reject);
+  child.once('close',code=>resolve(code));
+ });
+ async function bounded(promise){
+  let timer;
+  try{return await Promise.race([promise,new Promise((_,reject)=>{
+   timer=setTimeout(()=>reject(Error('small-queue test timeout')),30000);
+  })]);}
+  finally{clearTimeout(timer);}
+ }
+ try{
+  await bounded(Promise.race([ready,finished.then(code=>{
+   throw Error('exited before READY: '+code);
+  })]));
+  await fs.writeFile(join(f.dir,'single-trigger.txt'),'SYNTHETIC');
+  child.stdin.write('TRIGGER_DONE\n');
+  await bounded(Promise.race([stormReady,finished.then(code=>{
+   throw Error('exited before STORM_READY: '+code);
+  })]));
+  await fs.rename(original,other);
+  await fs.rename(other,original);
+  child.stdin.end('STORM_DONE\n');
+  const code=await bounded(finished);
+  assert.equal(code,3,'small queue falsely produced overflow witness '+code);
+  assert.match(stdout,/^READY\r?\nSTORM_READY\r?\n$/);
+  assert.equal(stderr.trim(),'Temporary standalone native directory lab refused.');
+  assert.equal(await fs.readFile(original,'utf8'),'SYNTHETIC CONTROL');
+ }finally{
+  if(child.exitCode===null)child.kill();
+ }
+});
