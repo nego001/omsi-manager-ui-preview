@@ -391,3 +391,32 @@ específico. Tampouco demonstra ausência de alterações não
 detectadas após o último checkpoint ou atomicidade de
 pathname/handle. Os 21 campos de relatório e todas as
 restrições de acesso real permanecem inalterados.
+
+
+## NTFS identificado pelo handle e recuperação apenas do snapshot
+
+O laboratório é capaz de consultar
+`GetVolumeInformationByHandleW` no handle fixado do
+diretório sintético, expondo apenas uma categoria
+(`NTFS`, `ReFS`, `Other` ou `Unavailable`), sem
+números de série, rótulos ou caminhos. A CI Windows
+testada informou **NTFS**; ReFS/SMB ainda não foram testados.
+
+Após um resultado real de perda por notificações
+acumuladas, o helper deve executar nova enumeração
+Win32 limitada por handle, com contagens esperadas
+para a fixture descartável, revalidar a identidade
+do marcador e da árvore TEMP e publicar somente
+`SCAN_ONLY`. Ainda assim, deve recusar (código
+7 ou 8) e **não** apresentar JSON de sucesso.
+Contagens divergentes, limites atingidos ou erro
+de validação exigem recusa genérica (código 3)
+sem `SCAN_ONLY`.
+
+A nova enumeração representa apenas os arquivos
+que existem naquele instante. Ela não fornece
+histórico das alterações perdidas, não atesta
+permanência dos nomes entre checkpoints, não
+prova ausência de TOCTOU/ABA e não habilita
+operações de recuperação/instalação/exclusão.
+O código C# segue fora da distribuição Electron.
