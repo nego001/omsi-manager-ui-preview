@@ -181,3 +181,23 @@ O caminho completo ainda não é percorrido atomicamente com handles
 relativos de diretórios, portanto `atomicPathContainmentProven:false`
 e `guaranteesNoABA:false` continuam obrigatórios. Nenhuma autorização
 para mods reais, instalação, restauração ou exclusão é produzida.
+
+
+## Abertura de componentes relativos ao handle pai (Windows, somente fixture)
+
+Agora `AncestorPins` usa `NtOpenFile` com `RootDirectory` para abrir
+componentes de TEMP sem reavaliar o caminho completo em cada etapa.
+O marcador, a raiz da fixture e `native-enum` são abertos de forma
+relativa a diretórios já fixados. As referências permanecem abertas,
+e o resultado só é entregue depois de checagens de identidade tanto
+relativas quanto por pathname. Um teste de junction falsificando a
+própria raiz da fixture usa um destino com nonce idêntico e arquivo
+`.scs` fictício, exigindo recusa sem leitura do conteúdo.
+
+A utilização da API NT elimina parte da resolução ambígua de
+componentes intermediários, mas não faz atestação transacional. Os
+campos `atomicPathContainmentProven:false`,
+`guaranteesNoABA:false`, `supportsRealGameInspection:false` e
+`operationsEnabled:false` continuam obrigatórios. A revisão de
+segurança, os testes físicos e a política de acesso a diretórios reais
+permanecem etapas futuras independentes.
