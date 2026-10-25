@@ -3,6 +3,7 @@
 // Observations are not authorizations and no game file contents are opened.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -134,6 +135,7 @@ internal static class Program
     private static extern bool QueryEntries(
         SafeFileHandle handle, int infoClass, IntPtr buffer, uint size);
 
+    [DoesNotReturn]
     private static void Deny() => throw new IOException(Refusal);
 
     private static SafeFileHandle OpenDirectory(string directory)
