@@ -39,7 +39,9 @@ public static class SyntheticBasicTimeRestoration {
         public long CreationTime, LastAccessTime, LastWriteTime, ChangeTime;
         public uint FileAttributes;
     }
-    [StructLayout(LayoutKind.Sequential)]
+    // BY_HANDLE_FILE_INFORMATION contains three FILETIME pairs of DWORDs.
+    // Native alignment is 4, not the default managed 8 for Int64 fields.
+    [StructLayout(LayoutKind.Sequential, Pack=4)]
     public struct NativeFileInfo {
         public uint Attributes;
         public long Creation, Access, Write;
