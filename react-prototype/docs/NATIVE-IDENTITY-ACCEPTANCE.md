@@ -284,3 +284,23 @@ perda de notificação, diferenças entre NTFS/ReFS/network shares e
 desligamentos abruptos continuam fora das garantias comprovadas.
 O laboratório e todas as opções de teste ficam excluídos do
 pacote distribuído.
+
+
+## Fase de limpeza segura de notificações OVERLAPPED
+
+`GetOverlappedResult` confirma a conclusão de uma operação
+`ReadDirectoryChangesW` em vez de inferi-la apenas da chamada
+`CancelIoEx`. Evento sinalizado é tratado como invalidação
+independentemente de quantidade de bytes ou código de erro.
+O retorno `ERROR_IO_INCOMPLETE` após tentativa de cancelamento
+bloqueia a liberação do buffer e do `OVERLAPPED`; os handles
+também ficam retidos até a saída do processo de teste para evitar
+uso de memória já desalocada.
+
+Há um cenário de **cancelamento real no Windows** através do argumento
+estritamente de teste `--rdcw-probe --test-cancel-pending-io`,
+incluindo validação da recusa genérica e ausência de exposição de
+nomes, nonce e caminhos. Esse cenário não comprova overflow real
+nem entrega transacional dos eventos. O probe permanece limitado
+a pasta temporária sintética, não distribuído no Electron e sem
+habilitar instalação, remoção, recuperação ou inspeção de jogos.
