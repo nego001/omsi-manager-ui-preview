@@ -509,3 +509,37 @@ o executável Electron. **Não se conclui resistência
 universal a ABA ou TOCTOU** com metadados em dois
 instantes, particularmente em ReFS, SMB ou quando os
 metadados podem ser ajustados pelo próprio adversário.
+
+
+## Recebimento do USN atual do arquivo fictício
+
+O diagnóstico `--rdcw-probe --test-usn-checkpoint`
+é permitido **somente no laboratório Windows isolado**,
+com fixture artificial TEMP, e realiza uma leitura
+`FSCTL_READ_FILE_USN_DATA` no handle metadata-only
+de uma entrada `metadata-probe.scs`. Ele não varre
+nem grava diário, não usa handle de volume e não
+publica nome, FileId, USN, caminhos ou conteúdo.
+
+Critérios da suíte:
+- Com **mesmo FileId**, regravação de bytes fictícios,
+  restauração dos bytes e da data de última escrita e
+  USN corrente nativamente maior: **RECUSA 12**.
+- Sem modificação e sem USN novo: **RECUSA 3**,
+  não é autorização nem atestado de ausência de ABA.
+- Arquivo substituído por outro FileId: **RECUSA 9**
+  antes da comparação de números USN.
+- Journal ausente/FSCTL indisponível, versão ou registro
+  inválido, pasta não NTFS, flags extras e tentativa
+  de operar em arquivos reais: **RECUSA**, nunca
+  habilitação de funções.
+
+A CI Windows observou a diferença real de USN na
+fixture; não demonstrou histórico íntegro nem
+mudança com **todos** os timestamps inclusive
+`ChangeTime` restaurados. Metadados podem ser
+revertidos, e journal pode ser limitado, substituído
+ou inexistir conforme volume. A evidência não autoriza
+inspeção de pastas de jogos, instalação, exclusão ou
+recuperação. Electron continua sem vínculo com
+o laboratório nativo de teste.
