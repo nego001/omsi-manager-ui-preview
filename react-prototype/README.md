@@ -329,3 +329,16 @@ que alterações observáveis são recusadas.
 **25 testes**. Renomes proibidos pelo Windows são explicitamente ignorados,
 não tratados como sucesso. O programa ainda não é distribuído com o
 Electron e **não elimina completamente ABA/TOCTOU**.
+
+
+### Identidade do marcador de fixture mantida por handle Win32
+
+O laboratório .NET 8 passou a manter também um **terceiro handle nativo** para
+o marcador, além dos handles da raiz e da subpasta. Isso permite comparar
+`FileIdInfo`, tempos e bytes do marcador contra a mesma referência nativa
+no fim da leitura e, separadamente, contra o pathname reaberto. O nonce
+é lido com teto de 33 bytes, para rejeitar sufixos extras. Foram acrescidos
+**5 testes** (30 casos nativos totais), inclusive tentativa de trocar um
+marcador por outro de bytes idênticos. A troca é explicitamente ignorada
+se o Windows bloquear o rename. Não há proteção absoluta contra ABA nem
+habilitação de escrita ou recuperação.

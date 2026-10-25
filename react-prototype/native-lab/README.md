@@ -89,3 +89,28 @@ recusam mudanças observadas. Eles **não** impedem mudanças transitórias
 entre verificações, ABA restaurado, acesso paralelo de terceiros ou corridas
 com arquivos reparse; tampouco provam contenção transacional. O laboratório
 permanece ausente de `app.asar` e sem permissão sobre mods reais.
+
+
+## Marcador com identidade nativa preservada
+
+O observador mantém agora **três handles Win32** durante a operação:
+`root`, `native-enum` e o próprio arquivo
+`.omsi-test-fixture-marker`. O arquivo marcador é aberto com
+`FILE_FLAG_OPEN_REPARSE_POINT` e permissões **somente leitura de bytes e
+atributos**; links/reparse points e diretórios são recusados. O handle do
+marcador preserva `FileIdInfo` e `FileBasicInfo` iniciais.
+
+O nonce de 32 caracteres é validado com leitura por offset do handle
+(`RandomAccess.Read`) usando um buffer de 33 bytes. Esse byte extra detecta
+marcadores com sufixo não autorizado. No fim, com o handle original ainda
+aberto, são comparados o FileId e tempos do próprio handle, a leitura do nonce
+e a identidade de um **segundo handle reaberto pelo pathname**. Um arquivo
+substituído por outro com os mesmos bytes não recebe a identidade antiga
+quando a troca é observável. Continua sem garantia geral contra ABA.
+
+A suíte de **30 casos** inclui cinco testes novos: anexo de byte adicional,
+truncamento, troca por outro arquivo com nonce idêntico, symlink no marcador
+e recusa sem vazamento de campos privados. Renomeação impedida pelo Windows
+recebe skip explícito, sem afirmar que a troca foi exercitada. O console
+experimental continua **fora do pacote Electron**, sem qualquer operação
+de modificação de mods, jogos ou backups.

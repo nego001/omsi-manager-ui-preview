@@ -142,3 +142,20 @@ contrário os testes são ignorados com motivo explícito.
 
 Esse contrato não implica autorização de acesso a diretórios reais,
 prevenção geral de ABA/TOCTOU ou direitos de modificar mods e backups.
+
+
+## Fixação da identidade do marcador temporário
+
+O executável experimental mantém a referência nativa ao arquivo
+`.omsi-test-fixture-marker` aberta desde o início da enumeração, junto
+aos handles da raiz e de `native-enum`. Usa `CreateFileW` sem seguir
+o componente final reparse, `FileIdInfo`, `FileBasicInfo` e leitura
+de no máximo 33 bytes pelo handle. Reabre o pathname com novo handle
+ao final para comparar a identidade e validar o nonce mesmo se um arquivo
+alternativo tiver os mesmos 32 bytes. A nova suíte (30 testes) tenta
+modificação do tamanho, troca com conteúdo idêntico e link no marcador,
+com skip se o Windows proibir a ação necessária.
+
+A política é **fail closed quando a divergência é observada**, mas
+não certifica ausência de troca ABA transitória, nem protege recursos
+de terceiros ou aprova acesso real a mods.

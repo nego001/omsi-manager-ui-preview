@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
@@ -104,6 +105,57 @@ internal static class Program
             Deny();
         }
         return handle!;
+    }
+
+    private static SafeFileHandle OpenMarker(string marker)
+    {
+        // Open the marker itself as a file, never follow its final reparse
+        // component. Keep a read-only native handle alive during enumeration.
+        const uint readData = 0x0001, readAttributes = 0x0080;
+        const uint shareAll = 0x0007, openExisting = 3;
+        const uint openReparsePoint = 0x00200000;
+        SafeFileHandle handle = CreateFile(marker, readData | readAttributes,
+            shareAll, IntPtr.Zero, openExisting, openReparsePoint, IntPtr.Zero);
+        if (handle is null || handle.IsInvalid) { handle?.Dispose(); Deny(); }
+        if (!QueryTag(handle!, FileAttributeTagInfoClass,
+                out FileAttributeTagInfo tag,
+                (uint)Marshal.SizeOf<FileAttributeTagInfo>()) ||
+            (tag.FileAttributes & 0x400U) != 0U ||
+            (tag.FileAttributes & 0x10U) != 0U)
+        {
+            handle!.Dispose();
+            Deny();
+        }
+        return handle!;
+    }
+
+    private static void VerifyMarkerBytes(SafeFileHandle marker, string nonce)
+    {
+        // 33 bytes make an appended byte an explicit failure, not a silent
+        // truncation to a matching 32-byte nonce.
+        Span<byte> bytes = stackalloc byte[33];
+        int received = RandomAccess.Read(marker, bytes, 0);
+        if (received != 32 ||
+            !Encoding.ASCII.GetBytes(nonce).AsSpan().SequenceEqual(bytes[..32]))
+            Deny();
+    }
+
+    private static void VerifyHeldMarker(
+        string path, string nonce, SafeFileHandle heldMarker,
+        FileIdInfo initialId, FileBasicInfo initialBasic)
+    {
+        FileIdInfo currentId = Identity(heldMarker);
+        FileBasicInfo currentBasic = Basic(heldMarker);
+        if (!Same(initialId, currentId) ||
+            initialBasic.ChangeTime != currentBasic.ChangeTime ||
+            initialBasic.LastWriteTime != currentBasic.LastWriteTime) Deny();
+        VerifyMarkerBytes(heldMarker, nonce);
+
+        // Compare pathname identity *while* the original file handle is held:
+        // an identically written replacement must not inherit the old grant.
+        using SafeFileHandle reopened = OpenMarker(path);
+        if (!Same(initialId, Identity(reopened))) Deny();
+        VerifyMarkerBytes(reopened, nonce);
     }
 
     private static FileIdInfo Identity(SafeFileHandle handle)
@@ -286,10 +338,16 @@ internal static class Program
             using SafeFileHandle heldRoot = OpenDirectory(root);
             FileIdInfo rootId = Identity(heldRoot);
             FileBasicInfo rootBasic = Basic(heldRoot);
+            string markerPath = Path.Combine(root, ".omsi-test-fixture-marker");
+            using SafeFileHandle heldMarker = OpenMarker(markerPath);
+            FileIdInfo markerId = Identity(heldMarker);
+            FileBasicInfo markerBasic = Basic(heldMarker);
+            VerifyMarkerBytes(heldMarker, args[3]);
             if (!String.Equals(ValidateFixture(root, args[3]), target,
                     StringComparison.OrdinalIgnoreCase)) Deny();
             int[] v = Inspect(target, raceBarrier ? (Action)PauseForTestMutation : null);
             VerifyHeldFixtureRoot(root, args[3], heldRoot, rootId, rootBasic);
+            VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic);
             Console.Out.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
             {
                 ["source"] = "temporary-native-windows-directory-fixture",

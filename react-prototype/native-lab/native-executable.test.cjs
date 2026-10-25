@@ -330,3 +330,67 @@ test('root pathname substitution is refused when allowed by Windows sharing',
  });
  if(replaced)raceRejected(r);
 });
+
+
+test('appending to the pinned marker during a native read rejects its original prefix',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>fs.appendFile(join(f.root,MARKER),'x'));
+ raceRejected(r);
+ assert.equal((await fs.readFile(join(f.root,MARKER),'utf8')).length,33);
+});
+test('truncating and replacing the pinned marker with a short value fails closed',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>fs.writeFile(join(f.root,MARKER),'short'));
+ raceRejected(r);
+ assert.equal(r.stderr.includes(f.root),false);
+});
+test('a different marker inode with identical 32-byte nonce cannot inherit the held grant',
+ {skip:!ready},async(t)=>{
+ const f=await fixture(),original=join(f.root,MARKER);
+ const parked=join(f.root,'old-marker-file');
+ let replaced=false;
+ const r=await race(f,async()=>{
+  try{await fs.rename(original,parked);}
+  catch(e){
+   if(['EPERM','EACCES','EBUSY'].includes(e.code)){
+    t.skip('Windows refused marker rename with held file handle');
+    return;
+   }
+   throw e;
+  }
+  replaced=true;
+  await fs.writeFile(original,f.nonce,{flag:'wx'});
+ });
+ if(replaced){
+  raceRejected(r);
+  assert.equal(await fs.readFile(original,'utf8'),f.nonce);
+  assert.equal(await fs.readFile(parked,'utf8'),f.nonce);
+ }
+});
+test('file symlink posing as fixture marker is never granted native identity',
+ {skip:!ready},async(t)=>{
+ const f=await fixture(),old=join(f.root,MARKER),other=join(f.root,'marker-other');
+ await fs.rename(old,other);
+ try{await fs.symlink(other,old,'file');}
+ catch(e){
+  if(['EPERM','EACCES','ENOSYS','ENOTSUP'].includes(e.code)){
+   t.skip('Windows file symlink unavailable');
+   return;
+  }
+  throw e;
+ }
+ await denied(f);
+ assert.equal(await fs.readFile(other,'utf8'),f.nonce);
+});
+test('marker modified during the race can never return an authorized native report',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>{
+  await fs.writeFile(join(f.root,MARKER),'0'.repeat(32));
+ });
+ raceRejected(r);
+ assert.equal(r.stdout.trim(),'READY');
+ assert.doesNotMatch(r.stdout,/operationsEnabled|canInstall|nativeFileIdChecked/);
+});
