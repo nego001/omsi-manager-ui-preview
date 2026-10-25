@@ -1009,3 +1009,73 @@ test('native post-loss snapshot checks each child FileId without reading bytes',
  assert.match(source,/guaranteesNoABA\x22\] = false/);
  assert.match(source,/operationsEnabled\x22\] = false/);
 });
+
+
+test('Windows in-place ABA: restored bytes, unchanged child name and FileId still produce metadata refusal 10',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const pristine='SYNTHETIC METADATA FIXTURE';
+ await fs.writeFile(p,pristine);
+ const before=await fs.stat(p);
+ const r=await race(f,async()=>{
+  await fs.writeFile(p,'TEMPORARY MODIFIED DATA, NEVER A GAME MOD');
+  await fs.writeFile(p,pristine);
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-inplace-aba']);
+ assert.equal(r.code,10,'native code must prove SAME FileId but changed metadata');
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+ assert.equal(r.stdout.includes(p),false);
+ assert.equal(r.stderr.includes(p),false);
+ assert.equal(r.stderr.includes(f.nonce),false);
+ assert.equal(await fs.readFile(p,'utf8'),pristine);
+ const after=await fs.stat(p);
+ assert.equal(after.size,before.size);
+});
+
+test('Windows in-place ABA quiet control never fabricates metadata mutation evidence',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.dir,'metadata-probe.scs'),'SYNTHETIC QUIET CONTROL');
+ const r=await race(f,async()=>{},'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-inplace-aba']);
+ raceRejected(r);
+});
+
+test('Windows in-place ABA same-name replacement witnesses FileId mismatch, not metadata mismatch',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const other=join(f.dir,'older-metadata-probe.scs');
+ await fs.writeFile(p,'SYNTHETIC ONLY');
+ const r=await race(f,async()=>{
+  await fs.rename(p,other);
+  await fs.writeFile(p,'SYNTHETIC ONLY');
+  await fs.rm(other);
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-inplace-aba']);
+ assert.equal(r.code,9,'different FileId must not produce a metadata witness');
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+});
+
+test('Windows in-place ABA diagnostic is rejected without explicit test-only flags',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-inplace-aba']);
+ await denied(f,['--rdcw-probe','--test-inplace-aba','--install']);
+});
+
+test('metadata ABA witness uses native Basic() and does not grant operations',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/private static bool SameStableMetadata\(FileBasicInfo before/);
+ assert.match(source,/!SameStableMetadata\(baseline, afterPinned\)/);
+ assert.match(source,/throw new SyntheticChildMetadataMismatch\(\)/);
+ assert.match(source,/catch \(SyntheticChildMetadataMismatch\)/);
+ assert.match(source,/OpenChildFileIdentity\(heldTarget, testName\)/);
+ assert.match(source,/const string testName = "metadata-probe.scs"/);
+ assert.match(source,/guaranteesNoABA"\] = false/);
+ assert.match(source,/operationsEnabled"\] = false/);
+});
