@@ -269,3 +269,14 @@ Agora `electron/inspection-grant.cjs` vincula a seleção do diálogo nativo a u
 Foram adicionados **10 testes Node em Linux/Windows**, incluindo troca determinística de diretório antes da abertura, mudança durante a enumeração, desaparecimento, simulação de links e raiz substituída. A meta de segurança cresce de 32 para **42 testes Node**. O limite de 2.000 entradas e a leitura superficial por nomes permanecem. **Não há leitura de bytes de mods nem operações de escrita.**
 
 Esta defesa é uma **detecção conservadora entre checkpoints**, não uma garantia de não seguir redirecionamentos em todas as condições: `fs.opendir` não é vinculado a um identificador de handle verificado e não exclui **ABA entre verificações ou TOCTOU hostil**. Nenhuma instalação/remoção é habilitada. Veja [escopo da inspeção](docs/READ-ONLY-INSPECTION-CONSENT.md).
+
+
+### Enumeração de diretórios por handle real do Windows, exclusivamente em testes
+
+A sonda `scripts/temp-native-directory-enum.ps1` abre **um diretório fictício chamado `native-enum`** dentro da fixture marcada no `os.tmpdir()` com `CreateFileW`, `FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT` e acesso `FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES`. Em seguida consulta `FileAttributeTagInfo` e `FileIdInfo` do próprio handle e percorre as entradas com **`GetFileInformationByHandleEx(FileIdBothDirectoryRestartInfo / FileIdBothDirectoryInfo)`**, interpretando registros nativos `FILE_ID_BOTH_DIR_INFO` de comprimento variável, sem recursão ou leitura de conteúdo.
+
+O relatório retorna **somente contagens**, diferencia diretórios, arquivos, links/reparse e candidatos `.scs/.zip` pelo nome; não expõe nomes individuais, identificadores nativos ou caminhos. Verifica a identidade do handle e seus tempos de alteração antes/depois, e reabre o mesmo pathname num segundo handle para detectar substituição observável. O orçamento deliberadamente pequeno da prova é **128 entradas**: qualquer excedente ou registro inesperado recusa a observação, sem retorno parcial.
+
+`npm run test:identity:directory:windows` executa **12 cenários Windows-only**. `npm run test:recovery:fixture` agrega esses testes à matriz existente, agora com **138 testes Node** (87 multiplataforma e 51 exclusivos Windows); no Linux os 12 novos casos recebem skip intencional. O pacote Electron e seu handler `preview:inspect-game` **não importam nem executam a sonda**. A enumeração do aplicativo real continua a existente em `electron/game-inspection.cjs`, com checkpoints de identidade conservadores.
+
+Mesmo sendo enumeração real por handle do Windows dentro da fixture, a prova **não demonstra eliminação total de ABA/TOCTOU, contenção de pastas de jogo, autenticidade de arquivos ou locks de produção**. Todos os campos de permissão permanecem false; instalação, remoção e recuperação não são habilitadas.
