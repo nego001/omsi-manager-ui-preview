@@ -364,10 +364,14 @@ internal static class Program
                     Event = signal.DangerousGetHandle()
                 }, overlapped, false);
 
-                bool immediate = ReadChanges(directory, buffer, BufferBytes, false,
+                // An accepted overlapped call can return TRUE without any
+                // notification yet. Only FALSE + ERROR_IO_PENDING is also
+                // a valid asynchronous start. Completion is determined by
+                // the event, not by the initial BOOL return.
+                bool submitted = ReadChanges(directory, buffer, BufferBytes, false,
                     StructuralChanges, out _, overlapped, IntPtr.Zero);
-                if (immediate) Deny(); // an event already completed
-                if (Marshal.GetLastWin32Error() != ErrorIoPending) Deny();
+                if (!submitted && Marshal.GetLastWin32Error() != ErrorIoPending)
+                    Deny();
                 pending = true;
                 VerifyQuiet();
             }
