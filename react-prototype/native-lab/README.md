@@ -342,3 +342,41 @@ segue com 21 chaves e `guaranteesNoABA:false`,
 `atomicPathContainmentProven:false`,
 `supportsRealGameInspection:false` e
 `operationsEnabled:false`.
+
+
+## Win32: ensaio de buffer insuficiente com evidência do sistema operacional
+
+O helper de laboratório oferece o modo estritamente sintético
+`--rdcw-probe --test-small-buffer-loss`: somente neste teste, a
+subpasta `native-enum` é observada por `ReadDirectoryChangesW`
+assíncrono com buffer de **64 bytes** (o modo normal permanece em
+**4096 bytes**). O processo imprime apenas a palavra `READY` e
+recebe `CONTINUE` depois que o teste externo cria um **único arquivo
+fictício** com nome longo, que não cabe em uma estrutura completa
+`FILE_NOTIFY_INFORMATION` de 64 bytes.
+
+A consulta real de `GetOverlappedResult` distingue:
+
+- Saída **5**: falha nativa `ERROR_NOTIFY_ENUM_DIR` (**1022**),
+  indicativa de notificações não integralmente entregues.
+- Saída **6**: conclusão nativa bem-sucedida, mas com **zero bytes**
+  de detalhes; a documentação do Windows trata esse resultado como
+  insuficiência de buffer/informação, sem provar sozinho qual evento
+  interno ocorreu.
+- Saída **3**: nenhuma das evidências foi demonstrada, ou ocorreu
+  outro problema; o teste que exige evidência deve falhar, sem
+  declarar overflow comprovado.
+
+**Nenhuma dessas saídas é sucesso nem permissão.** O stderr contém
+somente a recusa genérica; stdout contém apenas `READY`, sem nomes,
+paths ou bytes de arquivos. Os testes Windows exigem 5 ou 6, relatam
+em diagnóstico apenas a classe observada, verificam a integridade
+do arquivo fictício e rejeitam flags de operação inesperadas.
+
+**A diferença importa:** nome maior que um buffer minúsculo
+demonstra insuficiência de espaço para os detalhes da notificação,
+não necessariamente overflow por fila de milhares de alterações.
+A prova independente de overflow *acumulado* com perda de
+notificações, em NTFS/ReFS/SMB, permanece aberta. Não é um journal,
+não garante entrega completa e não atesta proteção universal ABA.
+O diagnóstico não lê jogos, mods, perfis ou backups reais.
