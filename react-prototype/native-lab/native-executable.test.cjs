@@ -738,3 +738,87 @@ test('normal Win32 watcher still returns only untrusted 21-key receipt after syn
  assert.equal(result.guaranteesNoABA,false);
  assert.equal(result.operationsEnabled,false);
 });
+
+test('Win32 queued rename storm must attest actual loss of event details, not just event count',
+ {skip:!ready,timeout:90000},async(t)=>{
+ const f=await fixture();
+ const original=join(f.dir,'loop-'+('q'.repeat(110))+'.scs');
+ const renamed=join(f.dir,'loop-'+('r'.repeat(110))+'.scs');
+ await fs.writeFile(original,'SYNTHETIC ONLY');
+ const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,
+  '--rdcw-probe','--test-queued-overflow'],{
+  shell:false,windowsHide:true,stdio:['pipe','pipe','pipe']
+ });
+ let stdout='',stderr='';
+ let readyResolve,stormResolve;
+ const ready=new Promise(resolve=>{readyResolve=resolve;});
+ const stormReady=new Promise(resolve=>{stormResolve=resolve;});
+ child.stdout.on('data',part=>{
+  stdout+=part.toString();
+  if(stdout.includes('READY\n')||stdout.includes('READY\r\n'))readyResolve();
+  if(stdout.includes('STORM_READY\n')||stdout.includes('STORM_READY\r\n'))stormResolve();
+ });
+ child.stderr.on('data',part=>{stderr+=part.toString();});
+ const finished=new Promise((resolve,reject)=>{
+  child.once('error',reject);
+  child.once('close',code=>resolve(code));
+ });
+ async function step(action,limit=30000){
+  let handle;
+  try{
+   return await Promise.race([action,new Promise((_,reject)=>{
+    handle=setTimeout(()=>reject(Error('bounded native overflow stage timeout')),limit);
+   })]);
+  }finally{clearTimeout(handle);}
+ }
+ try{
+  await step(Promise.race([ready,finished.then(code=>{
+   throw Error('exited before READY: '+code+' '+stderr);
+  })]));
+  await fs.writeFile(join(f.dir,'single-trigger.txt'),'SYNTHETIC');
+  child.stdin.write('TRIGGER_DONE\n');
+  await step(Promise.race([stormReady,finished.then(code=>{
+   throw Error('exited before STORM_READY: '+code+' '+stderr);
+  })]));
+  // This time the native watcher has FINISHED its first delivery.
+  // Leave the SAME handle without a pending read and accumulate a backlog.
+  for(let i=0;i<900;i++){
+   await fs.rename(original,renamed);
+   await fs.rename(renamed,original);
+  }
+  child.stdin.end('STORM_DONE\n');
+  const code=await step(finished,15000);
+  assert.ok([7,8].includes(code),
+   'no OS-backed accumulated loss evidence, exit '+code+
+   ', generic error: '+stderr.trim());
+  assert.match(stdout,/^READY\r?\nSTORM_READY\r?\n$/);
+  assert.equal(stderr.trim(),'Temporary standalone native directory lab refused.');
+  t.diagnostic('native queued-change signal: '+(code===7
+   ? 'ERROR_NOTIFY_ENUM_DIR (1022)'
+   : 'completed successfully with ZERO event-detail bytes'));
+  assert.equal(stdout.includes(f.root),false);
+  assert.equal(stderr.includes(f.root),false);
+  assert.equal(stderr.includes(f.nonce),false);
+  assert.equal(await fs.readFile(original,'utf8'),'SYNTHETIC ONLY');
+  await assert.rejects(fs.stat(renamed),{code:'ENOENT'});
+ }finally{
+  if(child.exitCode===null)child.kill();
+ }
+});
+
+test('Win32 queued-overflow diagnostic cannot be invoked outside synthetic opt-in mode',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-queued-overflow']);
+ await denied(f,['--rdcw-probe','--test-queued-overflow','--install']);
+});
+
+test('ordinary 4 KiB watcher retains the untrusted contract after queue-overflow experiment',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const result=validate(await invoke(f,['--rdcw-probe']));
+ assert.equal(result.entries,0);
+ assert.equal(result.operationsEnabled,false);
+ assert.equal(result.guaranteesNoABA,false);
+ assert.equal(result.supportsRealGameInspection,false);
+});
