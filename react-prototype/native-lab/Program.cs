@@ -258,21 +258,18 @@ internal static class Program
     private sealed class DirectoryChangeFence : IDisposable
     {
         private const uint FileName = 0x00000001, DirectoryName = 0x00000002;
-        private const uint Attributes = 0x00000004, Size = 0x00000008;
-        private const uint LastWrite = 0x00000010, Creation = 0x00000040;
         private const uint WaitTimeout = 0x00000102;
         private readonly SafeChangeNotificationHandle notification;
 
-        public DirectoryChangeFence(string path, SafeFileHandle heldDirectory, bool markerFolder)
+        public DirectoryChangeFence(string path, SafeFileHandle heldDirectory)
         {
-            // File-name changes are delivered when an entry is added/removed,
-            // including rapid create/delete ABA. Watching last-write/size
-            // on the large native-enum fixture also catches delayed cache
-            // flushes from file writes that PRECEDED watcher registration.
-            // Limit content-change signals to the 32-byte marker's parent.
-            uint filter = FileName | DirectoryName;
-            if (markerFolder) filter |= Attributes | Size | LastWrite | Creation;
-            notification = FindFirstChangeNotification(path, false, filter);
+            // Observe structural changes only. File write/creation/attribute
+            // timestamps may flush after the fixture is made but before it
+            // is inspected; those delayed notifications are not proof of
+            // an active mutation within our observation interval.
+            // Marker contents have independent pinned-handle checkpoints.
+            notification = FindFirstChangeNotification(path, false,
+                FileName | DirectoryName);
             if (notification is null || notification.IsInvalid)
             {
                 notification?.Dispose();
@@ -588,8 +585,8 @@ internal static class Program
             // relative native handles still own the actual enumeration and
             // marker-byte reads; watchers never grant authorization.
             using SafeFileHandle heldTarget = OpenChildDirectory(heldRoot, "native-enum");
-            using DirectoryChangeFence rootChanges = new(root, heldRoot, true);
-            using DirectoryChangeFence targetChanges = new(target, heldTarget, false);
+            using DirectoryChangeFence rootChanges = new(root, heldRoot);
+            using DirectoryChangeFence targetChanges = new(target, heldTarget);
             rootChanges.VerifyNotSignaled();
             targetChanges.VerifyNotSignaled();
             int[] v = Inspect(heldRoot, target, raceBarrier ? (Action)PauseForTestMutation : null);
