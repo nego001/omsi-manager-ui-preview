@@ -222,3 +222,10 @@ A prévia adicionou uma sonda `scripts/temp-native-file-id.ps1` que usa PowerShe
 `npm run test:identity:process:windows` inclui 11 testes Windows: processo próprio vivo ou encerrado, estabilidade no mesmo handle, PID e tempo de criação falsificados, recusa de pasta/marcador inválidos, cenário não permitido, privacidade e sentinela externa. `npm run test:recovery:fixture` reúne **89 testes Node de laboratório** (68 gerais + 10 FileIdInfo + 11 processo Windows); no Linux, os 21 testes exclusivos do Windows são ignorados intencionalmente.
 
 **Importante:** a observação real por handle vale apenas para o subprocesso artificial controlado pela suíte. Não demonstra proteção completa contra PID reciclado, posse de locks de outro processo, acesso a mods, recuperação ou autorização para instalar. Esta rotina fica na pasta `scripts/`, excluída do pacote Electron, sem novos comandos IPC.
+
+
+### Concorrência nativa Windows: dois processos e um arquivo fictício
+
+`scripts/temp-native-file-race.ps1` abre um handle **Win32 somente leitura** para `identity-target.bin` dentro de um diretório temporário vinculado ao marcador do laboratório. Após obter `FileIdInfo` e bytes de até 4096 B, sinaliza `READY` ao processo Node que o iniciou e mantém o handle aberto. O outro processo pode alterar, truncar, anexar, renomear ou excluir **somente essa fixture**, e então responde `CONTINUE`. O observador verifica bytes e ID no handle original e usa **um segundo handle** para reabrir o caminho. Divergências, remoções e novas identidades tornam o resultado `changed-or-unavailable`, sem autorizar ações.
+
+O comando `npm run test:identity:race:windows` acrescenta **11 testes Windows-only** (incluindo invalidação do marcador e encerramento forçado antes de continuar). A suíte `npm run test:recovery:fixture` passa a totalizar **100 testes Node**, dos quais 32 dependem da API Windows e são ignorados intencionalmente no Linux. Quando um filesystem Windows recusa renomear/excluir um arquivo aberto, o teste registra `skip` e não alega ter exercitado a troca. A sonda não integra Electron, IPC ou distribuição, e não é uma solução de TOCTOU pronta para produção.
