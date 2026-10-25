@@ -143,6 +143,14 @@ internal static class Program
     // exact pending directory request. No private data is emitted.
     private sealed class SyntheticCancellationVerified : Exception { }
 
+    // Diagnostic only: exit 5 means Win32 ERROR_NOTIFY_ENUM_DIR (1022),
+    // exit 6 means successful completion with zero notification bytes.
+    // Neither represents a usable directory view or authorizes operations.
+    private sealed class SyntheticNotificationLossWitness(int code) : Exception
+    {
+        public int Code { get; } = code;
+    }
+
     private static SafeFileHandle OpenDirectory(string directory)
     {
         const uint listDirectory = 0x0001, readAttributes = 0x0080;
@@ -305,6 +313,8 @@ internal static class Program
     private sealed class BoundedNativeChangeProbe : IDisposable
     {
         private const int BufferBytes = 4096;
+        private const int TinyBufferBytes = 64;
+        private const int ErrorNotifyEnumDir = 1022;
         private const uint WaitTimeout = 0x00000102;
         private const uint ErrorIoPending = 997;
         private const uint ErrorIoIncomplete = 996;
@@ -357,8 +367,10 @@ internal static class Program
             SafeFileHandle directory, IntPtr nativeOverlapped,
             out uint bytesTransferred, [MarshalAs(UnmanagedType.Bool)] bool wait);
 
-        public BoundedNativeChangeProbe(string path, SafeFileHandle original)
+        public BoundedNativeChangeProbe(string path, SafeFileHandle original,
+            bool testSmallBuffer = false)
         {
+            int watchBufferBytes = testSmallBuffer ? TinyBufferBytes : BufferBytes;
             try
             {
                 // New name-based handle is checked against a retained relative
@@ -376,7 +388,7 @@ internal static class Program
 
                 signal = CreateEvent(IntPtr.Zero, true, false, null);
                 if (signal is null || signal.IsInvalid) Deny();
-                buffer = Marshal.AllocHGlobal(BufferBytes);
+                buffer = Marshal.AllocHGlobal(watchBufferBytes);
                 overlapped = Marshal.AllocHGlobal(Marshal.SizeOf<OverlappedHeader>());
                 Marshal.StructureToPtr(new OverlappedHeader
                 {
@@ -387,7 +399,8 @@ internal static class Program
                 // notification yet. Only FALSE + ERROR_IO_PENDING is also
                 // a valid asynchronous start. Completion is determined by
                 // the event, not by the initial BOOL return.
-                bool submitted = ReadChanges(directory, buffer, BufferBytes, false,
+                bool submitted = ReadChanges(directory, buffer,
+                    (uint)watchBufferBytes, false,
                     StructuralChanges, out _, overlapped, IntPtr.Zero);
                 if (!submitted && Marshal.GetLastWin32Error() != ErrorIoPending)
                     Deny();
@@ -447,6 +460,31 @@ internal static class Program
             // Main catches this one test-only signal, disposes the pending
             // native handles, and emits the same generic refusal string.
             throw new SyntheticCancellationVerified();
+        }
+
+        // A single long synthetic filename is intentionally larger than the
+        // 64-byte notification buffer. Only actual GetOverlappedResult status
+        // proves a lost-detail condition; no events are parsed or logged.
+        [DoesNotReturn]
+        public void AttestSmallBufferLossForSyntheticTest()
+        {
+            if (!pending || directory is null || directory.IsInvalid ||
+                signal is null || signal.IsInvalid || overlapped == IntPtr.Zero)
+                Deny();
+            Console.Out.WriteLine("READY");
+            Console.Out.Flush();
+            string? reply = Console.In.ReadLineAsync()
+                .WaitAsync(TimeSpan.FromSeconds(20))
+                .GetAwaiter().GetResult();
+            if (reply != "CONTINUE") Deny();
+            if (WaitEvent(signal, 2000) != WaitSignaled) Deny();
+            bool ok = ReadCompletion(directory, overlapped, out uint bytes, false);
+            int error = ok ? 0 : Marshal.GetLastWin32Error();
+            if (!ok && error == ErrorNotifyEnumDir)
+                throw new SyntheticNotificationLossWitness(5);
+            if (ok && bytes == 0)
+                throw new SyntheticNotificationLossWitness(6);
+            Deny();
         }
 
         public void Dispose()
@@ -763,11 +801,13 @@ internal static class Program
                 args[4] == "--rdcw-probe" && args[5] == "--test-cancel-pending-io";
             bool attestCancellation = args.Length == 6 &&
                 args[4] == "--rdcw-probe" && args[5] == "--test-attest-cancel-995";
+            bool smallBufferEvidence = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-small-buffer-loss";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
                     (args.Length == 6 &&
                         (raceBarrier && rdcwProbe || injectCancellation ||
-                         attestCancellation))) ||
+                         attestCancellation || smallBufferEvidence))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -800,11 +840,14 @@ internal static class Program
             using DirectoryChangeFence rootChanges = new(root, heldRoot);
             using DirectoryChangeFence targetChanges = new(target, heldTarget);
             using BoundedNativeChangeProbe? rootDetail =
-                rdcwProbe || injectCancellation || attestCancellation
+                rdcwProbe || injectCancellation || attestCancellation ||
+                smallBufferEvidence
                 ? new BoundedNativeChangeProbe(root, heldRoot) : null;
             using BoundedNativeChangeProbe? targetDetail =
-                rdcwProbe || injectCancellation || attestCancellation
-                ? new BoundedNativeChangeProbe(target, heldTarget) : null;
+                rdcwProbe || injectCancellation || attestCancellation ||
+                smallBufferEvidence
+                ? new BoundedNativeChangeProbe(target, heldTarget,
+                    testSmallBuffer: smallBufferEvidence) : null;
             if (injectCancellation)
             {
                 rootDetail!.CancelForSyntheticTest();
@@ -813,6 +856,11 @@ internal static class Program
             if (attestCancellation)
             {
                 rootDetail!.AttestRealCancellationForSyntheticTest();
+                Deny();
+            }
+            if (smallBufferEvidence)
+            {
+                targetDetail!.AttestSmallBufferLossForSyntheticTest();
                 Deny();
             }
             rootChanges.VerifyNotSignaled();
@@ -861,10 +909,16 @@ internal static class Program
         }
         catch (SyntheticCancellationVerified)
         {
-            // Exit 4 is only an internal test witness for kernel status 995;
-            // stdout stays empty, and the generic error is unchanged.
+            // Exit 4 witnesses the kernel status 995 in a synthetic test.
             Console.Error.WriteLine(Refusal);
             return 4;
+        }
+        catch (SyntheticNotificationLossWitness witnessed)
+        {
+            // Only synthetic diagnostics can emit these exit codes.
+            // Any stdout data is solely the literal READY barrier.
+            Console.Error.WriteLine(Refusal);
+            return witnessed.Code;
         }
         catch
         {
