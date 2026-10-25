@@ -167,3 +167,28 @@ suporte a caminhos arbitrários nem resistência a adversários com
 acesso para modificar componentes previamente inspecionados. O contrato
 do JSON continua inalterado e nega explicitamente essas garantias.
 Nenhum binário nativo é incorporado ao Electron.
+
+
+## Experimentos ABA e eliminação de leitura de marcador por pathname
+
+A validação nativa não usa mais `File.ReadAllText` e não aceita
+`FileInfo/DirectoryInfo` sobre um pathname como evidência suficiente da
+autorização. O nonce é lido exclusivamente de um `SafeFileHandle`
+aberto por `NtOpenFile` relativo à raiz sintética já fixada. Uma
+reabertura por pathname continua permitida **somente para comparar FileId**,
+nunca para ler conteúdo de um caminho redirecionável. A enumeração de
+`native-enum` já usa o handle filho relativo.
+
+Novos ensaios Windows usam a barreira `READY/CONTINUE` para:
+1. alterar o nonce, restaurar exatamente os 32 bytes originais antes de
+   continuar e observar se os checkpoints de metadados detectam a mutação;
+2. criar um arquivo `.scs` de teste em `native-enum` e removê-lo antes
+   de continuar, simulando uma alteração temporária de diretório.
+
+Esses testes **não afirmam que toda alteração ABA é detectada**.
+Uma execução pode ser recusada se o sistema registrar a mudança em
+`ChangeTime/LastWriteTime`, mas um resultado de observação continua
+obrigatoriamente `observed-bounded-untrusted` e nega capacidade real
+de instalação, recuperação ou exclusão, independentemente de detectar
+a mutação. O laboratório não instala monitor de mudanças, não abre
+mods reais, não concede autorização e não elimina ataques ABA.
