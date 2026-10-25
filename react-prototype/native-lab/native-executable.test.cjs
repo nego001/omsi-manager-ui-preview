@@ -1079,3 +1079,43 @@ test('metadata ABA witness uses native Basic() and does not grant operations',
  assert.match(source,/guaranteesNoABA"\] = false/);
  assert.match(source,/operationsEnabled"\] = false/);
 });
+
+
+test('Windows in-place ABA: restoring LastWriteTime still leaves an NTFS ChangeTime-only witness',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const pristine='FIXTURE RESTORED WITH ORIGINAL TIMESTAMPS';
+ const stableTime=new Date('2024-05-12T12:00:00.000Z');
+ await fs.writeFile(p,pristine);
+ await fs.utimes(p,stableTime,stableTime);
+ const baseline=await fs.stat(p);
+ const r=await race(f,async()=>{
+  await fs.writeFile(p,'DIFFERENT CONTENT DURING SYNTHETIC ABA');
+  await fs.writeFile(p,pristine);
+  await fs.utimes(p,stableTime,stableTime);
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-inplace-aba']);
+ assert.equal(r.code,11,
+  'native kernel must show ONLY ChangeTime changed, while FileId and LastWriteTime match');
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+ assert.equal(r.stdout.includes(p),false);
+ assert.equal(r.stderr.includes(f.root),false);
+ assert.equal(await fs.readFile(p,'utf8'),pristine);
+ const after=await fs.stat(p);
+ assert.equal(after.mtimeMs,baseline.mtimeMs);
+ assert.equal(after.size,baseline.size);
+});
+
+test('ChangeTime-only witness is exclusively a refusal with unchanged untrusted contract',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/baseline\.ChangeTime != afterPinned\.ChangeTime/);
+ assert.match(source,/baseline\.LastWriteTime == afterPinned\.LastWriteTime/);
+ assert.match(source,/throw new SyntheticChangeTimeOnlyMismatch\(\)/);
+ assert.match(source,/catch \(SyntheticChangeTimeOnlyMismatch\)/);
+ assert.match(source,/return 11;/);
+ assert.match(source,/guaranteesNoABA"\] = false/);
+ assert.match(source,/operationsEnabled"\] = false/);
+});
