@@ -270,3 +270,38 @@ continua `observed-bounded-untrusted`; os campos
 `guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
 `supportsRealGameInspection:false` e `operationsEnabled:false`
 continuam obrigatórios.
+
+
+## Confirmação de término do I/O assíncrono antes de liberar memória
+
+O laboratório Win32 ganhou verificação explícita do estado da
+operação `OVERLAPPED` através de `GetOverlappedResult`, sem nunca
+interpretar nomes do buffer. Qualquer conclusão observada por
+`WaitForSingleObject` leva à recusa; isso inclui resultado normal,
+`ERROR_NOTIFY_ENUM_DIR` (1022), `ERROR_MORE_DATA` (234),
+`ERROR_OPERATION_ABORTED` (995), retorno de zero bytes ou outro erro.
+Não se afirma que a CI tenha reproduzido os códigos 1022 e 234
+emitidos por um filesystem real.
+
+Na limpeza, `CancelIoEx` solicita a interrupção e uma espera de até
+2 segundos verifica o evento de conclusão. Somente após essa
+verificação e uma consulta a `GetOverlappedResult` o código libera
+o buffer de 4096 bytes, o `OVERLAPPED` e os handles. Se o kernel
+ainda declarar `ERROR_IO_INCOMPLETE` ou o evento não concluir no
+prazo, os recursos e os handles permanecem referenciados até o
+término do processo sintético, evitando liberar memória usada por
+I/O pendente. Essa retenção intencional é aceitável apenas no helper
+descartável, não em um serviço persistente.
+
+O comando estritamente de teste `--rdcw-probe
+--test-cancel-pending-io` pede um **cancelamento real no kernel**
+de um watcher armado, verifica a recusa e mantém o contrato genérico
+sem nomes ou paths. Ele não é um teste de overflow e não habilita
+operações reais. Flags extras ou esse comando sem `--rdcw-probe`
+são recusados.
+
+Ainda faltam ensaios de erro `ERROR_NOTIFY_ENUM_DIR` produzido
+realmente pelo filesystem, estresse de buffer com comprovação do
+estado de conclusão, volumes de rede/NTFS/ReFS e verificação física
+do executável no PC pessoal. Nenhuma dessas lacunas autoriza leitura
+ou escrita de mods reais.
