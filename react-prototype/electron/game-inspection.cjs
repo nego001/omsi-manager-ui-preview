@@ -3,6 +3,32 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const MAX_ENTRIES_PER_GROUP = 2000;
+const MISSING_CODES = Object.freeze(['ENOENT','ENOTDIR','EACCES','EPERM']);
+
+// Comparing the same pathname at multiple checkpoints detects many races.
+// It is NOT an atomic directory handle: in particular, ABA is still possible.
+// BigInt metadata avoids truncating inode, device or timestamp values.
+function directoryIdentity(info) {
+  if(!info || !info.isDirectory() || info.isSymbolicLink())return null;
+  return [info.dev,info.ino,info.mode,info.ctimeNs,info.mtimeNs]
+    .map(value=>String(value)).join(':');
+}
+function changedDirectory(){
+  return new Error('A identidade da pasta mudou durante a inspeção.');
+}
+async function identityAt(fsApi,folder){
+  try{
+    return directoryIdentity(await fsApi.lstat(folder,{bigint:true}));
+  }catch(error){
+    if(error && MISSING_CODES.includes(error.code))return null;
+    throw error;
+  }
+}
+async function assertIdentity(fsApi,folder,initial){
+  if(!initial || (await identityAt(fsApi,folder))!==initial)
+    throw changedDirectory();
+}
+
 const GAME_GROUPS = Object.freeze({
   omsi: Object.freeze([
     Object.freeze({key:'vehicles',name:'Veículos',folder:'Vehicles'}),
@@ -24,44 +50,53 @@ function requireGameId(game) {
 function emptyCount(found=false){
   return {count:0,found,limited:false,directories:0,files:0,packageCandidates:0,linksSkipped:0,others:0};
 }
-// Does not recurse, open files or return entry names. Symlinks are not followed.
-async function countDirectChildren(folder,max=MAX_ENTRIES_PER_GROUP,checkPackages=false){
-  if(!Number.isSafeInteger(max)||max<1||max>MAX_ENTRIES_PER_GROUP)
-    throw new TypeError('Limite de contagem inválido.');
-  let dir;
-  try {
-    const stats=await fs.lstat(folder);
-    if(stats.isSymbolicLink()||!stats.isDirectory())return emptyCount();
-    dir=await fs.opendir(folder);
-  }catch(err){
-    if(err && ['ENOENT','ENOTDIR','EACCES','EPERM'].includes(err.code))
-      return emptyCount();
-    throw err;
-  }
-  const result=emptyCount(true);
-  let scanned=0;
-  try{
-    for await(const entry of dir){
-      // Budget applies to every entry, including symlinks, to bound scan cost.
-      if(scanned++>=max){result.limited=true;break;}
-      if(entry.isSymbolicLink()){
-        result.linksSkipped++;
-        continue;
+// Symlinks are never enumerated intentionally. The second identity check runs
+// BEFORE reading dir entries. This can detect a changed pathname, but does not
+// make fs.opendir atomic or prevent a transient redirect between checkpoints.
+function createDirectoryCounter(fsApi=fs){
+  return async function count(folder,max=MAX_ENTRIES_PER_GROUP,checkPackages=false){
+    if(!Number.isSafeInteger(max)||max<1||max>MAX_ENTRIES_PER_GROUP)
+      throw new TypeError('Limite de contagem inválido.');
+    const initial=await identityAt(fsApi,folder);
+    if(!initial)return emptyCount();
+    let dir;
+    try{
+      // If path vanishes or becomes a link *after* the first check, error
+      // rather than quietly reclassifying a partial scan as an empty folder.
+      try{dir=await fsApi.opendir(folder);}
+      catch(error){
+        if(error && MISSING_CODES.includes(error.code))throw changedDirectory();
+        throw error;
       }
-      result.count++;
-      if(entry.isDirectory()) result.directories++;
-      else if(entry.isFile()){
-        result.files++;
-        if(checkPackages && PACKAGE_EXTENSIONS.some(ext=>entry.name.toLowerCase().endsWith(ext)))
-          result.packageCandidates++;
-      } else result.others++;
+      await assertIdentity(fsApi,folder,initial);
+      const result=emptyCount(true);
+      let scanned=0;
+      for await(const entry of dir){
+        // Budget applies to every entry, including symlinks.
+        if(scanned++>=max){result.limited=true;break;}
+        if(entry.isSymbolicLink()){
+          result.linksSkipped++;
+          continue;
+        }
+        result.count++;
+        if(entry.isDirectory())result.directories++;
+        else if(entry.isFile()){
+          result.files++;
+          if(checkPackages && PACKAGE_EXTENSIONS.some(ext=>
+            entry.name.toLowerCase().endsWith(ext)))result.packageCandidates++;
+        }else result.others++;
+      }
+      await assertIdentity(fsApi,folder,initial);
+      return result;
+    }finally{
+      if(dir){
+        try{await dir.close();}
+        catch(error){if(error?.code!=='ERR_DIR_CLOSED')throw error;}
+      }
     }
-  }finally{
-    try{await dir.close();}
-    catch(err){if(err?.code!=='ERR_DIR_CLOSED')throw err;}
-  }
-  return result;
+  };
 }
+const countDirectChildren=createDirectoryCounter();
 
 function getInspectionNotices(game,groups,selectionMode){
   const notices=[];
@@ -88,14 +123,24 @@ function getInspectionNotices(game,groups,selectionMode){
   }
   return notices;
 }
-async function inspectGameDirectory(selectedRoot,game){
+function createGameDirectoryInspector(fsApi=fs){
+  const count=createDirectoryCounter(fsApi);
+  return async function inspectGameDirectory(selectedRoot,game){
   requireGameId(game);
   if(typeof selectedRoot!=='string'||selectedRoot.length===0)
     throw new TypeError('Selecione uma pasta válida.');
-  const rootInfo=await fs.lstat(selectedRoot);
-  if(!rootInfo.isDirectory()||rootInfo.isSymbolicLink())
+  const rootInfo=await fsApi.lstat(selectedRoot,{bigint:true});
+  const rootIdentity=directoryIdentity(rootInfo);
+  if(!rootIdentity)
     throw new Error('A pasta selecionada não é um diretório normal.');
-  const root=await fs.realpath(selectedRoot);
+  const root=await fsApi.realpath(selectedRoot);
+  await assertIdentity(fsApi,selectedRoot,rootIdentity);
+  await assertIdentity(fsApi,root,rootIdentity);
+  const verifyRoot=async()=>{
+    if((await fsApi.realpath(selectedRoot))!==root)throw changedDirectory();
+    await assertIdentity(fsApi,selectedRoot,rootIdentity);
+    await assertIdentity(fsApi,root,rootIdentity);
+  };
   const groups=[];
   // ETS2/ATS allow choosing either the parent folder or the mod folder itself.
   // Never infer a game installation or follow paths supplied by the renderer.
@@ -104,7 +149,9 @@ async function inspectGameDirectory(selectedRoot,game){
   for(const spec of GAME_GROUPS[game]){
     const target=(spec.key==='mods'&&selectionMode==='direct-mod-folder')
       ? root : path.join(root,spec.folder);
-    const stats=await countDirectChildren(target,MAX_ENTRIES_PER_GROUP,spec.key==='mods');
+    await verifyRoot();
+    const stats=await count(target,MAX_ENTRIES_PER_GROUP,spec.key==='mods');
+    await verifyRoot();
     groups.push({
       key:spec.key,name:spec.name,found:stats.found,count:stats.count,
       limited:stats.limited,directories:stats.directories,files:stats.files,
@@ -112,6 +159,7 @@ async function inspectGameDirectory(selectedRoot,game){
       others:stats.others
     });
   }
+  await verifyRoot();
   return {
     status:'ok',
     game,
@@ -129,8 +177,11 @@ async function inspectGameDirectory(selectedRoot,game){
     limited:groups.some(g=>g.limited),
     mode:'read-only'
   };
+  };
 }
+const inspectGameDirectory=createGameDirectoryInspector();
 module.exports={
   requireGameId,inspectGameDirectory,countDirectChildren,getInspectionNotices,
-  GAME_GROUPS,MAX_ENTRIES_PER_GROUP
+  GAME_GROUPS,MAX_ENTRIES_PER_GROUP,createDirectoryCounter,
+  createGameDirectoryInspector,directoryIdentity
 };

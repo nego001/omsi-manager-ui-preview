@@ -33,3 +33,14 @@ Os arquivos `.scs` e `.zip` são classificados **pelo sufixo do nome**. Seus byt
 O comando `npm run test:security` agrega os testes existentes a essa suíte. Os testes gráficos e IPC no GitHub Actions continuam executados independentemente.
 
 **Estado:** esta autorização permite somente o diagnóstico estruturado já existente. A PR segue em rascunho e não habilita gerenciamento real de mods.
+
+
+## Revalidação antes/depois de abrir e enumerar diretórios
+
+A inspeção efetiva do Electron ganhou checkpoints de identidade em `electron/game-inspection.cjs`. Para cada pasta reconhecida, a rotina usa `lstat({bigint:true})` para registrar `dev`, `ino`, `mode`, `ctimeNs` e `mtimeNs`; compara esse conjunto **antes de abrir**, **após `opendir` mas antes de enumerar** e **ao concluir**. Se o alvo desapareceu, foi substituído ou apresenta atributos inconsistentes, a contagem é rejeitada. Para a raiz selecionada, também verifica o caminho real e a identidade antes, durante e depois da passagem pelos grupos. O handler Electron converte erros em mensagem genérica sem vazar paths.
+
+O comportamento é intencionalmente conservador: instalações de jogos modificadas durante a contagem podem precisar de outra tentativa. Uma pasta ausente desde o início continua sendo classificada como não encontrada, e entradas de link não são percorridas intencionalmente. Nada recursa, abre conteúdo ZIP/SCS ou concede autorização de modificação.
+
+**10 testes adicionais de segurança** exercitam diretórios temporários, mudanças na janela `lstat` → `opendir`, desaparecimento, links, recusa após detecção de alteração e funcionamento do contador em uma árvore estável. Testes que simulam metadados alterados usam um sistema de arquivos injetado exclusivamente na suíte Node, sem modificações na ponte do Electron.
+
+**Limite de segurança importante:** esta revalidação é **best effort e fail-closed quando a mudança é observada**. As APIs `lstat` e `opendir` não compartilham necessariamente a mesma identidade nativa de handle. Um atacante pode alterar e restaurar caminhos entre os checkpoints (ABA); substituições transitórias ou junctions/reparse points específicos ainda exigem um adaptador por handle nativo e testes por filesystem. Portanto, não apresentar esta etapa como contenção completa, autorização de escrita ou proteção comprovada de mods.

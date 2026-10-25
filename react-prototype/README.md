@@ -260,3 +260,12 @@ Agora `electron/inspection-grant.cjs` vincula a seleção do diálogo nativo a u
 **18 testes Node novos** estão incluídos em `npm run test:security`, que passa de **14 para 32 testes** se a CI validar a revisão. A suíte anterior de 126 testes do laboratório continua separada, assim como as 744 verificações Playwright. O pacote Electron permanece só de leitura, sem novas operações de instalação, backup, desinstalação ou recuperação real.
 
 **Limitação:** uma autorização de interface não equivale a identificação atômica de diretórios por handle; ainda existem possíveis janelas TOCTOU entre `lstat` e `opendir`. Veja [consentimento para inspeção somente leitura](docs/READ-ONLY-INSPECTION-CONSENT.md).
+
+
+### Verificação de identidade de diretórios no diagnóstico real (conservadora)
+
+`electron/game-inspection.cjs` agora compara informações da mesma pasta obtidas por `lstat({bigint:true})` em três momentos: **antes de `opendir`, imediatamente depois da abertura (antes de enumerar) e após a contagem**. As comparações incluem volume/dispositivo (`dev`), inode (`ino`), modo, `ctimeNs` e `mtimeNs`. Se a identidade mudar, o diretório desaparecer durante a inspeção ou virar um link, **o resultado é recusado** em vez de exibir contagens possivelmente enganosas. A identidade da raiz escolhida também é verificada ao resolver o caminho e entre cada grupo de OMSI/ETS2/ATS.
+
+Foram adicionados **10 testes Node em Linux/Windows**, incluindo troca determinística de diretório antes da abertura, mudança durante a enumeração, desaparecimento, simulação de links e raiz substituída. A meta de segurança cresce de 32 para **42 testes Node**. O limite de 2.000 entradas e a leitura superficial por nomes permanecem. **Não há leitura de bytes de mods nem operações de escrita.**
+
+Esta defesa é uma **detecção conservadora entre checkpoints**, não uma garantia de não seguir redirecionamentos em todas as condições: `fs.opendir` não é vinculado a um identificador de handle verificado e não exclui **ABA entre verificações ou TOCTOU hostil**. Nenhuma instalação/remoção é habilitada. Veja [escopo da inspeção](docs/READ-ONLY-INSPECTION-CONSENT.md).
