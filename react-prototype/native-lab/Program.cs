@@ -143,8 +143,9 @@ internal static class Program
     // exact pending directory request. No private data is emitted.
     private sealed class SyntheticCancellationVerified : Exception { }
 
-    // Diagnostic only: exit 5 means Win32 ERROR_NOTIFY_ENUM_DIR (1022),
-    // exit 6 means successful completion with zero notification bytes.
+    // Synthetic diagnostic exits: 5/6 are a single undersized notification;
+    // 7/8 are a second read after a completed first read and queued storm.
+    // Within each pair: 1022 = loss error, zero bytes = missing details.
     // Neither represents a usable directory view or authorizes operations.
     private sealed class SyntheticNotificationLossWitness(int code) : Exception
     {
@@ -361,6 +362,10 @@ internal static class Program
         [DllImport("kernel32.dll", EntryPoint = "WaitForSingleObject", SetLastError = true)]
         private static extern uint WaitEvent(SafeWaitHandle signal, uint milliseconds);
 
+        [DllImport("kernel32.dll", EntryPoint = "ResetEvent", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ResetNotificationEvent(SafeWaitHandle signal);
+
         [DllImport("kernel32.dll", EntryPoint = "GetOverlappedResult", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ReadCompletion(
@@ -484,6 +489,51 @@ internal static class Program
                 throw new SyntheticNotificationLossWitness(5);
             if (ok && bytes == 0)
                 throw new SyntheticNotificationLossWitness(6);
+            Deny();
+        }
+
+        // Two-stage test of *accumulated* directory notifications, as distinct
+        // from a too-small single-record 64-byte notification experiment.
+        // 1. Complete the original 4096-byte request with a single trigger.
+        // 2. Leave this SAME OS directory handle unarmed while another process
+        //    performs many rename cycles, then issue the next request.
+        // Report only loss signalled by the Windows kernel, never inferred
+        // from event count or from the Win32 one-shot change fence.
+        [DoesNotReturn]
+        public void AttestQueuedOverflowForSyntheticTest()
+        {
+            if (!pending || directory is null || directory.IsInvalid ||
+                signal is null || signal.IsInvalid || overlapped == IntPtr.Zero)
+                Deny();
+            Console.Out.WriteLine("READY");
+            Console.Out.Flush();
+            if (Console.In.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(20))
+                .GetAwaiter().GetResult() != "TRIGGER_DONE") Deny();
+            if (WaitEvent(signal, 3000) != WaitSignaled) Deny();
+            bool firstOk = ReadCompletion(directory, overlapped, out uint firstBytes, false);
+            if (!firstOk || firstBytes == 0) Deny();
+
+            Console.Out.WriteLine("STORM_READY");
+            Console.Out.Flush();
+            if (Console.In.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(30))
+                .GetAwaiter().GetResult() != "STORM_DONE") Deny();
+
+            if (!ResetNotificationEvent(signal)) Deny();
+            Marshal.StructureToPtr(new OverlappedHeader
+            {
+                Event = signal.DangerousGetHandle()
+            }, overlapped, false);
+            bool submitted = ReadChanges(directory, buffer, BufferBytes, false,
+                StructuralChanges, out _, overlapped, IntPtr.Zero);
+            if (!submitted && Marshal.GetLastWin32Error() != ErrorIoPending)
+                Deny();
+            if (WaitEvent(signal, 3000) != WaitSignaled) Deny();
+            bool ok = ReadCompletion(directory, overlapped, out uint bytes, false);
+            int error = ok ? 0 : Marshal.GetLastWin32Error();
+            if (!ok && error == ErrorNotifyEnumDir)
+                throw new SyntheticNotificationLossWitness(7);
+            if (ok && bytes == 0)
+                throw new SyntheticNotificationLossWitness(8);
             Deny();
         }
 
@@ -803,11 +853,14 @@ internal static class Program
                 args[4] == "--rdcw-probe" && args[5] == "--test-attest-cancel-995";
             bool smallBufferEvidence = args.Length == 6 &&
                 args[4] == "--rdcw-probe" && args[5] == "--test-small-buffer-loss";
+            bool queuedOverflowEvidence = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-queued-overflow";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
                     (args.Length == 6 &&
                         (raceBarrier && rdcwProbe || injectCancellation ||
-                         attestCancellation || smallBufferEvidence))) ||
+                         attestCancellation || smallBufferEvidence ||
+                         queuedOverflowEvidence))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -841,11 +894,11 @@ internal static class Program
             using DirectoryChangeFence targetChanges = new(target, heldTarget);
             using BoundedNativeChangeProbe? rootDetail =
                 rdcwProbe || injectCancellation || attestCancellation ||
-                smallBufferEvidence
+                smallBufferEvidence || queuedOverflowEvidence
                 ? new BoundedNativeChangeProbe(root, heldRoot) : null;
             using BoundedNativeChangeProbe? targetDetail =
                 rdcwProbe || injectCancellation || attestCancellation ||
-                smallBufferEvidence
+                smallBufferEvidence || queuedOverflowEvidence
                 ? new BoundedNativeChangeProbe(target, heldTarget,
                     testSmallBuffer: smallBufferEvidence) : null;
             if (injectCancellation)
@@ -861,6 +914,11 @@ internal static class Program
             if (smallBufferEvidence)
             {
                 targetDetail!.AttestSmallBufferLossForSyntheticTest();
+                Deny();
+            }
+            if (queuedOverflowEvidence)
+            {
+                targetDetail!.AttestQueuedOverflowForSyntheticTest();
                 Deny();
             }
             rootChanges.VerifyNotSignaled();
