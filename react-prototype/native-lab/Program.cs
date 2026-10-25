@@ -147,6 +147,51 @@ internal static class Program
     // name being restored. Exit 9 still means REFUSED, never authorized.
     private sealed class SyntheticChildIdentityMismatch : Exception { }
 
+    // Test-only refusal witness: the SAME native FileId survived a write
+    // and byte restoration, but filesystem timestamps/attributes changed.
+    // This does not prove that every in-place ABA leaves such metadata.
+    private sealed class SyntheticChildMetadataMismatch : Exception { }
+
+    private static bool SameStableMetadata(FileBasicInfo before, FileBasicInfo after) =>
+        before.CreationTime == after.CreationTime &&
+        before.LastWriteTime == after.LastWriteTime &&
+        before.ChangeTime == after.ChangeTime &&
+        before.FileAttributes == after.FileAttributes;
+
+    // This diagnostic is independent of the queued-rename demonstration:
+    // renaming the same .scs 900 times also changes its own timestamps,
+    // so it would be misleading to attribute that difference to a byte edit.
+    [DoesNotReturn]
+    private static void AttestInPlaceRestoreForSyntheticTest(
+        SafeFileHandle heldTarget)
+    {
+        const string testName = "metadata-probe.scs";
+        using SafeFileHandle heldChild =
+            OpenChildFileIdentity(heldTarget, testName);
+        FileIdInfo baselineId = Identity(heldChild);
+        FileBasicInfo baseline = Basic(heldChild);
+
+        Console.Out.WriteLine("READY");
+        Console.Out.Flush();
+        string? reply = Console.In.ReadLineAsync()
+            .WaitAsync(TimeSpan.FromSeconds(20))
+            .GetAwaiter().GetResult();
+        if (reply != "CONTINUE") Deny();
+
+        using SafeFileHandle currentChild =
+            OpenChildFileIdentity(heldTarget, testName);
+        if (!Same(baselineId, Identity(heldChild)) ||
+            !Same(baselineId, Identity(currentChild)))
+            throw new SyntheticChildIdentityMismatch();
+
+        FileBasicInfo afterPinned = Basic(heldChild);
+        FileBasicInfo afterReopened = Basic(currentChild);
+        if (!SameStableMetadata(afterPinned, afterReopened)) Deny();
+        if (!SameStableMetadata(baseline, afterPinned))
+            throw new SyntheticChildMetadataMismatch();
+        Deny(); // A quiet child is still a refused diagnostic, not success.
+    }
+
     // Synthetic diagnostic exits: 5/6 are a single undersized notification;
     // 7/8 are a second read after a completed first read and queued storm.
     // Within each pair: 1022 = loss error, zero bytes = missing details.
@@ -920,12 +965,14 @@ internal static class Program
                 args[4] == "--rdcw-probe" && args[5] == "--test-small-buffer-loss";
             bool queuedOverflowEvidence = args.Length == 6 &&
                 args[4] == "--rdcw-probe" && args[5] == "--test-queued-overflow";
+            bool inPlaceRestoreEvidence = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-inplace-aba";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
                     (args.Length == 6 &&
                         (raceBarrier && rdcwProbe || injectCancellation ||
                          attestCancellation || smallBufferEvidence ||
-                         queuedOverflowEvidence))) ||
+                         queuedOverflowEvidence || inPlaceRestoreEvidence))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -959,11 +1006,13 @@ internal static class Program
             using DirectoryChangeFence targetChanges = new(target, heldTarget);
             using BoundedNativeChangeProbe? rootDetail =
                 rdcwProbe || injectCancellation || attestCancellation ||
-                smallBufferEvidence || queuedOverflowEvidence
+                smallBufferEvidence || queuedOverflowEvidence ||
+                inPlaceRestoreEvidence
                 ? new BoundedNativeChangeProbe(root, heldRoot) : null;
             using BoundedNativeChangeProbe? targetDetail =
                 rdcwProbe || injectCancellation || attestCancellation ||
-                smallBufferEvidence || queuedOverflowEvidence
+                smallBufferEvidence || queuedOverflowEvidence ||
+                inPlaceRestoreEvidence
                 ? new BoundedNativeChangeProbe(target, heldTarget,
                     testSmallBuffer: smallBufferEvidence) : null;
             if (injectCancellation)
@@ -979,6 +1028,14 @@ internal static class Program
             if (smallBufferEvidence)
             {
                 targetDetail!.AttestSmallBufferLossForSyntheticTest();
+                Deny();
+            }
+            if (inPlaceRestoreEvidence)
+            {
+                // Only a marker-bound disposable TEMP fixture can reach here.
+                rootChanges.VerifyNotSignaled();
+                targetChanges.VerifyNotSignaled();
+                AttestInPlaceRestoreForSyntheticTest(heldTarget);
                 Deny();
             }
             if (queuedOverflowEvidence)
@@ -1078,6 +1135,13 @@ internal static class Program
                 ["bytesReadFromMods"] = 0
             }));
             return 0;
+        }
+        catch (SyntheticChildMetadataMismatch)
+        {
+            // Exit 10 is an observed metadata change at identical FileId;
+            // error text is generic and does not reveal the child or path.
+            Console.Error.WriteLine(Refusal);
+            return 10;
         }
         catch (SyntheticChildIdentityMismatch)
         {
