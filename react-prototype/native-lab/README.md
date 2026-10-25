@@ -190,8 +190,9 @@ Uma execução pode ser recusada se o sistema registrar a mudança em
 `ChangeTime/LastWriteTime`, mas um resultado de observação continua
 obrigatoriamente `observed-bounded-untrusted` e nega capacidade real
 de instalação, recuperação ou exclusão, independentemente de detectar
-a mutação. O laboratório não instala monitor de mudanças, não abre
-mods reais, não concede autorização e não elimina ataques ABA.
+a mutação. O laboratório usa apenas notificações temporárias de alterações em
+pastas fictícias; não instala serviço persistente, não abre mods reais,
+não concede autorização e não elimina ataques ABA.
 
 
 ## Laboratório Win32: barreira de notificações de alteração
@@ -204,16 +205,19 @@ publicar o JSON, `WaitForSingleObject(...,0)` consulta se houve sinal.
 
 A notificação é propositalmente **one-shot/sticky**: não é rearmada,
 pois qualquer mudança observada invalida toda a inspeção.
-O filtro inclui nomes de arquivo/diretório, atributos, tamanho,
-escrita e criação. Nenhum nome de arquivo, caminho ou conteúdo de
-pacotes é retornado. Se a criação da notificação, a comparação de
+O filtro observa **somente criação, remoção e renomeação de nomes de
+arquivos e diretórios**. Filtros de conteúdo, atributos, tamanho e
+última escrita foram excluídos após reproduzir falsos positivos de
+metadados pendentes de fixtures recém-criadas. A integridade dos bytes
+do marcador é conferida separadamente pelo handle nativo. Nenhum
+nome de arquivo, caminho ou conteúdo de pacotes é retornado. Se a criação da notificação, a comparação de
 identidades ou a leitura do evento falhar, o programa recusa o
 relatório. A interface Electron permanece desligada deste laboratório.
 
 Os testes Windows inserem mutações entre `READY` e `CONTINUE`:
-reescrita/restauração do nonce, criação/remoção de um `.scs`
-fictício e criação/remoção de uma subpasta fictícia. Todos precisam
-resultar em recusa. Um quarto cenário proíbe o vazamento de nomes
+reescrita/restauração do nonce (checagens próprias do marcador),
+criação/remoção de um `.scs` fictício e criação/remoção de uma subpasta
+fictícia (notificações estruturais). Todos precisam resultar em recusa. Um quarto cenário proíbe o vazamento de nomes
 ou caminhos quando o evento invalida a observação.
 
 **Limitação:** `FindFirstChangeNotificationW` é um evento do Win32,
