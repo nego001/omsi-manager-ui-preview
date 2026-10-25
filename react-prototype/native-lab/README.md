@@ -532,3 +532,46 @@ ou excluir dados reais. Os campos
 `guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
 `supportsRealGameInspection:false` e
 `operationsEnabled:false` permanecem obrigatórios.
+
+
+## Identidade nativa dos filhos entre snapshots (25/10/2026)
+
+O caminho opt-in estritamente sintético de perda acumulada foi
+endurecido: além de contagens e nomes, a enumeração `Inspect` pode
+obter `FILE_ID_INFO` individual de **cada arquivo fictício**.
+O handle do arquivo é aberto por `NtOpenFile` **relativamente ao
+diretório já fixado**, com `FILE_READ_ATTRIBUTES` e
+`SYNCHRONIZE`, sem `FILE_READ_DATA`. O identificador completo
+de 128 bits e o identificador de volume ficam exclusivamente na
+memória do processo; nenhum é incluído em JSON, stdout ou stderr.
+
+A comparação entre a linha de base e o snapshot posterior à perda
+de notificações exige agora **contagens, nomes ordenados e FileId
+de cada entrada iguais**. Entradas reparse/diretórios inesperados,
+duplicidades, problemas ao obter metadados e divergências são
+recusados. Uma divergência comprovada especificamente no FileId
+de um nome ainda igual gera **código de saída de teste 9**,
+sempre com a mesma mensagem genérica de recusa, sem `SCAN_ONLY`
+nem JSON de sucesso. Outros tipos de divergência continuam
+recusados com código 3.
+
+O cenário Windows executa 900 ciclos de renomeação de um `.scs`
+**totalmente fictício**, guarda a identidade inicial, renomeia
+o arquivo antigo temporariamente, cria outro com **exatamente o
+mesmo nome e os mesmos bytes**, remove o antigo e consulta o
+snapshot posterior. Isso garante que o segundo arquivo existiu
+simultaneamente ao primeiro sob outro nome durante a troca;
+a suíte exige **recusa 9**, não apenas alguma recusa incidental.
+Foram adicionados testes de verificação dos acessos metadata-only,
+da comparação de IDs e do código de recusa exclusivo.
+
+**Restrições:** comparar FileId melhora a detecção de substituição
+entre os dois instantes, mas não garante ausência de ABA entre
+checkpoints, não prova que o caminho e o handle estejam associados
+atomicamente e não recupera a cronologia dos eventos perdidos.
+Ainda não existe prova para todas as peculiaridades ReFS/SMB
+ou identidade persistente em todos os tipos de filesystem.
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false`, `operationsEnabled:false`
+permanecem. O helper não integra o Electron distribuído e não
+inspeciona arquivos de jogos reais.
