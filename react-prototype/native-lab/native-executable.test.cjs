@@ -221,8 +221,8 @@ test('the experimental native assembly is intentionally unavailable on Linux',
 // Deterministic two-process barrier. The C# process holds Win32 root and
 // child directory handles at READY; Node mutates only generated os.tmpdir()
 // fixtures. The native executable accepts only an exact CONTINUE line.
-async function race(f,mutate=async()=>{},reply='CONTINUE',tempParent=null,flags=[]){
- const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,'--race-barrier',...flags],{
+async function race(f,mutate=async()=>{},reply='CONTINUE',tempParent=null,flags=[],testArgs=null){
+ const child=spawn(exe,testArgs??['--root',f.root,'--nonce',f.nonce,'--race-barrier',...flags],{
   shell:false,windowsHide:true,stdio:['pipe','pipe','pipe'],
   ...(tempParent===null?{}:{env:tempEnv(tempParent)})
  });
@@ -697,4 +697,39 @@ test('attestation cannot be requested without opt-in watcher or extra commands',
  const f=await fixture();
  await denied(f,['--test-attest-cancel-995']);
  await denied(f,['--rdcw-probe','--test-attest-cancel-995','--install']);
+});
+
+test('native Win32 small notification buffer must prove a kernel loss-of-detail signal',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ // Long but legal synthetic Windows file name exceeds the native 64-byte
+ // FILE_NOTIFY_INFORMATION buffer without creating any real mod content.
+ const name='synthetic-'+('b'.repeat(166))+'.scs';
+ const r=await race(f,async()=>{
+  await fs.writeFile(join(f.dir,name),'SYNTHETIC ONLY');
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-small-buffer-loss']);
+ assert.ok([5,6].includes(r.code),'kernel did not attest 1022 or zero bytes: '+JSON.stringify(r));
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+ assert.equal(r.stdout.includes(name),false);
+ assert.equal(r.stderr.includes(name),false);
+ assert.equal(r.stderr.includes(f.root),false);
+ assert.equal(await fs.readFile(join(f.dir,name),'utf8'),'SYNTHETIC ONLY');
+});
+
+test('small-buffer evidence mode forbids unapproved arguments and empty target',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-small-buffer-loss']);
+ await denied(f,['--rdcw-probe','--test-small-buffer-loss','--install']);
+});
+
+test('normal Win32 watcher still returns only untrusted 21-key receipt after synthetic small-buffer test',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const result=validate(await invoke(f,['--rdcw-probe']));
+ assert.equal(result.entries,0);
+ assert.equal(result.guaranteesNoABA,false);
+ assert.equal(result.operationsEnabled,false);
 });
