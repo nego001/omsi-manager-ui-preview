@@ -490,10 +490,10 @@ test('a junction posing as fixture root is denied even with matching nonce',
 test('native helper source never reads marker bytes from an absolute pathname',
  async()=>{
  const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
- assert.doesNotMatch(source,/File\\.ReadAll(Text|Bytes)\\s*\\(/);
- assert.doesNotMatch(source,/new\\s+(?:FileInfo|DirectoryInfo)\\s*\\(/);
- assert.match(source,/OpenChildMarker\\(heldRoot, "\\.omsi-test-fixture-marker"\\)/);
- assert.match(source,/VerifyMarkerBytes\\(heldMarker, args\\[3\\]\\)/);
+ assert.doesNotMatch(source,/File\.ReadAll(Text|Bytes)\s*\(/);
+ assert.doesNotMatch(source,/new\s+(?:FileInfo|DirectoryInfo)\s*\(/);
+ assert.match(source,/OpenChildMarker\(heldRoot, "\.omsi-test-fixture-marker"\)/);
+ assert.match(source,/VerifyMarkerBytes\(heldMarker, args\[3\]\)/);
 });
 
 test('a transient nonce rewrite restored before CONTINUE never authorizes native operations',
@@ -509,7 +509,7 @@ test('a transient nonce rewrite restored before CONTINUE never authorizes native
   raceRejected(r);
  }else{
   assert.equal(r.code,0,r.stderr);
-  const parsed=validate({stdout:r.stdout.replace(/^READY\\r?\\n/,''),stderr:r.stderr});
+  const parsed=validate({stdout:r.stdout.replace(/^READY\r?\n/,''),stderr:r.stderr});
   assert.equal(parsed.outcome,'observed-bounded-untrusted');
   assert.equal(parsed.guaranteesNoABA,false);
   assert.equal(parsed.atomicPathContainmentProven,false);
@@ -530,7 +530,7 @@ test('create/remove ABA in native-enum remains untrusted without transactional e
   raceRejected(r);
  }else{
   assert.equal(r.code,0,r.stderr);
-  const parsed=validate({stdout:r.stdout.replace(/^READY\\r?\\n/,''),stderr:r.stderr});
+  const parsed=validate({stdout:r.stdout.replace(/^READY\r?\n/,''),stderr:r.stderr});
   assert.equal(parsed.outcome,'observed-bounded-untrusted');
   assert.equal(parsed.entries,0);
   assert.equal(parsed.guaranteesNoABA,false);
