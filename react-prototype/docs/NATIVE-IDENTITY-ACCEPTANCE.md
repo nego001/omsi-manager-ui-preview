@@ -304,3 +304,26 @@ nomes, nonce e caminhos. Esse cenário não comprova overflow real
 nem entrega transacional dos eventos. O probe permanece limitado
 a pasta temporária sintética, não distribuído no Electron e sem
 habilitar instalação, remoção, recuperação ou inspeção de jogos.
+
+
+## Atestação de cancelamento de I/O por status Win32 995
+
+O modo sintético `--rdcw-probe --test-attest-cancel-995`
+aprimora a evidência de testes de `CancelIoEx`. Depois de
+iniciar `ReadDirectoryChangesW` com `OVERLAPPED`, ele
+requer a sinalização do evento e o resultado específico de
+`GetOverlappedResult` = **falha com 995
+(`ERROR_OPERATION_ABORTED`)**. Só essa condição gera o
+código de saída reservado **4**. Mensagem de recusa permanece
+genérica e stdout vazio; qualquer caminho que não prove 995
+recusa com código **3**. Nem código 4 nem 3 são permissões.
+
+A CI Windows executa esse processo com nonce artificial,
+repete a prova cinco vezes, compara os bytes do marcador e
+de um arquivo `.scs` fictício sem modificá-los, e rejeita
+pedidos sem a flag de laboratório ou com parâmetros extras.
+Essa é evidência **direta de cancelamento**, não de perda de
+eventos em NTFS, ReFS ou SMB, nem teste de overflow real de
+notificações de diretório. A proteção contra ABA continua
+parcial e não transacional; o componente não tem integração
+com jogos reais nem com o Electron distribuído.
