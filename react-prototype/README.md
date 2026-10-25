@@ -238,3 +238,14 @@ O laboratório nativo Windows em `temp-native-file-race.ps1` ganhou um **segundo
 Foram adicionados **7 testes**: arquivo preservado, substituição por outro de mesmo conteúdo com ID diferente, remoção e recriação, remoção sem reposição, dois observadores concorrentes, marcador adulterado e troca `ABA` (o original sai e depois retorna). O caso ABA deliberadamente registra uma observação estável como **não confiável**: a comparação entre duas amostras não consegue provar que nenhuma mudança ocorreu entre elas. O relatório registra `abaRuledOut:false` e continua negando toda operação real.
 
 O laboratório passa a contar **107 casos Node**, com 68 multiplataforma e 39 exclusivos do Windows. A interface e o pacote Electron permanecem inalterados, e `scripts/` continua excluída da distribuição.
+
+
+### Recibos de observação não reutilizáveis e revogação de sessão (somente testes)
+
+`scripts/temp-evidence-lifecycle.cjs` cria uma sessão de observação vinculada a um **handle de arquivo temporário**, por meio do laboratório existente `temp-recovery-identity.cjs`. Cada leitura bem-sucedida emite um recibo **opaco, somente em memória, guardado em `WeakMap`**, válido unicamente para identificar *qual foi a última observação* dessa sessão. O recibo **não é autorização para instalar, modificar ou recuperar mods**.
+
+O encerramento da sessão revoga todos os recibos *antes* de o fechamento assíncrono do handle terminar. Uma mudança de conteúdo detectada ou falha de validação do marcador revoga irreversivelmente a sessão. Outra sessão terá outra identidade mesmo se o arquivo antigo voltar a ter o mesmo caminho, conteúdo e identificador depois de uma troca ABA. Cópias JSON e recibos de outra sessão ou de outro processo não recuperam estado.
+
+O novo comando `npm run test:evidence:lifecycle` executa **19 testes Node** em Linux e Windows, integrados também a `npm run test:recovery:fixture`: agora são **126 testes de laboratório** (87 multiplataforma e 39 Windows-only). Há cobertura de fechamento concorrente, evidências antigas, erros, clones, reinicialização de processo de teste, isolamento entre fixtures e ausência de vazamento de dados.
+
+**Limite importante:** a sessão não tem lock nativo exclusivo e não garante que ninguém tenha trocado o arquivo entre duas leituras ou que o pathname permaneceu imutável enquanto o handle esteve aberto. Mesmo recibos recentes continuam `abaRuledOut:false` e `operationsEnabled:false`. A implementação é exclusiva de `scripts/`, excluída do executável Electron.

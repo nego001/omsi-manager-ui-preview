@@ -83,3 +83,14 @@ O teste `temp-native-file-race.ps1` mantém o modo `held` (handle nativo aberto 
 A identidade conservada após fechamento não é uma capability ou bloqueio: a troca `ABA` é testada devolvendo o arquivo original ao pathname. Como o ID e os bytes podem voltar a coincidir, o resultado `observed-stable-untrusted` **não significa que o pathname esteve imutável**. `abaRuledOut:false` permanece fixo, assim como `nativeIdentityApprovedForRealMods:false`, `cleanupAllowed:false` e `operationsEnabled:false`.
 
 Foram incorporados 7 cenários Windows-only, **107 testes no total**, sendo 68 gerais (Linux também) e 39 exclusivos Windows. Os 2 cenários antigos que tentam trocar um pathname com handle aberto ainda podem sofrer `skip`, sem invalidar o novo experimento separado. Nenhuma API real de modificar mods é adicionada.
+
+
+## Ciclo de vida e revogação explícita de evidências do laboratório
+
+A API `scripts/temp-evidence-lifecycle.cjs` fornece quatro operações **somente no laboratório Node**: abrir sessão temporária, registrar observação em handle de leitura, consultar um recibo de observação e encerrar a sessão. Os objetos de sessão/recibo são imutáveis e seus significados dependem exclusivamente de `WeakMap`, não de campos copiados, string de ID, PID ou conteúdo JSON. Recibos de outras sessões ou de outros processos são recusados.
+
+Sessões possuem um estado interno `open`, `releasing`, `released` ou `revoked`. Uma nova observação invalida recibos anteriores da mesma sessão; `release` marca a revogação **sincronamente** antes do fechamento assíncrono do handle, bloqueando reutilização mesmo diante de leituras concorrentes. Se o conteúdo observado mudou, a checagem falhou ou o marcador foi adulterado, o estado vira `revoked` e não pode retornar para `open`. Se o arquivo original retornar ao mesmo caminho após uma troca ABA, somente uma sessão nova pode ser aberta, com recibos novos; recibos da sessão anterior continuam inutilizáveis.
+
+**19 casos novos**, total alvo de **126 testes de laboratório**: 87 Node multiplataforma + 39 específicos de Windows. Eles não representam monitoramento contínuo real de pathname/volume, nem prova de ausência de ABA, nem autenticidade durável após reinício. Estados `latest-observation-untrusted` e `observed-stable-untrusted` identificam apenas uma **observação passada**, nunca a ausência de trocas entre amostras. Todos os retornos mantêm `observationIsAuthorization:false`, `continuityAcrossReleaseProven:false`, `abaRuledOut:false`, `canInstall:false`, `canRecover:false`, `operationsEnabled:false`.
+
+A experiência não altera renderer, preload, IPC, empacotamento ou pastas dos jogos. Para um gerenciamento real seguro ainda seriam necessários handles de diretório, política de sessão nativa, tratamento de reparse/TOCTOU, auditoria de concorrência por filesystem, consentimento e transações recuperáveis independentes.
