@@ -302,7 +302,14 @@ internal static class Program
         private const int BufferBytes = 4096;
         private const uint WaitTimeout = 0x00000102;
         private const uint ErrorIoPending = 997;
+        private const uint ErrorIoIncomplete = 996;
+        private const uint WaitSignaled = 0;
         private const uint StructuralChanges = 0x00000001 | 0x00000002;
+        // If the kernel never confirms completion within the bounded wait,
+        // keep all handles AND unmanaged allocations alive until process exit.
+        // This tiny intentional process-lifetime retention avoids use-after-free.
+        private static readonly List<(SafeFileHandle Directory,
+            SafeWaitHandle Event, IntPtr Buffer, IntPtr Overlapped)> InFlight = new();
         private SafeFileHandle? directory;
         private SafeWaitHandle? signal;
         private IntPtr buffer;
@@ -337,6 +344,12 @@ internal static class Program
 
         [DllImport("kernel32.dll", EntryPoint = "WaitForSingleObject", SetLastError = true)]
         private static extern uint WaitEvent(SafeWaitHandle signal, uint milliseconds);
+
+        [DllImport("kernel32.dll", EntryPoint = "GetOverlappedResult", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ReadCompletion(
+            SafeFileHandle directory, IntPtr nativeOverlapped,
+            out uint bytesTransferred, [MarshalAs(UnmanagedType.Bool)] bool wait);
 
         public BoundedNativeChangeProbe(string path, SafeFileHandle original)
         {
@@ -385,16 +398,35 @@ internal static class Program
         public void VerifyQuiet()
         {
             if (!pending || signal is null || signal.IsInvalid ||
-                WaitEvent(signal, 0) != WaitTimeout) Deny();
+                directory is null || directory.IsInvalid) Deny();
+            uint state = WaitEvent(signal, 0);
+            if (state == WaitTimeout) return;
+            // Read the completion status without waiting. ERROR_NOTIFY_ENUM_DIR
+            // (1022), ERROR_MORE_DATA (234), ERROR_OPERATION_ABORTED (995),
+            // zero bytes and even a nominal success all mean: no trustworthy
+            // uninterrupted directory view. Never parse the event buffer.
+            _ = ReadCompletion(directory, overlapped, out _, false);
+            Deny();
+        }
+
+        // Test-only: request a *real Windows I/O cancellation* after arming.
+        // The resulting OS completion is never accepted as observation.
+        public void CancelForSyntheticTest()
+        {
+            if (!pending || directory is null || directory.IsInvalid ||
+                overlapped == IntPtr.Zero) Deny();
+            if (!CancelPending(directory, overlapped)) Deny();
+            // Cancellation may finish later. VerifyQuiet refuses it when
+            // signaled; regardless, this diagnostic must never produce JSON.
+            _ = WaitEvent(signal!, 2000);
+            VerifyQuiet();
+            Deny();
         }
 
         public void Dispose()
         {
-            // The unmanaged OVERLAPPED and buffer MUST outlive any pending
-            // kernel I/O. Cancel, then wait a bounded 2 seconds for its event.
-            // If cancellation cannot be confirmed, deliberately leave the
-            // tiny unmanaged allocations alive until process exit: freeing
-            // them while Windows might still write would be a UAF.
+            // Unmanaged memory and OS event must outlive OVERLAPPED kernel I/O.
+            // CancelIoEx only REQUESTS cancellation; it does not wait for it.
             bool completed = !pending;
             if (pending && directory is not null && !directory.IsInvalid &&
                 signal is not null && !signal.IsInvalid)
@@ -402,19 +434,35 @@ internal static class Program
                 try
                 {
                     _ = CancelPending(directory, overlapped);
-                    completed = WaitEvent(signal, 2000) == 0;
+                    if (WaitEvent(signal, 2000) == WaitSignaled)
+                    {
+                        bool ok = ReadCompletion(directory, overlapped, out _, false);
+                        // The event reports completion, but if Win32 says
+                        // ERROR_IO_INCOMPLETE we must retain all resources.
+                        completed = ok || Marshal.GetLastWin32Error() != ErrorIoIncomplete;
+                    }
                 }
                 catch { completed = false; }
             }
-            directory?.Dispose();
-            signal?.Dispose();
             if (completed)
             {
                 if (overlapped != IntPtr.Zero) Marshal.FreeHGlobal(overlapped);
                 if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+                directory?.Dispose();
+                signal?.Dispose();
+            }
+            else if (directory is not null && signal is not null)
+            {
+                // No GC/finalizer may close an event still used by the kernel.
+                // The process is short-lived and synthetic; this is safer than
+                // freeing buffers or event handles before I/O completion.
+                lock (InFlight)
+                    InFlight.Add((directory, signal, buffer, overlapped));
             }
             overlapped = IntPtr.Zero;
             buffer = IntPtr.Zero;
+            directory = null;
+            signal = null;
             pending = false;
         }
     }
@@ -685,9 +733,11 @@ internal static class Program
                 String.Equals(args[4], "--race-barrier", StringComparison.Ordinal);
             bool rdcwProbe = (args.Length == 5 && args[4] == "--rdcw-probe") ||
                 (args.Length == 6 && raceBarrier && args[5] == "--rdcw-probe");
+            bool injectCancellation = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-cancel-pending-io";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
-                    (args.Length == 6 && raceBarrier && rdcwProbe)) ||
+                    (args.Length == 6 && (raceBarrier && rdcwProbe || injectCancellation))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -719,10 +769,15 @@ internal static class Program
             using SafeFileHandle heldTarget = OpenChildDirectory(heldRoot, "native-enum");
             using DirectoryChangeFence rootChanges = new(root, heldRoot);
             using DirectoryChangeFence targetChanges = new(target, heldTarget);
-            using BoundedNativeChangeProbe? rootDetail = rdcwProbe
+            using BoundedNativeChangeProbe? rootDetail = rdcwProbe || injectCancellation
                 ? new BoundedNativeChangeProbe(root, heldRoot) : null;
-            using BoundedNativeChangeProbe? targetDetail = rdcwProbe
+            using BoundedNativeChangeProbe? targetDetail = rdcwProbe || injectCancellation
                 ? new BoundedNativeChangeProbe(target, heldTarget) : null;
+            if (injectCancellation)
+            {
+                rootDetail!.CancelForSyntheticTest();
+                Deny();
+            }
             rootChanges.VerifyNotSignaled();
             targetChanges.VerifyNotSignaled();
             rootDetail?.VerifyQuiet();
