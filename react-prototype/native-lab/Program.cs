@@ -177,7 +177,8 @@ internal static class Program
     // OPEN_REPARSE_POINT prevents following a junction/symlink at this leaf.
     // NtOpenFile RootDirectory avoids re-resolving intermediary path strings.
     private static SafeFileHandle OpenRelative(
-        SafeFileHandle parent, string name, bool directory)
+        SafeFileHandle parent, string name, bool directory,
+        bool attributesOnly = false)
     {
         const uint readAttributes = 0x0080, synchronize = 0x00100000;
         const uint shareAll = 0x0007, directoryFile = 0x00000001;
@@ -208,7 +209,8 @@ internal static class Program
             };
             // FILE_LIST_DIRECTORY for folders / FILE_READ_DATA for markers.
             // Both access masks share the native value 0x0001.
-            uint access = readAttributes | synchronize | 0x0001U;
+            uint access = readAttributes | synchronize |
+                (attributesOnly ? 0U : 0x0001U);
             uint options = synchronous | openReparsePoint |
                 (directory ? directoryFile : nonDirectoryFile);
             int status = NtOpenFile(out SafeFileHandle handle, access,
@@ -241,6 +243,12 @@ internal static class Program
 
     private static SafeFileHandle OpenChildMarker(SafeFileHandle parent, string name) =>
         OpenRelative(parent, name, false);
+
+    // Identity-only: metadata access, never FILE_READ_DATA, never reads bytes.
+    // The child is opened relative to the already pinned synthetic directory.
+    private static SafeFileHandle OpenChildFileIdentity(
+        SafeFileHandle parent, string name) =>
+        OpenRelative(parent, name, false, attributesOnly: true);
 
     private static SafeFileHandle OpenMarker(string marker)
     {
@@ -758,7 +766,8 @@ internal static class Program
 
     private static int[] Inspect(
         SafeFileHandle parent, string directory, Action? pauseForMutation = null,
-        List<string>? syntheticNames = null)
+        List<string>? syntheticNames = null,
+        Dictionary<string, FileIdInfo>? syntheticIdentity = null)
     {
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
@@ -814,6 +823,16 @@ internal static class Program
                         // these names. A count-only audit misses an equal-sized
                         // replacement of a fake .scs file.
                         syntheticNames?.Add(name);
+                        if (syntheticIdentity is not null)
+                        {
+                            // Test-only: inspect identity by pinned parent,
+                            // refuse directories/reparse entries. No file bytes.
+                            if ((attributes & (0x10 | 0x400)) != 0) Deny();
+                            using SafeFileHandle child =
+                                OpenChildFileIdentity(held, name);
+                            if (!syntheticIdentity.TryAdd(name, Identity(child)))
+                                Deny();
+                        }
                         if ((attributes & 0x400) != 0) links++;
                         else if ((attributes & 0x10) != 0) folders++;
                         else
@@ -962,14 +981,19 @@ internal static class Program
             {
                 int[]? baselineCounts = null;
                 List<string> baselineNames = new();
+                Dictionary<string, FileIdInfo> baselineIds =
+                    new(StringComparer.Ordinal);
                 targetDetail!.AttestQueuedOverflowForSyntheticTest(afterLoss =>
                 {
                     // Both snapshots use bounded native handle enumeration.
                     // Compare names AS WELL as counts; same-size .scs name
                     // substitution must not pass as a recovered snapshot.
                     List<string> currentNames = new();
+                    Dictionary<string, FileIdInfo> currentIds =
+                        new(StringComparer.Ordinal);
                     int[] current = Inspect(heldRoot, target,
-                        syntheticNames: currentNames);
+                        syntheticNames: currentNames,
+                        syntheticIdentity: currentIds);
                     if (current[0] != 2 || current[1] != 0 ||
                         current[2] != 2 || current[3] != 0 ||
                         current[4] != 1) Deny();
@@ -978,6 +1002,8 @@ internal static class Program
                     {
                         baselineCounts = current;
                         baselineNames.AddRange(currentNames);
+                        foreach (var pair in currentIds)
+                            baselineIds.Add(pair.Key, pair.Value);
                         return;
                     }
                     if (baselineCounts is null ||
@@ -986,8 +1012,16 @@ internal static class Program
                     for (int i = 0; i < current.Length; i++)
                         if (current[i] != baselineCounts[i]) Deny();
                     for (int i = 0; i < currentNames.Count; i++)
-                        if (!String.Equals(currentNames[i], baselineNames[i],
+                    {
+                        string name = currentNames[i];
+                        if (!String.Equals(name, baselineNames[i],
                                 StringComparison.Ordinal)) Deny();
+                        if (!baselineIds.TryGetValue(name,
+                                out FileIdInfo beforeId) ||
+                            !currentIds.TryGetValue(name,
+                                out FileIdInfo afterId) ||
+                            !Same(beforeId, afterId)) Deny();
+                    }
                     VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
                         ancestors.TemporaryHandle);
                     VerifyHeldMarker(markerPath, args[3], heldMarker,
