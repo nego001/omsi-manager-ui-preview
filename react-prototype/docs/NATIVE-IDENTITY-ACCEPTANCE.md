@@ -226,3 +226,26 @@ observáveis de alteração e perda de eventos, testar limites de
 filesystem/concorrência e projetar política de recusa quando não for
 possível demonstrar identidade atômica. Não usar apenas timestamps,
 hash de conteúdo ou `FileIdInfo` como autenticação transacional.
+
+
+## Ensaio de sinais de mudança Win32 em pastas sintéticas
+
+O laboratório incorpora uma *barreira de alteração* independente,
+usando `FindFirstChangeNotificationW` e `WaitForSingleObject`
+para a raiz da fixture e `native-enum`. O evento fica armado sem
+rearme; qualquer mudança observável bloqueia o relatório. A
+abertura do watcher por pathname é confrontada com o FileId do
+handle de diretório retido, mas essa checagem **não estabelece
+associação atômica entre o watcher e o handle**.
+
+Testes determinísticos criam e removem entradas fictícias e
+reescrevem/restauram o marcador durante a janela da barreira.
+É esperado negar todas essas observações, mesmo quando os diretórios
+voltam à aparência inicial. Notificações perdidas, registros não
+suportados, temporização após a última consulta e modificações
+externas à pasta observada continuam fora da cobertura comprovada.
+
+Nenhuma notificação Win32, por si só, autoriza leitura de jogos
+reais, modificação de mods ou operação de recuperação.
+`observed-bounded-untrusted` é o máximo estado de sucesso
+permitido nesta fase e o esquema de 21 campos permanece intacto.
