@@ -1119,3 +1119,78 @@ test('ChangeTime-only witness is exclusively a refusal with unchanged untrusted 
  assert.match(source,/guaranteesNoABA"\] = false/);
  assert.match(source,/operationsEnabled"\] = false/);
 });
+
+
+test('NTFS per-file USN advances after synthetic bytes and LastWriteTime are restored',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC USN CHECKPOINT; NO REAL OMSI DATA';
+ const oldTime=new Date('2024-03-11T00:00:00.000Z');
+ await fs.writeFile(p,original);
+ await fs.utimes(p,oldTime,oldTime);
+ const before=await fs.stat(p);
+ const r=await race(f,async()=>{
+  await fs.writeFile(p,'SYNTHETIC TEMPORARY CHANGED CONTENT');
+  await fs.writeFile(p,original);
+  await fs.utimes(p,oldTime,oldTime);
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-usn-checkpoint']);
+ assert.equal(r.code,12,'require ACTUAL NTFS USN advance on the same FileId: '+r.stderr);
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+ assert.equal(r.stdout.includes(f.root),false);
+ assert.equal(r.stderr.includes(f.root),false);
+ assert.equal(r.stderr.includes(f.nonce),false);
+ assert.equal(await fs.readFile(p,'utf8'),original);
+ const after=await fs.stat(p);
+ assert.equal(after.size,before.size);
+ assert.equal(after.mtimeMs,before.mtimeMs);
+});
+
+test('NTFS USN quiet control cannot fabricate a change-journal event',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.dir,'metadata-probe.scs'),'SYNTHETIC QUIET JOURNAL CHECK');
+ const r=await race(f,async()=>{},'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-usn-checkpoint']);
+ raceRejected(r);
+});
+
+test('NTFS USN checkpoint rejects same-name replacement with changed FileId',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const old=join(f.dir,'held-original.scs');
+ await fs.writeFile(p,'SYNTHETIC');
+ const r=await race(f,async()=>{
+  await fs.rename(p,old);
+  await fs.writeFile(p,'SYNTHETIC');
+  await fs.rm(old);
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-usn-checkpoint']);
+ assert.equal(r.code,9,'changing FileId must refuse before USN comparison');
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+});
+
+test('NTFS USN mode requires correct opt-in command and has no real operations',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-usn-checkpoint']);
+ await denied(f,['--rdcw-probe','--test-usn-checkpoint','--install']);
+});
+
+test('USN sample reads one file only, with no volume journal traversal or names',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/FSCTL_READ_FILE_USN_DATA reads the CURRENT record/);
+ assert.match(source,/0x000900EB/);
+ assert.match(source,/OpenChildFileIdentity\(heldTarget, testName\)/);
+ assert.match(source,/CurrentFileUsn\(child\)/);
+ assert.match(source,/if \(afterUsn > beforeUsn\) throw new SyntheticUsnChanged/);
+ assert.match(source,/catch \(SyntheticUsnChanged\)/);
+ assert.doesNotMatch(source,/FSCTL_ENUM_USN_DATA|FSCTL_READ_USN_JOURNAL|FSCTL_CREATE_USN_JOURNAL/);
+ assert.match(source,/guaranteesNoABA"\] = false/);
+ assert.match(source,/operationsEnabled"\] = false/);
+});
