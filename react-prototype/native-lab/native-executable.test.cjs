@@ -463,3 +463,26 @@ test('substitution of configured TEMP parent during held-handle barrier is refus
  },'CONTINUE',parent);
  if(swapped)raceRejected(r);
 });
+
+test('a junction posing as fixture root is denied even with matching nonce',
+ {skip:!ready},async(t)=>{
+ const f=await fixture();
+ const alternate=await fixture();
+ const parked=f.root+'.parked';
+ roots.add(parked);
+ // Ensure this checks native path traversal, not merely a nonce mismatch.
+ await fs.writeFile(join(alternate.root,MARKER),f.nonce);
+ await fs.writeFile(join(alternate.dir,'private.scs'),'UNREAD');
+ await fs.rename(f.root,parked);
+ try{await fs.symlink(alternate.root,f.root,'junction');}
+ catch(e){
+  if(['EPERM','EACCES','ENOSYS','ENOTSUP'].includes(e.code)){
+   t.skip('Windows junction creation unavailable');
+   return;
+  }
+  throw e;
+ }
+ await denied(f);
+ assert.equal(await fs.readFile(join(alternate.dir,'private.scs'),'utf8'),'UNREAD');
+ assert.equal(await fs.readFile(join(alternate.root,MARKER),'utf8'),f.nonce);
+});
