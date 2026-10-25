@@ -677,3 +677,59 @@ garantia universal anti-ABA ou TOCTOU.
 
 API oficial:
 https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-fsctl_read_file_usn_data
+
+
+## Experimento de restauração dos quatro timestamps + USN (25/10/2026)
+
+Foi incluído um mutador **separado e de uso exclusivo da suíte
+Windows**, `restore-basic-times.synthetic.ps1`. Ele não é
+importado, instalado ou empacotado com o aplicativo Electron.
+Antes de tocar o arquivo, exige a raiz como **filha direta de
+TEMP**, prefixo fixo de fixture artificial, nonce hexadecimal
+de 32 caracteres igual ao marcador e ausência de entradas
+reparse na raiz, subpasta, marcador e arquivo específico
+`native-enum/metadata-probe.scs`. Exige que o arquivo tenha
+**um único hardlink**. Qualquer condição diferente aborta.
+
+O script usa `GetFileInformationByHandleEx(FileBasicInfo)`
+para obter `CreationTime`, `LastAccessTime`,
+`LastWriteTime`, `ChangeTime` e os atributos. Grava
+**somente bytes fictícios** sobre a entrada sintética,
+restaura os bytes originais e chama
+`SetFileInformationByHandle(FileBasicInfo)` para recuperar
+os metadados de base. Compara os campos **antes da
+liberação do handle e após fechá-lo e reabri-lo**. Só
+retorna o token fixo `RESTORATION_PERFORMED` quando
+essas comparações passam.
+
+Simultaneamente, o helper principal C# permanece
+**somente leitura**: fixa o handle metadata-only e
+obtém `FSCTL_READ_FILE_USN_DATA` antes e depois.
+Na CI Windows/NTFS, o USN desse mesmo `FileId`
+**aumentou**, mesmo com bytes e todos os timestamps
+restaurados. Esse é o testemunho de **recusa 12**, sem
+nomes, caminhos, IDs, datas ou dados do arquivo no
+relatório. Controle de nonce inválido demonstrou recusa
+sem modificar bytes.
+
+**Interpretação responsável:** o USN pode ter avançado
+por uma ou várias operações do ensaio, inclusive a
+própria restauração dos metadados, não necessariamente
+apenas pela gravação temporária do conteúdo. O
+experimento não isolou causalmente cada evento.
+Também não demonstra que USN seja monotônico de forma
+universal após reinício, truncamento ou desativação
+do journal; não foi executado em ReFS/SMB, nem indica
+histórico completo ou resistência geral ABA/TOCTOU.
+Mesmo se um checkpoint USN repetir, **nunca** será
+tratado como prova de que o arquivo não mudou.
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e
+`operationsEnabled:false` mantidos.
+
+O Windows PowerShell 5.1 requer sintaxe C# legada
+no `Add-Type`, e `BY_HANDLE_FILE_INFORMATION` exige
+alinhamento de 4 bytes para a verificação correta de
+`NumberOfLinks`; ambos foram corrigidos e validados
+nos testes Windows. Fonte oficial de `FILE_BASIC_INFO`:
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_basic_info
