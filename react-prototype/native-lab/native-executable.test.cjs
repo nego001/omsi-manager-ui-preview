@@ -895,14 +895,14 @@ test('post-overflow bounded scan is read-only and never returns the 21-key succe
  assert.match(source,/AttestQueuedOverflowForSyntheticTest\(afterLoss\s*=>/);
  assert.match(source,/int\[\] current = Inspect\(heldRoot, target,/);
  assert.match(source,/currentNames\.Sort\(StringComparer\.Ordinal\)/);
- assert.match(source,/String\.Equals\(currentNames\[i\], baselineNames\[i\],/);
+ assert.match(source,/String\.Equals\(name, baselineNames\[i\],/);
  assert.match(source,/VerifyHeldMarker\(markerPath, args\[3\], heldMarker/);
  assert.match(source,/Console\.Out\.WriteLine\("SCAN_ONLY"\)/);
  assert.match(source,/throw new SyntheticNotificationLossWitness/);
 });
 
 
-async function assertQueuedSnapshotDivergence(mutate){
+async function assertQueuedSnapshotDivergence(mutate, expectedCode=3){
  const f=await fixture();
  const original=join(f.dir,'loop-'+('q'.repeat(110))+'.scs');
  const renamed=join(f.dir,'loop-'+('r'.repeat(110))+'.scs');
@@ -952,7 +952,8 @@ async function assertQueuedSnapshotDivergence(mutate){
   await mutate({f,original,renamed});
   child.stdin.end('STORM_DONE\n');
   const code=await bounded(finished,15000);
-  assert.equal(code,3,'divergent snapshot MUST refuse without claiming recovery');
+  assert.equal(code,expectedCode,
+   'divergent snapshot MUST refuse with the specific native witness');
   assert.match(stdout,
    /^READY\r?\nVOLUME_KIND=(NTFS|ReFS|Other|Unavailable)\r?\nSTORM_READY\r?\n$/);
   assert.doesNotMatch(stdout,/SCAN_ONLY|observed-bounded-untrusted|packageCandidates/);
@@ -976,7 +977,7 @@ for(const scenario of [
  {title:'same-count name substitution',mutate:async({f,original})=>{
   await fs.rename(original,join(f.dir,'different-package.scs'));
  }},
- {title:'same-name same-bytes different FileId',mutate:async({original,renamed})=>{
+ {title:'same-name same-bytes different FileId',expectedCode:9,mutate:async({original,renamed})=>{
   // The original inode remains alive at its temporary renamed pathname
   // while a NEW file is created at the exact original name and length.
   // This avoids comparing two snapshots of the same still-existing file.
@@ -990,7 +991,7 @@ for(const scenario of [
 ]){
  test('Win32 post-loss reconciliation refuses '+scenario.title+' without SCAN_ONLY',
   {skip:!ready,timeout:90000},async()=>{
-   await assertQueuedSnapshotDivergence(scenario.mutate);
+   await assertQueuedSnapshotDivergence(scenario.mutate,scenario.expectedCode??3);
   });
 }
 
@@ -1003,6 +1004,8 @@ test('native post-loss snapshot checks each child FileId without reading bytes',
  assert.match(source,/baselineIds\.TryGetValue\(name,/);
  assert.match(source,/currentIds\.TryGetValue\(name,/);
  assert.match(source,/!Same\(beforeId, afterId\)/);
+ assert.match(source,/throw new SyntheticChildIdentityMismatch\(\)/);
+ assert.match(source,/catch \(SyntheticChildIdentityMismatch\)/);
  assert.match(source,/guaranteesNoABA\x22\] = false/);
  assert.match(source,/operationsEnabled\x22\] = false/);
 });
