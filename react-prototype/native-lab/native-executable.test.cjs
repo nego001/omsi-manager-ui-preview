@@ -221,8 +221,8 @@ test('the experimental native assembly is intentionally unavailable on Linux',
 // Deterministic two-process barrier. The C# process holds Win32 root and
 // child directory handles at READY; Node mutates only generated os.tmpdir()
 // fixtures. The native executable accepts only an exact CONTINUE line.
-async function race(f,mutate=async()=>{},reply='CONTINUE',tempParent=null){
- const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,'--race-barrier'],{
+async function race(f,mutate=async()=>{},reply='CONTINUE',tempParent=null,flags=[]){
+ const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,'--race-barrier',...flags],{
   shell:false,windowsHide:true,stdio:['pipe','pipe','pipe'],
   ...(tempParent===null?{}:{env:tempEnv(tempParent)})
  });
@@ -541,4 +541,67 @@ test('Win32 change fence does not expose changed file names in errors',
  assert.equal(r.stderr.includes(name),false);
  assert.equal(r.stdout.includes(name),false);
  assert.equal(r.stderr.includes(f.root),false);
+});
+
+test('opt-in ReadDirectoryChangesW probe observes a quiet fixture without enabling operations',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.dir,'already-there.scs'),'NEVER-READ');
+ const observed=validate(await invoke(f,['--rdcw-probe']));
+ assert.equal(observed.entries,1);
+ assert.equal(observed.packageCandidates,1);
+ assert.equal(observed.atomicPathContainmentProven,false);
+ assert.equal(observed.operationsEnabled,false);
+});
+test('opt-in overlapped directory watcher denies create/delete ABA',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>{
+  const path=join(f.dir,'transient-test.scs');
+  await fs.writeFile(path,'SYNTHETIC');
+  await fs.rm(path);
+ },'CONTINUE',null,['--rdcw-probe']);
+ raceRejected(r);
+});
+test('opt-in overlapped watcher denies rename restoring original directory contents',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.dir,'one.scs'),'SYNTHETIC');
+ const r=await race(f,async()=>{
+  await fs.rename(join(f.dir,'one.scs'),join(f.dir,'two.scs'));
+  await fs.rename(join(f.dir,'two.scs'),join(f.dir,'one.scs'));
+ },'CONTINUE',null,['--rdcw-probe']);
+ raceRejected(r);
+});
+test('opt-in watcher denies create/delete ABA in the synthetic root',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>{
+  const path=join(f.root,'changed-then-gone');
+  await fs.mkdir(path);
+  await fs.rmdir(path);
+ },'CONTINUE',null,['--rdcw-probe']);
+ raceRejected(r);
+});
+test('opt-in watcher refuses bounded event burst without leaking synthetic names',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const name='opaque-burst-';
+ const r=await race(f,async()=>{
+  // Deliberately exceed the one-shot 4 KiB native notification buffer
+  // workload. We do NOT claim the driver actually emitted an overflow.
+  for(let i=0;i<96;i++){
+   const p=join(f.dir,name+i+'.scs');
+   await fs.writeFile(p,'TEST');
+   await fs.rm(p);
+  }
+ },'CONTINUE',null,['--rdcw-probe']);
+ raceRejected(r);
+ assert.equal(r.stderr.includes(name),false);
+ assert.equal(r.stdout.includes(name),false);
+});
+test('opt-in watcher refuses extra CLI commands rather than accepting new capabilities',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--rdcw-probe','--install']);
 });
