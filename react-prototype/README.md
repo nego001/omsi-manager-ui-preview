@@ -302,3 +302,14 @@ A ponte somente aceita `native-enum` como subdiretório de uma fixture diretamen
 Depois dessa validação, a ponte devolve ao executor somente os quatro campos conservadores esperados: `source:'main-process-native-directory-test'`, `outcome:'observed-bounded-untrusted'`, `nativeHandleUsed:true`, `operationsEnabled:false`. Esse recibo apenas comprova que **um teste** examinou uma fixture nativa, não que um diretório real de jogo está protegido. A execução integrada exercita o grant de pasta por `webContents` e continua sem permitir instalar, remover ou recuperar mods.
 
 `npm run test:bridge:native:windows` executa **22 testes Node** da ponte (incluindo integração real com PowerShell no Windows). A suíte do laboratório passa a **161 casos**: **105 gerais** e **56 exclusivos Windows**. A segurança principal continua **62 testes**, e a interface mantém **744 testes Playwright**. No Linux, os quatro cenários exclusivos Windows da ponte são ignorados.
+
+
+### Executável nativo C# independente: build de teste, sem distribuição
+
+Foi acrescentado `native-lab/OmsiNativeDirectoryLab.csproj` e `native-lab/Program.cs`: uma aplicação de console .NET 8 Windows x64, compilada no job independente `windows_native_lab` da GitHub Actions. Ao contrário das sondas anteriores, esse protótipo **não precisa compilar código C# em tempo de execução dentro do PowerShell**. Sua chamada é restrita a fixtures `omsi-manager-recovery-fixture-*` diretamente em `os.tmpdir()`, conferindo marcador/nonce e enumerando somente a pasta fixa `native-enum` por handles Win32 nativos.
+
+Os testes `native-lab/native-executable.test.cjs` compilam e exercitam o **executável real**, incluindo 127 entradas aceitas, limites de 128 e 129 recusados, falsificação de escopo/nonce, links/junctions e uma integração artificial com o executor e grant. O limite de **menos de 128 entradas** permanece conservador, com relatórios sem caminhos ou nomes, operação bloqueada e nenhuma leitura de bytes dos pacotes.
+
+**Barreira de distribuição:** o empacotador Windows ignora explicitamente `native-lab/`, além de `scripts/`. O teste do executável Electron empacotado verifica que ambos não existem em `app.asar`. O binário experimental não é publicado como artefato na CI e **não integra o `main.cjs`, preload, IPC nem o produto distribuído**. O laboratório não comprova exclusão geral de ABA/TOCTOU ou autorização para tocar em pastas reais.
+
+Veja [documentação do laboratório nativo independente](native-lab/README.md).

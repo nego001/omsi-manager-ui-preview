@@ -21,6 +21,7 @@
     "test:evidence:lifecycle": "node --test scripts/temp-evidence-lifecycle.test.cjs",
     "test:identity:directory:windows": "node --test scripts/temp-native-directory-enum.test.cjs",
     "test:bridge:native:windows": "node --test scripts/temp-main-native-directory-backend.test.cjs",
+    "test:native:standalone": "node --test native-lab/native-executable.test.cjs",
     "test:desktop": "node scripts/desktop-smoke.mjs",
     "package:win": "node scripts/package-windows.mjs",
     "test:inspection:e2e": "node scripts/desktop-inspection-e2e.mjs",

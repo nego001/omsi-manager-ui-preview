@@ -32,6 +32,18 @@ try{
  }));
  assert.equal(info.packaged,true,'O teste deve iniciar o executável empacotado');
  assert.ok(info.appPath.includes('app.asar'),'Aplicação deve rodar dentro de app.asar');
+ // The experimental C# executable and fixture scripts MUST be absent from
+ // the actual Electron app.asar, not merely hidden in the UI.
+ const packedBoundary=await application.evaluate(({app})=>{
+   const {existsSync}=require('node:fs');
+   const {join}=require('node:path');
+   return {
+     nativeLabIncluded:existsSync(join(app.getAppPath(),'native-lab')),
+     scriptsIncluded:existsSync(join(app.getAppPath(),'scripts'))
+   };
+ });
+ assert.deepEqual(packedBoundary,{nativeLabIncluded:false,scriptsIncluded:false},
+  'Native lab and test-only scripts must never ship inside app.asar');
  assert.ok(info.windows>0,'Deve abrir uma janela');
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor({timeout:30000});

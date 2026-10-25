@@ -50,6 +50,32 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  windows_native_lab:
+    name: Windows standalone native directory lab (test-only)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Compile standalone C# Win32 handle observer
+        shell: pwsh
+        run: dotnet publish native-lab/OmsiNativeDirectoryLab.csproj --configuration Release --runtime win-x64 --self-contained false --output native-lab/out
+      - name: Test real Win32 executable with disposable fixtures
+        shell: pwsh
+        run: |
+          $env:OMSI_NATIVE_LAB_EXE = (Resolve-Path native-lab/out/OmsiNativeDirectoryLab.exe).Path
+          node --test native-lab/native-executable.test.cjs
+      # No artifact upload: this experimental binary is not for distribution.
+
   windows_portable:
     name: Windows portable preview (not signed)
     runs-on: windows-latest

@@ -116,3 +116,10 @@ A função resultante implementa, exclusivamente em teste, a assinatura `nativeP
 **22 testes novos**, abrangendo vínculo de pasta e jogo, consumo único, chamadas paralelas, marker inválido, reparse/junction, falha/sanitização de `stderr`, orçamento JSON, relatório falsificado, backend faltante, saída malformada e integração completa com grant e contador read-only. Meta agregada: **161 testes de laboratório** (105 gerais, 56 Windows-only), além de 62 Node segurança e 744 Playwright.
 
 A prova **não transporta consentimento real de usuário**, não demonstra ausência de ABA/TOCTOU entre checkpoints, não abre diretórios de jogos, não habilita escrita e não autoriza recuperação. O próximo requisito para integração de produção será um backend nativo separado do laboratório, distribuição e autenticação auditadas, e testes de seleção/pasta reais sem vazamento de dados.
+
+
+## Console nativo .NET 8 Windows x64 isolado da distribuição
+
+`native-lab/OmsiNativeDirectoryLab.csproj` contém a primeira sonda C# nativa compilada como processo independente, sem `Add-Type` no PowerShell. O job `windows_native_lab` usa .NET 8, mantém o executável apenas no workspace da CI e executa seus testes sobre **fixtures descartáveis**. O programa aceita somente `--root` (filho imediato nomeado de `os.tmpdir()`) e `--nonce` (marcador 32 hex), e abre exclusivamente `native-enum` por handle. O relatório retorna somente as 21 chaves conservadoras compatíveis com `checkResult`, usando `FileIdInfo` e enumeração Win32 por handle, sem nomes de arquivo na saída.
+
+A CI testa a recusa no limite de entradas, diretórios ausentes e reparse, nonce adverso, outras opções de CLI e integração pelo backend Node temporário e grant. **Não publica o binário** e proíbe a presença de `native-lab/` no aplicativo empacotado. Não existe validação Windows física pessoal ou backend integrado às pastas reais dos jogos. Não há novas operações de modificação.
