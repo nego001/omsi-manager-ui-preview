@@ -380,3 +380,11 @@ A prova independente de overflow *acumulado* com perda de
 notificações, em NTFS/ReFS/SMB, permanece aberta. Não é um journal,
 não garante entrega completa e não atesta proteção universal ABA.
 O diagnóstico não lê jogos, mods, perfis ou backups reais.
+
+
+**Evidência observada na CI Windows em 25/10/2026:** o ensaio de
+buffer de 64 bytes retornou **conclusão com ZERO bytes de detalhes**
+(saída 6), como registrado na linha de diagnóstico sanitizada do
+runner. Isso comprova o retorno sem detalhes nessa execução, mas
+**não** comprova que ocorreu o erro 1022 ou que uma fila acumulada
+estourou. A distinção é obrigatória para não inflar garantias.
