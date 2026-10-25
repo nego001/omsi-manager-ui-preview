@@ -138,3 +138,32 @@ um handle raiz, prova geral de ausência de ABA ou permissão para inspecionar
 pastas reais. Ambientes cujo TEMP usa junctions/reparse points podem ter
 a observação experimental recusada por segurança. O contrato JSON
 permanece com 21 campos, e todas as operações de escrita continuam desativadas.
+
+
+## Abertura relativa por handle, sem confiar na resolução completa do pathname
+
+A etapa seguinte usa `NtOpenFile` com `OBJECT_ATTRIBUTES.RootDirectory`
+para abrir cada componente de TEMP a partir do **handle nativo do diretório pai**.
+A raiz do volume é aberta inicialmente com `CreateFileW`; cada filho da
+cadeia é aberto isoladamente. O próprio diretório da fixture, o arquivo
+marcador e a subpasta fixa `native-enum` também são abertos relativamente
+aos handles já preservados.
+
+As opções `FILE_OPEN_REPARSE_POINT` e a verificação subsequente de atributos
+recusam junctions e symlinks, incluindo folhas com conteúdo/marcador
+aparentemente corretos. A abertura distingue arquivos de diretórios e
+solicita apenas acesso de leitura/listagem/atributos. As identidades da
+cadeia são confrontadas novamente tanto por handles relativos quanto
+pela abertura independente dos pathnames. Os testes Windows mantêm
+a barreira de concorrência e acrescentam a tentativa de falsificar o
+próprio diretório de fixture com junction, nonce correto e pacote .scs
+fictício em seu destino.
+
+**Limites importantes:** a segunda abertura por pathname é apenas um
+checkpoint de consistência, não uma autorização; a consulta e validação
+legadas por caminho ainda existem como verificações suplementares.
+A implementação não promete ausência geral de ABA, contenção atômica,
+suporte a caminhos arbitrários nem resistência a adversários com
+acesso para modificar componentes previamente inspecionados. O contrato
+do JSON continua inalterado e nega explicitamente essas garantias.
+Nenhum binário nativo é incorporado ao Electron.
