@@ -249,3 +249,14 @@ O encerramento da sessão revoga todos os recibos *antes* de o fechamento assín
 O novo comando `npm run test:evidence:lifecycle` executa **19 testes Node** em Linux e Windows, integrados também a `npm run test:recovery:fixture`: agora são **126 testes de laboratório** (87 multiplataforma e 39 Windows-only). Há cobertura de fechamento concorrente, evidências antigas, erros, clones, reinicialização de processo de teste, isolamento entre fixtures e ausência de vazamento de dados.
 
 **Limite importante:** a sessão não tem lock nativo exclusivo e não garante que ninguém tenha trocado o arquivo entre duas leituras ou que o pathname permaneceu imutável enquanto o handle esteve aberto. Mesmo recibos recentes continuam `abaRuledOut:false` e `operationsEnabled:false`. A implementação é exclusiva de `scripts/`, excluída do executável Electron.
+
+
+### Autorização efêmera de inspeção real pelo diálogo nativo do Electron
+
+A prévia já possuía inspeção **somente leitura** de diretórios escolhidos pela pessoa, com contagem superficial de `Vehicles/maps/Sceneryobjects/Splines` ou `mod` e identificação de candidatos `.scs/.zip` apenas por nome.
+
+Agora `electron/inspection-grant.cjs` vincula a seleção do diálogo nativo a um **grant efêmero e de uso único**, privado do processo principal. A autorização expira após 15 segundos, não pode ser copiada por JSON e vincula a inspeção a um `webContents` e identificador de jogo específicos. A origem é verificada antes do diálogo, depois da escolha e antes de entregar o resultado. O renderer continua sem poder fornecer caminhos para escanear ou solicitar escrita.
+
+**18 testes Node novos** estão incluídos em `npm run test:security`, que passa de **14 para 32 testes** se a CI validar a revisão. A suíte anterior de 126 testes do laboratório continua separada, assim como as 744 verificações Playwright. O pacote Electron permanece só de leitura, sem novas operações de instalação, backup, desinstalação ou recuperação real.
+
+**Limitação:** uma autorização de interface não equivale a identificação atômica de diretórios por handle; ainda existem possíveis janelas TOCTOU entre `lstat` e `opendir`. Veja [consentimento para inspeção somente leitura](docs/READ-ONLY-INSPECTION-CONSENT.md).

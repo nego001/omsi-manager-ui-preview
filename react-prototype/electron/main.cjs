@@ -3,7 +3,9 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./security-policy.cjs');
-const { requireGameId, inspectGameDirectory } = require('./game-inspection.cjs');
+const { requireGameId } = require('./game-inspection.cjs');
+const { createInspectionGrantGate } = require('./inspection-grant.cjs');
+const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
 
@@ -52,9 +54,17 @@ app.whenReady().then(() => {
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = process.env.OMSI_MANAGER_DEV_PREVIEW === '1'
       ? DEV_URL : pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href;
-    if (!win || win.isDestroyed() || !event.senderFrame ||
-        event.senderFrame !== event.sender.mainFrame ||
-        !isAllowedTopLevelURL(event.senderFrame.url, expectedURL)) {
+    const originalFrame = event.senderFrame;
+    // Dialog interaction is consent for exactly one scan in this webContents.
+    // Re-check origin and frame after the native dialog and after the scan:
+    // neither a delayed IPC reply nor a navigation may reuse the selection.
+    const senderAuthorized = () => Boolean(
+      win && !win.isDestroyed() && !event.sender.isDestroyed() &&
+      originalFrame && event.senderFrame === originalFrame &&
+      event.sender.mainFrame === originalFrame &&
+      isAllowedTopLevelURL(originalFrame.url, expectedURL)
+    );
+    if (!senderAuthorized()) {
       throw new Error('Origem da inspeção não autorizada.');
     }
     // Defend against parallel IPC requests that could spawn multiple native dialogs.
@@ -67,10 +77,17 @@ app.whenReady().then(() => {
         title: 'Selecione a pasta do jogo (somente leitura)',
         properties: ['openDirectory', 'dontAddToRecent']
       });
+      if (!senderAuthorized())
+        return { status: 'error', message: 'Origem da inspeção não autorizada.' };
       if (choice.canceled || choice.filePaths.length !== 1)
         return { status: 'cancelled' };
       try {
-        return await inspectGameDirectory(choice.filePaths[0], gameId);
+        const grant = inspectionGrantGate.issue(choice.filePaths[0], gameId, senderId);
+        // issue happens only after native user selection. Consume at most once.
+        const result = await inspectionGrantGate.inspectOnce(grant, senderId, gameId);
+        if (!senderAuthorized())
+          return { status: 'error', message: 'Origem da inspeção não autorizada.' };
+        return result;
       } catch {
         // Do not send absolute paths, file names, or filesystem errors to renderer.
         return { status: 'error', message: 'Não foi possível inspecionar essa pasta.' };
