@@ -543,3 +543,36 @@ ou inexistir conforme volume. A evidência não autoriza
 inspeção de pastas de jogos, instalação, exclusão ou
 recuperação. Electron continua sem vínculo com
 o laboratório nativo de teste.
+
+
+## Recusa de USN após restauração de todos os FILE_BASIC_INFO
+
+O teste Windows `restore-basic-times.synthetic.ps1`
+é um **mutador de fixture separado**, nunca integrado
+ao helper C# de observação read-only ou ao Electron.
+Exige TEMP como pai direto, marcador nonce válido,
+nome artificial específico, ausência de reparse e
+somente um hardlink. Ele grava e restaura bytes
+fictícios e recupera **CreationTime, LastAccessTime,
+LastWriteTime, ChangeTime e FileAttributes** via
+`SetFileInformationByHandle(FileBasicInfo)`.
+A igualdade com a linha de base é exigida tanto
+com handle aberto quanto **após fechá-lo e reabri-lo**,
+antes de reportar `RESTORATION_PERFORMED`.
+
+O observador C# consulta USN do **mesmo FileId**
+através do seu handle com acesso apenas a atributos.
+Se o número avança, retorna **recusa de teste 12**
+e stderr genérico, sem JSON ou autorização. A CI
+Windows apresentou esse resultado e aprovou o
+controle de nonce incorreto, que não altera o arquivo.
+
+Este experimento demonstra mudança no USN **apesar
+da igualdade final dos metadados básicos**. Não
+comprova qual operação individual avançou o USN,
+não reconstrói histórico intermediário e não prova
+a segurança de checkpoints USN em situações de
+reinício, perda, desativação ou substituição do
+journal. Todos os indicadores de permissão e
+garantia anti-ABA permanecem **false**; nenhum
+jogo ou mod real é lido ou alterado.
