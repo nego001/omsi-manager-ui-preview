@@ -351,3 +351,11 @@ nem equivalência entre retorno zero e erro 1022. Não habilitar
 inspeção real, nem concluir ausência de ABA/TOCTOU a partir desse
 resultado. Testes de overflow acumulado e filesystems distintos
 continuam pendentes.
+
+
+**Evidência observada na CI Windows em 25/10/2026:** o ensaio de
+buffer de 64 bytes retornou **conclusão com ZERO bytes de detalhes**
+(saída 6), como registrado na linha de diagnóstico sanitizada do
+runner. Isso comprova o retorno sem detalhes nessa execução, mas
+**não** comprova que ocorreu o erro 1022 ou que uma fila acumulada
+estourou. A distinção é obrigatória para não inflar garantias.
