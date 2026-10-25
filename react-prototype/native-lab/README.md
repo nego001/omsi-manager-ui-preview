@@ -575,3 +575,54 @@ ou identidade persistente em todos os tipos de filesystem.
 `supportsRealGameInspection:false`, `operationsEnabled:false`
 permanecem. O helper não integra o Electron distribuído e não
 inspeciona arquivos de jogos reais.
+
+
+## Metadados nativos como testemunhos limitados de ABA em conteúdo (25/10/2026)
+
+O modo **estritamente sintético** `--rdcw-probe
+--test-inplace-aba` requer um `metadata-probe.scs`
+fictício na pasta TEMP previamente autenticada com nonce.
+O helper abre o filho por `NtOpenFile` relativo ao diretório
+fixado usando somente `FILE_READ_ATTRIBUTES` e
+`SYNCHRONIZE`, **sem `FILE_READ_DATA`**. Guarda o
+`FILE_ID_INFO` e os atributos básicos retornados por
+`GetFileInformationByHandleEx` (`FileBasicInfo`) antes
+da barreira `READY/CONTINUE`; reabre o mesmo nome e
+consulta o handle retido depois. Não lê bytes do `.scs`,
+não expõe caminho, conteúdo, ID ou datas.
+
+O teste externo cria o arquivo fictício e regrava seus
+bytes temporariamente, depois restaura o conteúdo original.
+Se o `FileId` mudou, o laboratório **recusa com 9**;
+se a identidade é a mesma mas pelo menos um entre
+`CreationTime`, `LastWriteTime`, `ChangeTime`
+ou os atributos mudou, **recusa com 10**.
+Um controle sem mutação **recusa com 3**, sem inventar
+testemunho de modificação. Nunca há autorização,
+`SCAN_ONLY` nem JSON de sucesso nessa modalidade.
+
+Há um segundo ensaio, com data de última escrita
+estabelecida de antemão e restaurada após regravação de
+bytes. Se o `FileId`, `CreationTime`,
+`LastWriteTime` e atributos continuam iguais
+mas **`ChangeTime` é diferente**, o helper devolve
+**recusa com código 11**. O runner Windows da CI,
+identificado previamente como NTFS, **observou o código
+11** nesse teste. Este é um testemunho do comportamento
+da API nativa na fixture testada; não demonstra leitura de
+conteúdo pelo helper nem detecção universal de alterações.
+
+**Limitações obrigatórias:** os sinais são metadados de
+checkpoints, não registros duráveis de todas as alterações.
+Algumas operações podem não alterar os campos conferidos;
+os tempos podem ser restaurados e sistemas ReFS/SMB
+podem se comportar diferentemente. Os ensaios de conteúdo
+são independentes do experimento de overflow acumulado:
+renomear o próprio arquivo 900 vezes também modificaria
+metadados e impediria atribuir a mudança apenas à
+regravação de bytes. Portanto, **não se declara defesa
+ABA garantida**, nem associação transacional de handle
+e pathname. Os 21 campos normais continuam com
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e
+`operationsEnabled:false`.
