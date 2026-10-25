@@ -292,6 +292,129 @@ internal static class Program
         public void Dispose() => notification.Dispose();
     }
 
+    // Explicit opt-in Win32 proof, exclusively for synthetic fixtures.
+    // One pending OVERLAPPED ReadDirectoryChangesW call per directory.
+    // The buffer is never parsed: ANY completion (including overflow,
+    // cancellation, zero bytes, or an I/O error) means fail closed.
+    // Nothing is rearmed and no names or paths are reported.
+    private sealed class BoundedNativeChangeProbe : IDisposable
+    {
+        private const int BufferBytes = 4096;
+        private const uint WaitTimeout = 0x00000102;
+        private const uint ErrorIoPending = 997;
+        private const uint StructuralChanges = 0x00000001 | 0x00000002;
+        private SafeFileHandle? directory;
+        private SafeWaitHandle? signal;
+        private IntPtr buffer;
+        private IntPtr overlapped;
+        private bool pending;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct OverlappedHeader
+        {
+            public IntPtr Internal, InternalHigh;
+            public uint Offset, OffsetHigh;
+            public IntPtr Event;
+        }
+
+        [DllImport("kernel32.dll", EntryPoint = "CreateEventW",
+            CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern SafeWaitHandle CreateEvent(
+            IntPtr security, [MarshalAs(UnmanagedType.Bool)] bool manualReset,
+            [MarshalAs(UnmanagedType.Bool)] bool initialState, string? name);
+
+        [DllImport("kernel32.dll", EntryPoint = "ReadDirectoryChangesW", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ReadChanges(
+            SafeFileHandle directory, IntPtr notificationBuffer, uint bufferLength,
+            [MarshalAs(UnmanagedType.Bool)] bool subtree, uint filter,
+            out uint bytesReturned, IntPtr nativeOverlapped, IntPtr completionRoutine);
+
+        [DllImport("kernel32.dll", EntryPoint = "CancelIoEx", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool CancelPending(
+            SafeFileHandle directory, IntPtr nativeOverlapped);
+
+        [DllImport("kernel32.dll", EntryPoint = "WaitForSingleObject", SetLastError = true)]
+        private static extern uint WaitEvent(SafeWaitHandle signal, uint milliseconds);
+
+        public BoundedNativeChangeProbe(string path, SafeFileHandle original)
+        {
+            try
+            {
+                // New name-based handle is checked against a retained relative
+                // directory handle before registration. NOT an atomic binding.
+                const uint access = 0x0001 | 0x0080;
+                const uint flags = 0x02000000 | 0x00200000 | 0x40000000;
+                directory = CreateFile(path, access, 7, IntPtr.Zero, 3, flags, IntPtr.Zero);
+                if (directory is null || directory.IsInvalid) Deny();
+                if (!Same(Identity(original), Identity(directory))) Deny();
+                if (!QueryTag(directory, FileAttributeTagInfoClass,
+                        out FileAttributeTagInfo tag,
+                        (uint)Marshal.SizeOf<FileAttributeTagInfo>()) ||
+                    (tag.FileAttributes & 0x400U) != 0U ||
+                    (tag.FileAttributes & 0x10U) == 0U) Deny();
+
+                signal = CreateEvent(IntPtr.Zero, true, false, null);
+                if (signal is null || signal.IsInvalid) Deny();
+                buffer = Marshal.AllocHGlobal(BufferBytes);
+                overlapped = Marshal.AllocHGlobal(Marshal.SizeOf<OverlappedHeader>());
+                Marshal.StructureToPtr(new OverlappedHeader
+                {
+                    Event = signal.DangerousGetHandle()
+                }, overlapped, false);
+
+                bool immediate = ReadChanges(directory, buffer, BufferBytes, false,
+                    StructuralChanges, out _, overlapped, IntPtr.Zero);
+                if (immediate) Deny(); // an event already completed
+                if (Marshal.GetLastWin32Error() != ErrorIoPending) Deny();
+                pending = true;
+                VerifyQuiet();
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
+        }
+
+        public void VerifyQuiet()
+        {
+            if (!pending || signal is null || signal.IsInvalid ||
+                WaitEvent(signal, 0) != WaitTimeout) Deny();
+        }
+
+        public void Dispose()
+        {
+            // The unmanaged OVERLAPPED and buffer MUST outlive any pending
+            // kernel I/O. Cancel, then wait a bounded 2 seconds for its event.
+            // If cancellation cannot be confirmed, deliberately leave the
+            // tiny unmanaged allocations alive until process exit: freeing
+            // them while Windows might still write would be a UAF.
+            bool completed = !pending;
+            if (pending && directory is not null && !directory.IsInvalid &&
+                signal is not null && !signal.IsInvalid)
+            {
+                try
+                {
+                    _ = CancelPending(directory, overlapped);
+                    completed = WaitEvent(signal, 2000) == 0;
+                }
+                catch { completed = false; }
+            }
+            directory?.Dispose();
+            signal?.Dispose();
+            if (completed)
+            {
+                if (overlapped != IntPtr.Zero) Marshal.FreeHGlobal(overlapped);
+                if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+            }
+            overlapped = IntPtr.Zero;
+            buffer = IntPtr.Zero;
+            pending = false;
+        }
+    }
+
     private static void VerifyMarkerBytes(SafeFileHandle marker, string nonce)
     {
         // 33 bytes make an appended byte an explicit failure, not a silent
@@ -552,10 +675,15 @@ internal static class Program
     {
         try
         {
-            bool raceBarrier = args.Length == 5 &&
+            // Extra flags only select a safer synthetic diagnostic; they
+            // never enable actual game access or any mutation operation.
+            bool raceBarrier = args.Length >= 5 &&
                 String.Equals(args[4], "--race-barrier", StringComparison.Ordinal);
+            bool rdcwProbe = (args.Length == 5 && args[4] == "--rdcw-probe") ||
+                (args.Length == 6 && raceBarrier && args[5] == "--rdcw-probe");
             if (!OperatingSystem.IsWindows() ||
-                !(args.Length == 4 || raceBarrier) ||
+                !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
+                    (args.Length == 6 && raceBarrier && rdcwProbe)) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -587,11 +715,19 @@ internal static class Program
             using SafeFileHandle heldTarget = OpenChildDirectory(heldRoot, "native-enum");
             using DirectoryChangeFence rootChanges = new(root, heldRoot);
             using DirectoryChangeFence targetChanges = new(target, heldTarget);
+            using BoundedNativeChangeProbe? rootDetail = rdcwProbe
+                ? new BoundedNativeChangeProbe(root, heldRoot) : null;
+            using BoundedNativeChangeProbe? targetDetail = rdcwProbe
+                ? new BoundedNativeChangeProbe(target, heldTarget) : null;
             rootChanges.VerifyNotSignaled();
             targetChanges.VerifyNotSignaled();
+            rootDetail?.VerifyQuiet();
+            targetDetail?.VerifyQuiet();
             int[] v = Inspect(heldRoot, target, raceBarrier ? (Action)PauseForTestMutation : null);
             rootChanges.VerifyNotSignaled();
             targetChanges.VerifyNotSignaled();
+            rootDetail?.VerifyQuiet();
+            targetDetail?.VerifyQuiet();
             VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
                 ancestors.TemporaryHandle);
             VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic,
@@ -599,6 +735,8 @@ internal static class Program
             ancestors.Verify();
             rootChanges.VerifyNotSignaled();
             targetChanges.VerifyNotSignaled();
+            rootDetail?.VerifyQuiet();
+            targetDetail?.VerifyQuiet();
             Console.Out.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
             {
                 ["source"] = "temporary-native-windows-directory-fixture",
