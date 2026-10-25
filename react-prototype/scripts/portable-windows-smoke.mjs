@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {listPackage} from '@electron/asar';
 import {access, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -34,16 +35,16 @@ try{
  assert.ok(info.appPath.includes('app.asar'),'Aplicação deve rodar dentro de app.asar');
  // The experimental C# executable and fixture scripts MUST be absent from
  // the actual Electron app.asar, not merely hidden in the UI.
- const packedBoundary=await application.evaluate(({app})=>{
-   const {existsSync}=require('node:fs');
-   const {join}=require('node:path');
-   return {
-     nativeLabIncluded:existsSync(join(app.getAppPath(),'native-lab')),
-     scriptsIncluded:existsSync(join(app.getAppPath(),'scripts'))
-   };
- });
- assert.deepEqual(packedBoundary,{nativeLabIncluded:false,scriptsIncluded:false},
-  'Native lab and test-only scripts must never ship inside app.asar');
+ // Read the real app.asar archive using the dedicated asar parser.
+ // Playwright's Electron evaluate() does not expose require(), even in the
+ // main-process context. Inspecting the archive outside evaluate is reliable.
+ const archivedEntries=listPackage(info.appPath);
+ assert.ok(Array.isArray(archivedEntries)&&archivedEntries.length>0,
+  'Packaged app.asar should expose a nonempty file manifest');
+ const forbidden=archivedEntries.filter(entry=>
+  /(^|\/)(native-lab|scripts)(\/|$)/.test(entry.replace(/\\/g,'/')));
+ assert.deepEqual(forbidden,[],
+  'The native C# lab and fixture scripts must not be packaged in app.asar');
  assert.ok(info.windows>0,'Deve abrir uma janela');
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor({timeout:30000});
