@@ -65,12 +65,13 @@ public static class SyntheticBasicTimeRestoration {
     private static extern bool GetNativeInfo(SafeFileHandle handle,
         out NativeFileInfo info);
 
-    private static bool Same(FileBasicInfo a, FileBasicInfo b) =>
-        a.CreationTime == b.CreationTime &&
-        a.LastAccessTime == b.LastAccessTime &&
-        a.LastWriteTime == b.LastWriteTime &&
-        a.ChangeTime == b.ChangeTime &&
-        a.FileAttributes == b.FileAttributes;
+    private static bool Same(FileBasicInfo a, FileBasicInfo b) {
+        return a.CreationTime == b.CreationTime &&
+            a.LastAccessTime == b.LastAccessTime &&
+            a.LastWriteTime == b.LastWriteTime &&
+            a.ChangeTime == b.ChangeTime &&
+            a.FileAttributes == b.FileAttributes;
+    }
 
     public static void Run(string file) {
         const uint readAttributes = 0x80, writeAttributes = 0x100;
