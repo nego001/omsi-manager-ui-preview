@@ -152,6 +152,10 @@ internal static class Program
     // This does not prove that every in-place ABA leaves such metadata.
     private sealed class SyntheticChildMetadataMismatch : Exception { }
 
+    // Narrower test-only witness. The original creation and last-write times
+    // and attributes match, while NTFS still reports a new ChangeTime.
+    private sealed class SyntheticChangeTimeOnlyMismatch : Exception { }
+
     private static bool SameStableMetadata(FileBasicInfo before, FileBasicInfo after) =>
         before.CreationTime == after.CreationTime &&
         before.LastWriteTime == after.LastWriteTime &&
@@ -187,6 +191,11 @@ internal static class Program
         FileBasicInfo afterPinned = Basic(heldChild);
         FileBasicInfo afterReopened = Basic(currentChild);
         if (!SameStableMetadata(afterPinned, afterReopened)) Deny();
+        if (baseline.CreationTime == afterPinned.CreationTime &&
+            baseline.LastWriteTime == afterPinned.LastWriteTime &&
+            baseline.FileAttributes == afterPinned.FileAttributes &&
+            baseline.ChangeTime != afterPinned.ChangeTime)
+            throw new SyntheticChangeTimeOnlyMismatch();
         if (!SameStableMetadata(baseline, afterPinned))
             throw new SyntheticChildMetadataMismatch();
         Deny(); // A quiet child is still a refused diagnostic, not success.
@@ -1135,6 +1144,13 @@ internal static class Program
                 ["bytesReadFromMods"] = 0
             }));
             return 0;
+        }
+        catch (SyntheticChangeTimeOnlyMismatch)
+        {
+            // Exit 11: the same child's ChangeTime moved even though visible
+            // create/write times and attribute bits match the baseline.
+            Console.Error.WriteLine(Refusal);
+            return 11;
         }
         catch (SyntheticChildMetadataMismatch)
         {
