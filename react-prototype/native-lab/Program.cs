@@ -64,6 +64,35 @@ internal static class Program
         string name, uint access, uint share, IntPtr security,
         uint creation, uint flags, IntPtr templateFile);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct UnicodeString
+    {
+        public ushort Length, MaximumLength;
+        public IntPtr Buffer;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ObjectAttributes
+    {
+        public uint Length;
+        public IntPtr RootDirectory, ObjectName;
+        public uint Attributes;
+        public IntPtr SecurityDescriptor, SecurityQualityOfService;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IoStatusBlock
+    {
+        public IntPtr Status;
+        public IntPtr Information;
+    }
+
+    [DllImport("ntdll.dll", ExactSpelling = true)]
+    private static extern int NtOpenFile(
+        out SafeFileHandle handle, uint desiredAccess,
+        ref ObjectAttributes objectAttributes, out IoStatusBlock ioStatus,
+        uint shareAccess, uint openOptions);
+
     [DllImport("kernel32.dll", EntryPoint = "GetFileInformationByHandleEx", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool QueryId(
@@ -107,6 +136,73 @@ internal static class Program
         return handle!;
     }
 
+    // Open exactly ONE name relative to an already verified directory handle.
+    // OPEN_REPARSE_POINT prevents following a junction/symlink at this leaf.
+    // NtOpenFile RootDirectory avoids re-resolving intermediary path strings.
+    private static SafeFileHandle OpenRelative(
+        SafeFileHandle parent, string name, bool directory)
+    {
+        const uint readAttributes = 0x0080, synchronize = 0x00100000;
+        const uint shareAll = 0x0007, directoryFile = 0x00000001;
+        const uint nonDirectoryFile = 0x00000040, synchronous = 0x00000020;
+        const uint openReparsePoint = 0x00200000, caseInsensitive = 0x00000040;
+        if (String.IsNullOrEmpty(name) || name is "." or ".." ||
+            name.Length > 255 || name.EndsWith('.') || name.EndsWith(' ') ||
+            name.IndexOfAny(['\\', '/', ':', '\0']) >= 0) Deny();
+
+        IntPtr buffer = IntPtr.Zero, unicodePointer = IntPtr.Zero;
+        try
+        {
+            buffer = Marshal.StringToHGlobalUni(name);
+            UnicodeString unicode = new()
+            {
+                Length = checked((ushort)(name.Length * 2)),
+                MaximumLength = checked((ushort)((name.Length + 1) * 2)),
+                Buffer = buffer
+            };
+            unicodePointer = Marshal.AllocHGlobal(Marshal.SizeOf<UnicodeString>());
+            Marshal.StructureToPtr(unicode, unicodePointer, false);
+            ObjectAttributes attributes = new()
+            {
+                Length = (uint)Marshal.SizeOf<ObjectAttributes>(),
+                RootDirectory = parent.DangerousGetHandle(),
+                ObjectName = unicodePointer,
+                Attributes = caseInsensitive
+            };
+            uint access = readAttributes | synchronize | (directory ? 0x0001U : 0x0001U);
+            uint options = synchronous | openReparsePoint |
+                (directory ? directoryFile : nonDirectoryFile);
+            int status = NtOpenFile(out SafeFileHandle handle, access,
+                ref attributes, out _, shareAll, options);
+            if (status < 0 || handle is null || handle.IsInvalid)
+            {
+                handle?.Dispose();
+                Deny();
+            }
+            FileAttributeTagInfo tag;
+            if (!QueryTag(handle!, FileAttributeTagInfoClass, out tag,
+                    (uint)Marshal.SizeOf<FileAttributeTagInfo>()) ||
+                (tag.FileAttributes & 0x400U) != 0U ||
+                ((tag.FileAttributes & 0x10U) != 0U) != directory)
+            {
+                handle!.Dispose();
+                Deny();
+            }
+            return handle!;
+        }
+        finally
+        {
+            if (unicodePointer != IntPtr.Zero) Marshal.FreeHGlobal(unicodePointer);
+            if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
+        }
+    }
+
+    private static SafeFileHandle OpenChildDirectory(SafeFileHandle parent, string name) =>
+        OpenRelative(parent, name, true);
+
+    private static SafeFileHandle OpenChildMarker(SafeFileHandle parent, string name) =>
+        OpenRelative(parent, name, false);
+
     private static SafeFileHandle OpenMarker(string marker)
     {
         // Open the marker itself as a file, never follow its final reparse
@@ -142,7 +238,8 @@ internal static class Program
 
     private static void VerifyHeldMarker(
         string path, string nonce, SafeFileHandle heldMarker,
-        FileIdInfo initialId, FileBasicInfo initialBasic)
+        FileIdInfo initialId, FileBasicInfo initialBasic,
+        SafeFileHandle parent)
     {
         FileIdInfo currentId = Identity(heldMarker);
         FileBasicInfo currentBasic = Basic(heldMarker);
@@ -153,9 +250,11 @@ internal static class Program
 
         // Compare pathname identity *while* the original file handle is held:
         // an identically written replacement must not inherit the old grant.
-        using SafeFileHandle reopened = OpenMarker(path);
+        using SafeFileHandle reopened = OpenChildMarker(parent, Path.GetFileName(path));
         if (!Same(initialId, Identity(reopened))) Deny();
         VerifyMarkerBytes(reopened, nonce);
+        using SafeFileHandle pathReopened = OpenMarker(path);
+        if (!Same(initialId, Identity(pathReopened))) Deny();
     }
 
     private static FileIdInfo Identity(SafeFileHandle handle)
@@ -178,14 +277,16 @@ internal static class Program
         a.FileId is not null && b.FileId is not null &&
         a.FileId.AsSpan().SequenceEqual(b.FileId);
 
-    // Pin every component of the TEMP ancestor path, including the volume
-    // root. CreateFileW with OPEN_REPARSE_POINT on only the leaf does not
-    // protect against a junction in a parent component.
-    // A held handle plus a second pathname open detects observable swaps;
-    // these checkpoints still do not prove atomic containment or prevent ABA.
+    // RootDirectory is used for every child, keeping the chain anchored to
+    // verified parent handles even if pathnames are concurrently redirected.
+    // Reopening absolute paths provides a separate fail-closed consistency
+    // checkpoint. This still does not prove ABA resistance or atomic traversal.
     private sealed class AncestorPins : IDisposable
     {
-        private readonly List<(string Path, SafeFileHandle Handle, FileIdInfo Id)> pins = new();
+        private readonly List<(string Path, string Name,
+            SafeFileHandle Handle, FileIdInfo Id)> pins = new();
+
+        public SafeFileHandle TemporaryHandle => pins[^1].Handle;
 
         public static AncestorPins Pin(string directory)
         {
@@ -206,8 +307,11 @@ internal static class Program
                 while (chain.Count > 0)
                 {
                     string path = chain.Pop();
-                    SafeFileHandle handle = OpenDirectory(path);
-                    try { result.pins.Add((path, handle, Identity(handle))); }
+                    string name = result.pins.Count == 0 ? "" : Path.GetFileName(path);
+                    SafeFileHandle handle = result.pins.Count == 0
+                        ? OpenDirectory(path)
+                        : OpenChildDirectory(result.pins[^1].Handle, name);
+                    try { result.pins.Add((path, name, handle, Identity(handle))); }
                     catch { handle.Dispose(); throw; }
                 }
                 result.Verify();
@@ -222,9 +326,16 @@ internal static class Program
 
         public void Verify()
         {
-            foreach (var pin in pins)
+            for (int i = 0; i < pins.Count; i++)
             {
+                var pin = pins[i];
                 if (!Same(pin.Id, Identity(pin.Handle))) Deny();
+                if (i > 0)
+                {
+                    using SafeFileHandle relative =
+                        OpenChildDirectory(pins[i - 1].Handle, pin.Name);
+                    if (!Same(pin.Id, Identity(relative))) Deny();
+                }
                 using SafeFileHandle reopened = OpenDirectory(pin.Path);
                 if (!Same(pin.Id, Identity(reopened))) Deny();
             }
@@ -237,7 +348,7 @@ internal static class Program
         }
     }
 
-    private static string ValidateFixture(string root, string nonce)
+    private static string ValidateFixturePath(string root, string nonce)
     {
         if (!Regex.IsMatch(nonce, "^[a-f0-9]{32}$", RegexOptions.CultureInvariant)) Deny();
         if (!Path.IsPathFullyQualified(root)) Deny();
@@ -249,7 +360,12 @@ internal static class Program
             !Regex.IsMatch(Path.GetFileName(directory),
                 "^omsi-manager-recovery-fixture-[A-Za-z0-9_-]+$",
                 RegexOptions.CultureInvariant)) Deny();
+        return directory;
+    }
 
+    private static string ValidateFixture(string root, string nonce)
+    {
+        string directory = ValidateFixturePath(root, nonce);
         DirectoryInfo dirInfo = new(directory);
         if (!dirInfo.Exists ||
             (dirInfo.Attributes & FileAttributes.ReparsePoint) != 0) Deny();
@@ -267,14 +383,15 @@ internal static class Program
         return target;
     }
 
-    private static int[] Inspect(string directory, Action? pauseForMutation = null)
+    private static int[] Inspect(
+        SafeFileHandle parent, string directory, Action? pauseForMutation = null)
     {
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
         int nameOffset = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileName");
         if (attrs != 56 || nameSize != 60 || nameOffset != 104) Deny();
 
-        using SafeFileHandle held = OpenDirectory(directory);
+        using SafeFileHandle held = OpenChildDirectory(parent, Path.GetFileName(directory));
         FileIdInfo initial = Identity(held);
         FileBasicInfo initialBasic = Basic(held);
         // A Windows-only test barrier permits a second process to mutate the
@@ -344,8 +461,10 @@ internal static class Program
             initialBasic.ChangeTime != finalBasic.ChangeTime ||
             initialBasic.LastWriteTime != finalBasic.LastWriteTime) Deny();
 
-        using SafeFileHandle reopened = OpenDirectory(directory);
+        using SafeFileHandle reopened = OpenChildDirectory(parent, Path.GetFileName(directory));
         if (!Same(initial, Identity(reopened))) Deny();
+        using SafeFileHandle reopenedPath = OpenDirectory(directory);
+        if (!Same(initial, Identity(reopenedPath))) Deny();
         return [entries, folders, files, links, packages];
     }
 
@@ -363,7 +482,8 @@ internal static class Program
 
     private static void VerifyHeldFixtureRoot(
         string root, string nonce, SafeFileHandle heldRoot,
-        FileIdInfo initialId, FileBasicInfo initialBasic)
+        FileIdInfo initialId, FileBasicInfo initialBasic,
+        SafeFileHandle parent)
     {
         FileIdInfo currentId = Identity(heldRoot);
         FileBasicInfo currentBasic = Basic(heldRoot);
@@ -372,8 +492,10 @@ internal static class Program
             initialBasic.LastWriteTime != currentBasic.LastWriteTime) Deny();
         // Compare to a separately opened pathname while the first handle is
         // still alive. This catches many rename/swap races, not all ABA.
-        using SafeFileHandle reopened = OpenDirectory(root);
+        using SafeFileHandle reopened = OpenChildDirectory(parent, Path.GetFileName(root));
         if (!Same(initialId, Identity(reopened))) Deny();
+        using SafeFileHandle reopenedPath = OpenDirectory(root);
+        if (!Same(initialId, Identity(reopenedPath))) Deny();
         // Check the nonce again after the enumeration, rather than trusting
         // an early marker read which may have been invalidated in the interim.
         string verified = ValidateFixture(root, nonce);
@@ -393,23 +515,27 @@ internal static class Program
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
             using AncestorPins ancestors = AncestorPins.Pin(Path.GetTempPath());
-            string target = ValidateFixture(args[1], args[3]);
-            string root = Path.GetDirectoryName(target) ?? throw new IOException(Refusal);
+            string root = ValidateFixturePath(args[1], args[3]);
+            string target = Path.Combine(root, "native-enum");
             // Anchor the synthetic root itself in an OS handle for the entire
             // observation, not only the native-enum child directory.
-            using SafeFileHandle heldRoot = OpenDirectory(root);
+            using SafeFileHandle heldRoot =
+                OpenChildDirectory(ancestors.TemporaryHandle, Path.GetFileName(root));
             FileIdInfo rootId = Identity(heldRoot);
             FileBasicInfo rootBasic = Basic(heldRoot);
             string markerPath = Path.Combine(root, ".omsi-test-fixture-marker");
-            using SafeFileHandle heldMarker = OpenMarker(markerPath);
+            using SafeFileHandle heldMarker =
+                OpenChildMarker(heldRoot, ".omsi-test-fixture-marker");
             FileIdInfo markerId = Identity(heldMarker);
             FileBasicInfo markerBasic = Basic(heldMarker);
             VerifyMarkerBytes(heldMarker, args[3]);
             if (!String.Equals(ValidateFixture(root, args[3]), target,
                     StringComparison.OrdinalIgnoreCase)) Deny();
-            int[] v = Inspect(target, raceBarrier ? (Action)PauseForTestMutation : null);
-            VerifyHeldFixtureRoot(root, args[3], heldRoot, rootId, rootBasic);
-            VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic);
+            int[] v = Inspect(heldRoot, target, raceBarrier ? (Action)PauseForTestMutation : null);
+            VerifyHeldFixtureRoot(root, args[3], heldRoot, rootId, rootBasic,
+                ancestors.TemporaryHandle);
+            VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic,
+                heldRoot);
             ancestors.Verify();
             Console.Out.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
             {
