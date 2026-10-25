@@ -280,3 +280,14 @@ O relatório retorna **somente contagens**, diferencia diretórios, arquivos, li
 `npm run test:identity:directory:windows` executa **12 cenários Windows-only**. `npm run test:recovery:fixture` agrega esses testes à matriz existente, agora com **138 testes Node** (87 multiplataforma e 51 exclusivos Windows); no Linux os 12 novos casos recebem skip intencional. O pacote Electron e seu handler `preview:inspect-game` **não importam nem executam a sonda**. A enumeração do aplicativo real continua a existente em `electron/game-inspection.cjs`, com checkpoints de identidade conservadores.
 
 Mesmo sendo enumeração real por handle do Windows dentro da fixture, a prova **não demonstra eliminação total de ABA/TOCTOU, contenção de pastas de jogo, autenticidade de arquivos ou locks de produção**. Todos os campos de permissão permanecem false; instalação, remoção e recuperação não são habilitadas.
+
+
+### Fronteira de execução principal da inspeção, com proveniência explícita
+
+`electron/inspection-executor.cjs` é o novo ponto de execução do **processo principal do Electron**, chamado exclusivamente depois do grant de pasta escolhida no diálogo nativo. O renderer continua enviando apenas `omsi`, `ets2` ou `ats`, e o caminho real nunca é publicado na resposta. O executor usa o contador existente `game-inspection.cjs`, mantendo o resultado legível e os limites de 2.000 entradas.
+
+A resposta contém `provenance` com `inspectionBackend:'node-directory-metadata'`, `nativeDirectoryEnumeration:'not-connected'`, `abaRuledOut:false`, `atomicPathContainmentProven:false` e todos os poderes de modificar/restaurar arquivos em `false`. A interface informa que o diagnóstico ainda **não** utiliza enumeração nativa de pastas reais, apesar dos laboratórios Windows terem testado a API.
+
+Um **contrato injetável apenas para testes** permite futuramente conectar um observador nativo Windows auxiliar, mas nunca executa PowerShell, scripts de testes ou busca PIDs na distribuição. Solicitar `requireNative:true` sem backend conectado recusa a inspeção *antes de ler a pasta*, e erros do backend não provocam fallback silencioso. Um observador auxiliar nunca transforma um snapshot em prova anti-ABA ou permissão de instalação.
+
+`electron/inspection-executor.test.cjs` adiciona **20 testes de segurança** (meta: **62 Node segurança**), cobrindo origem do caminho mediada pelo grant, backend ausente, evidências malformadas, clones/getters, erros, fail-closed e privacidade. Os **139 testes de laboratório** (87 multiplataforma, 52 Windows-only) permanecem isolados.

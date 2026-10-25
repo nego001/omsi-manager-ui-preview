@@ -8,7 +8,16 @@ export type FolderInspection=
  | {status:'ok';game:InspectionGameId;folderName:string;recognized:boolean;mode:'read-only';
     selectionMode:'parent-folder'|'direct-mod-folder';
     assessment:{scope:'directory-structure-only';compatibilityVerified:false;installationVerified:false;summary:string};
-    limited:boolean;groups:InspectionGroup[];notices:InspectionNotice[]}
+    limited:boolean;groups:InspectionGroup[];notices:InspectionNotice[];
+    provenance?:{
+     inspectionBackend:'node-directory-metadata';
+     nativeDirectoryEnumeration:'not-connected'|'auxiliary-untrusted-observation';
+     nativeIdentityAuthorizesOperations:false;
+     atomicPathContainmentProven:false;
+     abaRuledOut:false;
+     gameFilesOpenedForContent:false;
+     canInstall:false;canUninstall:false;canRecover:false;operationsEnabled:false;
+    }}
  | {status:'cancelled'}
  | {status:'error';message:string};
 declare global {

@@ -3,12 +3,13 @@
 // directory picker. Renderer cannot issue tokens or supply a pathname.
 // A grant is one-shot, short-lived and scoped to a webContents/game pair.
 const path=require('node:path');
-const {requireGameId,inspectGameDirectory}=require('./game-inspection.cjs');
+const {requireGameId}=require('./game-inspection.cjs');
+const {inspectSelectedDirectory}=require('./inspection-executor.cjs');
 const MAX_GRANT_AGE_MS=15000;
 
 function createInspectionGrantGate(options={}){
  const now=options.now||Date.now;
- const inspect=options.inspect||inspectGameDirectory;
+ const inspect=options.inspect||inspectSelectedDirectory;
  if(typeof now!=='function'||typeof inspect!=='function')
   throw new TypeError('Configuração de inspeção inválida.');
  const grants=new WeakMap();
