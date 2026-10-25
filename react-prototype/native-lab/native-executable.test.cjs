@@ -486,3 +486,54 @@ test('a junction posing as fixture root is denied even with matching nonce',
  assert.equal(await fs.readFile(join(alternate.dir,'private.scs'),'utf8'),'UNREAD');
  assert.equal(await fs.readFile(join(alternate.root,MARKER),'utf8'),f.nonce);
 });
+
+test('native helper source never reads marker bytes from an absolute pathname',
+ async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.doesNotMatch(source,/File\\.ReadAll(Text|Bytes)\\s*\\(/);
+ assert.doesNotMatch(source,/new\\s+(?:FileInfo|DirectoryInfo)\\s*\\(/);
+ assert.match(source,/OpenChildMarker\\(heldRoot, "\\.omsi-test-fixture-marker"\\)/);
+ assert.match(source,/VerifyMarkerBytes\\(heldMarker, args\\[3\\]\\)/);
+});
+
+test('a transient nonce rewrite restored before CONTINUE never authorizes native operations',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const marker=join(f.root,MARKER);
+ const r=await race(f,async()=>{
+  await fs.writeFile(marker,'0'.repeat(32));
+  await fs.writeFile(marker,f.nonce);
+ });
+ assert.equal(await fs.readFile(marker,'utf8'),f.nonce);
+ if(r.code===3){
+  raceRejected(r);
+ }else{
+  assert.equal(r.code,0,r.stderr);
+  const parsed=validate({stdout:r.stdout.replace(/^READY\\r?\\n/,''),stderr:r.stderr});
+  assert.equal(parsed.outcome,'observed-bounded-untrusted');
+  assert.equal(parsed.guaranteesNoABA,false);
+  assert.equal(parsed.atomicPathContainmentProven,false);
+  assert.equal(parsed.operationsEnabled,false);
+ }
+});
+
+test('create/remove ABA in native-enum remains untrusted without transactional evidence',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const transient=join(f.dir,'appeared-then-removed.scs');
+ const r=await race(f,async()=>{
+  await fs.writeFile(transient,'UNTRUSTED');
+  await fs.rm(transient);
+ });
+ await assert.rejects(fs.stat(transient),{code:'ENOENT'});
+ if(r.code===3){
+  raceRejected(r);
+ }else{
+  assert.equal(r.code,0,r.stderr);
+  const parsed=validate({stdout:r.stdout.replace(/^READY\\r?\\n/,''),stderr:r.stderr});
+  assert.equal(parsed.outcome,'observed-bounded-untrusted');
+  assert.equal(parsed.entries,0);
+  assert.equal(parsed.guaranteesNoABA,false);
+  assert.equal(parsed.operationsEnabled,false);
+ }
+});
