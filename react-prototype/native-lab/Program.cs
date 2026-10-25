@@ -206,8 +206,7 @@ internal static class Program
     private static void AttestUsnAfterRestoreForSyntheticTest(
         SafeFileHandle heldTarget)
     {
-        if (!String.Equals(SafeVolumeFamily(heldTarget), "NTFS",
-                StringComparison.Ordinal)) Deny();
+        if (!BoundedNativeChangeProbe.HasNtfsVolume(heldTarget)) Deny();
         const string testName = "metadata-probe.scs";
         using SafeFileHandle child = OpenChildFileIdentity(heldTarget, testName);
         FileIdInfo beforeId = Identity(child);
@@ -496,6 +495,10 @@ internal static class Program
             SafeFileHandle directory, IntPtr volumeName, uint volumeNameLength,
             IntPtr serialNumber, IntPtr maxComponentLength, IntPtr fileSystemFlags,
             [Out] StringBuilder fileSystemName, uint fileSystemNameLength);
+
+        public static bool HasNtfsVolume(SafeFileHandle pinnedDirectory) =>
+            String.Equals(SafeVolumeFamily(pinnedDirectory), "NTFS",
+                StringComparison.Ordinal);
 
         private static string SafeVolumeFamily(SafeFileHandle pinnedDirectory)
         {
