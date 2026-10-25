@@ -178,6 +178,65 @@ internal static class Program
         a.FileId is not null && b.FileId is not null &&
         a.FileId.AsSpan().SequenceEqual(b.FileId);
 
+    // Pin every component of the TEMP ancestor path, including the volume
+    // root. CreateFileW with OPEN_REPARSE_POINT on only the leaf does not
+    // protect against a junction in a parent component.
+    // A held handle plus a second pathname open detects observable swaps;
+    // these checkpoints still do not prove atomic containment or prevent ABA.
+    private sealed class AncestorPins : IDisposable
+    {
+        private readonly List<(string Path, SafeFileHandle Handle, FileIdInfo Id)> pins = new();
+
+        public static AncestorPins Pin(string directory)
+        {
+            AncestorPins result = new();
+            try
+            {
+                string cursor = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
+                Stack<string> chain = new();
+                while (true)
+                {
+                    chain.Push(cursor);
+                    string? parent = Path.GetDirectoryName(cursor);
+                    if (String.IsNullOrEmpty(parent) ||
+                        String.Equals(parent, cursor, StringComparison.OrdinalIgnoreCase)) break;
+                    cursor = Path.TrimEndingDirectorySeparator(parent);
+                }
+
+                while (chain.Count > 0)
+                {
+                    string path = chain.Pop();
+                    SafeFileHandle handle = OpenDirectory(path);
+                    try { result.pins.Add((path, handle, Identity(handle))); }
+                    catch { handle.Dispose(); throw; }
+                }
+                result.Verify();
+                return result;
+            }
+            catch
+            {
+                result.Dispose();
+                throw;
+            }
+        }
+
+        public void Verify()
+        {
+            foreach (var pin in pins)
+            {
+                if (!Same(pin.Id, Identity(pin.Handle))) Deny();
+                using SafeFileHandle reopened = OpenDirectory(pin.Path);
+                if (!Same(pin.Id, Identity(reopened))) Deny();
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (var pin in pins) pin.Handle.Dispose();
+            pins.Clear();
+        }
+    }
+
     private static string ValidateFixture(string root, string nonce)
     {
         if (!Regex.IsMatch(nonce, "^[a-f0-9]{32}$", RegexOptions.CultureInvariant)) Deny();
@@ -331,6 +390,9 @@ internal static class Program
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || raceBarrier) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
+            // Refuse a reparse component before any marker/content read. The
+            // TEMP chain remains pinned throughout the native observation.
+            using AncestorPins ancestors = AncestorPins.Pin(Path.GetTempPath());
             string target = ValidateFixture(args[1], args[3]);
             string root = Path.GetDirectoryName(target) ?? throw new IOException(Refusal);
             // Anchor the synthetic root itself in an OS handle for the entire
@@ -348,6 +410,7 @@ internal static class Program
             int[] v = Inspect(target, raceBarrier ? (Action)PauseForTestMutation : null);
             VerifyHeldFixtureRoot(root, args[3], heldRoot, rootId, rootBasic);
             VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic);
+            ancestors.Verify();
             Console.Out.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
             {
                 ["source"] = "temporary-native-windows-directory-fixture",
