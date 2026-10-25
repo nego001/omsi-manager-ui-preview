@@ -359,3 +359,35 @@ buffer de 64 bytes retornou **conclusão com ZERO bytes de detalhes**
 runner. Isso comprova o retorno sem detalhes nessa execução, mas
 **não** comprova que ocorreu o erro 1022 ou que uma fila acumulada
 estourou. A distinção é obrigatória para não inflar garantias.
+
+
+## Evidência de perda acumulada entre leituras (`ReadDirectoryChangesW`)
+
+A fixture Windows dispõe de `--rdcw-probe
+--test-queued-overflow`, que mantém um **mesmo handle Win32**
+e buffer **4096 bytes** ao longo de uma sequência em duas fases:
+
+- Primeiro, uma alteração sintética gera resposta
+  `GetOverlappedResult` **com bytes maior que zero** e sinaliza
+  `STORM_READY`, garantindo que aquela leitura terminou.
+- Depois, durante **900 pares de renomeações** de um `.scs`
+  **fictício**, não há nova chamada a `ReadDirectoryChangesW`.
+  A próxima leitura, já com eventos acumulados, precisa
+  sinalizar perda de detalhes: saída **7** quando o kernel
+  devolve `ERROR_NOTIFY_ENUM_DIR=1022` ou **8**
+  quando termina com **zero bytes**. A saída **3**
+  invalida a prova.
+- Um **controle negativo** de uma só renomeação e restauração
+  exige saída **3**, pois uma fila pequena não deve parecer
+  overflow. Todos os caminhos recusam com stderr genérico,
+  sem conteúdo de nomes, e o arquivo original fica intacto.
+
+**Observação de CI:** foi confirmada **saída 8** após a fila
+de 900 pares, **não erro 1022**. O controle pequeno não
+apresentou esse sinal. Isso reforça a caracterização de perda
+por eventos acumulados no filesystem do runner testado;
+não atesta NTFS, ReFS, SMB ou qualquer outro filesystem
+específico. Tampouco demonstra ausência de alterações não
+detectadas após o último checkpoint ou atomicidade de
+pathname/handle. Os 21 campos de relatório e todas as
+restrições de acesso real permanecem inalterados.
