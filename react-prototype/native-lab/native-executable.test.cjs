@@ -496,7 +496,7 @@ test('native helper source never reads marker bytes from an absolute pathname',
  assert.match(source,/VerifyMarkerBytes\(heldMarker, args\[3\]\)/);
 });
 
-test('a transient nonce rewrite restored before CONTINUE never authorizes native operations',
+test('Win32 change fence rejects transient nonce rewrite even if bytes are restored',
  {skip:!ready},async()=>{
  const f=await fixture();
  const marker=join(f.root,MARKER);
@@ -505,19 +505,10 @@ test('a transient nonce rewrite restored before CONTINUE never authorizes native
   await fs.writeFile(marker,f.nonce);
  });
  assert.equal(await fs.readFile(marker,'utf8'),f.nonce);
- if(r.code===3){
-  raceRejected(r);
- }else{
-  assert.equal(r.code,0,r.stderr);
-  const parsed=validate({stdout:r.stdout.replace(/^READY\r?\n/,''),stderr:r.stderr});
-  assert.equal(parsed.outcome,'observed-bounded-untrusted');
-  assert.equal(parsed.guaranteesNoABA,false);
-  assert.equal(parsed.atomicPathContainmentProven,false);
-  assert.equal(parsed.operationsEnabled,false);
- }
+ raceRejected(r);
 });
 
-test('create/remove ABA in native-enum remains untrusted without transactional evidence',
+test('Win32 change fence refuses create/remove ABA despite identical final entries',
  {skip:!ready},async()=>{
  const f=await fixture();
  const transient=join(f.dir,'appeared-then-removed.scs');
@@ -526,14 +517,28 @@ test('create/remove ABA in native-enum remains untrusted without transactional e
   await fs.rm(transient);
  });
  await assert.rejects(fs.stat(transient),{code:'ENOENT'});
- if(r.code===3){
-  raceRejected(r);
- }else{
-  assert.equal(r.code,0,r.stderr);
-  const parsed=validate({stdout:r.stdout.replace(/^READY\r?\n/,''),stderr:r.stderr});
-  assert.equal(parsed.outcome,'observed-bounded-untrusted');
-  assert.equal(parsed.entries,0);
-  assert.equal(parsed.guaranteesNoABA,false);
-  assert.equal(parsed.operationsEnabled,false);
- }
+ raceRejected(r);
+});
+
+test('Win32 change fence refuses transient create/remove in synthetic fixture root',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const temporary=join(f.root,'transient-subdirectory');
+ const r=await race(f,async()=>{
+  await fs.mkdir(temporary);
+  await fs.rmdir(temporary);
+ });
+ await assert.rejects(fs.stat(temporary),{code:'ENOENT'});
+ raceRejected(r);
+});
+
+test('Win32 change fence does not expose changed file names in errors',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const name='sensitive-synthetic-opaque-file.scs';
+ const r=await race(f,async()=>fs.writeFile(join(f.dir,name),'PRIVATE'));
+ raceRejected(r);
+ assert.equal(r.stderr.includes(name),false);
+ assert.equal(r.stdout.includes(name),false);
+ assert.equal(r.stderr.includes(f.root),false);
 });
