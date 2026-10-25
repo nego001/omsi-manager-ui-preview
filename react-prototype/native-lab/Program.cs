@@ -138,6 +138,11 @@ internal static class Program
     [DoesNotReturn]
     private static void Deny() => throw new IOException(Refusal);
 
+    // Test-only attestation: exit code 4 is reachable exclusively after the
+    // real Windows kernel reports ERROR_OPERATION_ABORTED (995) for the
+    // exact pending directory request. No private data is emitted.
+    private sealed class SyntheticCancellationVerified : Exception { }
+
     private static SafeFileHandle OpenDirectory(string directory)
     {
         const uint listDirectory = 0x0001, readAttributes = 0x0080;
@@ -303,6 +308,7 @@ internal static class Program
         private const uint WaitTimeout = 0x00000102;
         private const uint ErrorIoPending = 997;
         private const uint ErrorIoIncomplete = 996;
+        private const int ErrorOperationAborted = 995;
         private const uint WaitSignaled = 0;
         private const uint StructuralChanges = 0x00000001 | 0x00000002;
         // If the kernel never confirms completion within the bounded wait,
@@ -421,6 +427,26 @@ internal static class Program
             _ = WaitEvent(signal!, 2000);
             VerifyQuiet();
             Deny();
+        }
+
+        // Unlike the generic cancellation test, this verifies exactly what
+        // GetOverlappedResult reports for the cancelled native operation.
+        // It is NOT evidence of a real directory-event buffer overflow.
+        [DoesNotReturn]
+        public void AttestRealCancellationForSyntheticTest()
+        {
+            if (!pending || directory is null || directory.IsInvalid ||
+                signal is null || signal.IsInvalid || overlapped == IntPtr.Zero)
+                Deny();
+            if (!CancelPending(directory, overlapped)) Deny();
+            if (WaitEvent(signal, 2000) != WaitSignaled) Deny();
+            bool completedSuccessfully = ReadCompletion(directory, overlapped,
+                out _, false);
+            int error = Marshal.GetLastWin32Error();
+            if (completedSuccessfully || error != ErrorOperationAborted) Deny();
+            // Main catches this one test-only signal, disposes the pending
+            // native handles, and emits the same generic refusal string.
+            throw new SyntheticCancellationVerified();
         }
 
         public void Dispose()
@@ -735,9 +761,13 @@ internal static class Program
                 (args.Length == 6 && raceBarrier && args[5] == "--rdcw-probe");
             bool injectCancellation = args.Length == 6 &&
                 args[4] == "--rdcw-probe" && args[5] == "--test-cancel-pending-io";
+            bool attestCancellation = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-attest-cancel-995";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
-                    (args.Length == 6 && (raceBarrier && rdcwProbe || injectCancellation))) ||
+                    (args.Length == 6 &&
+                        (raceBarrier && rdcwProbe || injectCancellation ||
+                         attestCancellation))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -769,13 +799,20 @@ internal static class Program
             using SafeFileHandle heldTarget = OpenChildDirectory(heldRoot, "native-enum");
             using DirectoryChangeFence rootChanges = new(root, heldRoot);
             using DirectoryChangeFence targetChanges = new(target, heldTarget);
-            using BoundedNativeChangeProbe? rootDetail = rdcwProbe || injectCancellation
+            using BoundedNativeChangeProbe? rootDetail =
+                rdcwProbe || injectCancellation || attestCancellation
                 ? new BoundedNativeChangeProbe(root, heldRoot) : null;
-            using BoundedNativeChangeProbe? targetDetail = rdcwProbe || injectCancellation
+            using BoundedNativeChangeProbe? targetDetail =
+                rdcwProbe || injectCancellation || attestCancellation
                 ? new BoundedNativeChangeProbe(target, heldTarget) : null;
             if (injectCancellation)
             {
                 rootDetail!.CancelForSyntheticTest();
+                Deny();
+            }
+            if (attestCancellation)
+            {
+                rootDetail!.AttestRealCancellationForSyntheticTest();
                 Deny();
             }
             rootChanges.VerifyNotSignaled();
@@ -821,6 +858,13 @@ internal static class Program
                 ["bytesReadFromMods"] = 0
             }));
             return 0;
+        }
+        catch (SyntheticCancellationVerified)
+        {
+            // Exit 4 is only an internal test witness for kernel status 995;
+            // stdout stays empty, and the generic error is unchanged.
+            Console.Error.WriteLine(Refusal);
+            return 4;
         }
         catch
         {
