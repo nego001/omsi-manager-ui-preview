@@ -494,3 +494,41 @@ pathname permanece sem garantia transacional.
 Referências de API:
 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getvolumeinformationbyhandlew
 https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw
+
+
+## Ensaios de divergência na reenumeração após perda de notificações
+
+O caminho estritamente de laboratório `--rdcw-probe --test-queued-overflow`
+passou a coletar, **em memória e sem emitir nomes**, duas fotografias
+limitadas de `native-enum`: uma depois da primeira leitura válida
+`ReadDirectoryChangesW` e outra após a segunda leitura demonstrar
+perda de detalhes no buffer de 4096 bytes.
+
+Além de comparar as cinco contagens (total, diretórios, arquivos,
+links e candidatos a pacote), o helper compara os **nomes completos
+ordenados com comparação ordinal**, obtidos pela enumeração de diretório
+com handles nativos fixados. Assim, trocar um `.scs` por outro com
+a mesma extensão e a mesma quantidade de arquivos **não** produz
+`SCAN_ONLY`. Nenhum nome sai em stdout/stderr nem entra no JSON
+normal. Nenhum arquivo `.scs` é lido pelo helper.
+
+A suíte Windows executa 900 ciclos de renomeação de um pacote
+**fictício** enquanto a leitura está desarmada e depois injeta quatro
+divergências entre a linha de base e o snapshot final: acrescentar um
+`.zip` inesperado, remover o `.scs` esperado, substituí-lo por um
+nome diferente **sem mudar as contagens** e adulterar os 32 bytes
+do marcador artificial. Os quatro cenários devem recusar com saída
+**3**, sem `SCAN_ONLY`, sem contrato de sucesso e sem revelar caminhos
+ou nonces. A versão com pastas inalteradas, por contraste, preserva
+`SCAN_ONLY` seguido da **recusa** com código 7 ou 8 quando o kernel
+efetivamente comprova perda de informações.
+
+**Limitações:** comparar nomes e contagens não equivale a provar a
+identidade de cada arquivo no decorrer do tempo. Uma sequência ABA
+que termina nos mesmos nomes e contagens pode continuar invisível,
+e as informações históricas dos eventos perdidos não podem ser
+recriadas pela nova enumeração. Não se autoriza recuperar, instalar
+ou excluir dados reais. Os campos
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e
+`operationsEnabled:false` permanecem obrigatórios.
