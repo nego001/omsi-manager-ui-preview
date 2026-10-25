@@ -105,3 +105,14 @@ A experiência não altera renderer, preload, IPC, empacotamento ou pastas dos j
 O retorno `nativeDirectoryHandleUsed:true` e `nativeDirectoryEnumerationByHandle:true` descreve apenas o que a fixture Windows observou. **`nativeIdentityAuthorizedForGameFolders:false`, `guaranteesNoABA:false`, `atomicPathContainmentProven:false`, `supportsRealGameInspection:false`, `canInstall:false`, `canRecover:false` e `operationsEnabled:false`** continuam fixos. Essa sonda permanece fora de Electron/IPC e do pacote distribuído. Ainda não é um adaptador de diretório por handle para o aplicativo real, tampouco demonstra que qualquer estado de disco está imutável entre duas leituras.
 
 A primeira CI desta sonda revelou que uma fixture com 129 arquivos foi reportada com 128 entradas. A regra foi reforçada para **recusar o próprio limite de 128**, sem aceitar a contagem truncada como completa, e foi adicionado um teste de fronteira com exatamente 128 itens. Nenhuma operação real foi habilitada.
+
+
+## Ponte de teste Node → Win32 por handle → executor somente leitura
+
+A etapa cria `scripts/temp-main-native-directory-backend.cjs`, que não integra o pacote Electron ou o IPC. Essa ponte **consome uma única autorização local** e confere `checkedRoot` e a subpasta `native-enum`, ambos temporários e descartáveis, antes de chamar `temp-native-directory-enum.ps1` via `execFile` (sem shell, com timeout de 15 segundos e limite de saída de 4 KiB). A sonda abre o diretório artificial por handle nativo; a ponte valida **21 campos** da saída e reduz a evidência a quatro valores constantes, sem dados de caminhos, FileIds ou conteúdo.
+
+A função resultante implementa, exclusivamente em teste, a assinatura `nativeProbe(selectedRoot,game)` esperada pelo executor `electron/inspection-executor.cjs`. O laboratório testa a integração com `createInspectionExecutor({requireNative:true,platform:'win32'})` e `createInspectionGrantGate`, inclusive com subprocesso Win32 real. Como o `main.cjs` de produção **não injeta a ponte**, a interface normal informa `nativeDirectoryEnumeration:'not-connected'`.
+
+**22 testes novos**, abrangendo vínculo de pasta e jogo, consumo único, chamadas paralelas, marker inválido, reparse/junction, falha/sanitização de `stderr`, orçamento JSON, relatório falsificado, backend faltante, saída malformada e integração completa com grant e contador read-only. Meta agregada: **161 testes de laboratório** (105 gerais, 56 Windows-only), além de 62 Node segurança e 744 Playwright.
+
+A prova **não transporta consentimento real de usuário**, não demonstra ausência de ABA/TOCTOU entre checkpoints, não abre diretórios de jogos, não habilita escrita e não autoriza recuperação. O próximo requisito para integração de produção será um backend nativo separado do laboratório, distribuição e autenticação auditadas, e testes de seleção/pasta reais sem vazamento de dados.

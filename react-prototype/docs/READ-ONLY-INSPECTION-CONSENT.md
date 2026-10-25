@@ -53,3 +53,10 @@ O comportamento é intencionalmente conservador: instalações de jogos modifica
 Foi criado um **porto de observação auxiliar futuro**, injetável exclusivamente pelo código do processo principal e exercitado com função simulada nos testes. A porta não é exposta por preload/IPC e não é ativada na distribuição. Quando uma sessão exige observação nativa (`requireNative:true`), a execução só acontece em Windows com a função explicitamente fornecida; ausência ou evidência inválida causa recusa **antes da inspeção Node**, sem fallback. Mesmo resultados aceitos são rotulados `auxiliary-untrusted-observation`, nunca `ABA-protected`.
 
 A interface das telas existentes mostra o estado da origem do diagnóstico após a escolha da pasta, deixando clara a diferença entre a segurança do pedido pelo diálogo nativo e a ainda ausente integração dos handles nativos. A próxima etapa exige um backend nativo instalado, revisão de passagem de caminhos, isolamento por handle, e testes com substituição de diretórios reais sob várias modalidades de filesystem. Nenhuma instalação/remoção é permitida nesta revisão.
+
+
+## Integração Windows em laboratório, ainda não ativada para pastas reais
+
+`scripts/temp-main-native-directory-backend.cjs` é uma ponte descartável entre `temp-native-directory-enum.ps1` e a assinatura `nativeProbe` esperada pelo executor. Ela verifica uma pasta marcada temporária, valida a saída JSON e retorna apenas uma evidência sintética sem poderes de escrita. Os testes mostram que o executor e o grant de uso único a aceitam somente como **observação auxiliar não confiável**, e rejeitam pedidos trocados, reaproveitados ou malformados.
+
+**Importante:** os arquivos em `scripts/` ficam fora do pacote Electron. O aplicativo instalado **não executa PowerShell**, não chama a sonda Win32 e não utiliza caminhos de jogo no laboratório. O backend nativo de produção, a contenção por handle e a validação em Windows físico ainda são necessários.

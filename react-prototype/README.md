@@ -291,3 +291,14 @@ A resposta contém `provenance` com `inspectionBackend:'node-directory-metadata'
 Um **contrato injetável apenas para testes** permite futuramente conectar um observador nativo Windows auxiliar, mas nunca executa PowerShell, scripts de testes ou busca PIDs na distribuição. Solicitar `requireNative:true` sem backend conectado recusa a inspeção *antes de ler a pasta*, e erros do backend não provocam fallback silencioso. Um observador auxiliar nunca transforma um snapshot em prova anti-ABA ou permissão de instalação.
 
 `electron/inspection-executor.test.cjs` adiciona **20 testes de segurança** (meta: **62 Node segurança**), cobrindo origem do caminho mediada pelo grant, backend ausente, evidências malformadas, clones/getters, erros, fail-closed e privacidade. Os **139 testes de laboratório** (87 multiplataforma, 52 Windows-only) permanecem isolados.
+
+
+### Ponte Win32 para o executor Electron, ainda estritamente no laboratório
+
+O novo módulo `scripts/temp-main-native-directory-backend.cjs` constitui a **primeira ponte exercitável** entre a sonda Win32 de enumeração por handle `temp-native-directory-enum.ps1` e a interface de observação auxiliar `electron/inspection-executor.cjs`. O módulo está em `scripts/` e portanto **é excluído do executável Electron**. O `main.cjs` de produção não importa a ponte e continua exclusivamente com o contador de diretórios Node por checkpoints.
+
+A ponte somente aceita `native-enum` como subdiretório de uma fixture diretamente no `os.tmpdir()` com marcador aleatório conferido. Um backend é vinculado a **um único jogo e uma pasta**, consumido antes da validação ou lançamento do subprocesso. Executa `powershell.exe` por `execFile` (`shell:false`, sem execução de comandos provenientes do renderer), com tempo limite de **15 segundos** e saída máxima de **4096 bytes**. Valida os **21 campos** do relatório Win32 e recusa contagens incompatíveis, permissões ativadas, campos desconhecidos, dados corrompidos, `stderr` não vazio ou qualquer falha do processo. Nenhum erro do subprocesso, caminho, nonce ou nome de arquivo é retransmitido.
+
+Depois dessa validação, a ponte devolve ao executor somente os quatro campos conservadores esperados: `source:'main-process-native-directory-test'`, `outcome:'observed-bounded-untrusted'`, `nativeHandleUsed:true`, `operationsEnabled:false`. Esse recibo apenas comprova que **um teste** examinou uma fixture nativa, não que um diretório real de jogo está protegido. A execução integrada exercita o grant de pasta por `webContents` e continua sem permitir instalar, remover ou recuperar mods.
+
+`npm run test:bridge:native:windows` executa **22 testes Node** da ponte (incluindo integração real com PowerShell no Windows). A suíte do laboratório passa a **161 casos**: **105 gerais** e **56 exclusivos Windows**. A segurança principal continua **62 testes**, e a interface mantém **744 testes Playwright**. No Linux, os quatro cenários exclusivos Windows da ponte são ignorados.
