@@ -327,3 +327,27 @@ eventos em NTFS, ReFS ou SMB, nem teste de overflow real de
 notificações de diretório. A proteção contra ABA continua
 parcial e não transacional; o componente não tem integração
 com jogos reais nem com o Electron distribuído.
+
+
+## Evidência de buffer Win32 insuficiente, sem confundir com overflow acumulado
+
+Um modo de teste opt-in usa `ReadDirectoryChangesW` com buffer
+de **64 bytes** para `native-enum`, mantendo 4 KiB no observador
+convencional. Um processo de teste cria **um** nome fictício longo
+depois da inscrição e só então libera a barreira `READY/CONTINUE`.
+
+O diagnóstico exige prova nativa obtida por
+`GetOverlappedResult`: erro **1022** significa notificação não
+integralmente entregue (saída 5); sucesso com **zero bytes**
+significa falta de detalhes no buffer (saída 6). A saída 3 indica
+que esses sinais não foram comprovados; a suíte rejeita esse caso.
+As três saídas permanecem recusas sem capacidades de escrita.
+A CI exibe apenas a categoria do retorno, jamais nomes, caminhos
+ou o nonce.
+
+O experimento demonstra insuficiência em buffer pequeno. **Não
+demostra, por si só, uma fila de eventos estourando sob carga**,
+nem equivalência entre retorno zero e erro 1022. Não habilitar
+inspeção real, nem concluir ausência de ABA/TOCTOU a partir desse
+resultado. Testes de overflow acumulado e filesystems distintos
+continuam pendentes.
