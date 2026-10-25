@@ -192,3 +192,35 @@ obrigatoriamente `observed-bounded-untrusted` e nega capacidade real
 de instalação, recuperação ou exclusão, independentemente de detectar
 a mutação. O laboratório não instala monitor de mudanças, não abre
 mods reais, não concede autorização e não elimina ataques ABA.
+
+
+## Laboratório Win32: barreira de notificações de alteração
+
+O observador experimental registra agora `FindFirstChangeNotificationW`
+para a raiz sintética autorizada e para `native-enum`, **antes** da
+barreira `READY/CONTINUE`. Cada registro compara o pathname aberto
+com a identidade do diretório fixado. Depois da enumeração e antes de
+publicar o JSON, `WaitForSingleObject(...,0)` consulta se houve sinal.
+
+A notificação é propositalmente **one-shot/sticky**: não é rearmada,
+pois qualquer mudança observada invalida toda a inspeção.
+O filtro inclui nomes de arquivo/diretório, atributos, tamanho,
+escrita e criação. Nenhum nome de arquivo, caminho ou conteúdo de
+pacotes é retornado. Se a criação da notificação, a comparação de
+identidades ou a leitura do evento falhar, o programa recusa o
+relatório. A interface Electron permanece desligada deste laboratório.
+
+Os testes Windows inserem mutações entre `READY` e `CONTINUE`:
+reescrita/restauração do nonce, criação/remoção de um `.scs`
+fictício e criação/remoção de uma subpasta fictícia. Todos precisam
+resultar em recusa. Um quarto cenário proíbe o vazamento de nomes
+ou caminhos quando o evento invalida a observação.
+
+**Limitação:** `FindFirstChangeNotificationW` é um evento do Win32,
+não um journal durável nem `ReadDirectoryChangesW` com controle
+de overflow. A associação ao pathname não é atômica, e notificações
+podem ser perdidas, não disponibilizadas por certos filesystems
+ou ocorrer depois do último checkpoint. Passar nos testes não prova
+ausência geral de ABA. `guaranteesNoABA:false`,
+`atomicPathContainmentProven:false` e
+`operationsEnabled:false` continuam obrigatórios.
