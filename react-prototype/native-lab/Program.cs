@@ -365,26 +365,6 @@ internal static class Program
         return directory;
     }
 
-    private static string ValidateFixture(string root, string nonce)
-    {
-        string directory = ValidateFixturePath(root, nonce);
-        DirectoryInfo dirInfo = new(directory);
-        if (!dirInfo.Exists ||
-            (dirInfo.Attributes & FileAttributes.ReparsePoint) != 0) Deny();
-
-        string marker = Path.Combine(directory, ".omsi-test-fixture-marker");
-        FileInfo markInfo = new(marker);
-        if (!markInfo.Exists || markInfo.Length != 32 ||
-            (markInfo.Attributes & FileAttributes.ReparsePoint) != 0 ||
-            !String.Equals(File.ReadAllText(marker), nonce, StringComparison.Ordinal)) Deny();
-
-        string target = Path.Combine(directory, "native-enum");
-        DirectoryInfo targetInfo = new(target);
-        if (!targetInfo.Exists ||
-            (targetInfo.Attributes & FileAttributes.ReparsePoint) != 0) Deny();
-        return target;
-    }
-
     private static int[] Inspect(
         SafeFileHandle parent, string directory, Action? pauseForMutation = null)
     {
@@ -483,7 +463,7 @@ internal static class Program
     }
 
     private static void VerifyHeldFixtureRoot(
-        string root, string nonce, SafeFileHandle heldRoot,
+        string root, SafeFileHandle heldRoot,
         FileIdInfo initialId, FileBasicInfo initialBasic,
         SafeFileHandle parent)
     {
@@ -498,11 +478,9 @@ internal static class Program
         if (!Same(initialId, Identity(reopened))) Deny();
         using SafeFileHandle reopenedPath = OpenDirectory(root);
         if (!Same(initialId, Identity(reopenedPath))) Deny();
-        // Check the nonce again after the enumeration, rather than trusting
-        // an early marker read which may have been invalidated in the interim.
-        string verified = ValidateFixture(root, nonce);
-        if (!String.Equals(verified, Path.Combine(root, "native-enum"),
-                StringComparison.OrdinalIgnoreCase)) Deny();
+        // The marker and target have their own independently held handles.
+        // Never reopen their contents by pathname here; an untrusted path
+        // could be redirected by another process during the observation.
     }
 
     public static int Main(string[] args)
@@ -531,10 +509,15 @@ internal static class Program
             FileIdInfo markerId = Identity(heldMarker);
             FileBasicInfo markerBasic = Basic(heldMarker);
             VerifyMarkerBytes(heldMarker, args[3]);
-            if (!String.Equals(ValidateFixture(root, args[3]), target,
-                    StringComparison.OrdinalIgnoreCase)) Deny();
+            // Read no bytes from untrusted pathnames. Absolute-name reopen
+            // below checks *identity only*; native relative handles own all
+            // content reads and the bounded directory enumeration.
+            using (SafeFileHandle rootPath = OpenDirectory(root))
+                if (!Same(rootId, Identity(rootPath))) Deny();
+            using (SafeFileHandle markerPathHandle = OpenMarker(markerPath))
+                if (!Same(markerId, Identity(markerPathHandle))) Deny();
             int[] v = Inspect(heldRoot, target, raceBarrier ? (Action)PauseForTestMutation : null);
-            VerifyHeldFixtureRoot(root, args[3], heldRoot, rootId, rootBasic,
+            VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
                 ancestors.TemporaryHandle);
             VerifyHeldMarker(markerPath, args[3], heldMarker, markerId, markerBasic,
                 heldRoot);
