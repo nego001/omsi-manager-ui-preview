@@ -605,3 +605,26 @@ test('opt-in watcher refuses extra CLI commands rather than accepting new capabi
  const f=await fixture();
  await denied(f,['--rdcw-probe','--install']);
 });
+
+test('opt-in overlapped watcher keeps the 21-key untrusted contract after quiet barrier',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const result=await race(f,async()=>{},'CONTINUE',null,['--rdcw-probe']);
+ assert.equal(result.code,0,result.stderr);
+ const parsed=validate({stdout:result.stdout.replace(/^READY\r?\n/,''),stderr:result.stderr});
+ assert.equal(parsed.entries,0);
+ assert.equal(parsed.guaranteesNoABA,false);
+ assert.equal(parsed.operationsEnabled,false);
+});
+
+test('opt-in overlapped watcher refuses EOF and cleans up pending I/O',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ raceRejected(await race(f,async()=>{},null,null,['--rdcw-probe']));
+});
+
+test('opt-in overlapped watcher cannot reinterpret invalid continuation as a command',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ raceRejected(await race(f,async()=>{},'INSTALL',null,['--rdcw-probe']));
+});
