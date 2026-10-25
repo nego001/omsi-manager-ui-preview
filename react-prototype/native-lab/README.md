@@ -445,3 +445,52 @@ reais; `observed-bounded-untrusted`,
 `guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
 `supportsRealGameInspection:false` e
 `operationsEnabled:false` são preservados.
+
+
+## Classificação do volume fixado e reenumeração após perda (25/10/2026)
+
+O diagnóstico isolado `--rdcw-probe --test-queued-overflow`
+passou a identificar a **família do sistema de arquivos** a
+partir do mesmo handle Win32 fixado, usando
+`GetVolumeInformationByHandleW`. Somente uma das quatro
+categorias `NTFS`, `ReFS`, `Other` ou `Unavailable` é
+emitida como `VOLUME_KIND=...` entre os sinais `READY` e
+`STORM_READY`. Não são consultados ou publicados número
+de série, rótulo do volume, letra de unidade, UNC nem
+nomes de sistemas de arquivos desconhecidos. A API pode
+não estar disponível em compartilhamentos de rede: nesses
+casos a categoria é `Unavailable`, sem inventar um tipo.
+
+**Evidência da CI Windows:** o runner reportou **NTFS** pelo
+handle associado à pasta temporária sintética. Isso
+identifica o sistema dos testes executados, **não** comprova
+equivalência ou cobertura em ReFS, SMB ou outros volumes.
+
+Quando o segundo `GetOverlappedResult` comprova perda
+de detalhes após 900 ciclos de renomeações, o laboratório
+executa uma **reenumeração limitada e somente leitura** por
+handles relativos com `Inspect`, para obter um *snapshot*
+das duas entradas sintéticas esperadas. Também confere
+novamente identidades de diretórios, nonce do marcador
+através do handle retido e os ancestrais temporários.
+Somente depois dessas verificações emite `SCAN_ONLY`,
+**nunca** o contrato JSON de 21 campos, e mantém
+obrigatoriamente o encerramento com recusa, código 7 ou 8.
+Se a reenumeração estiver incompleta, exceder limites ou
+divergir da fixture, encerra com recusa genérica 3,
+sem `SCAN_ONLY`.
+
+O controle negativo com poucas renomeações recusa com
+código 3 e **não** emite `SCAN_ONLY`, porque não houve
+comprovação de perda a reconciliar. Uma reenumeração
+de arquivos atuais **não** recupera histórico de eventos,
+não exclui ataques ABA e não constitui autorização para
+inspecionar pastas reais. A associação do monitor ao
+pathname permanece sem garantia transacional.
+`guaranteesNoABA:false`, `atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e
+`operationsEnabled:false` permanecem inalterados.
+
+Referências de API:
+https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getvolumeinformationbyhandlew
+https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw
