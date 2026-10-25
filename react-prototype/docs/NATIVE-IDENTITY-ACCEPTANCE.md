@@ -201,3 +201,28 @@ campos `atomicPathContainmentProven:false`,
 `operationsEnabled:false` continuam obrigatórios. A revisão de
 segurança, os testes físicos e a política de acesso a diretórios reais
 permanecem etapas futuras independentes.
+
+
+## Verificações ABA e conteúdo estritamente por handle
+
+A última revisão remove a leitura `File.ReadAllText(markerPath)` da
+validação por pathname. O marcador agora é lido **somente** através de
+um handle nativo relativo ao diretório temporário sintético. Abre-se
+o pathname separado apenas para conferir a identidade com `FileIdInfo`,
+não para consumir bytes. Os handles do alvo e dos ancestrais continuam
+fixados durante a enumeração.
+
+Os testes de concorrência simulam dois casos transitórios: alteração e
+restauração dos mesmos 32 bytes do nonce, e criação/remoção imediata de
+um `.scs` inventado em `native-enum`. Em ambos os cenários, se houver
+mudança observável, o helper pode recusar; mesmo se um ABA não deixar
+sinais detectáveis nos checkpoints, a resposta é necessariamente
+`observed-bounded-untrusted` e todas as permissões de escrita e inspeção
+real permanecem negadas. **Esses casos não demonstram garantia de
+ausência de ABA.**
+
+Critério para elevar a confiança futuramente: especificar eventos
+observáveis de alteração e perda de eventos, testar limites de
+filesystem/concorrência e projetar política de recusa quando não for
+possível demonstrar identidade atômica. Não usar apenas timestamps,
+hash de conteúdo ou `FileIdInfo` como autenticação transacional.
