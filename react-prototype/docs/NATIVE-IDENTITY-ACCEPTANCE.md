@@ -478,3 +478,34 @@ em dois snapshots não implica identidade contínua ou
 proteção contra todo ABA, TOCTOU ou substituição intermediária.
 Resultados de CI no Windows não atestam comportamento ReFS/SMB
 sem execução específica sobre esses volumes.
+
+
+## Recusa nativa para alteração e restauração in-place (ABA limitado)
+
+Além do ensaio de substituição `FileId`, o helper C#
+aceita somente em uma fixture artificial autorizada o
+teste `--rdcw-probe --test-inplace-aba`. O próprio
+helper usa apenas handles nativos relativos com
+`FILE_READ_ATTRIBUTES`; o processo externo de teste
+altera e restaura bytes fictícios, e comprova que eles
+terminaram iguais, sem leitura de mods reais.
+
+Saídas exigidas:
+- **9:** `FileId` mudou, mesmo com mesmo nome.
+- **10:** `FileId` preservado, mas atributos ou campos
+  `FileBasicInfo` de checkpoint divergiram.
+- **11:** `FileId`, criação, última gravação e
+  atributos iguais, porém `ChangeTime` mudou.
+- **3:** nenhuma prova específica (inclusive teste sem
+  alteração); nenhuma dessas saídas é autorização.
+
+A CI Windows com fixture temporária reproduziu
+tanto a recusa 10 após a restauração de bytes quanto a
+recusa 11 depois de restaurar também `LastWriteTime`.
+Nenhum ID, nome ou data deve ser publicado; stderr
+contém somente a mensagem genérica. O teste não
+modifica `main`, jogos, mods ou backups e não integra
+o executável Electron. **Não se conclui resistência
+universal a ABA ou TOCTOU** com metadados em dois
+instantes, particularmente em ReFS, SMB ou quando os
+metadados podem ser ajustados pelo próprio adversário.
