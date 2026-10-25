@@ -75,6 +75,7 @@ public static class SyntheticBasicTimeRestoration {
 
     public static void Run(string file) {
         const uint readAttributes = 0x80, writeAttributes = 0x100;
+        FileBasicInfo saved = new FileBasicInfo();
         using (var handle = OpenFile(file, readAttributes|writeAttributes,
                 7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
             if (handle.IsInvalid)
@@ -86,6 +87,7 @@ public static class SyntheticBasicTimeRestoration {
             FileBasicInfo before;
             if (!GetBasic(handle,0,out before,40))
                 throw new IOException("Fixture-only basic metadata query failed");
+            saved = before;
             byte[] content = File.ReadAllBytes(file);
             try {
                 File.WriteAllBytes(file, Encoding.ASCII.GetBytes(
@@ -106,7 +108,11 @@ public static class SyntheticBasicTimeRestoration {
             7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
             if (afterHandle.IsInvalid)
                 throw new IOException("Fixture verification handle unavailable");
-            // Caller validates the final bytes and USN; do not report times or paths.
+            FileBasicInfo finalBasic;
+            if (!GetBasic(afterHandle,0,out finalBasic,40) ||
+                !Same(saved,finalBasic))
+                throw new IOException("Fixture metadata differs after handle closure");
+            // Caller also validates final bytes and USN; never publish timestamps.
         }
     }
 }
