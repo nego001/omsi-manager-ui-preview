@@ -657,3 +657,44 @@ test('native cancellation command is not accepted without the opt-in watcher',
  const f=await fixture();
  await denied(f,['--test-cancel-pending-io']);
 });
+
+test('kernel cancellation attestation requires actual ERROR_OPERATION_ABORTED 995',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await assert.rejects(invoke(f,['--rdcw-probe','--test-attest-cancel-995']),error=>{
+  // Exit 4 is only emitted after GetOverlappedResult confirms 995.
+  // The refusal text itself remains the same generic denial.
+  assert.equal(error.code,4);
+  assert.equal(error.stdout,'');
+  assert.equal(error.stderr.trim(),'Temporary standalone native directory lab refused.');
+  assert.equal(error.stderr.includes(f.root),false);
+  assert.equal(error.stderr.includes(f.nonce),false);
+  return true;
+ });
+});
+
+test('cancel status attestation is repeatable and changes no synthetic data',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const pkg=join(f.dir,'synthetic-sensitive.scs');
+ await fs.writeFile(pkg,'UNTOUCHED');
+ // Separate short-lived native child processes: no global persistent watcher.
+ for(let i=0;i<5;i++){
+  await assert.rejects(invoke(f,['--rdcw-probe','--test-attest-cancel-995']),
+   error=>{
+    assert.equal(error.code,4);
+    assert.equal(error.stdout,'');
+    assert.equal(error.stderr.trim(),'Temporary standalone native directory lab refused.');
+    return true;
+   });
+ }
+ assert.equal(await fs.readFile(pkg,'utf8'),'UNTOUCHED');
+ assert.equal(await fs.readFile(join(f.root,MARKER),'utf8'),f.nonce);
+});
+
+test('attestation cannot be requested without opt-in watcher or extra commands',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-attest-cancel-995']);
+ await denied(f,['--rdcw-probe','--test-attest-cancel-995','--install']);
+});
