@@ -169,7 +169,9 @@ internal static class Program
                 ObjectName = unicodePointer,
                 Attributes = caseInsensitive
             };
-            uint access = readAttributes | synchronize | (directory ? 0x0001U : 0x0001U);
+            // FILE_LIST_DIRECTORY for folders / FILE_READ_DATA for markers.
+            // Both access masks share the native value 0x0001.
+            uint access = readAttributes | synchronize | 0x0001U;
             uint options = synchronous | openReparsePoint |
                 (directory ? directoryFile : nonDirectoryFile);
             int status = NtOpenFile(out SafeFileHandle handle, access,
