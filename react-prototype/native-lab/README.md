@@ -305,3 +305,40 @@ realmente pelo filesystem, estresse de buffer com comprovação do
 estado de conclusão, volumes de rede/NTFS/ReFS e verificação física
 do executável no PC pessoal. Nenhuma dessas lacunas autoriza leitura
 ou escrita de mods reais.
+
+
+## Evidência de status 995 no kernel (25/10/2026)
+
+Um diagnóstico estritamente de teste foi acrescentado:
+`--rdcw-probe --test-attest-cancel-995`. Ele só aceita uma pasta
+sintética marcada dentro da TEMP do processo, arma um
+`ReadDirectoryChangesW` assíncrono, pede `CancelIoEx` e
+**confere `GetOverlappedResult` com a operação exata** depois
+de receber o evento de conclusão.
+
+Somente o código nativo `ERROR_OPERATION_ABORTED` (**995**),
+recebido com retorno de falha da consulta de conclusão, produz o
+código de saída **4**, reservado à atestação sintética. Outros
+resultados, incluindo expiração da espera, retorno de sucesso e
+erro diverso, continuam recusados com saída **3**. A mensagem
+de erro permanece idêntica e genérica, sem nonce, caminho,
+nome de arquivo ou conteúdo; stdout é vazio em ambos os casos.
+O novo sinal não é retorno de sucesso, nem uma autorização.
+
+Uma suíte Windows cria apenas fixtures descartáveis, valida a
+atestação de 995 e a repete cinco vezes preservando o marcador
+e os bytes de um `.scs` artificial. A CI nativa aprovou esses
+testes. O evento 995 é **cancelamento real da I/O pendente**,
+não `ERROR_NOTIFY_ENUM_DIR` (**1022**) e não uma prova de
+overflow do buffer. Também não confirma que todas as
+alterações futuras do filesystem serão notificadas.
+
+Referências oficiais da API:
+- https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw
+- https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-cancelioex
+
+O laboratório não é distribuído no Electron; contrato positivo
+segue com 21 chaves e `guaranteesNoABA:false`,
+`atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false` e
+`operationsEnabled:false`.
