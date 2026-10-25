@@ -156,6 +156,79 @@ internal static class Program
     // and attributes match, while NTFS still reports a new ChangeTime.
     private sealed class SyntheticChangeTimeOnlyMismatch : Exception { }
 
+    // Exit 12 is strictly a test-only refusal for changed NTFS USN.
+    // It is not an authorization, durable chronology or an ABA guarantee.
+    private sealed class SyntheticUsnChanged : Exception { }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct ReadFileUsnVersions
+    {
+        public ushort MinMajorVersion, MaxMajorVersion;
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "DeviceIoControl",
+        SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadFileUsn(
+        SafeFileHandle file, uint fsctl, ref ReadFileUsnVersions versions,
+        uint inputLength, [Out] byte[] output, uint outputLength,
+        out uint bytesReturned, IntPtr overlapped);
+
+    // FSCTL_READ_FILE_USN_DATA reads the CURRENT record for this file only.
+    // No volume handles, journal enumeration, record-name decoding, or content.
+    private static long CurrentFileUsn(SafeFileHandle file)
+    {
+        const uint fsctlReadFileUsnData = 0x000900EB;
+        ReadFileUsnVersions versions = new()
+        {
+            MinMajorVersion = 2, MaxMajorVersion = 3
+        };
+        byte[] record = new byte[4096];
+        if (!ReadFileUsn(file, fsctlReadFileUsnData, ref versions,
+                (uint)Marshal.SizeOf<ReadFileUsnVersions>(), record,
+                (uint)record.Length, out uint returned, IntPtr.Zero))
+            Deny(); // absent/disabled journal, SMB, unsupported API => refuse
+
+        if (returned < 60 || returned > record.Length) Deny();
+        uint recordLength = BitConverter.ToUInt32(record, 0);
+        ushort major = BitConverter.ToUInt16(record, 4);
+        int offset = major switch { 2 => 24, 3 => 40, _ => -1 };
+        int minLength = major == 2 ? 60 : 76;
+        if (offset < 0 || recordLength < minLength ||
+            recordLength > returned || returned < minLength ||
+            offset + sizeof(long) > recordLength) Deny();
+        long usn = BitConverter.ToInt64(record, offset);
+        if (usn <= 0) Deny();
+        return usn;
+    }
+
+    [DoesNotReturn]
+    private static void AttestUsnAfterRestoreForSyntheticTest(
+        SafeFileHandle heldTarget)
+    {
+        if (!String.Equals(SafeVolumeFamily(heldTarget), "NTFS",
+                StringComparison.Ordinal)) Deny();
+        const string testName = "metadata-probe.scs";
+        using SafeFileHandle child = OpenChildFileIdentity(heldTarget, testName);
+        FileIdInfo beforeId = Identity(child);
+        long beforeUsn = CurrentFileUsn(child);
+        Console.Out.WriteLine("READY");
+        Console.Out.Flush();
+        string? reply = Console.In.ReadLineAsync()
+            .WaitAsync(TimeSpan.FromSeconds(20))
+            .GetAwaiter().GetResult();
+        if (reply != "CONTINUE") Deny();
+        using SafeFileHandle check = OpenChildFileIdentity(heldTarget, testName);
+        if (!Same(beforeId, Identity(child)) ||
+            !Same(beforeId, Identity(check)))
+            throw new SyntheticChildIdentityMismatch();
+        long afterUsn = CurrentFileUsn(child);
+        // The journal may be disabled, replaced, wrapped or unsupported.
+        // Never accept a backwards/equal USN as an observed mutation.
+        if (afterUsn > beforeUsn) throw new SyntheticUsnChanged();
+        Deny();
+    }
+
     private static bool SameStableMetadata(FileBasicInfo before, FileBasicInfo after) =>
         before.CreationTime == after.CreationTime &&
         before.LastWriteTime == after.LastWriteTime &&
@@ -976,12 +1049,15 @@ internal static class Program
                 args[4] == "--rdcw-probe" && args[5] == "--test-queued-overflow";
             bool inPlaceRestoreEvidence = args.Length == 6 &&
                 args[4] == "--rdcw-probe" && args[5] == "--test-inplace-aba";
+            bool usnEvidence = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-usn-checkpoint";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
                     (args.Length == 6 &&
                         (raceBarrier && rdcwProbe || injectCancellation ||
                          attestCancellation || smallBufferEvidence ||
-                         queuedOverflowEvidence || inPlaceRestoreEvidence))) ||
+                         queuedOverflowEvidence || inPlaceRestoreEvidence ||
+                         usnEvidence))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -1016,12 +1092,12 @@ internal static class Program
             using BoundedNativeChangeProbe? rootDetail =
                 rdcwProbe || injectCancellation || attestCancellation ||
                 smallBufferEvidence || queuedOverflowEvidence ||
-                inPlaceRestoreEvidence
+                inPlaceRestoreEvidence || usnEvidence
                 ? new BoundedNativeChangeProbe(root, heldRoot) : null;
             using BoundedNativeChangeProbe? targetDetail =
                 rdcwProbe || injectCancellation || attestCancellation ||
                 smallBufferEvidence || queuedOverflowEvidence ||
-                inPlaceRestoreEvidence
+                inPlaceRestoreEvidence || usnEvidence
                 ? new BoundedNativeChangeProbe(target, heldTarget,
                     testSmallBuffer: smallBufferEvidence) : null;
             if (injectCancellation)
@@ -1037,6 +1113,13 @@ internal static class Program
             if (smallBufferEvidence)
             {
                 targetDetail!.AttestSmallBufferLossForSyntheticTest();
+                Deny();
+            }
+            if (usnEvidence)
+            {
+                rootChanges.VerifyNotSignaled();
+                targetChanges.VerifyNotSignaled();
+                AttestUsnAfterRestoreForSyntheticTest(heldTarget);
                 Deny();
             }
             if (inPlaceRestoreEvidence)
@@ -1144,6 +1227,12 @@ internal static class Program
                 ["bytesReadFromMods"] = 0
             }));
             return 0;
+        }
+        catch (SyntheticUsnChanged)
+        {
+            // Fixed refusal-only diagnostic: no file names, IDs or USNs.
+            Console.Error.WriteLine(Refusal);
+            return 12;
         }
         catch (SyntheticChangeTimeOnlyMismatch)
         {
