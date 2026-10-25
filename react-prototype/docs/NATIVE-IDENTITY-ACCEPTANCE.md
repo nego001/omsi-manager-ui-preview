@@ -233,14 +233,18 @@ hash de conteúdo ou `FileIdInfo` como autenticação transacional.
 O laboratório incorpora uma *barreira de alteração* independente,
 usando `FindFirstChangeNotificationW` e `WaitForSingleObject`
 para a raiz da fixture e `native-enum`. O evento fica armado sem
-rearme; qualquer mudança observável bloqueia o relatório. A
+rearme; qualquer alteração estrutural observável (criação, remoção ou
+renomeação de nome) bloqueia o relatório. O filtro não promete detectar
+reescrita ou mutação de conteúdo em arquivos existentes. A
 abertura do watcher por pathname é confrontada com o FileId do
 handle de diretório retido, mas essa checagem **não estabelece
 associação atômica entre o watcher e o handle**.
 
 Testes determinísticos criam e removem entradas fictícias e
 reescrevem/restauram o marcador durante a janela da barreira.
-É esperado negar todas essas observações, mesmo quando os diretórios
+O marcador usa verificações independentes pelo handle nativo; o
+watcher, por sua vez, só observa mudanças de nomes. É esperado negar
+todas essas observações, mesmo quando os diretórios
 voltam à aparência inicial. Notificações perdidas, registros não
 suportados, temporização após a última consulta e modificações
 externas à pasta observada continuam fora da cobertura comprovada.
