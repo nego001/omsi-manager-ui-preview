@@ -159,3 +159,25 @@ com skip se o Windows proibir a ação necessária.
 A política é **fail closed quando a divergência é observada**, mas
 não certifica ausência de troca ABA transitória, nem protege recursos
 de terceiros ou aprova acesso real a mods.
+
+
+## Laboratório Windows: ancestrais do caminho TEMP
+
+A revisão seguinte à identidade nativa do marcador introduz `AncestorPins`
+no executável C# **isolado**. A cadeia lexical de diretórios que leva à
+pasta temporária de processo é aberta do volume para o TEMP; cada
+componente precisa ser diretório não-reparse, com identidade nativa disponível.
+Handles originais são mantidos e as identidades revalidadas por pathname
+antes de publicar a observação. Rejeita junctions em componentes intermediários,
+inclusive quando o diretório TEMP final não é um link.
+
+Testes Windows com TEMP substituído apenas no processo de laboratório
+cobrem caminho aninhado comum, junction no TEMP, junction no ancestral
+e tentativa de substituição durante a barreira de concorrência.
+Sem evidência de substituição efetiva quando `rename` é negado pelo OS,
+o cenário deve ser informado como ignorado, nunca como aprovado.
+
+O caminho completo ainda não é percorrido atomicamente com handles
+relativos de diretórios, portanto `atomicPathContainmentProven:false`
+e `guaranteesNoABA:false` continuam obrigatórios. Nenhuma autorização
+para mods reais, instalação, restauração ou exclusão é produzida.
