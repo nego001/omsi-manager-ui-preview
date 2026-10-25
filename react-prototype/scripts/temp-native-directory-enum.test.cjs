@@ -90,6 +90,11 @@ test('native enumeration refuses entry budget rather than claiming partial count
  for(let i=0;i<129;i++)await fs.writeFile(join(f.dir,'entry-'+i+'.txt'),'X');
  denied(run(f));
 });
+test('exactly 128 native entries are refused rather than returned as complete',{skip:!windows},async()=>{
+ const f=await fixture();
+ for(let i=0;i<128;i++)await fs.writeFile(join(f.dir,'boundary-'+i+'.txt'),'X');
+ denied(run(f));
+});
 test('a marker mismatch rejects native observation',{skip:!windows},async()=>{
  const f=await fixture();
  denied(run({...f,nonce:'0'.repeat(32)}));

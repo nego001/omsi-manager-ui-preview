@@ -156,7 +156,7 @@ public static class OmsiTestNativeDirectoryEnumeration {
       if(String.IsNullOrEmpty(fileName)||fileName.IndexOf('\0')>=0)
        throw new IOException("invalid returned native name");
       if(fileName!="."&&fileName!=".."){
-       if(++total>MAX_ENTRIES)throw new IOException("enumeration budget exceeded");
+       if(++total>=MAX_ENTRIES)throw new IOException("enumeration budget exceeded");
        if((attrib&0x400)!=0){links++;}
        else if((attrib&0x10)!=0){dirs++;}
        else{
