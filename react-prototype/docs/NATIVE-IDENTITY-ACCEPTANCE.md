@@ -253,3 +253,34 @@ Nenhuma notificação Win32, por si só, autoriza leitura de jogos
 reais, modificação de mods ou operação de recuperação.
 `observed-bounded-untrusted` é o máximo estado de sucesso
 permitido nesta fase e o esquema de 21 campos permanece intacto.
+
+
+## Probe Win32 opt-in com buffer limitado (`ReadDirectoryChangesW`)
+
+O console C# isolado aceita `--rdcw-probe` ou
+`--race-barrier --rdcw-probe` **somente** com nonce e diretório de teste
+filho direto da TEMP de processo. A observação de eventos da raiz
+e de `native-enum` é feita por `ReadDirectoryChangesW`
+assíncrono, com um buffer de **4096 bytes** e `OVERLAPPED`
+retido até cancelamento e término do I/O.
+
+Toda conclusão de notificação, incluindo erro ou falha do buffer,
+leva à **recusa genérica**, sem leitura, publicação nem parsing
+dos nomes dos eventos. Nenhuma notificação é reconhecida/rearmada.
+O código não promove observações a autorização e não modifica
+conteúdo de jogos ou mods.
+
+Critérios de ensaio: um diretório não alterado retorna apenas o
+contrato existente de 21 chaves, sempre com operações proibidas;
+eventos sintéticos de criação/exclusão, renomeação/restauração,
+alteração estrutural na raiz, rajada de eventos, EOF e comandos
+inesperados falham fechados. O caso de rajada não prova overflow
+do buffer no Windows: seria preciso evidência adicional de driver,
+volumes e condições de carga.
+
+A origem do watcher ainda depende de um pathname confrontado com
+um handle, não de contenção transacional. Mudanças pós-checkpoint,
+perda de notificação, diferenças entre NTFS/ReFS/network shares e
+desligamentos abruptos continuam fora das garantias comprovadas.
+O laboratório e todas as opções de teste ficam excluídos do
+pacote distribuído.
