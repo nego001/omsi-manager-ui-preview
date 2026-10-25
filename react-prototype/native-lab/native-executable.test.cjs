@@ -1194,3 +1194,56 @@ test('USN sample reads one file only, with no volume journal traversal or names'
  assert.match(source,/guaranteesNoABA"\] = false/);
  assert.match(source,/operationsEnabled"\] = false/);
 });
+
+
+test('USN still advances after all four FILE_BASIC_INFO timestamps are restored on synthetic NTFS file',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ const p=join(f.dir,'metadata-probe.scs');
+ await fs.writeFile(p,original);
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ const r=await race(f,async()=>{
+  const restored=await execAsync('powershell.exe',[
+   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+   '-File',script,'-Root',f.root,'-Nonce',f.nonce
+  ],{windowsHide:true,timeout:30000,maxBuffer:2048});
+  assert.equal(restored.stdout.trim(),'RESTORATION_PERFORMED');
+  assert.equal(restored.stderr,'');
+ },'CONTINUE',null,[],
+ ['--root',f.root,'--nonce',f.nonce,'--rdcw-probe','--test-usn-checkpoint']);
+ assert.equal(r.code,12,'the real per-file USN must advance even after basic timestamps restored');
+ assert.equal(r.stdout.trim(),'READY');
+ assert.equal(r.stderr.trim(),'Temporary standalone native directory lab refused.');
+ assert.equal(await fs.readFile(p,'utf8'),original);
+ assert.equal(r.stderr.includes(f.root),false);
+ assert.equal(r.stderr.includes(f.nonce),false);
+});
+
+test('standalone synthetic timestamp mutator refuses wrong nonce without modifying bytes',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ await fs.writeFile(p,'DO NOT MODIFY');
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',f.root,'-Nonce','0'.repeat(32)
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ assert.equal(await fs.readFile(p,'utf8'),'DO NOT MODIFY');
+});
+
+test('timestamp mutator fixture is separate from read-only native helper and excludes real folders',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ const observer=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/GetDirectoryName\(\$path\) -ine \$temp/);
+ assert.match(source,/omsi-manager-recovery-fixture-/);
+ assert.match(source,/\.omsi-test-fixture-marker/);
+ assert.match(source,/NumberOfLinks != 1/);
+ assert.match(source,/SetFileInformationByHandle/);
+ assert.match(source,/Same\(before,current\)/);
+ assert.doesNotMatch(observer,/SetFileInformationByHandle|File\.WriteAllBytes/);
+ assert.match(observer,/guaranteesNoABA"\] = false/);
+ assert.match(observer,/operationsEnabled"\] = false/);
+});
