@@ -143,6 +143,10 @@ internal static class Program
     // exact pending directory request. No private data is emitted.
     private sealed class SyntheticCancellationVerified : Exception { }
 
+    // Synthetic-only negative witness: FileId changed despite the original
+    // name being restored. Exit 9 still means REFUSED, never authorized.
+    private sealed class SyntheticChildIdentityMismatch : Exception { }
+
     // Synthetic diagnostic exits: 5/6 are a single undersized notification;
     // 7/8 are a second read after a completed first read and queued storm.
     // Within each pair: 1022 = loss error, zero bytes = missing details.
@@ -1020,7 +1024,8 @@ internal static class Program
                                 out FileIdInfo beforeId) ||
                             !currentIds.TryGetValue(name,
                                 out FileIdInfo afterId) ||
-                            !Same(beforeId, afterId)) Deny();
+                            !Same(beforeId, afterId))
+                            throw new SyntheticChildIdentityMismatch();
                     }
                     VerifyHeldFixtureRoot(root, heldRoot, rootId, rootBasic,
                         ancestors.TemporaryHandle);
@@ -1073,6 +1078,13 @@ internal static class Program
                 ["bytesReadFromMods"] = 0
             }));
             return 0;
+        }
+        catch (SyntheticChildIdentityMismatch)
+        {
+            // Only an in-memory synthetic FileId comparison can reach here.
+            // Do not expose filename, identity bytes or path.
+            Console.Error.WriteLine(Refusal);
+            return 9;
         }
         catch (SyntheticCancellationVerified)
         {
