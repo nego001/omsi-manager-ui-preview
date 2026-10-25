@@ -123,3 +123,22 @@ A prova **não transporta consentimento real de usuário**, não demonstra ausê
 `native-lab/OmsiNativeDirectoryLab.csproj` contém a primeira sonda C# nativa compilada como processo independente, sem `Add-Type` no PowerShell. O job `windows_native_lab` usa .NET 8, mantém o executável apenas no workspace da CI e executa seus testes sobre **fixtures descartáveis**. O programa aceita somente `--root` (filho imediato nomeado de `os.tmpdir()`) e `--nonce` (marcador 32 hex), e abre exclusivamente `native-enum` por handle. O relatório retorna somente as 21 chaves conservadoras compatíveis com `checkResult`, usando `FileIdInfo` e enumeração Win32 por handle, sem nomes de arquivo na saída.
 
 A CI testa a recusa no limite de entradas, diretórios ausentes e reparse, nonce adverso, outras opções de CLI e integração pelo backend Node temporário e grant. **Não publica o binário** e proíbe a presença de `native-lab/` no aplicativo empacotado. Não existe validação Windows física pessoal ou backend integrado às pastas reais dos jogos. Não há novas operações de modificação.
+
+
+## Handle da raiz durante a enumeração e barreira determinística Windows
+
+O executável experimental `native-lab/Program.cs` agora abre e conserva um
+`SafeFileHandle` para a **raiz da fixture** durante toda a operação e outro
+para a subpasta `native-enum`. `FileIdInfo` e timestamps nativos são
+comparados antes/depois, a raiz é reaberta pelo mesmo pathname e a validação
+do marcador/nonce é repetida antes de entregar o JSON.
+
+A suíte nativa `native-lab/native-executable.test.cjs` adicionou **8
+cenários de dois processos** via barreira `READY`/`CONTINUE` sobre
+pastas sintéticas. Alterações persistentes no marcador ou na subpasta devem
+causar recusa genérica. Substituições de diretório com handle aberto só
+contam como exercitadas se o Windows realmente permitir `rename`: caso
+contrário os testes são ignorados com motivo explícito.
+
+Esse contrato não implica autorização de acesso a diretórios reais,
+prevenção geral de ABA/TOCTOU ou direitos de modificar mods e backups.

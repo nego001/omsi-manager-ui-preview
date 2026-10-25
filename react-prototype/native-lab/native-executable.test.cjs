@@ -4,7 +4,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
-const {execFileSync,execFile}=require('node:child_process');
+const {execFileSync,execFile,spawn}=require('node:child_process');
 const {promisify}=require('node:util');
 const {tmpdir}=require('node:os');
 const {join,dirname}=require('node:path');
@@ -205,4 +205,128 @@ test('the experimental native assembly is intentionally unavailable on Linux',
  {skip:windows},()=>{
  assert.equal(process.platform==='win32',false);
  assert.equal(typeof exe==='string'&&exe.includes('OmsiNativeDirectoryLab.exe'),false);
+});
+
+
+// Deterministic two-process barrier. The C# process holds Win32 root and
+// child directory handles at READY; Node mutates only generated os.tmpdir()
+// fixtures. The native executable accepts only an exact CONTINUE line.
+async function race(f,mutate=async()=>{},reply='CONTINUE'){
+ const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,'--race-barrier'],{
+  shell:false,windowsHide:true,stdio:['pipe','pipe','pipe']
+ });
+ let stdout='',stderr='';
+ const finished=new Promise((resolve,reject)=>{
+  child.once('error',reject);
+  child.once('close',code=>resolve(code));
+ });
+ const ready=new Promise(resolve=>{
+  child.stdout.on('data',chunk=>{
+   stdout+=chunk.toString();
+   if(/^READY\r?\n/.test(stdout))resolve();
+  });
+ });
+ child.stderr.on('data',chunk=>{stderr+=chunk.toString();});
+ async function bounded(action){
+  let timer;
+  try{
+   return await Promise.race([
+    action,new Promise((_,reject)=>{timer=setTimeout(
+     ()=>reject(Error('native race barrier timeout')),30000);
+    })
+   ]);
+  }finally{clearTimeout(timer);}
+ }
+ try{
+  await bounded(Promise.race([ready,finished.then(code=>{
+   throw Error('process exited before READY: '+code+' '+stderr);
+  })]));
+  await mutate(f);
+  if(reply===null)child.stdin.end();
+  else child.stdin.end(reply+'\n');
+  const code=await bounded(finished);
+  return {code,stdout,stderr};
+ }finally{
+  if(child.exitCode===null)child.kill();
+ }
+}
+function raceRejected(r){
+ assert.equal(r.code,3,JSON.stringify(r));
+ assert.match(r.stdout,/^READY\r?\n/);
+ assert.equal(r.stdout.trim(),'READY','no JSON success after invalidation');
+ assert.match(r.stderr,/Temporary standalone native directory lab refused/);
+}
+test('native root and target handles remain stable across a two-process barrier',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.dir,'still.scs'),'UNCHANGED');
+ const r=await race(f);
+ assert.equal(r.code,0,r.stderr);
+ const payload=r.stdout.replace(/^READY\r?\n/,'');
+ const x=validate({stdout:payload,stderr:r.stderr});
+ assert.equal(x.entries,1);
+ assert.equal(x.packageCandidates,1);
+});
+test('changing the nonce marker during a live native observation fails closed',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>fs.writeFile(join(f.root,MARKER),'0'.repeat(32)));
+ raceRejected(r);
+ assert.equal(r.stderr.includes(f.root),false);
+ assert.equal(r.stderr.includes(f.nonce),false);
+});
+test('removing marker while both directory handles are held is denied',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>fs.rm(join(f.root,MARKER)));
+ raceRejected(r);
+});
+test('creating a new directory entry during held-handle read is detected',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const r=await race(f,async()=>fs.writeFile(join(f.dir,'new.scs'),'SENTINEL'));
+ raceRejected(r);
+ assert.equal(await fs.readFile(join(f.dir,'new.scs'),'utf8'),'SENTINEL');
+});
+test('invalid continuation is never interpreted as a native operation',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ raceRejected(await race(f,async()=>{},'INSTALL'));
+});
+test('EOF while holding native handles refuses rather than approving scan',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ raceRejected(await race(f,async()=>{},null));
+});
+test('a pathname replacement while its directory handle is held is refused',
+ {skip:!ready},async(t)=>{
+ const f=await fixture(),spare=join(f.root,'parked-native-enum');
+ let replaced=false;
+ const observed=await race(f,async()=>{
+  try{await fs.rename(f.dir,spare);}
+  catch(e){if(['EPERM','EACCES','EBUSY'].includes(e.code)){
+   t.skip('Windows refused directory rename with a held handle');return;
+  }throw e;}
+  replaced=true;
+  await fs.mkdir(f.dir);
+ });
+ // If Windows declined the mutation, the test is explicitly skipped.
+ if(replaced)raceRejected(observed);
+});
+test('root pathname substitution is refused when allowed by Windows sharing',
+ {skip:!ready},async(t)=>{
+ const f=await fixture(),parked=f.root+'.parked';
+ roots.add(parked);
+ let replaced=false;
+ const r=await race(f,async()=>{
+  try{await fs.rename(f.root,parked);}
+  catch(e){if(['EPERM','EACCES','EBUSY'].includes(e.code)){
+   t.skip('Windows refused root rename with a held handle');return;
+  }throw e;}
+  replaced=true;
+  await fs.mkdir(f.root);
+  await fs.writeFile(join(f.root,MARKER),f.nonce,{flag:'wx'});
+  await fs.mkdir(f.dir);
+ });
+ if(replaced)raceRejected(r);
 });

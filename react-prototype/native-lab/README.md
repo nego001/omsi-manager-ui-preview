@@ -61,3 +61,31 @@ prova com o backend Node temporário, o executor e o grant de uso único.
   `app.asar`.
 
 **Não distribuir o executável nativo de laboratório como gerenciador de mods.**
+
+## Teste de concorrência com handles nativos preservados
+
+O executável agora mantém **o handle da raiz fictícia aberto por toda a
+observação**, além do handle da subpasta `native-enum`. Compara `FileIdInfo`
+e atributos temporais da raiz no início/fim, abre novamente seu pathname e
+revalida o marcador/nonce **depois** de enumerar. Uma raiz substituída ou
+um marcador adulterado que permaneça alterado são recusados.
+
+Um modo exclusivo de laboratório, `--race-barrier`, sinaliza `READY` pelo
+STDOUT com os dois handles abertos e aceita **apenas** a linha `CONTINUE`
+no STDIN, com prazo de 20 segundos. Isso permite ao segundo processo Node
+alterar de forma determinística apenas a fixture em `os.tmpdir()`. O modo
+comum, sem flag, mantém a resposta JSON original e não exige STDIN.
+
+Foram adicionados **8 casos Windows**, elevando a suíte nativa de 17 para
+**25 testes** (24 Windows + 1 Linux-only): observação estável após barreira,
+marcador alterado/removido, nova entrada no diretório durante a observação,
+comando inválido e EOF, tentativa de substituir a subpasta e tentativa de
+substituir a raiz. Nos dois casos de `rename`, o teste registra `skip` se
+o Windows proibir a mutação enquanto o handle estiver aberto; não há
+contorno artificial de bloqueios do sistema.
+
+**Garantia limitada:** os checkpoints reduzem resultados enganadores e
+recusam mudanças observadas. Eles **não** impedem mudanças transitórias
+entre verificações, ABA restaurado, acesso paralelo de terceiros ou corridas
+com arquivos reparse; tampouco provam contenção transacional. O laboratório
+permanece ausente de `app.asar` e sem permissão sobre mods reais.

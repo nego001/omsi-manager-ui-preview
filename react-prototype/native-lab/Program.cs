@@ -156,7 +156,7 @@ internal static class Program
         return target;
     }
 
-    private static int[] Inspect(string directory)
+    private static int[] Inspect(string directory, Action? pauseForMutation = null)
     {
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
@@ -166,6 +166,10 @@ internal static class Program
         using SafeFileHandle held = OpenDirectory(directory);
         FileIdInfo initial = Identity(held);
         FileBasicInfo initialBasic = Basic(held);
+        // A Windows-only test barrier permits a second process to mutate the
+        // marker or pathname while these native directory handles stay open.
+        // It is never enabled by Electron or the shipped package.
+        pauseForMutation?.Invoke();
         int entries = 0, folders = 0, files = 0, links = 0, packages = 0;
         bool exhausted = false;
         IntPtr buffer = Marshal.AllocHGlobal(BufferSize);
@@ -234,14 +238,58 @@ internal static class Program
         return [entries, folders, files, links, packages];
     }
 
+    private static void PauseForTestMutation()
+    {
+        Console.Out.WriteLine("READY");
+        Console.Out.Flush();
+        // A bounded protocol, not a general command interpreter. The mutator
+        // runs in the synthetic fixture, never in a live game directory.
+        string? next = Console.In.ReadLineAsync()
+            .WaitAsync(TimeSpan.FromSeconds(20))
+            .GetAwaiter().GetResult();
+        if (!String.Equals(next, "CONTINUE", StringComparison.Ordinal)) Deny();
+    }
+
+    private static void VerifyHeldFixtureRoot(
+        string root, string nonce, SafeFileHandle heldRoot,
+        FileIdInfo initialId, FileBasicInfo initialBasic)
+    {
+        FileIdInfo currentId = Identity(heldRoot);
+        FileBasicInfo currentBasic = Basic(heldRoot);
+        if (!Same(initialId, currentId) ||
+            initialBasic.ChangeTime != currentBasic.ChangeTime ||
+            initialBasic.LastWriteTime != currentBasic.LastWriteTime) Deny();
+        // Compare to a separately opened pathname while the first handle is
+        // still alive. This catches many rename/swap races, not all ABA.
+        using SafeFileHandle reopened = OpenDirectory(root);
+        if (!Same(initialId, Identity(reopened))) Deny();
+        // Check the nonce again after the enumeration, rather than trusting
+        // an early marker read which may have been invalidated in the interim.
+        string verified = ValidateFixture(root, nonce);
+        if (!String.Equals(verified, Path.Combine(root, "native-enum"),
+                StringComparison.OrdinalIgnoreCase)) Deny();
+    }
+
     public static int Main(string[] args)
     {
         try
         {
-            if (!OperatingSystem.IsWindows() || args.Length != 4 ||
+            bool raceBarrier = args.Length == 5 &&
+                String.Equals(args[4], "--race-barrier", StringComparison.Ordinal);
+            if (!OperatingSystem.IsWindows() ||
+                !(args.Length == 4 || raceBarrier) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             string target = ValidateFixture(args[1], args[3]);
-            int[] v = Inspect(target);
+            string root = Path.GetDirectoryName(target) ?? throw new IOException(Refusal);
+            // Anchor the synthetic root itself in an OS handle for the entire
+            // observation, not only the native-enum child directory.
+            using SafeFileHandle heldRoot = OpenDirectory(root);
+            FileIdInfo rootId = Identity(heldRoot);
+            FileBasicInfo rootBasic = Basic(heldRoot);
+            if (!String.Equals(ValidateFixture(root, args[3]), target,
+                    StringComparison.OrdinalIgnoreCase)) Deny();
+            int[] v = Inspect(target, raceBarrier ? (Action)PauseForTestMutation : null);
+            VerifyHeldFixtureRoot(root, args[3], heldRoot, rootId, rootBasic);
             Console.Out.WriteLine(JsonSerializer.Serialize(new Dictionary<string, object>
             {
                 ["source"] = "temporary-native-windows-directory-fixture",

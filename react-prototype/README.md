@@ -313,3 +313,19 @@ Os testes `native-lab/native-executable.test.cjs` compilam e exercitam o **execu
 **Barreira de distribuição:** o empacotador Windows ignora explicitamente `native-lab/`, além de `scripts/`. O teste do executável Electron empacotado verifica que ambos não existem em `app.asar`. O binário experimental não é publicado como artefato na CI e **não integra o `main.cjs`, preload, IPC nem o produto distribuído**. O laboratório não comprova exclusão geral de ABA/TOCTOU ou autorização para tocar em pastas reais.
 
 Veja [documentação do laboratório nativo independente](native-lab/README.md).
+
+
+### Raiz temporária vinculada a handle nativo durante a inspeção
+
+`native-lab/Program.cs` foi reforçado: agora mantém **dois handles Win32**
+(raiz marcada e `native-enum`) abertos enquanto percorre as entradas,
+comparando identidade FileId e tempos no início/fim e reabrindo a raiz
+antes de concluir; o marcador é verificado novamente. Uma barreira
+`--race-barrier` usada exclusivamente na suíte Windows permite que um
+segundo processo Node modifique a fixture entre as leituras e confirme
+que alterações observáveis são recusadas.
+
+**8 novos cenários** de concorrência elevam o laboratório nativo para
+**25 testes**. Renomes proibidos pelo Windows são explicitamente ignorados,
+não tratados como sucesso. O programa ainda não é distribuído com o
+Electron e **não elimina completamente ABA/TOCTOU**.
