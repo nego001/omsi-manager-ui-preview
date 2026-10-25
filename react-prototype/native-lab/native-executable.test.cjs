@@ -892,9 +892,96 @@ test('filesystem classification uses pinned Win32 handle and has no sensitive vo
 test('post-overflow bounded scan is read-only and never returns the 21-key success receipt',
  {skip:!ready},async()=>{
  const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
- assert.match(source,/AttestQueuedOverflowForSyntheticTest\(\(\)\s*=>/);
- assert.match(source,/int\[\] afterLoss = Inspect\(heldRoot, target\)/);
+ assert.match(source,/AttestQueuedOverflowForSyntheticTest\(afterLoss\s*=>/);
+ assert.match(source,/int\[\] current = Inspect\(heldRoot, target,/);
+ assert.match(source,/currentNames\.Sort\(StringComparer\.Ordinal\)/);
+ assert.match(source,/String\.Equals\(currentNames\[i\], baselineNames\[i\],/);
  assert.match(source,/VerifyHeldMarker\(markerPath, args\[3\], heldMarker/);
  assert.match(source,/Console\.Out\.WriteLine\("SCAN_ONLY"\)/);
  assert.match(source,/throw new SyntheticNotificationLossWitness/);
 });
+
+
+async function assertQueuedSnapshotDivergence(mutate){
+ const f=await fixture();
+ const original=join(f.dir,'loop-'+('q'.repeat(110))+'.scs');
+ const renamed=join(f.dir,'loop-'+('r'.repeat(110))+'.scs');
+ await fs.writeFile(original,'ORIGINAL SYNTHETIC PACKAGE');
+ const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,
+  '--rdcw-probe','--test-queued-overflow'],{
+  shell:false,windowsHide:true,stdio:['pipe','pipe','pipe']
+ });
+ let stdout='',stderr='';
+ let readyResolve,stormResolve;
+ const ready=new Promise(resolve=>{readyResolve=resolve;});
+ const stormReady=new Promise(resolve=>{stormResolve=resolve;});
+ child.stdout.on('data',chunk=>{
+  stdout+=chunk.toString();
+  if(/^READY\r?\n/.test(stdout))readyResolve();
+  if(stdout.includes('STORM_READY\n')||
+     stdout.includes('STORM_READY\r\n'))stormResolve();
+ });
+ child.stderr.on('data',chunk=>{stderr+=chunk.toString();});
+ const finished=new Promise((resolve,reject)=>{
+  child.once('error',reject);
+  child.once('close',code=>resolve(code));
+ });
+ async function bounded(promise,limit=30000){
+  let handle;
+  try{
+   return await Promise.race([promise,new Promise((_,reject)=>{
+    handle=setTimeout(()=>reject(Error('snapshot divergence stage timed out')),limit);
+   })]);
+  }finally{clearTimeout(handle);}
+ }
+ try{
+  await bounded(Promise.race([ready,finished.then(code=>{
+   throw Error('child exited before READY: '+code+' '+stderr);
+  })]));
+  await fs.writeFile(join(f.dir,'single-trigger.txt'),'SYNTHETIC TRIGGER');
+  child.stdin.write('TRIGGER_DONE\n');
+  await bounded(Promise.race([stormReady,finished.then(code=>{
+   throw Error('child exited before STORM_READY: '+code+' '+stderr);
+  })]));
+  // First native read completed and baseline was captured by the child.
+  // While unarmed, 900 rename pairs overwhelm the 4096-byte buffer.
+  for(let i=0;i<900;i++){
+   await fs.rename(original,renamed);
+   await fs.rename(renamed,original);
+  }
+  await mutate({f,original,renamed});
+  child.stdin.end('STORM_DONE\n');
+  const code=await bounded(finished,15000);
+  assert.equal(code,3,'divergent snapshot MUST refuse without claiming recovery');
+  assert.match(stdout,
+   /^READY\r?\nVOLUME_KIND=(NTFS|ReFS|Other|Unavailable)\r?\nSTORM_READY\r?\n$/);
+  assert.doesNotMatch(stdout,/SCAN_ONLY|observed-bounded-untrusted|packageCandidates/);
+  assert.equal(stderr.trim(),'Temporary standalone native directory lab refused.');
+  assert.equal(stdout.includes(f.root),false);
+  assert.equal(stderr.includes(f.root),false);
+  assert.equal(stdout.includes(f.nonce),false);
+  assert.equal(stderr.includes(f.nonce),false);
+ }finally{
+  if(child.exitCode===null)child.kill();
+ }
+}
+
+for(const scenario of [
+ {title:'extra package',mutate:async({f})=>{
+  await fs.writeFile(join(f.dir,'unexpected.zip'),'EXTRA FAKE PACKAGE');
+ }},
+ {title:'missing original package',mutate:async({original})=>{
+  await fs.rm(original);
+ }},
+ {title:'same-count name substitution',mutate:async({f,original})=>{
+  await fs.rename(original,join(f.dir,'different-package.scs'));
+ }},
+ {title:'altered marker bytes',mutate:async({f})=>{
+  await fs.writeFile(join(f.root,MARKER),'0'.repeat(32));
+ }}
+]){
+ test('Win32 post-loss reconciliation refuses '+scenario.title+' without SCAN_ONLY',
+  {skip:!ready,timeout:90000},async()=>{
+   await assertQueuedSnapshotDivergence(scenario.mutate);
+  });
+}
