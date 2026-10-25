@@ -19,21 +19,31 @@ const ready=windows&&typeof exe==='string'&&exe.length>0;
 const roots=new Set();
 const execAsync=promisify(execFile);
 
-async function fixture(){
- const root=await fs.mkdtemp(join(tmpdir(),PREFIX));
+async function fixtureAt(parent){
+ const root=await fs.mkdtemp(join(parent,PREFIX));
  roots.add(root);
  const nonce=randomBytes(16).toString('hex');
  await fs.writeFile(join(root,MARKER),nonce,{flag:'wx'});
  await fs.mkdir(join(root,'native-enum'));
  return {root,nonce,game:'omsi',dir:join(root,'native-enum')};
 }
-async function invoke(f,extra=[]){
+async function fixture(){return fixtureAt(tmpdir());}
+async function syntheticTemp(){
+ const base=await fs.mkdtemp(join(tmpdir(),PREFIX));
+ roots.add(base);
+ return base;
+}
+function tempEnv(parent){
+ return {...process.env,TMP:parent,TEMP:parent};
+}
+async function invoke(f,extra=[],tempParent=null){
  return execAsync(exe,['--root',f.root,'--nonce',f.nonce,...extra],{
-  shell:false,windowsHide:true,timeout:15000,maxBuffer:4096
+  shell:false,windowsHide:true,timeout:15000,maxBuffer:4096,
+  ...(tempParent===null?{}:{env:tempEnv(tempParent)})
  });
 }
-async function denied(f,extra=[]){
- await assert.rejects(invoke(f,extra),err=>{
+async function denied(f,extra=[],tempParent=null){
+ await assert.rejects(invoke(f,extra,tempParent),err=>{
   assert.equal(err.code,3);
   assert.match(err.stderr,/Temporary standalone native directory lab refused/);
   assert.equal(err.stdout,'');
@@ -211,9 +221,10 @@ test('the experimental native assembly is intentionally unavailable on Linux',
 // Deterministic two-process barrier. The C# process holds Win32 root and
 // child directory handles at READY; Node mutates only generated os.tmpdir()
 // fixtures. The native executable accepts only an exact CONTINUE line.
-async function race(f,mutate=async()=>{},reply='CONTINUE'){
+async function race(f,mutate=async()=>{},reply='CONTINUE',tempParent=null){
  const child=spawn(exe,['--root',f.root,'--nonce',f.nonce,'--race-barrier'],{
-  shell:false,windowsHide:true,stdio:['pipe','pipe','pipe']
+  shell:false,windowsHide:true,stdio:['pipe','pipe','pipe'],
+  ...(tempParent===null?{}:{env:tempEnv(tempParent)})
  });
  let stdout='',stderr='';
  const finished=new Promise((resolve,reject)=>{
@@ -393,4 +404,62 @@ test('marker modified during the race can never return an authorized native repo
  raceRejected(r);
  assert.equal(r.stdout.trim(),'READY');
  assert.doesNotMatch(r.stdout,/operationsEnabled|canInstall|nativeFileIdChecked/);
+});
+
+test('regular nested TEMP components remain observable in a synthetic sandbox',
+ {skip:!ready},async()=>{
+ const base=await syntheticTemp();
+ const parent=join(base,'ordinary-parent','temp');
+ await fs.mkdir(parent,{recursive:true});
+ const f=await fixtureAt(parent);
+ const result=validate(await invoke(f,[],parent));
+ assert.equal(result.entries,0);
+ assert.equal(result.operationsEnabled,false);
+});
+test('junction as configured TEMP is refused before native enumeration',
+ {skip:!ready},async(t)=>{
+ const base=await syntheticTemp();
+ const real=join(base,'real-temp'),alias=join(base,'temp-junction');
+ await fs.mkdir(real);
+ try{await fs.symlink(real,alias,'junction');}
+ catch(e){if(['EPERM','EACCES','ENOSYS','ENOTSUP'].includes(e.code)){
+  t.skip('Windows junction creation unavailable');return;
+ }throw e;}
+ const f=await fixtureAt(alias);
+ await denied(f,[],alias);
+});
+test('junction ABOVE TEMP is refused even when TEMP itself is an ordinary directory',
+ {skip:!ready},async(t)=>{
+ const base=await syntheticTemp();
+ const real=join(base,'real-parent'),alias=join(base,'alias-parent');
+ await fs.mkdir(join(real,'temp'),{recursive:true});
+ try{await fs.symlink(real,alias,'junction');}
+ catch(e){if(['EPERM','EACCES','ENOSYS','ENOTSUP'].includes(e.code)){
+  t.skip('Windows junction creation unavailable');return;
+ }throw e;}
+ const parent=join(alias,'temp');
+ const f=await fixtureAt(parent);
+ await denied(f,[],parent);
+ assert.equal(await fs.readFile(join(real,'temp',f.root.split(/[\\/]/).at(-1),MARKER),'utf8'),f.nonce);
+});
+test('substitution of configured TEMP parent during held-handle barrier is refused',
+ {skip:!ready},async(t)=>{
+ const base=await syntheticTemp();
+ const parent=join(base,'temp-folder'),parked=join(base,'parked-temp-folder');
+ await fs.mkdir(parent);
+ roots.add(parked);
+ const f=await fixtureAt(parent);
+ let swapped=false;
+ const r=await race(f,async()=>{
+  try{await fs.rename(parent,parked);}
+  catch(e){if(['EPERM','EACCES','EBUSY'].includes(e.code)){
+   t.skip('Windows prevented TEMP parent rename with handles held');return;
+  }throw e;}
+  swapped=true;
+  await fs.mkdir(parent);
+  await fs.mkdir(f.root);
+  await fs.writeFile(join(f.root,MARKER),f.nonce,{flag:'wx'});
+  await fs.mkdir(f.dir);
+ },'CONTINUE',parent);
+ if(swapped)raceRejected(r);
 });
