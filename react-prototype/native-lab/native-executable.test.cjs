@@ -628,3 +628,32 @@ test('opt-in overlapped watcher cannot reinterpret invalid continuation as a com
  const f=await fixture();
  raceRejected(await race(f,async()=>{},'INSTALL',null,['--rdcw-probe']));
 });
+
+test('real CancelIoEx on a pending synthetic directory watch refuses generically',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--rdcw-probe','--test-cancel-pending-io']);
+ assert.equal(await fs.readFile(join(f.root,MARKER),'utf8'),f.nonce);
+});
+
+test('pending-I/O cancellation does not reveal synthetic filenames or grant operations',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ const secret='this-is-a-synthetic-private-package.scs';
+ await fs.writeFile(join(f.dir,secret),'NEVER-READ');
+ await assert.rejects(invoke(f,['--rdcw-probe','--test-cancel-pending-io']),error=>{
+  assert.equal(error.code,3);
+  assert.match(error.stderr,/Temporary standalone native directory lab refused/);
+  assert.equal(error.stdout,'');
+  assert.doesNotMatch(error.stderr,/this-is-a-synthetic-private-package|GetOverlappedResult|CancelIoEx/i);
+  assert.equal(error.stderr.includes(f.root),false);
+  return true;
+ });
+ assert.equal(await fs.readFile(join(f.dir,secret),'utf8'),'NEVER-READ');
+});
+
+test('native cancellation command is not accepted without the opt-in watcher',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-cancel-pending-io']);
+});
