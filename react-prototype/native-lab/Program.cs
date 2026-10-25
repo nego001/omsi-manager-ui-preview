@@ -263,10 +263,16 @@ internal static class Program
         private const uint WaitTimeout = 0x00000102;
         private readonly SafeChangeNotificationHandle notification;
 
-        public DirectoryChangeFence(string path, SafeFileHandle heldDirectory)
+        public DirectoryChangeFence(string path, SafeFileHandle heldDirectory, bool markerFolder)
         {
-            notification = FindFirstChangeNotification(path, false,
-                FileName | DirectoryName | Attributes | Size | LastWrite | Creation);
+            // File-name changes are delivered when an entry is added/removed,
+            // including rapid create/delete ABA. Watching last-write/size
+            // on the large native-enum fixture also catches delayed cache
+            // flushes from file writes that PRECEDED watcher registration.
+            // Limit content-change signals to the 32-byte marker's parent.
+            uint filter = FileName | DirectoryName;
+            if (markerFolder) filter |= Attributes | Size | LastWrite | Creation;
+            notification = FindFirstChangeNotification(path, false, filter);
             if (notification is null || notification.IsInvalid)
             {
                 notification?.Dispose();
@@ -582,8 +588,8 @@ internal static class Program
             // relative native handles still own the actual enumeration and
             // marker-byte reads; watchers never grant authorization.
             using SafeFileHandle heldTarget = OpenChildDirectory(heldRoot, "native-enum");
-            using DirectoryChangeFence rootChanges = new(root, heldRoot);
-            using DirectoryChangeFence targetChanges = new(target, heldTarget);
+            using DirectoryChangeFence rootChanges = new(root, heldRoot, true);
+            using DirectoryChangeFence targetChanges = new(target, heldTarget, false);
             rootChanges.VerifyNotSignaled();
             targetChanges.VerifyNotSignaled();
             int[] v = Inspect(heldRoot, target, raceBarrier ? (Action)PauseForTestMutation : null);
