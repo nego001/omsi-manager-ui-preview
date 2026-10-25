@@ -74,3 +74,12 @@ Uma simulação local de PID diferente ou de horário de criação falsificado �
 Os **11 cenários novos** tentam alteração do mesmo tamanho, truncamento, crescimento, substituição por outro arquivo com bytes iguais, exclusão de pathname, adulteração de marcador, nonce e pasta inválidos, link simbólico, e encerramento do observador antes da segunda etapa. A disponibilidade de troca enquanto um handle está aberto depende das regras de compartilhamento e do filesystem Windows; **testes ignorados devem aparecer explicitamente nos logs**. O observador não modifica arquivos, e o processo de teste só escreve fixtures previamente criadas.
 
 A execução agora tem **100 casos de laboratório no Windows** e **68 casos gerais + 32 skips Windows-only no Linux**. Nenhum desses experimentos demonstra atomicidade universal contra um atacante concorrente, ABA em todas as janelas, auditoria nativa de processo de terceiros ou segurança após pane elétrica. Nenhuma API de instalação, restauração, deleção real de mods ou journal de produção foi ativada.
+
+
+## Substituição após fechar o handle e limitação ABA
+
+O teste `temp-native-file-race.ps1` mantém o modo `held` (handle nativo aberto durante a tentativa de escrita), mas adiciona o modo `released`: captura inicialmente `FileIdInfo` e conteúdo do arquivo de teste e então libera o handle antes de emitir a barreira `READY`. O processo Node pode mover o arquivo inicial para outro nome, criar outro arquivo no pathname original e mandar `CONTINUE`. A sonda revalida o marcador e compara o ID/bytes do novo handle contra o snapshot anterior. Isso exercita **de fato** uma substituição que o Windows costuma bloquear enquanto o handle antigo permanece aberto.
+
+A identidade conservada após fechamento não é uma capability ou bloqueio: a troca `ABA` é testada devolvendo o arquivo original ao pathname. Como o ID e os bytes podem voltar a coincidir, o resultado `observed-stable-untrusted` **não significa que o pathname esteve imutável**. `abaRuledOut:false` permanece fixo, assim como `nativeIdentityApprovedForRealMods:false`, `cleanupAllowed:false` e `operationsEnabled:false`.
+
+Foram incorporados 7 cenários Windows-only, **107 testes no total**, sendo 68 gerais (Linux também) e 39 exclusivos Windows. Os 2 cenários antigos que tentam trocar um pathname com handle aberto ainda podem sofrer `skip`, sem invalidar o novo experimento separado. Nenhuma API real de modificar mods é adicionada.

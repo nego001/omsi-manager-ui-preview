@@ -23,9 +23,9 @@ async function fixture(contents='SYNTHETIC-CONTENT'){
  }
  return {root,nonce,target:join(root,'identity-target.bin')};
 }
-function args(f){
+function args(f,mode='held'){
  return ['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',
-  script,'-Root',f.root,'-Nonce',f.nonce];
+  script,'-Root',f.root,'-Nonce',f.nonce,'-Mode',mode];
 }
 function refuse(f){
  const p=spawnSync('powershell.exe',args(f),{
@@ -38,7 +38,11 @@ function refuse(f){
 }
 function noAuthority(x){
  assert.equal(x.source,'temporary-windows-native-race-fixture');
- assert.equal(x.realNativeHandleHeldAcrossBarrier,true);
+ assert.equal(typeof x.realNativeHandleHeldAcrossBarrier,'boolean');
+ assert.equal(typeof x.nativeHandleReleasedBeforeBarrier,'boolean');
+ assert.equal(x.realNativeHandleHeldAcrossBarrier,
+  !x.nativeHandleReleasedBeforeBarrier);
+ assert.equal(x.abaRuledOut,false);
  assert.equal(x.checkedPathThroughSecondHandle,true);
  for(const k of ['nativeIdentityApprovedForRealMods','atomicFilesystemIdentityProven',
   'directoryDurabilityProven','cleanupAllowed','canInstall','canRecover',
@@ -46,8 +50,8 @@ function noAuthority(x){
  assert.equal(x.bytesFromGames,0);
  assert.ok(['changed-or-unavailable','observed-stable-untrusted'].includes(x.outcome));
 }
-async function launch(f){
- const cp=spawn('powershell.exe',args(f),{
+async function launch(f,mode='held'){
+ const cp=spawn('powershell.exe',args(f,mode),{
   stdio:['pipe','pipe','pipe'],windowsHide:true
  });
  children.add(cp);
@@ -93,8 +97,8 @@ async function launch(f){
   getOutput:()=>({stdout,stderr})
  };
 }
-async function witness(f,mutate=async()=>{}){
- const x=await launch(f);
+async function witness(f,mutate=async()=>{},mode='held'){
+ const x=await launch(f,mode);
  try{
   const mutation=await mutate(f);
   return {...await x.resume(),mutation};
@@ -218,4 +222,94 @@ test('parent can terminate a waiting witness without mutation of target or senti
   assert.equal(await fsp.readFile(f.target,'utf8'),'ORIGINAL');
   assert.equal(await fsp.readFile(untouched,'utf8'),'DO-NOT-TOUCH');
  }finally{await fsp.rm(untouched,{force:true});}
+});
+
+test('released native handle allows a stable untrusted reinspection',
+ {skip:!windows},async()=>{
+ const f=await fixture('STATIC'),x=await witness(f,async()=>{},'released');
+ assert.equal(x.code,0,x.stderr);
+ assert.equal(x.report.nativeHandleReleasedBeforeBarrier,true);
+ assert.equal(x.report.realNativeHandleHeldAcrossBarrier,false);
+ assert.equal(x.report.abaRuledOut,false);
+ assert.equal(x.report.outcome,'observed-stable-untrusted');
+});
+test('released-handle rename to identical bytes with distinct FileId is caught',
+ {skip:!windows},async()=>{
+ const f=await fixture('SAME-BYTES'),spare=join(f.root,'replacement.tmp');
+ await fsp.writeFile(spare,'SAME-BYTES',{flag:'wx'});
+ const x=await witness(f,async()=>{
+  const old=join(f.root,'kept-original.tmp');
+  await fsp.rename(f.target,old);
+  await fsp.rename(spare,f.target);
+ },'released');
+ assert.equal(x.code,0,x.stderr);
+ assert.equal(x.report.outcome,'changed-or-unavailable');
+ assert.equal(x.report.abaRuledOut,false);
+});
+test('released-handle deletion and recreation with new bytes is rejected',
+ {skip:!windows},async()=>{
+ const f=await fixture('FIRST'),x=await witness(f,async()=>{
+  await fsp.rm(f.target);
+  await fsp.writeFile(f.target,'SECOND',{flag:'wx'});
+ },'released');
+ assert.equal(x.code,0,x.stderr);
+ assert.equal(x.report.outcome,'changed-or-unavailable');
+});
+test('released-handle pathname deletion yields unavailable without cleanup',
+ {skip:!windows},async()=>{
+ const f=await fixture('GONE'),x=await witness(f,async()=>{
+  await fsp.rm(f.target);
+ },'released');
+ assert.equal(x.code,0,x.stderr);
+ assert.equal(x.report.outcome,'changed-or-unavailable');
+ assert.equal(x.report.cleanupAllowed,false);
+});
+test('ABA restore after a temporary impostor stays untrusted',
+ {skip:!windows},async()=>{
+ const f=await fixture('ORIGINAL'),parked=join(f.root,'parked.tmp');
+ const impostor=join(f.root,'impostor.tmp');
+ await fsp.writeFile(impostor,'ORIGINAL',{flag:'wx'});
+ const x=await witness(f,async()=>{
+  await fsp.rename(f.target,parked);
+  await fsp.rename(impostor,f.target);
+  await fsp.rm(f.target);
+  await fsp.rename(parked,f.target);
+ },'released');
+ assert.equal(x.code,0,x.stderr);
+ // This is a deliberately demonstrated blind spot, NOT an ABA defense.
+ assert.equal(x.report.outcome,'observed-stable-untrusted');
+ assert.equal(x.report.abaRuledOut,false);
+ assert.equal(x.report.nativeIdentityApprovedForRealMods,false);
+});
+test('released native witness still rejects marker changes between observations',
+ {skip:!windows},async()=>{
+ const f=await fixture('MARKER'),x=await witness(f,async()=>{
+  await fsp.writeFile(join(f.root,MARKER),'0'.repeat(32));
+ },'released');
+ assert.equal(x.code,3,x.stderr);
+ assert.match(x.stderr,/Temporary native race fixture refused/);
+ assert.equal(x.report,null);
+});
+test('two independent released observers both see a distinct file replacement',
+ {skip:!windows},async()=>{
+ const f=await fixture('TWO-VIEWERS');
+ const [a,b]=await Promise.all([launch(f,'released'),launch(f,'released')]);
+ try{
+  const backup=join(f.root,'backup.tmp');
+  await fsp.rename(f.target,backup);
+  await fsp.writeFile(f.target,'TWO-VIEWERS',{flag:'wx'});
+  const [one,two]=await Promise.all([a.resume(),b.resume()]);
+  for(const x of [one,two]){
+   assert.equal(x.code,0,x.stderr);
+   assert.equal(x.report.outcome,'changed-or-unavailable');
+   assert.equal(x.report.nativeHandleReleasedBeforeBarrier,true);
+   assert.equal(x.report.abaRuledOut,false);
+  }
+ }finally{
+  for(const x of [a,b])if(x.child.exitCode===null&&x.child.signalCode===null){
+   const end=once(x.child,'exit');
+   x.child.kill('SIGKILL');
+   await end;
+  }
+ }
 });

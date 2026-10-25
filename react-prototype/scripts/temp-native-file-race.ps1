@@ -3,7 +3,8 @@
 # Read-only native handles; never imported into Electron or used for game files.
 param(
  [Parameter(Mandatory=$true)][string]$Root,
- [Parameter(Mandatory=$true)][string]$Nonce
+ [Parameter(Mandatory=$true)][string]$Nonce,
+ [ValidateSet('held','released')][string]$Mode='held'
 )
 $ErrorActionPreference='Stop'
 $witness=$null
@@ -58,6 +59,7 @@ public sealed class OmsiTestNativeRaceWitness : IDisposable {
  private FileIdInfo beforeId;
  private byte[] beforeBytes;
  private bool closed;
+ private bool released;
  private static SafeFileHandle OpenAllowed(string pathname){
   const uint GENERIC_READ=0x80000000u;
   const uint SHARE_ALL=7u,OPEN_EXISTING=3u,OPEN_REPARSE=0x00200000u;
@@ -108,9 +110,26 @@ public sealed class OmsiTestNativeRaceWitness : IDisposable {
    if(!Same(beforeId,Id(handle)))throw new IOException("changed on opening");
   }catch{Dispose();throw;}
  }
+ public void ReleaseForSwap(){
+  if(closed||released)throw new ObjectDisposedException("witness");
+  released=true;
+  if(stream!=null)stream.Dispose();
+  else if(handle!=null)handle.Dispose();
+  stream=null;handle=null;
+ }
  public string Recheck(){
   if(closed)throw new ObjectDisposedException("witness");
   try{
+   if(released){
+    using(SafeFileHandle reopened=OpenAllowed(file)){
+     FileIdInfo pathId=Id(reopened);
+     using(FileStream fresh=new FileStream(reopened,FileAccess.Read,4096,false)){
+      byte[] pathBytes=ReadSmall(fresh);
+      return Same(beforeId,pathId)&&Same(beforeBytes,pathBytes)
+       ? "observed-stable-untrusted":"changed-or-unavailable";
+     }
+    }
+   }
    FileIdInfo heldId=Id(handle);
    byte[] heldBytes=ReadSmall(stream);
    if(!Same(beforeId,heldId)||!Same(beforeBytes,heldBytes))
@@ -133,6 +152,7 @@ public sealed class OmsiTestNativeRaceWitness : IDisposable {
 }
 '@ -ErrorAction Stop
  $witness=[OmsiTestNativeRaceWitness]::new($target)
+ if($Mode -ceq 'released'){$witness.ReleaseForSwap()}
  # The independent Node test receives this boundary before attempting changes.
  [Console]::Out.WriteLine('READY')
  [Console]::Out.Flush()
@@ -148,8 +168,10 @@ public sealed class OmsiTestNativeRaceWitness : IDisposable {
  $report=[ordered]@{
   source='temporary-windows-native-race-fixture'
   outcome=$result
-  realNativeHandleHeldAcrossBarrier=$true
+  realNativeHandleHeldAcrossBarrier=($Mode -ceq 'held')
+  nativeHandleReleasedBeforeBarrier=($Mode -ceq 'released')
   checkedPathThroughSecondHandle=$true
+  abaRuledOut=$false
   nativeIdentityApprovedForRealMods=$false
   atomicFilesystemIdentityProven=$false
   directoryDurabilityProven=$false

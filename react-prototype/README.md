@@ -229,3 +229,12 @@ A prévia adicionou uma sonda `scripts/temp-native-file-id.ps1` que usa PowerShe
 `scripts/temp-native-file-race.ps1` abre um handle **Win32 somente leitura** para `identity-target.bin` dentro de um diretório temporário vinculado ao marcador do laboratório. Após obter `FileIdInfo` e bytes de até 4096 B, sinaliza `READY` ao processo Node que o iniciou e mantém o handle aberto. O outro processo pode alterar, truncar, anexar, renomear ou excluir **somente essa fixture**, e então responde `CONTINUE`. O observador verifica bytes e ID no handle original e usa **um segundo handle** para reabrir o caminho. Divergências, remoções e novas identidades tornam o resultado `changed-or-unavailable`, sem autorizar ações.
 
 O comando `npm run test:identity:race:windows` acrescenta **11 testes Windows-only** (incluindo invalidação do marcador e encerramento forçado antes de continuar). A suíte `npm run test:recovery:fixture` passa a totalizar **100 testes Node**, dos quais 32 dependem da API Windows e são ignorados intencionalmente no Linux. Quando um filesystem Windows recusa renomear/excluir um arquivo aberto, o teste registra `skip` e não alega ter exercitado a troca. A sonda não integra Electron, IPC ou distribuição, e não é uma solução de TOCTOU pronta para produção.
+
+
+### Troca determinística de pathname após liberação do handle
+
+O laboratório nativo Windows em `temp-native-file-race.ps1` ganhou um **segundo modo, `released`**, no qual observa `FileIdInfo` e os bytes, **fecha a referência nativa de leitura**, emite a barreira `READY` e só depois reabre o pathname para comparar com o snapshot anterior. Dessa maneira o Windows pode aceitar `rename`/substituição sem contornar as regras de compartilhamento de um handle aberto. `held` continua disponível para checar alterações enquanto a referência permanece viva.
+
+Foram adicionados **7 testes**: arquivo preservado, substituição por outro de mesmo conteúdo com ID diferente, remoção e recriação, remoção sem reposição, dois observadores concorrentes, marcador adulterado e troca `ABA` (o original sai e depois retorna). O caso ABA deliberadamente registra uma observação estável como **não confiável**: a comparação entre duas amostras não consegue provar que nenhuma mudança ocorreu entre elas. O relatório registra `abaRuledOut:false` e continua negando toda operação real.
+
+O laboratório passa a contar **107 casos Node**, com 68 multiplataforma e 39 exclusivos do Windows. A interface e o pacote Electron permanecem inalterados, e `scripts/` continua excluída da distribuição.
