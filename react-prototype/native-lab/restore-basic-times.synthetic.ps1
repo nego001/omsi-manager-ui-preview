@@ -4,6 +4,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+try {
 
 # Standalone, test-only mutator. Never shipped or called by Electron.
 # One exact filename under a direct-child, nonce-marked system TEMP fixture.
@@ -24,6 +25,14 @@ foreach ($item in @($path,$dir,$marker,$file)) {
  }
 }
 if ([System.IO.File]::ReadAllText($marker) -cne $Nonce) {
+ throw 'Synthetic timestamp restoration refused'
+}
+# Windows normally resolves filenames without case sensitivity. Require the
+# ACTUAL synthetic child entry to have the exact expected spelling and reject
+# unexpected siblings before opening any handle with write-attributes access.
+$children = @([System.IO.Directory]::EnumerateFileSystemEntries($dir))
+if ($children.Count -ne 1 -or
+    [System.IO.Path]::GetFileName($children[0]) -cne 'metadata-probe.scs') {
  throw 'Synthetic timestamp restoration refused'
 }
 $code = @'
@@ -122,3 +131,9 @@ public static class SyntheticBasicTimeRestoration {
 Add-Type -TypeDefinition $code -ErrorAction Stop
 [SyntheticBasicTimeRestoration]::Run($file)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
+} catch {
+ # Nothing about filenames, TEMP paths, nonce, binary content or stack traces
+ # is printed by this disposable test-only mutator on refusal.
+ [Console]::Error.WriteLine('Synthetic timestamp restoration refused')
+ exit 3
+}
