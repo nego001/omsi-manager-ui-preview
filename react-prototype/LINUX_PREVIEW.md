@@ -49,3 +49,27 @@ Electron 38 uses automatic Ozone backend selection. On a normal `XDG_SESSION_TYP
 - The earlier packaged X11/Xvfb smoke continues checking a synthetic OMSI structure and the unchanged .bus sentinel.
 
 **Still untested:** actual Hyprland behavior on Arch Linux, fractional scaling, GPU/compositor interactions, tray and portals, Flatpak/AppImage distribution and Proton/OpenOMSI integration. An ephemeral Weston compositor is not Hyprland. No global desktop entry, privileged service, `pacman` package or autostart unit is created.
+
+## Atalho opcional no menu de aplicativos (XDG)
+
+O pacote portátil agora inclui `OMSI-Manager-Desktop-Integration.cjs`. Ele **não é executado automaticamente**, nem quando o arquivo é baixado ou extraído. Para registrar o atalho no menu de aplicativos, em uma sessão de usuário comum e com Node.js 22 instalado, execute dentro da pasta extraída:
+
+```bash
+node ./OMSI-Manager-Desktop-Integration.cjs install
+```
+
+Para remover somente o atalho criado para **esta pasta de aplicativo**, execute:
+
+```bash
+node ./OMSI-Manager-Desktop-Integration.cjs remove
+```
+
+O registro fica em `${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.omsi_manager.Preview.desktop`. Ele aponta ao lançador `OMSI-Manager-Preview.sh` pelo caminho absoluto, respeitando espaços comuns no caminho. O helper recusa root/sudo, lançadores redirecionados, entradas pré-existentes não correspondentes e symlinks diretos no destino ou no diretório de atalhos. Não configura autostart, systemd, atualizações ou associação de extensões. Mover o pacote após registrar o atalho invalida esse caminho: remova o atalho antes de mudar a pasta e instale-o novamente depois.
+
+**Limitação de distribuição:** essa integração opcional usa Node.js no comando de instalação do atalho, mas a execução cotidiana do Electron portátil não necessita do Node do sistema. Um instalador nativo sem dependências externas e verificação formal de todas as condições TOCTOU ainda não foi desenvolvido. A suíte CI cria `HOME`/`XDG_DATA_HOME` fictícios para conferir instalação, remoção e recusa de sobrescrita; não modifica o menu de um usuário real.
+
+## Diálogos Wayland e portais XDG
+
+A seleção da pasta continua por `dialog.showOpenDialog` **do processo principal do Electron**. A interface JavaScript nunca recebe permissão para escolher um caminho diretamente nem possui acesso direto ao sistema de arquivos. O diálogo exige `openDirectory`, evita adicionar pastas aos documentos recentes e não define `defaultPath`, porque o comportamento dos portais Linux varia conforme a versão do backend. O teste Weston verifica cancelamento e uma seleção sintética, revalidando o modo somente leitura e preservando o arquivo .bus fictício.
+
+O teste de seleção **substitui a resposta da janela de seleção por um resultado simulado**, portanto **não comprova que `xdg-desktop-portal`, `xdg-desktop-portal-hyprland` ou um backend GTK tenha aberto um seletor real**. Isso precisará ser exercitado quando o ambiente Arch Linux/Hyprland estiver disponível. Consulte a [documentação do diálogo do Electron](https://www.electronjs.org/docs/latest/api/dialog) para as limitações relacionadas a portais.
