@@ -11,17 +11,25 @@ const MARKER='X-OMSI-Manager-ReadOnly-Preview=true';
 const REFUSAL='Linux desktop integration refused';
 const deny=()=>{throw Error(REFUSAL);};
 
+function hasUnsafePathChars(value){
+ // ASCII control characters and desktop-entry/field-code metacharacters.
+ const forbidden=[34,36,37,92,96]; // quote, dollar, percent, backslash, backtick
+ return [...value].some(c=>{
+  const n=c.charCodeAt(0);
+  return n<32||n===127||forbidden.includes(n);
+ });
+}
 function launcherIn(packageDir){
  if(process.platform!=='linux'||!path.isAbsolute(packageDir))deny();
  const launcher=path.join(packageDir,'OMSI-Manager-Preview.sh');
  // Restrict the portable location instead of trying to implement every
  // desktop-spec quoting corner case. Spaces and accents are supported.
- if(/[\u0000-\u001f\u007f\\\"\x60$%]/u.test(launcher))deny();
+ if(hasUnsafePathChars(launcher))deny();
  return launcher;
 }
 function makeEntry(launcher){
  if(typeof launcher!=='string'||!path.isAbsolute(launcher)||
-    /[\u0000-\u001f\u007f\\\"\x60$%]/u.test(launcher))deny();
+    hasUnsafePathChars(launcher))deny();
  return [
   '[Desktop Entry]',
   'Type=Application',
