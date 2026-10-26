@@ -27,7 +27,9 @@
     "package:win": "node scripts/package-windows.mjs",
     "test:inspection:e2e": "node scripts/desktop-inspection-e2e.mjs",
     "test:portable:windows": "node scripts/portable-windows-smoke.mjs",
-    "test:witness:portable": "node --test native-lab/synthetic-operation-observer.test.cjs native-lab/synthetic-evidence-checkpoint.test.cjs native-lab/synthetic-evidence-authenticator.test.cjs native-lab/synthetic-memory-verifier.test.cjs native-lab/synthetic-service-boundary.test.cjs"
+    "test:witness:portable": "node --test native-lab/synthetic-operation-observer.test.cjs native-lab/synthetic-evidence-checkpoint.test.cjs native-lab/synthetic-evidence-authenticator.test.cjs native-lab/synthetic-memory-verifier.test.cjs native-lab/synthetic-service-boundary.test.cjs",
+    "package:linux": "node scripts/package-linux.mjs",
+    "test:portable:linux": "node scripts/portable-linux-smoke.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
