@@ -1923,11 +1923,11 @@ async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint){
   child.once('error',reject);
   child.once('close',(code,signal)=>{closed=true;resolve({code,signal});});
  });
- child.stdout.on('data',data=>{stdout+=data.toString().replace(/\r\n/g,'\n');});
+ child.stdout.on('data',data=>{stdout+=data.toString();});
  child.stderr.on('data',data=>{stderr+=data.toString();});
  async function until(marker){
   const deadline=Date.now()+25000;
-  while(!stdout.includes(marker)){
+  while(!stdout.replace(/\r\n/g,'\n').includes(marker)){
    if(closed)throw Error('synthetic child exited before '+marker+': '+stderr);
    if(Date.now()>deadline)throw Error('synthetic kill checkpoint timeout: '+marker);
    await new Promise(resolve=>setTimeout(resolve,25));
@@ -1941,12 +1941,13 @@ async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint){
   assert.equal(stdout.includes('RESTORATION_PERFORMED'),false);
   assert.equal(stderr,'');
   assert.equal(child.kill(),true,'synthetic child must be terminable');
+  let timeoutId;
   const exit=await Promise.race([done,new Promise((_,reject)=>{
-   setTimeout(()=>reject(Error('synthetic kill failed to terminate')),10000);
-  })]);
+   timeoutId=setTimeout(()=>reject(Error('synthetic kill failed to terminate')),10000);
+  })]).finally(()=>clearTimeout(timeoutId));
   assert.notEqual(exit.code,0,'interrupted process cannot report success');
   assert.equal(stdout.includes('RESTORATION_PERFORMED'),false);
-  return {stdout,stderr,heldBytes,exit};
+  return {stdout:stdout.replace(/\r\n/g,'\n'),stderr,heldBytes,exit};
  }finally{
   if(!closed)child.kill();
   child.stdin.destroy();
