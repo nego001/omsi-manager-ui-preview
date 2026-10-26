@@ -6,7 +6,8 @@ const fs=require('node:fs/promises');
 const {constants}=require('node:fs');
 const {join,resolve,dirname,basename}=require('node:path');
 const {tmpdir}=require('node:os');
-const {readSyntheticOperationLedger}=require('./synthetic-operation-ledger.cjs');
+const {readSyntheticOperationLedger,reviewSyntheticOperationLedger}=
+ require('./synthetic-operation-ledger.cjs');
 
 const PREFIX='omsi-manager-evidence-checkpoint-';
 const FILE='.omsi-test-checkpoint.json';
@@ -107,12 +108,13 @@ async function loadCheckpoint(directory){
 // from the potentially forged witness. Mismatch is *inconclusive*, even
 // when the witness claims it finished successfully.
 async function reviewSyntheticEvidenceCheckpoint(root,nonce,anchorDirectory){
- let witness;
- try{witness=await readSyntheticOperationLedger(root,nonce);}
- catch{
+ // The existing conservative reviewer authenticates the disposable
+ // fixture and nonce BEFORE classifying a missing/corrupt witness. A wrong
+ // nonce must still refuse; it is NOT merely an inconclusive checkpoint.
+ const witness=await reviewSyntheticOperationLedger(root,nonce);
+ if(witness.status==='unverifiable_incomplete'||!witness.chainHead)
   return {status:'unverifiable_incomplete',events:[],
    checkpointMatch:false};
- }
  try{
   const checkpoint=await loadCheckpoint(anchorDirectory);
   if(checkpoint.head!==witness.chainHead||
