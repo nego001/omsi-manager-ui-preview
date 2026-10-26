@@ -13,7 +13,7 @@
 
 | Required gate | Windows candidate | Linux candidate | Status |
 | --- | --- | --- | --- |
-| Distinct OS principal | Dedicated low-privilege service identity or service SID with an independently audited token | Dedicated non-root service UID, restricted groups and reviewed systemd sandboxing | **Linux synthetic fixture-only different-UID test added; production service not implemented** |
+| Distinct OS principal | Dedicated low-privilege service identity or service SID with an independently audited token | Dedicated non-root service UID, restricted groups and reviewed systemd sandboxing | **Synthetic real-SID/NTFS and Linux real-UID tests in ephemeral CI; production service not implemented** |
 | Authenticated peer | Local-only named pipe with restrictive DACL, server identity validation and audited client token validation | Local Unix-domain socket with restrictive filesystem permissions and `SO_PEERCRED` verification | **Linux temporary socket `SO_PEERCRED` denial tested; production channel not implemented** |
 | Filesystem constraints | Explicit deny on game, mods, profile and arbitrary user paths; verify ACLs and reparse-point behavior | Deny game/mod/home file access; explicit sandbox, mount namespace / path rules and symlink audit | **Not implemented** |
 | Key custody | Access-controlled service-only key, explicit lifecycle/rotation/backup policy, investigated DPAPI/CNG or hardware protection | Credentials isolated from UI user, key lifecycle, sealed/ephemeral storage review and memory process inspection controls | **Not implemented** |
@@ -47,3 +47,17 @@ The service-user subprocess creates a 32-byte **test canary** under a private `0
 **Not a production service:** socket directory access on a production system would need restrictive mode/group and peer authorization; the demonstration's `0666` socket exists solely to test `SO_PEERCRED` rejection. Real deployment needs a service definition, managed service UID, validated caller identity, a production ACL/sandbox, lifecycle hardening, key custody and new security review. It does not prove Windows service SID/DACL behavior, SELinux/AppArmor confinement, symlink/race resistance, remote access isolation or any OMSI file operation.
 
 An explicit OS-hosted test can pass while the release blocker **“production service with distinct principal”** remains unsatisfied.
+
+## Windows hosted-runner SID/NTFS experiment (fixture-only)
+
+The new `synthetic-windows-principal-lab.ps1` is restricted to hosted GitHub Actions Windows jobs running with temporary administrative privileges. It creates two randomized standard local accounts with distinct Windows SIDs, uses an unpredictable disposable folder under the hosted VM's `Public` directory (the runner's private `RUNNER_TEMP` would not be traversable by these accounts), and creates a synthetic 32-byte canary under a restricted NTFS directory. `icacls` removes inherited rules from the service-only child and grants its service SID read/execute, with SYSTEM and Administrators for setup/cleanup.
+
+An actual Windows `LogonUser` token and `WindowsIdentity.RunImpersonated` must demonstrate that the temporary service account can read the canary and the unrelated account is denied. No real OMSI paths are accessed, and no Windows service, persistent account, named pipe or credential manager is installed. The script removes both users and the fixture in `finally` even when a test fails.
+
+**This does not prove Windows authenticated IPC**: local token impersonation and an NTFS DACL do not establish a server-validated named-pipe client, service SID isolation, a production launch/restart model, or protected service key custody. The release blocker for a real Windows service remains open.
+
+## Linux portable desktop preview is separate from an isolated service
+
+A native Linux x64 Electron portable build and GUI smoke test are now planned in the CI `build` job. They package the same React/Electron **read-only preview** using `@electron/packager` and check the emitted ELF GUI under `xvfb` with a synthetic OMSI directory. The archive, if validated, is an unsigned, experimental `.tar.gz` and SHA-256 checksum. It is not an Arch Linux native package, systemd unit, Proton/Wine adapter, OMSI 2 runtime, nor a mod installation manager. The Windows-only Win32 lab and PowerShell scripts remain excluded from the packaged `app.asar`.
+
+Packaging the preview for Linux does **not** satisfy any of the privileged verifier-service release gates above.
