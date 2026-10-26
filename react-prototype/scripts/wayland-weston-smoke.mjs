@@ -15,7 +15,6 @@ await access(launcher);
 const root=await mkdtemp(join(tmpdir(),'omsi-native-wayland-ci-'));
 const socketName='omsi-ci-wayland';
 const runtime=join(root,'xdg');
-const {mkdir}=await import('node:fs/promises');
 await mkdir(runtime,{mode:0o700});
 const env={
  ...process.env,
