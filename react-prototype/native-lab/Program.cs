@@ -160,6 +160,11 @@ internal static class Program
     // It is not an authorization, durable chronology or an ABA guarantee.
     private sealed class SyntheticUsnChanged : Exception { }
 
+    // Exit 13 means every in-memory malformed USN buffer was refused, and
+    // only the well-formed synthetic v2/v3 examples passed parsing.
+    // Exit 13 is a TEST-ONLY refusal, never a successful inspection.
+    private sealed class SyntheticUsnParserValidated : Exception { }
+
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     private struct ReadFileUsnVersions
     {
@@ -174,8 +179,41 @@ internal static class Program
         uint inputLength, [Out] byte[] output, uint outputLength,
         out uint bytesReturned, IntPtr overlapped);
 
+    // Validate the returned one-record USN buffer before extracting a number.
+    // The name bytes and file references are intentionally NEVER decoded
+    // or emitted; this parser is only a conservative metadata gate.
+    private static long ValidateSingleUsnRecord(byte[] record, uint returned)
+    {
+        if (returned < 60 || returned > record.Length) Deny();
+        uint declaredLength = BitConverter.ToUInt32(record, 0);
+        ushort major = BitConverter.ToUInt16(record, 4);
+        ushort minor = BitConverter.ToUInt16(record, 6);
+        int minLength = major switch { 2 => 60, 3 => 76, _ => -1 };
+        int usnOffset = major == 2 ? 24 : 40;
+        int nameLengthOffset = major == 2 ? 56 : 72;
+        int nameStartOffset = major == 2 ? 58 : 74;
+
+        // The API returns ONE record, never a chained journal stream.
+        // Reject truncated, padded, misaligned or future-version records.
+        if (minLength < 0 || minor != 0 ||
+            declaredLength != returned || (declaredLength & 7U) != 0 ||
+            declaredLength < minLength ||
+            usnOffset + sizeof(long) > declaredLength) Deny();
+
+        ushort nameLength = BitConverter.ToUInt16(record, nameLengthOffset);
+        ushort nameStart = BitConverter.ToUInt16(record, nameStartOffset);
+        if (nameLength == 0 || (nameLength & 1) != 0 ||
+            (nameStart & 1) != 0 || nameStart < minLength ||
+            nameStart > declaredLength ||
+            nameLength > declaredLength - nameStart) Deny();
+
+        long usn = BitConverter.ToInt64(record, usnOffset);
+        if (usn <= 0) Deny();
+        return usn;
+    }
+
     // FSCTL_READ_FILE_USN_DATA reads the CURRENT record for this file only.
-    // No volume handles, journal enumeration, record-name decoding, or content.
+    // No volume handles, journal enumeration, record-name decoding or content.
     private static long CurrentFileUsn(SafeFileHandle file)
     {
         const uint fsctlReadFileUsnData = 0x000900EB;
@@ -187,19 +225,68 @@ internal static class Program
         if (!ReadFileUsn(file, fsctlReadFileUsnData, ref versions,
                 (uint)Marshal.SizeOf<ReadFileUsnVersions>(), record,
                 (uint)record.Length, out uint returned, IntPtr.Zero))
-            Deny(); // absent/disabled journal, SMB, unsupported API => refuse
+            Deny(); // missing, disabled, unsupported or restarted journal
 
-        if (returned < 60 || returned > record.Length) Deny();
-        uint recordLength = BitConverter.ToUInt32(record, 0);
-        ushort major = BitConverter.ToUInt16(record, 4);
-        int offset = major switch { 2 => 24, 3 => 40, _ => -1 };
-        int minLength = major == 2 ? 60 : 76;
-        if (offset < 0 || recordLength < minLength ||
-            recordLength > returned || returned < minLength ||
-            offset + sizeof(long) > recordLength) Deny();
-        long usn = BitConverter.ToInt64(record, offset);
-        if (usn <= 0) Deny();
-        return usn;
+        return ValidateSingleUsnRecord(record, returned);
+    }
+
+    private static byte[] SyntheticUsnRecord(ushort major)
+    {
+        byte[] record = new byte[96];
+        BitConverter.GetBytes((uint)record.Length).CopyTo(record, 0);
+        BitConverter.GetBytes(major).CopyTo(record, 4);
+        BitConverter.GetBytes((long)1234).CopyTo(record, major == 2 ? 24 : 40);
+        BitConverter.GetBytes((ushort)2).CopyTo(record, major == 2 ? 56 : 72);
+        BitConverter.GetBytes((ushort)(major == 2 ? 60 : 76))
+            .CopyTo(record, major == 2 ? 58 : 74);
+        return record; // no filename is decoded or read
+    }
+
+    // Exercise the SAME parser with synthetic corrupt output buffers.
+    // No USN journal syscall occurs in this test mode.
+    [DoesNotReturn]
+    private static void AttestUsnParserGuardsForSyntheticTest()
+    {
+        static bool Rejected(byte[] input, uint returned)
+        {
+            try
+            {
+                ValidateSingleUsnRecord(input, returned);
+                return false;
+            }
+            catch (IOException) { return true; }
+        }
+
+        foreach (ushort major in new ushort[] { 2, 3 })
+        {
+            byte[] valid = SyntheticUsnRecord(major);
+            if (ValidateSingleUsnRecord(valid, 96) != 1234) Deny();
+            int nameLengthAt = major == 2 ? 56 : 72;
+            int nameStartAt = major == 2 ? 58 : 74;
+            int usnAt = major == 2 ? 24 : 40;
+
+            void RefuseModified(Action<byte[]> damage, uint returned = 96)
+            {
+                byte[] altered = (byte[])valid.Clone();
+                damage(altered);
+                if (!Rejected(altered, returned)) Deny();
+            }
+            RefuseModified(_ => { }, 95); // truncated response
+            RefuseModified(x => x[4] = 4); // unknown version
+            RefuseModified(x => x[6] = 1); // unknown minor version
+            RefuseModified(x => BitConverter.GetBytes((uint)64).CopyTo(x, 0));
+            RefuseModified(x => BitConverter.GetBytes((uint)97).CopyTo(x, 0));
+            RefuseModified(x => BitConverter.GetBytes((long)0).CopyTo(x, usnAt));
+            RefuseModified(x => BitConverter.GetBytes((long)(-1)).CopyTo(x, usnAt));
+            RefuseModified(x => BitConverter.GetBytes((ushort)0).CopyTo(x, nameLengthAt));
+            RefuseModified(x => BitConverter.GetBytes((ushort)3).CopyTo(x, nameLengthAt));
+            RefuseModified(x => BitConverter.GetBytes((ushort)65000).CopyTo(x, nameLengthAt));
+            RefuseModified(x => BitConverter.GetBytes((ushort)1).CopyTo(x, nameStartAt));
+            RefuseModified(x => BitConverter.GetBytes((ushort)95).CopyTo(x, nameStartAt));
+            RefuseModified(x => BitConverter.GetBytes((ushort)96).CopyTo(x, nameStartAt));
+        }
+        // Every malformed case refused without logging any contents.
+        throw new SyntheticUsnParserValidated();
     }
 
     [DoesNotReturn]
@@ -1054,13 +1141,15 @@ internal static class Program
                 args[4] == "--rdcw-probe" && args[5] == "--test-inplace-aba";
             bool usnEvidence = args.Length == 6 &&
                 args[4] == "--rdcw-probe" && args[5] == "--test-usn-checkpoint";
+            bool usnParserGuardEvidence = args.Length == 6 &&
+                args[4] == "--rdcw-probe" && args[5] == "--test-usn-record-guards";
             if (!OperatingSystem.IsWindows() ||
                 !(args.Length == 4 || (args.Length == 5 && (raceBarrier || rdcwProbe)) ||
                     (args.Length == 6 &&
                         (raceBarrier && rdcwProbe || injectCancellation ||
                          attestCancellation || smallBufferEvidence ||
                          queuedOverflowEvidence || inPlaceRestoreEvidence ||
-                         usnEvidence))) ||
+                         usnEvidence || usnParserGuardEvidence))) ||
                 args[0] != "--root" || args[2] != "--nonce") Deny();
             // Refuse a reparse component before any marker/content read. The
             // TEMP chain remains pinned throughout the native observation.
@@ -1116,6 +1205,13 @@ internal static class Program
             if (smallBufferEvidence)
             {
                 targetDetail!.AttestSmallBufferLossForSyntheticTest();
+                Deny();
+            }
+            if (usnParserGuardEvidence)
+            {
+                // Fixture authentication already passed; this is in-memory
+                // only, does not open a file journal or grant capabilities.
+                AttestUsnParserGuardsForSyntheticTest();
                 Deny();
             }
             if (usnEvidence)
@@ -1230,6 +1326,11 @@ internal static class Program
                 ["bytesReadFromMods"] = 0
             }));
             return 0;
+        }
+        catch (SyntheticUsnParserValidated)
+        {
+            Console.Error.WriteLine(Refusal);
+            return 13;
         }
         catch (SyntheticUsnChanged)
         {
