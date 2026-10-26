@@ -331,7 +331,12 @@ public static class SyntheticBasicTimeRestoration {
 '@
 $script:syntheticPhase = 'compile'
 $script:syntheticCompilationErrors = @()
-Add-Type -TypeDefinition $code -ErrorAction Stop -ErrorVariable +syntheticCompilationErrors
+if ($env:OMSI_SYNTHETIC_DIAG -ceq '1') {
+ Add-Type -TypeDefinition $code -ErrorAction Continue -ErrorVariable +syntheticCompilationErrors 2>$null
+ if ($script:syntheticCompilationErrors.Count -gt 0) { throw 'Synthetic compilation did not succeed' }
+} else {
+ Add-Type -TypeDefinition $code -ErrorAction Stop
+}
 $script:syntheticPhase = 'native'
 [SyntheticBasicTimeRestoration]::Run($path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
@@ -348,6 +353,12 @@ $script:syntheticPhase = 'native'
    $compilerLines = @([regex]::Matches(($allCompilerRecords -join ' '), '(?i)line\s*\d+|\(\d+,\d+\)') |
       ForEach-Object { $_.Value } | Select-Object -Unique)
    [Console]::Error.WriteLine('SYNTHETIC_COMPILE_LINES=' + ($compilerLines -join ','))
+   foreach ($item in @($script:syntheticCompilationErrors)) {
+    $msg = [string]$item
+    $msg = $msg.Replace($Root, '[fixture]').Replace($Nonce, '[nonce]')
+    $msg = $msg.Replace([Environment]::NewLine, ' ')
+    [Console]::Error.WriteLine('SYNTHETIC_COMPILER_RECORD=' + $msg.Substring(0,[Math]::Min(240,$msg.Length)))
+   }
    [Console]::Error.WriteLine('SYNTHETIC_ERROR_CLASS=' + $_.Exception.GetType().Name)
   }
   if ($script:syntheticPhase -eq 'native') {
