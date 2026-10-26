@@ -230,9 +230,9 @@ public static class SyntheticBasicTimeRestoration {
     // This narrows TOCTOU; it is not proof against privileged kernel adversaries.
     public static void Run(string root, string directory, string file,
                            string marker, string nonce, bool holdAfterPin) {
-        const uint readData = 0x1, writeData = 0x2;
-        const uint readAttributes = 0x80, writeAttributes = 0x100;
-        const uint shareRead = 0x1, shareReadWrite = 0x3;
+        const uint readData = 0x1;
+        const uint readAttributes = 0x80;
+        const uint shareRead = 0x1;
         const uint openExisting = 3, openReparse = 0x00200000;
         const uint backupSemantics = 0x02000000;
         byte[] original = Encoding.ASCII.GetBytes(
