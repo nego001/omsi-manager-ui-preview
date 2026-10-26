@@ -215,6 +215,29 @@ def main():
     parser.add_argument("mode", choices=("orchestrate", "server", "client", "access"))
     parser.add_argument("args", nargs="*")
     parsed = parser.parse_args()
+    # Child modes also refuse direct invocation outside the same disposable
+    # hosted runner: no general-purpose root path or socket-writing CLI.
+    if parsed.mode != "orchestrate":
+        require(sys.platform.startswith("linux")
+                and os.environ.get("GITHUB_ACTIONS") == "true"
+                and os.environ.get("OMSI_SYNTHETIC_HOSTED_RUNNER") == "github-hosted",
+                "child restricted to disposable GitHub-hosted runner")
+        temp = pathlib.Path(os.environ.get("RUNNER_TEMP", "/nonexistent")).resolve()
+        if parsed.mode == "server":
+            require(len(parsed.args) == 3, "wrong server arguments")
+            endpoint = pathlib.Path(parsed.args[0]).resolve()
+            canary = pathlib.Path(parsed.args[2]).resolve()
+            fixture = endpoint.parent.parent
+            require(fixture.parent == temp and fixture.name.startswith(PREFIX)
+                    and endpoint == fixture / "ipc" / "synthetic.sock"
+                    and canary == fixture / "service-private" / SECRET_NAME,
+                    "server cannot access arbitrary paths")
+        else:
+            require(len(parsed.args) >= 1, "missing fixture path")
+            target = pathlib.Path(parsed.args[0]).resolve()
+            fixture = target.parent.parent
+            require(fixture.parent == temp and fixture.name.startswith(PREFIX),
+                    "child cannot access arbitrary paths")
     if parsed.mode == "orchestrate":
         require(not parsed.args, "unexpected orchestrator arguments")
         orchestrate(pathlib.Path(__file__).resolve())
