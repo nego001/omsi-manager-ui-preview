@@ -1247,3 +1247,46 @@ test('timestamp mutator fixture is separate from read-only native helper and exc
  assert.match(observer,/guaranteesNoABA"\] = false/);
  assert.match(observer,/operationsEnabled"\] = false/);
 });
+
+
+test('USN parser rejects 26 malformed v2/v3 records and attests only refusal 13',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await assert.rejects(invoke(f,['--rdcw-probe','--test-usn-record-guards']),error=>{
+  assert.equal(error.code,13);
+  assert.equal(error.stdout,'');
+  assert.equal(error.stderr.trim(),'Temporary standalone native directory lab refused.');
+  assert.equal(error.stderr.includes(f.root),false);
+  assert.equal(error.stderr.includes(f.nonce),false);
+  return true;
+ });
+});
+
+test('USN malformed-record guard refuses missing opt-in and extra operation flags',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied(f,['--test-usn-record-guards']);
+ await denied(f,['--rdcw-probe','--test-usn-record-guards','--install']);
+});
+
+test('USN malformed-record guard requires an intact synthetic nonce',
+ {skip:!ready},async()=>{
+ const f=await fixture();
+ await denied({...f,nonce:'0'.repeat(32)},
+  ['--rdcw-probe','--test-usn-record-guards']);
+});
+
+test('USN parser uses strict bounds, versions and positive values without decoding names',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'Program.cs'),'utf8');
+ assert.match(source,/ValidateSingleUsnRecord\(byte\[\] record, uint returned\)/);
+ assert.match(source,/declaredLength != returned/);
+ assert.match(source,/minor != 0/);
+ assert.match(source,/nameLength > declaredLength - nameStart/);
+ assert.match(source,/usn <= 0/);
+ assert.match(source,/return ValidateSingleUsnRecord\(record, returned\)/);
+ assert.match(source,/catch \(SyntheticUsnParserValidated\)/);
+ assert.doesNotMatch(source,/FSCTL_ENUM_USN_DATA|FSCTL_READ_USN_JOURNAL|FSCTL_CREATE_USN_JOURNAL/);
+ assert.match(source,/guaranteesNoABA"\] = false/);
+ assert.match(source,/operationsEnabled"\] = false/);
+});
