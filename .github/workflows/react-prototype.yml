@@ -30,6 +30,16 @@ jobs:
         run: npm run test:recovery:fixture
       - name: Synthetic witness crash and incomplete-history tests
         run: npm run test:witness
+      - name: Separate Linux principals and peer credentials (disposable hosted runner only)
+        if: runner.environment == 'github-hosted'
+        env:
+          OMSI_SYNTHETIC_HOSTED_RUNNER: ${{ runner.environment }}
+        run: |
+          sudo -n env \
+            OMSI_SYNTHETIC_HOSTED_RUNNER="$OMSI_SYNTHETIC_HOSTED_RUNNER" \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+            RUNNER_TEMP="$RUNNER_TEMP" \
+            python3 native-lab/synthetic-linux-principal-lab.py orchestrate
       - run: npx playwright install --with-deps chromium
       - run: npm test
       - name: Electron desktop smoke test
