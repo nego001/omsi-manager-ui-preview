@@ -313,6 +313,65 @@ public static class SyntheticBasicTimeRestoration {
             if (stream.ReadByte() != expected[i])
                 throw new IOException("Marker changed");
     }
+    // Re-validate only the fixed synthetic scope. This is a fail-closed
+    // checkpoint after the deliberate race barrier, NOT an atomic filesystem
+    // transaction and not a general-purpose mod writer.
+    private static void CheckPinnedFixture(
+            AncestorPins ancestors, string root, string directory,
+            SafeFileHandle rootHandle, SafeFileHandle directoryHandle,
+            SafeFileHandle markerHandle, FileStream markerStream, string nonce,
+            SafeFileHandle fileHandle, NativeFileInfo rootId,
+            NativeFileInfo directoryId, NativeFileInfo markerId,
+            NativeFileInfo fileId, FileBasicInfo fileBasic) {
+        ancestors.Verify();
+        if (!SameId(rootId, NativeInfo(rootHandle)) ||
+            !SameId(directoryId, NativeInfo(directoryHandle)) ||
+            !SameId(markerId, NativeInfo(markerHandle)) ||
+            !SameId(fileId, NativeInfo(fileHandle)))
+            throw new IOException("Pinned fixture identity diverged");
+        CheckDirectory(rootHandle);
+        CheckDirectory(directoryHandle);
+        NativeFileInfo markerNow = NativeInfo(markerHandle);
+        NativeFileInfo fileNow = NativeInfo(fileHandle);
+        if (markerNow.NumberOfLinks != 1 ||
+            fileNow.NumberOfLinks != 1 ||
+            (markerNow.Attributes & (0x10u | 0x400u)) != 0 ||
+            (fileNow.Attributes & (0x10u | 0x400u)) != 0)
+            throw new IOException("Pinned fixture type or link count diverged");
+
+        // Prevent added siblings from changing the scan's scope. Directory
+        // names are read only to validate this disposable fixed fixture.
+        AssertExactRootNames(root);
+        string[] entries = Directory.GetFileSystemEntries(directory);
+        if (entries.Length != 1 ||
+            !String.Equals(Path.GetFileName(entries[0]),
+                "metadata-probe.scs", StringComparison.Ordinal))
+            throw new IOException("Pinned fixture child set diverged");
+
+        markerStream.Position = 0;
+        CheckNonce(markerStream, nonce);
+        FileBasicInfo current;
+        if (!GetBasic(fileHandle, 0, out current, 40) ||
+            !Same(fileBasic, current))
+            throw new IOException("Pinned fixture metadata diverged");
+
+        using (SafeFileHandle currentRoot = OpenChild(
+            ancestors.TemporaryHandle, Path.GetFileName(root),
+            true, false, false))
+        using (SafeFileHandle currentDirectory = OpenChild(
+            rootHandle, "native-enum", true, false, false))
+        using (SafeFileHandle currentMarker = OpenChild(
+            rootHandle, ".omsi-test-fixture-marker", false, false, true))
+        using (SafeFileHandle currentTarget = OpenChild(
+            directoryHandle, "metadata-probe.scs", false, false, true)) {
+            if (!SameId(rootId, NativeInfo(currentRoot)) ||
+                !SameId(directoryId, NativeInfo(currentDirectory)) ||
+                !SameId(markerId, NativeInfo(currentMarker)) ||
+                !SameId(fileId, NativeInfo(currentTarget)))
+                throw new IOException("Relative fixture path changed");
+        }
+    }
+
     private static void WriteExact(FileStream stream, byte[] bytes) {
         stream.Position = 0;
         stream.Write(bytes, 0, bytes.Length);
@@ -377,6 +436,9 @@ public static class SyntheticBasicTimeRestoration {
             if (initialIdentity.NumberOfLinks != 1 ||
                 (initialIdentity.Attributes & (0x10u | 0x400u)) != 0)
                 throw new IOException("Only a single linked regular fake file permitted");
+            NativeFileInfo pinnedRootId = NativeInfo(rootHandle);
+            NativeFileInfo pinnedDirectoryId = NativeInfo(directoryHandle);
+            NativeFileInfo pinnedMarkerId = NativeInfo(markerHandle);
 
             using (var stream = new FileStream(fileHandle, FileAccess.ReadWrite,
                                                 4096, false)) {
@@ -398,6 +460,11 @@ public static class SyntheticBasicTimeRestoration {
                         throw new IOException("Test barrier refused");
                 }
 
+                CheckPinnedFixture(ancestors, root, directory,
+                    rootHandle, directoryHandle, markerHandle, markerStream, nonce,
+                    fileHandle, pinnedRootId, pinnedDirectoryId, pinnedMarkerId,
+                    initialIdentity, before);
+
                 WriteExact(stream, intermediate);
                 WriteExact(stream, original);
                 FileBasicInfo restore = before;
@@ -409,6 +476,13 @@ public static class SyntheticBasicTimeRestoration {
                     !Same(before, current) ||
                     !SameId(initialIdentity, NativeInfo(fileHandle)))
                     throw new IOException("Pinned fixture metadata changed");
+
+                // Validate ancestry and synthetic contents again after
+                // restoration. This detects a scope change but is not rollback.
+                CheckPinnedFixture(ancestors, root, directory,
+                    rootHandle, directoryHandle, markerHandle, markerStream, nonce,
+                    fileHandle, pinnedRootId, pinnedDirectoryId, pinnedMarkerId,
+                    initialIdentity, before);
 
                 // Cross-check the path while the original handle still denies
                 // DELETE and external WRITE access. The second handle shares
