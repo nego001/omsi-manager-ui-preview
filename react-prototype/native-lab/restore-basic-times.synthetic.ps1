@@ -1,7 +1,8 @@
 param(
  [Parameter(Mandatory=$true)][string]$Root,
  [Parameter(Mandatory=$true)][string]$Nonce,
- [switch]$HoldAfterPin
+ [switch]$HoldAfterPin,
+ [switch]$InjectPostRestoreCorruptionForTest
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -100,7 +101,7 @@ public static class SyntheticBasicTimeRestoration {
 
     private static SafeFileHandle OpenChild(SafeFileHandle parent,
             string expectedName, bool directory, bool writer, bool verifier,
-            bool ancestor = false) {
+            bool ancestor = false, bool readBytes = false) {
         // Only three hardcoded fixture child names can ever be requested.
         // Dynamic root is allowed ONLY as the direct child of a pinned TEMP
         // handle, with the same strict synthetic fixture prefix as the PS gate.
@@ -120,6 +121,11 @@ public static class SyntheticBasicTimeRestoration {
             expectedName.IndexOfAny(new char[]{'\\', '/', ':', '\0'}) < 0;
         if (!fixedChild && !fixtureRoot && !ancestorPart)
             throw new IOException("Unexpected fixture child");
+        // Read-data verification only for the one immutable fake target;
+        // never for markers, other descendants or a user-provided pathname.
+        if (readBytes && (!verifier || directory || writer ||
+            expectedName != "metadata-probe.scs"))
+            throw new IOException("Unexpected fixture data verification");
         const uint readAttributes = 0x80, writeAttributes = 0x100;
         const uint synchronize = 0x00100000;
         const uint shareRead = 1, shareReadWrite = 3;
@@ -144,7 +150,7 @@ public static class SyntheticBasicTimeRestoration {
                 Attributes = caseInsensitive
             };
             uint access = readAttributes | synchronize;
-            if (directory || !verifier) access |= 1; // list directory/read data
+            if (directory || !verifier || readBytes) access |= 1; // list directory/read data
             if (writer) access |= 2 | writeAttributes;
             uint options = syncIo | openReparse |
                 (directory ? directoryFile : nonDirectoryFile);
@@ -372,6 +378,17 @@ public static class SyntheticBasicTimeRestoration {
         }
     }
 
+    // Exact bounded comparison using an already authenticated, open handle.
+    // Length and every byte must match, not merely metadata or a hash.
+    private static void VerifyExact(FileStream stream, byte[] expected) {
+        if (stream.Length != expected.Length)
+            throw new IOException("Synthetic fixture byte length diverged");
+        stream.Position = 0;
+        for (int i = 0; i < expected.Length; i++)
+            if (stream.ReadByte() != expected[i])
+                throw new IOException("Synthetic fixture byte content diverged");
+    }
+
     private static void WriteExact(FileStream stream, byte[] bytes) {
         stream.Position = 0;
         stream.Write(bytes, 0, bytes.Length);
@@ -386,7 +403,7 @@ public static class SyntheticBasicTimeRestoration {
     // This narrows TOCTOU; it is not proof against privileged kernel adversaries.
     public static void Run(string temp, string root, string directory,
                            string file, string marker, string nonce,
-                           bool holdAfterPin) {
+                           bool holdAfterPin, bool injectCorruption) {
         const uint readAttributes = 0x80;
         const uint shareRead = 0x1;
         const uint openExisting = 3, openReparse = 0x00200000;
@@ -395,6 +412,8 @@ public static class SyntheticBasicTimeRestoration {
             "SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS");
         byte[] intermediate = Encoding.ASCII.GetBytes(
             "SYNTHETIC FIXTURE INTERMEDIATE CONTENT");
+        if (injectCorruption && !holdAfterPin)
+            throw new IOException("Test-only fault requires held-handle barrier");
 
         // The entire local volume-to-TEMP chain is pinned first. The
         // fixture root and every writable descendant use relative handles.
@@ -442,13 +461,9 @@ public static class SyntheticBasicTimeRestoration {
 
             using (var stream = new FileStream(fileHandle, FileAccess.ReadWrite,
                                                 4096, false)) {
-                // Refuse unknown bytes, including a real mod moved into the
-                // disposable directory. No user-selected content is writable.
-                if (stream.Length != original.Length)
-                    throw new IOException("Unknown fixture content length");
-                for (int i = 0; i < original.Length; i++)
-                    if (stream.ReadByte() != original[i])
-                        throw new IOException("Unknown fixture contents");
+                // Refuse every byte sequence except the exact hardcoded fixture.
+                // All reads and writes use the same pinned fake file handle.
+                VerifyExact(stream, original);
 
                 FileBasicInfo before;
                 if (!GetBasic(fileHandle, 0, out before, 40))
@@ -465,8 +480,13 @@ public static class SyntheticBasicTimeRestoration {
                     fileHandle, pinnedRootId, pinnedDirectoryId, pinnedMarkerId,
                     initialIdentity, before);
 
+                // Verify the intermediate state and the restored bytes through
+                // the SAME native handle, while the write lock stays held.
+                VerifyExact(stream, original);
                 WriteExact(stream, intermediate);
+                VerifyExact(stream, intermediate);
                 WriteExact(stream, original);
+                VerifyExact(stream, original);
                 FileBasicInfo restore = before;
                 if (!SetBasic(fileHandle, 0, ref restore, 40))
                     throw new IOException("Fixture time restoration failed");
@@ -476,6 +496,16 @@ public static class SyntheticBasicTimeRestoration {
                     !Same(before, current) ||
                     !SameId(initialIdentity, NativeInfo(fileHandle)))
                     throw new IOException("Pinned fixture metadata changed");
+
+                // Fault injection only on nonce-authenticated disposable
+                // fixtures after the HELD/CONTINUE test barrier. Deliberately
+                // does NOT roll back a damaged fixture; tests attest refusal.
+                if (injectCorruption) {
+                    stream.Position = 0;
+                    stream.WriteByte((byte)'X');
+                    stream.Flush(true);
+                }
+                VerifyExact(stream, original);
 
                 // Validate ancestry and synthetic contents again after
                 // restoration. This detects a scope change but is not rollback.
@@ -488,13 +518,17 @@ public static class SyntheticBasicTimeRestoration {
                 // DELETE and external WRITE access. The second handle shares
                 // WRITE only with our already pinned writer.
                 using (var verification = OpenChild(directoryHandle,
-                        "metadata-probe.scs", false, false, true)) {
+                        "metadata-probe.scs", false, false, true, false, true)) {
                     NativeFileInfo reopened = NativeInfo(verification);
                     FileBasicInfo finalBasic;
                     if (!SameId(initialIdentity, reopened) ||
                         !GetBasic(verification, 0, out finalBasic, 40) ||
                         !Same(before, finalBasic))
                         throw new IOException("Pinned file/path identity diverged");
+                    using (var reader = new FileStream(
+                            verification, FileAccess.Read, 4096, false)) {
+                        VerifyExact(reader, original);
+                    }
                 }
             }
             } // markerStream remains open until file verification finishes
@@ -505,7 +539,7 @@ public static class SyntheticBasicTimeRestoration {
 }
 '@
 Add-Type -TypeDefinition $code -ErrorAction Stop
-[SyntheticBasicTimeRestoration]::Run($temp,$path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
+[SyntheticBasicTimeRestoration]::Run($temp,$path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin,[bool]$InjectPostRestoreCorruptionForTest)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
 } catch {
  # Nothing about filenames, TEMP paths, nonce, binary content or stack traces
