@@ -774,3 +774,13 @@ ou sequência completa de eventos. Mantidos
 Documentação de estruturas:
 https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v2
 https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v3
+
+## Endurecimento de TOCTOU do mutador descartável (26/10/2026)
+
+O script de laboratório `restore-basic-times.synthetic.ps1` **não é distribuído no Electron**. Antes, depois de validar a fixture por pathname, chamava `File.ReadAllBytes`/`File.WriteAllBytes` novamente pelo nome. Isso permitia que uma substituição do caminho entre a verificação e o uso atingisse outra entrada.
+
+A nova implementação exige um **conteúdo de teste conhecido e exato**, além do nome `metadata-probe.scs`, um único arquivo na pasta `native-enum`, nonce e localização TEMP válidos. Ela fixa handles Win32 para raiz, subpasta, marcador e arquivo com `FILE_FLAG_OPEN_REPARSE_POINT`; consulta atributos, identidade e `NumberOfLinks == 1`; e mantém compartilhamento somente de leitura (`FILE_SHARE_READ`) nos handles principais. As duas gravações fictícias e a restauração dos quatro timestamps são feitas **pelo mesmo handle fixado**, nunca reabrindo o pathname para escrever. Uma segunda abertura apenas de leitura, enquanto o primeiro handle ainda está vivo, compara o FileId e o FILE_BASIC_INFO.
+
+Um modo `-HoldAfterPin`, que só existe no script de teste e exige exatamente `CONTINUE`, permite provas concorrentes reprodutíveis: outro processo tenta gravar e renomear o arquivo, diretórios e marcador durante a retenção dos handles. A suíte exige recusa dessas tentativas e preservação dos bytes inventados. Respostas inválidas não alteram os arquivos e retornam apenas um erro genérico, sem dados privados.
+
+**Limite de garantia:** este isolamento estreita a janela de substituição entre validação e uso no runner Windows comum, mas não prova ausência universal de TOCTOU, ABA, acesso privilegiado no host, troca de ancestrais fora do escopo, resistência a hardlinks de adversários privilegiados nem durabilidade após pane. Arquivos reais continuam fora do escopo. O leitor C# principal permanece somente leitura e o contrato conserva `guaranteesNoABA:false`, `supportsRealGameInspection:false` e `operationsEnabled:false`.
