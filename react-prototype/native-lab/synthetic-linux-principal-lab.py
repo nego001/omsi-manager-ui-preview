@@ -121,6 +121,12 @@ def orchestrate(script):
     # Never work outside a newly allocated GitHub runner TEMP child.
     root = pathlib.Path(tempfile.mkdtemp(prefix=PREFIX, dir=root_env))
     os.chmod(root, 0o755)
+    # GitHub checkout is intentionally not traversable by synthetic UIDs.
+    # Copy only this fixture worker into the disposable directory instead
+    # of weakening checkout permissions or accessing repo files as a service.
+    worker = root / "synthetic-linux-principal-lab.py"
+    shutil.copyfile(script, worker)
+    os.chmod(worker, 0o644)
     added = []
     proc = None
     token = uuid.uuid4().hex[:7]
@@ -153,7 +159,7 @@ def orchestrate(script):
         sock_path = ipc / "synthetic.sock"
         key_path = private / SECRET_NAME
         cmd = ["runuser", "-u", service, "--", sys.executable,
-               str(script), "server", str(sock_path), str(uid(trusted)),
+               str(worker), "server", str(sock_path), str(uid(trusted)),
                str(key_path)]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, text=True,
@@ -176,7 +182,7 @@ def orchestrate(script):
         for user, expected in [(service, "HAS_ACCESS"),
                                (trusted, "NO_ACCESS"),
                                (outsider, "NO_ACCESS")]:
-            result = run_as(user, script, "access", key_path)
+            result = run_as(user, worker, "access", key_path)
             require(result.returncode == 0 and result.stdout.strip() == expected,
                     "synthetic key access permissions incorrect")
         print("PASS_SERVICE_ONLY_FILE_ACCESS", flush=True)
@@ -191,7 +197,7 @@ def orchestrate(script):
             (trusted, '{"id":5,"op":"probe","path":"/tmp"}', "DENIED"),
         ]
         for username, payload, expected in cases:
-            res = run_as(username, script, "client", sock_path, payload)
+            res = run_as(username, worker, "client", sock_path, payload)
             require(res.returncode == 0 and res.stdout.strip() == expected,
                     "socket OS-peer-credential or command denial failed")
         print("PASS_SO_PEERCRED_AND_DENIED_COMMANDS", flush=True)
