@@ -1586,7 +1586,7 @@ test('test-only mutator writes through one fixed native handle, never by pathnam
  {skip:!ready},async()=>{
  const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
  assert.match(src,/new FileStream\(fileHandle, FileAccess.ReadWrite/);
- assert.match(src,/shareRead, IntPtr.Zero, openExisting, openReparse/);
+ assert.match(src,/verifier \? shareReadWrite : shareRead/);
  assert.match(src,/SameId\(initialIdentity, reopened\)/);
  assert.match(src,/CheckNonce\(markerStream, nonce\)/);
  assert.match(src,/WriteExact\(stream, intermediate\)/);
