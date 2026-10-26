@@ -26,6 +26,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: npm run test:security
+      - name: Optional XDG desktop shortcut tests (disposable HOME)
+        run: node --test scripts/linux-desktop-integration.test.cjs
       - name: Isolated temporary recovery / process restart fixture
         run: npm run test:recovery:fixture
       - name: Synthetic witness crash and incomplete-history tests
