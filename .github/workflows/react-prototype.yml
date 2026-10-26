@@ -109,6 +109,7 @@ jobs:
         run: npm run test:witness
       - name: Windows disposable local SID and NTFS DACL proof
         if: runner.environment == 'github-hosted'
+        timeout-minutes: 4
         shell: pwsh
         env:
           OMSI_SYNTHETIC_HOSTED_RUNNER: ${{ runner.environment }}
