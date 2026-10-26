@@ -120,7 +120,10 @@ public static class WinSyntheticPrincipalAccess {
                     });
                     if(!serviceConnected)return false;
                     if(!pending.Wait(4000))return false;
-                    return server.ReadByte()==0x51;
+                    var one=new byte[1];
+                    var read=server.ReadAsync(one,0,1);
+                    if(!read.Wait(3000))return false;
+                    return read.Result==1 && one[0]==0x51;
                 }
             }
         }
@@ -135,6 +138,7 @@ public static class WinSyntheticPrincipalAccess {
         throw 'NTFS service-only file access denial failed'
     }
     Write-Output 'PASS_WINDOWS_IMPERSONATED_NTFS_SERVICE_ONLY_ACCESS'
+    Write-Output 'WINDOWS_PIPE_PROBE_BEGIN'
     $pipeAllowed = [WinSyntheticPrincipalAccess]::ProbeSameUserPipe(
         $serviceName,$otherName,$env:COMPUTERNAME,$passwordA,$passwordB)
     if (-not $pipeAllowed) { throw 'Windows CurrentUserOnly named-pipe SID isolation failed' }
