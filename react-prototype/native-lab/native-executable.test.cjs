@@ -1242,7 +1242,7 @@ test('timestamp mutator fixture is separate from read-only native helper and exc
  assert.match(source,/\.omsi-test-fixture-marker/);
  assert.match(source,/NumberOfLinks != 1/);
  assert.match(source,/SetFileInformationByHandle/);
- assert.match(source,/Same\(before,current\)/);
+ assert.match(source,/Same\(before,\s*current\)/);
  assert.doesNotMatch(observer,/SetFileInformationByHandle|File\.WriteAllBytes/);
  assert.match(observer,/guaranteesNoABA"\] = false/);
  assert.match(observer,/operationsEnabled"\] = false/);
@@ -1412,6 +1412,15 @@ async function timestampMutationRefused(root,nonce){
   return true;
  });
 }
+test('timestamp mutator refuses valid name and nonce when fake bytes are changed',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),p=join(f.dir,'metadata-probe.scs');
+ const forged='SYNTHETIC ONLY RESTORE ALL F0UR TIMESTAMPS';
+ await fs.writeFile(p,forged);
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(p,'utf8'),forged);
+});
+
 test('timestamp mutator rejects a missing native-enum directory without recreating it',
  {skip:!ready,timeout:60000},async()=>{
  const f=await fixture(),sentinel=join(f.root,'outside-sentinel.txt');
