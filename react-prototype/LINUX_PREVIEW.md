@@ -38,3 +38,14 @@ No `pacman` package, desktop integration, systemd unit, auto-update process or a
 - Real mod operations remain blocked by `operationsEnabled:false`, `supportsRealGameInspection:false`, `guaranteesNoABA:false`, and `atomicPathContainmentProven:false`.
 
 Keep the pull request in draft; nothing in this document authorizes merging or touching an installed game.
+
+## Wayland/Hyprland preparation
+
+Electron 38 uses automatic Ozone backend selection. On a normal `XDG_SESSION_TYPE=wayland` session, it should select native Wayland without extra flags: see the official [Electron 38 breaking changes](https://www.electronjs.org/docs/latest/breaking-changes). The portable archive includes the relative launcher `OMSI-Manager-Preview.sh`, so relocating the extracted folder does not hardcode a machine-specific installation path.
+
+- The default launcher respects Electron's automatic backend detection.
+- Setting `OMSI_MANAGER_NATIVE_WAYLAND=1` on the launcher explicitly requests `--ozone-platform=wayland` for diagnosis. Neither mode passes `--no-sandbox`, requests administrator privileges or auto-discovers game files.
+- A packaged smoke test is added against an ephemeral **real Wayland socket** served by Weston headless, with `DISPLAY` empty and the explicit Wayland switch asserted by Electron.
+- The earlier packaged X11/Xvfb smoke continues checking a synthetic OMSI structure and the unchanged .bus sentinel.
+
+**Still untested:** actual Hyprland behavior on Arch Linux, fractional scaling, GPU/compositor interactions, tray and portals, Flatpak/AppImage distribution and Proton/OpenOMSI integration. An ephemeral Weston compositor is not Hyprland. No global desktop entry, privileged service, `pacman` package or autostart unit is created.
