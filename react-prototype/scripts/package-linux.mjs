@@ -34,7 +34,7 @@ const launcher=[
  'fi',
  'exec "$DIR/OMSI-Manager-Preview" "$@"',
  ''
-].join('\\n');
+].join('\n');
 await writeFile(script,launcher,{mode:0o755,flag:'wx'});
 await chmod(script,0o755);
 console.log('Linux read-only preview created at:',bundled[0]);
