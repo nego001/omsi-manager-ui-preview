@@ -2,6 +2,7 @@
 // External witness for synthetic CI fixtures ONLY, not a transaction log.
 // Never packaged with Electron, never consulted to permit real operations.
 const fs=require('node:fs/promises');
+const {constants}=require('node:fs');
 const {join,dirname,basename,resolve}=require('node:path');
 const {tmpdir}=require('node:os');
 
@@ -9,6 +10,8 @@ const SCHEMA='omsi-synthetic-operation-witness-v1';
 const FILE='.omsi-test-operation-witness.jsonl';
 const PREFIX='omsi-manager-recovery-fixture-';
 const MARKER='.omsi-test-fixture-marker';
+const MAX_WITNESS_BYTES=4096;
+const MAX_EVENTS=12;
 const allowed={
  started:new Set(['intermediate_observed','bytes_restored_unconfirmed',
                   'interrupted','completed_observed']),
@@ -78,28 +81,77 @@ async function createSyntheticOperationLedger(root,nonce){
    }
  };
 }
+// Use one opened, read-only descriptor. Reject obvious path substitution,
+// links, malformed JSONL and changes observable while reading. This is
+// conservative evidence validation, NOT a race-free authority boundary.
+function sameWitnessInfo(a,b){
+ return a.dev===b.dev && a.ino===b.ino &&
+        a.size===b.size && a.nlink===b.nlink &&
+        a.mtimeMs===b.mtimeMs && a.ctimeMs===b.ctimeMs;
+}
+function validWitnessFile(stat){
+ return stat.isFile() && !stat.isSymbolicLink() &&
+        stat.nlink===1 && stat.size>=1 &&
+        stat.size<=MAX_WITNESS_BYTES;
+}
 async function readSyntheticOperationLedger(root,nonce){
  const directory=await authenticate(root,nonce);
- const stat=await fs.lstat(join(directory,FILE));
- if(!stat.isFile()||stat.isSymbolicLink()||
-    stat.nlink!==1||stat.size<1||stat.size>4096)deny();
- const bytes=await fs.readFile(join(directory,FILE),'utf8');
- if(!bytes.endsWith('\n'))deny();
- const rows=bytes.trimEnd().split('\n');
- if(rows.length<1||rows.length>12)deny();
- let state=null;
- const records=[];
- for(let i=0;i<rows.length;i++){
+ const name=join(directory,FILE);
+ let fd;
+ try{
+  const before=await fs.lstat(name);
+  if(!validWitnessFile(before))deny();
+  // O_NOFOLLOW is used where supported. Win32 also gets independent lstat
+  // checks; the read-only witness never authorizes an actual modification.
+  const flags=constants.O_RDONLY |
+   (process.platform==='win32'?0:constants.O_NOFOLLOW);
+  fd=await fs.open(name,flags);
+  const opened=await fd.stat();
+  if(!validWitnessFile(opened)||!sameWitnessInfo(before,opened))deny();
+  const data=Buffer.alloc(MAX_WITNESS_BYTES+1);
+  let consumed=0;
+  while(consumed<data.length){
+   const {bytesRead}=await fd.read(data,consumed,data.length-consumed,consumed);
+   if(bytesRead===0)break;
+   consumed+=bytesRead;
+  }
+  if(consumed!==opened.size||consumed>MAX_WITNESS_BYTES)deny();
+  const afterFd=await fd.stat();
+  const afterPath=await fs.lstat(name);
+  if(!sameWitnessInfo(opened,afterFd)||
+     !sameWitnessInfo(opened,afterPath)||
+     !validWitnessFile(afterPath))deny();
+
+  const bytes=data.subarray(0,consumed).toString('utf8');
+  if(!bytes.endsWith('\n')||bytes.includes('\r'))deny();
+  const rows=bytes.slice(0,-1).split('\n');
+  if(rows.length<1||rows.length>MAX_EVENTS)deny();
+  let state=null;
+  const records=[];
+  for(let i=0;i<rows.length;i++){
    let row;
    try{row=JSON.parse(rows[i]);}catch{deny();}
    if(!row||Array.isArray(row)||typeof row!=='object'||
       Object.keys(row).sort().join(',')!=='event,schema,sequence'||
       row.schema!==SCHEMA||row.sequence!==i+1||
       typeof row.event!=='string')deny();
+   // Reject repeated object keys, escaped alternatives, added whitespace,
+   // reordered fields and other non-canonical records. A canonical forgery
+   // is still possible: this format has NO cryptographic authentication.
+   if(JSON.stringify({
+    schema:row.schema,sequence:row.sequence,event:row.event
+   })!==rows[i])deny();
    state=advance(state,row.event);
    records.push({sequence:row.sequence,event:row.event});
+  }
+  return {schema:SCHEMA,status:summarize(records),
+   events:records.map(r=>r.event)};
+ }catch(error){
+  if(error?.code==='ENOENT')throw error;
+  deny();
+ }finally{
+  if(fd)await fd.close();
  }
- return {schema:SCHEMA,status:summarize(records),events:records.map(r=>r.event)};
 }
 // Read-only, fail-closed classification for an external auditor. An invalid
 // or absent witness cannot be turned into a completed operation. Authentication
@@ -108,9 +160,10 @@ async function readSyntheticOperationLedger(root,nonce){
 async function reviewSyntheticOperationLedger(root,nonce){
  await authenticate(root,nonce);
  try{return await readSyntheticOperationLedger(root,nonce);}
- catch(err){
-  if(err?.message!=='Synthetic operation witness refused'&&err?.code!=='ENOENT')
-   throw err;
+ catch{
+  // A missing, unreadable, replaced, or malformed witness is never success.
+  // Authentication above remains mandatory; all witness failures stay
+  // inconclusive and do not expose system paths to the caller.
   return {schema:SCHEMA,status:'unverifiable_incomplete',events:[]};
  }
 }
