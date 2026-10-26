@@ -141,6 +141,14 @@ test('compromising BOTH checkpoint and witness can forge a matching history',asy
   {code:'ENOENT'});
 });
 
+test('wrong nonce refuses checkpoint review before consulting external evidence',async()=>{
+ const f=await fixture(['started','completed_observed']);
+ const anchor=await checkpoint(f);
+ await assert.rejects(
+  reviewSyntheticEvidenceCheckpoint(f.root,'f'.repeat(32),anchor),
+  /Synthetic operation witness refused/);
+});
+
 test('old witness schema cannot be checkpointed by the v2 verifier',async()=>{
  const f=await fixture(['started']);
  const file=join(f.root,WITNESS_FILE);
