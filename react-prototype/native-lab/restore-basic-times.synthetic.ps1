@@ -330,7 +330,8 @@ public static class SyntheticBasicTimeRestoration {
 }
 '@
 $script:syntheticPhase = 'compile'
-Add-Type -TypeDefinition $code -ErrorAction Stop
+$script:syntheticCompilationErrors = @()
+Add-Type -TypeDefinition $code -ErrorAction Stop -ErrorVariable +syntheticCompilationErrors
 $script:syntheticPhase = 'native'
 [SyntheticBasicTimeRestoration]::Run($path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
@@ -340,7 +341,13 @@ $script:syntheticPhase = 'native'
   if ($script:syntheticPhase -eq 'compile') {
    $safeCodes = @([regex]::Matches(($_.Exception.ToString()), 'CS[0-9]{4}') |
       ForEach-Object { $_.Value } | Select-Object -Unique)
-   [Console]::Error.WriteLine('SYNTHETIC_COMPILE_CODES=' + ($safeCodes -join ','))
+   $allCompilerRecords = @($script:syntheticCompilationErrors | ForEach-Object { $_.ToString() })
+   $allCodes = @([regex]::Matches(($allCompilerRecords -join ' '), 'CS[0-9]{4}') |
+      ForEach-Object { $_.Value } | Select-Object -Unique)
+   [Console]::Error.WriteLine('SYNTHETIC_COMPILE_CODES=' + (($safeCodes + $allCodes) -join ','))
+   $compilerLines = @([regex]::Matches(($allCompilerRecords -join ' '), '(?i)line\s*\d+|\(\d+,\d+\)') |
+      ForEach-Object { $_.Value } | Select-Object -Unique)
+   [Console]::Error.WriteLine('SYNTHETIC_COMPILE_LINES=' + ($compilerLines -join ','))
    [Console]::Error.WriteLine('SYNTHETIC_ERROR_CLASS=' + $_.Exception.GetType().Name)
   }
   if ($script:syntheticPhase -eq 'native') {
