@@ -99,7 +99,8 @@ public static class SyntheticBasicTimeRestoration {
         out IoStatusBlock ioStatus, uint shareAccess, uint openOptions);
 
     private static SafeFileHandle OpenChild(SafeFileHandle parent,
-            string expectedName, bool directory, bool writer, bool verifier) {
+            string expectedName, bool directory, bool writer, bool verifier,
+            bool ancestor = false) {
         // Only three hardcoded fixture child names can ever be requested.
         // Dynamic root is allowed ONLY as the direct child of a pinned TEMP
         // handle, with the same strict synthetic fixture prefix as the PS gate.
@@ -110,7 +111,14 @@ public static class SyntheticBasicTimeRestoration {
             expectedName.Length <= 96 && Regex.IsMatch(expectedName,
                 @"^omsi-manager-recovery-fixture-[A-Za-z0-9]+$",
                 RegexOptions.CultureInvariant);
-        if (!fixedChild && !fixtureRoot)
+        // Ancestor names come only from the absolute TEMP path being pinned.
+        // Disallow traversal, streams and ambiguous Win32 trailing aliases.
+        bool ancestorPart = ancestor && directory && !writer && !verifier &&
+            expectedName.Length > 0 && expectedName.Length <= 255 &&
+            expectedName != "." && expectedName != ".." &&
+            !expectedName.EndsWith(".") && !expectedName.EndsWith(" ") &&
+            expectedName.IndexOfAny(new char[]{'\\', '/', ':', '\0'}) < 0;
+        if (!fixedChild && !fixtureRoot && !ancestorPart)
             throw new IOException("Unexpected fixture child");
         const uint readAttributes = 0x80, writeAttributes = 0x100;
         const uint synchronize = 0x00100000;
@@ -158,6 +166,93 @@ public static class SyntheticBasicTimeRestoration {
         } finally {
             if (unicodePointer != IntPtr.Zero) Marshal.FreeHGlobal(unicodePointer);
             if (namePointer != IntPtr.Zero) Marshal.FreeHGlobal(namePointer);
+        }
+    }
+
+    // Build a complete, read-only ancestry chain for TEMP. Only the volume
+    // root has an absolute CreateFileW open; all later names resolve relative
+    // to the corresponding pinned parent directory handle.
+    private sealed class AncestorPins : IDisposable {
+        private readonly System.Collections.Generic.List<SafeFileHandle> handles =
+            new System.Collections.Generic.List<SafeFileHandle>();
+        private readonly System.Collections.Generic.List<string> paths =
+            new System.Collections.Generic.List<string>();
+        public SafeFileHandle TemporaryHandle {
+            get { return handles[handles.Count - 1]; }
+        }
+        public static AncestorPins Pin(string temporaryPath) {
+            AncestorPins pins = new AncestorPins();
+            try {
+                string temp = Path.GetFullPath(temporaryPath).TrimEnd('\\');
+                string volume = Path.GetPathRoot(temp);
+                // Only a local drive volume is allowed by this Windows-only
+                // disposable test. Reject UNC and device namespace paths.
+                if (String.IsNullOrEmpty(volume) || volume.Length != 3 ||
+                    !Char.IsLetter(volume[0]) || volume[1] != ':' ||
+                    volume[2] != '\\' ||
+                    temp.Length <= volume.Length)
+                    throw new IOException("Nonlocal temporary ancestor");
+                const uint readAttributes = 0x80, readData = 1;
+                const uint shareRead = 1, openExisting = 3;
+                const uint backupSemantics = 0x02000000, openReparse = 0x00200000;
+                SafeFileHandle disk = OpenFile(volume, readAttributes | readData,
+                    shareRead, IntPtr.Zero, openExisting,
+                    backupSemantics | openReparse, IntPtr.Zero);
+                if (disk == null || disk.IsInvalid) {
+                    if (disk != null) disk.Dispose();
+                    throw new IOException("Volume root unavailable");
+                }
+                try {
+                    CheckDirectory(disk);
+                    pins.handles.Add(disk);
+                    pins.paths.Add(volume);
+                } catch { disk.Dispose(); throw; }
+                string remainder = temp.Substring(volume.Length);
+                foreach (string part in remainder.Split(new char[]{'\\'},
+                           StringSplitOptions.RemoveEmptyEntries)) {
+                    SafeFileHandle next = OpenChild(
+                        pins.handles[pins.handles.Count - 1], part,
+                        true, false, false, true);
+                    string absolute = Path.Combine(
+                        pins.paths[pins.paths.Count - 1], part);
+                    pins.handles.Add(next);
+                    pins.paths.Add(absolute);
+                }
+                pins.Verify();
+                return pins;
+            } catch {
+                pins.Dispose();
+                throw;
+            }
+        }
+        public void Verify() {
+            const uint readAttributes = 0x80, shareRead = 1, openExisting = 3;
+            const uint backupSemantics = 0x02000000, openReparse = 0x00200000;
+            for (int i = 0; i < handles.Count; i++) {
+                CheckDirectory(handles[i]);
+                // Independently resolve each absolute ancestor for identity
+                // consistency, never for file content or write authority.
+                using (SafeFileHandle named = OpenFile(paths[i], readAttributes,
+                    shareRead, IntPtr.Zero, openExisting,
+                    backupSemantics | openReparse, IntPtr.Zero)) {
+                    CheckDirectory(named);
+                    if (!SameId(NativeInfo(handles[i]), NativeInfo(named)))
+                        throw new IOException("Ancestor pathname mismatch");
+                }
+                if (i > 0) {
+                    using (SafeFileHandle relative = OpenChild(handles[i - 1],
+                        Path.GetFileName(paths[i]), true, false, false, true)) {
+                        if (!SameId(NativeInfo(handles[i]), NativeInfo(relative)))
+                            throw new IOException("Ancestor relative mismatch");
+                    }
+                }
+            }
+        }
+        public void Dispose() {
+            for (int i = handles.Count - 1; i >= 0; i--)
+                handles[i].Dispose();
+            handles.Clear();
+            paths.Clear();
         }
     }
 
@@ -233,7 +328,6 @@ public static class SyntheticBasicTimeRestoration {
     public static void Run(string temp, string root, string directory,
                            string file, string marker, string nonce,
                            bool holdAfterPin) {
-        const uint readData = 0x1;
         const uint readAttributes = 0x80;
         const uint shareRead = 0x1;
         const uint openExisting = 3, openReparse = 0x00200000;
@@ -243,14 +337,11 @@ public static class SyntheticBasicTimeRestoration {
         byte[] intermediate = Encoding.ASCII.GetBytes(
             "SYNTHETIC FIXTURE INTERMEDIATE CONTENT");
 
-        // Opening only TEMP by absolute path narrows pathname resolution.
-        // Fixture root and all descendants are opened RELATIVE to held parent
-        // handles; no synthetic target is written through a pathname.
-        using (var tempHandle = OpenFile(temp, readAttributes | readData,
-                    shareRead, IntPtr.Zero, openExisting,
-                    backupSemantics | openReparse, IntPtr.Zero)) {
-            CheckDirectory(tempHandle);
-            using (var rootHandle = OpenChild(tempHandle,
+        // The entire local volume-to-TEMP chain is pinned first. The
+        // fixture root and every writable descendant use relative handles.
+        // No path-based handle is used to authorize a write.
+        using (var ancestors = AncestorPins.Pin(temp)) {
+            using (var rootHandle = OpenChild(ancestors.TemporaryHandle,
                         Path.GetFileName(root), true, false, false)) {
             CheckDirectory(rootHandle);
             AssertExactRootNames(root);
@@ -335,7 +426,7 @@ public static class SyntheticBasicTimeRestoration {
             } // markerStream remains open until file verification finishes
             } // child handles remain pinned until all writes have completed
             } // fixture root is opened relative to the TEMP parent handle
-        } // TEMP parent is released last
+        } // Pinned volume-to-TEMP ancestors are released last
     }
 }
 '@
