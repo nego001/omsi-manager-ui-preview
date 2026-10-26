@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {spawnSync} from 'node:child_process';
 import {listPackage} from '@electron/asar';
 import {access,readFile,mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {constants} from 'node:fs';
@@ -20,6 +21,22 @@ const elf=await readFile(executable);
 assert.deepEqual([...elf.subarray(0,4)],[0x7f,0x45,0x4c,0x46],
  'Linux package must contain an actual ELF executable');
 const temp=await mkdtemp(join(tmpdir(),'omsi-linux-portable-smoke-'));
+const helper=join(dirname(executable),'OMSI-Manager-Desktop-Integration.cjs');
+await access(helper,constants.R_OK);
+const xdg=join(temp,'isolated-xdg');
+const entry=join(xdg,'applications','org.omsi_manager.Preview.desktop');
+const runShortcut=(cmd)=>spawnSync(process.execPath,[helper,cmd],{
+ env:{...process.env,HOME:temp,XDG_DATA_HOME:xdg},encoding:'utf8',timeout:10000
+});
+const installed=runShortcut('install');
+assert.equal(installed.status,0,installed.stderr);
+const desktop=await readFile(entry,'utf8');
+assert.match(desktop,/X-OMSI-Manager-ReadOnly-Preview=true/);
+assert.match(desktop,/Terminal=false/);
+assert.match(desktop,/^Exec=".*OMSI-Manager-Preview\.sh"$/m);
+const removed=runShortcut('remove');
+assert.equal(removed.status,0,removed.stderr);
+await assert.rejects(access(entry),{code:'ENOENT'});
 let application;
 try{
  const fixture=join(temp,'OMSI 2 - SYNTHETIC ONLY');
