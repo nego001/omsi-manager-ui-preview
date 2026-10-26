@@ -10,7 +10,7 @@ const {tmpdir}=require('node:os');
 const {randomBytes}=require('node:crypto');
 const {
  readSyntheticOperationLedger,reviewSyntheticOperationLedger,
- createSyntheticOperationLedger,FILE
+ createSyntheticOperationLedger,SCHEMA,FILE
 }=require('./synthetic-operation-ledger.cjs');
 
 const roots=[];
@@ -133,4 +133,109 @@ test('missing observer file and an invalid nonce fail closed without touching fi
  await assert.rejects(reviewSyntheticOperationLedger(f.root,'0'.repeat(32)),
   /Synthetic operation witness refused/);
  assert.equal(await fs.readFile(join(f.root,MARKER),'utf8'),f.nonce);
+});
+
+test('noncanonical witness object keys, whitespace and duplicated JSON fields fail closed',async()=>{
+ const entries=[
+  '{"event":"started","schema":"'+SCHEMA+'","sequence":1}\n',
+  '{"schema": "'+SCHEMA+'","sequence":1,"event":"started"}\n',
+  '{"schema":"'+SCHEMA+'","sequence":1,"event":"started","event":"completed_observed"}\n',
+  '{"schema":"'+SCHEMA+'","sequence":1,"event":"started","extra":false}\n',
+  '{"schema":"'+SCHEMA+'","sequence":1,"event":"started"}\r\n'
+ ];
+ for(const changed of entries){
+  const f=await fixture();
+  await fs.writeFile(join(f.root,FILE),changed,{flag:'wx'});
+  await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+   /Synthetic operation witness refused/);
+  const review=await reviewSyntheticOperationLedger(f.root,f.nonce);
+  assert.equal(review.status,'unverifiable_incomplete');
+  assert.deepEqual(review.events,[]);
+ }
+});
+
+test('tampered sequence, unknown event and impossible state transition are inconclusive',async()=>{
+ const records=[
+  [{schema:SCHEMA,sequence:2,event:'started'}],
+  [{schema:SCHEMA,sequence:1,event:'completed_observed'}],
+  [{schema:SCHEMA,sequence:1,event:'started'},
+   {schema:SCHEMA,sequence:2,event:'unapproved_write'}],
+  [{schema:SCHEMA,sequence:1,event:'started'},
+   {schema:SCHEMA,sequence:2,event:'interrupted'},
+   {schema:SCHEMA,sequence:3,event:'completed_observed'}],
+  [{schema:SCHEMA,sequence:1,event:'started'},
+   {schema:SCHEMA,sequence:1,event:'interrupted'}]
+ ];
+ for(const rows of records){
+  const f=await fixture();
+  await fs.writeFile(join(f.root,FILE),
+   rows.map(x=>JSON.stringify(x)).join('\n')+'\n',{flag:'wx'});
+  await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+   /Synthetic operation witness refused/);
+  assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+   'unverifiable_incomplete');
+ }
+});
+
+test('oversized and unterminated witness records remain unverified',async()=>{
+ const data=[
+  '{"schema":"'+SCHEMA+'","sequence":1,"event":"started"}',
+  'X'.repeat(4097)+'\n',
+  '\n',
+  Buffer.from([0xff,0xfe,0x0a])
+ ];
+ for(const changed of data){
+  const f=await fixture();
+  await fs.writeFile(join(f.root,FILE),changed,{flag:'wx'});
+  await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+   /Synthetic operation witness refused/);
+  assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+   'unverifiable_incomplete');
+ }
+});
+
+test('witness hardlink and directory replacement are never accepted',async()=>{
+ const f=await fixture();
+ const handle=await createSyntheticOperationLedger(f.root,f.nonce);
+ try{await handle.append('started');}
+ finally{await handle.close();}
+ const path=join(f.root,FILE);
+ const alias=join(f.root,'synthetic-ledger-hardlink-alias');
+ await fs.link(path,alias);
+ await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+  /Synthetic operation witness refused/);
+ assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+  'unverifiable_incomplete');
+ await fs.unlink(alias);
+ assert.equal((await readSyntheticOperationLedger(f.root,f.nonce)).status,
+  'incomplete_unconfirmed');
+ await fs.unlink(path);
+ await fs.mkdir(path);
+ await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+  /Synthetic operation witness refused/);
+ assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+  'unverifiable_incomplete');
+});
+
+test('witness symlink redirect is refused even when pointing at valid fixture bytes',
+ async(t)=>{
+ const f=await fixture();
+ const handle=await createSyntheticOperationLedger(f.root,f.nonce);
+ try{await handle.append('started');}
+ finally{await handle.close();}
+ const oldPath=join(f.root,FILE),other=join(f.root,'synthetic-ledger-data');
+ await fs.rename(oldPath,other);
+ try{await fs.symlink(other,oldPath,'file');}
+ catch(err){
+  if(['EPERM','EACCES','ENOSYS','EINVAL'].includes(err.code)){
+   t.skip('File symlink creation unavailable on Windows runner');
+   return;
+  }
+  throw err;
+ }
+ await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+  /Synthetic operation witness refused/);
+ assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+  'unverifiable_incomplete');
+ assert.equal((await fs.readFile(other,'utf8')).includes('"started"'),true);
 });
