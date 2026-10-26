@@ -159,8 +159,14 @@ def orchestrate(script):
                                 stderr=subprocess.PIPE, text=True,
                                 start_new_session=True)
         readable, _, _ = select.select([proc.stdout], [], [], 10)
-        require(bool(readable) and proc.stdout.readline().strip() == "READY",
-                "fixture-only server failed to become ready")
+        ready = bool(readable) and proc.stdout.readline().strip() == "READY"
+        if not ready:
+            # Diagnostics are emitted only for a child that already exited.
+            # No secret bytes or synthetic keys are logged.
+            if proc.poll() is not None:
+                detail = (proc.stderr.read(1500) or "").strip()
+                print("LAB_SERVER_FAILURE: " + detail, file=sys.stderr)
+            require(False, "fixture-only server failed to become ready")
         require(key_path.stat().st_uid == uid(service),
                 "service-only synthetic secret must have service UID")
         require(stat.S_IMODE(key_path.stat().st_mode) == 0o600,
