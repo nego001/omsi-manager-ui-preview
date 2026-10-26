@@ -1392,3 +1392,86 @@ test('timestamp restoration mutator is never included in shipped Electron packag
  const electron=await fs.readFile(join(__dirname,'../package.json'),'utf8');
  assert.doesNotMatch(electron,/restore-basic-times\.synthetic\.ps1/);
 });
+
+ 
+// Adversarial inputs for the only temporary test mutator. A successful
+// positive fixture is covered above; every negative attempt below must
+// exit without success output and must preserve any fake neighboring bytes.
+// No game folders, real mods or external files are ever used.
+async function timestampMutationRefused(root,nonce){
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',root,'-Nonce',nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}),error=>{
+  assert.equal(error.code,3,'all rejected inputs use a single denial status');
+  assert.equal(error.stdout,'','no false RESTORATION_PERFORMED token');
+  assert.equal(error.stderr.trim(),'Synthetic timestamp restoration refused');
+  assert.equal(error.stderr.includes(root),false,'no fixture path in error');
+  assert.equal(error.stderr.includes(nonce),false,'no nonce in error');
+  return true;
+ });
+}
+test('timestamp mutator rejects a missing native-enum directory without recreating it',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),sentinel=join(f.root,'outside-sentinel.txt');
+ await fs.writeFile(sentinel,'UNCHANGED OUTSIDE TARGET');
+ await fs.rmdir(f.dir);
+ await timestampMutationRefused(f.root,f.nonce);
+ await assert.rejects(fs.stat(f.dir),{code:'ENOENT'});
+ assert.equal(await fs.readFile(sentinel,'utf8'),'UNCHANGED OUTSIDE TARGET');
+});
+test('timestamp mutator refuses wrong-case synthetic filename on Windows',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),wrong=join(f.dir,'METADATA-PROBE.SCS');
+ await fs.writeFile(wrong,'UPPERCASE NAME MUST STAY');
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(wrong,'utf8'),'UPPERCASE NAME MUST STAY');
+ await assert.rejects(fs.stat(join(f.dir,'metadata-probe.scs.nonexistent')),
+  {code:'ENOENT'});
+});
+test('timestamp mutator refuses wrong extension and preserves original fake bytes',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),wrong=join(f.dir,'metadata-probe.zip');
+ await fs.writeFile(wrong,'WRONG EXTENSION STAYS');
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(wrong,'utf8'),'WRONG EXTENSION STAYS');
+ await assert.rejects(fs.stat(join(f.dir,'metadata-probe.scs')),{code:'ENOENT'});
+});
+test('timestamp mutator refuses unexpected sibling even if expected filename exists',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),expected=join(f.dir,'metadata-probe.scs');
+ const sibling=join(f.dir,'unapproved-sibling.scs');
+ await fs.writeFile(expected,'EXPECTED FILE PRESERVED');
+ await fs.writeFile(sibling,'SIBLING PRESERVED');
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(expected,'utf8'),'EXPECTED FILE PRESERVED');
+ assert.equal(await fs.readFile(sibling,'utf8'),'SIBLING PRESERVED');
+});
+test('timestamp mutator refuses a marker stored under the wrong filename',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),p=join(f.dir,'metadata-probe.scs');
+ await fs.writeFile(p,'FAKE PACKAGE STAYS');
+ await fs.rename(join(f.root,MARKER),join(f.root,MARKER+'.bak'));
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(p,'utf8'),'FAKE PACKAGE STAYS');
+ assert.equal(await fs.readFile(join(f.root,MARKER+'.bak'),'utf8'),f.nonce);
+});
+test('timestamp mutator cannot use fixture A nonce to modify fixture B',
+ {skip:!ready,timeout:60000},async()=>{
+ const a=await fixture(),b=await fixture();
+ const p=join(b.dir,'metadata-probe.scs');
+ await fs.writeFile(p,'DIFFERENT MARKED FIXTURE MUST STAY');
+ await timestampMutationRefused(b.root,a.nonce);
+ assert.equal(await fs.readFile(p,'utf8'),'DIFFERENT MARKED FIXTURE MUST STAY');
+});
+test('timestamp mutator refuses direct-child scope escape despite copied marker',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),nested=join(f.root,'omsi-manager-recovery-fixture-copy');
+ const p=join(nested,'native-enum','metadata-probe.scs');
+ await fs.mkdir(join(nested,'native-enum'),{recursive:true});
+ await fs.writeFile(join(nested,MARKER),f.nonce);
+ await fs.writeFile(p,'COPIED NONCE DOES NOT ALLOW NESTED MUTATION');
+ await timestampMutationRefused(nested,f.nonce);
+ assert.equal(await fs.readFile(p,'utf8'),'COPIED NONCE DOES NOT ALLOW NESTED MUTATION');
+});
