@@ -57,7 +57,6 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
-using System.IO.Pipes;
 using Microsoft.Win32.SafeHandles;
 public static class WinSyntheticPrincipalAccess {
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
@@ -80,54 +79,6 @@ public static class WinSyntheticPrincipalAccess {
         }
     }
 
-    // NamedPipeServerStream CurrentUserOnly is an actual kernel DACL check,
-    // not a JSON-provided caller role. Server is created while impersonating
-    // the disposable service SID. A separate outsider SID must be denied.
-    public static bool ProbeSameUserPipe(string serviceName, string outsiderName,
-                                         string domain, string servicePassword,
-                                         string outsiderPassword) {
-        SafeAccessTokenHandle service, outsider;
-        if(!LogonUser(serviceName,domain,servicePassword,2,0,out service))
-            throw new Win32Exception(Marshal.GetLastWin32Error());
-        using(service) {
-            if(!LogonUser(outsiderName,domain,outsiderPassword,2,0,out outsider))
-                throw new Win32Exception(Marshal.GetLastWin32Error());
-            using(outsider) {
-                string name="omsi-synthetic-pipe-"+Guid.NewGuid().ToString("N");
-                using(var server=WindowsIdentity.RunImpersonated(service,()=> 
-                     new NamedPipeServerStream(name,PipeDirection.In,1,
-                        PipeTransmissionMode.Byte,
-                        PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly))) {
-                    // Start accepting before attempting an outsider connection.
-                    var pending=server.WaitForConnectionAsync();
-                    bool outsiderConnected=WindowsIdentity.RunImpersonated(outsider,()=>{
-                        using(var client=new NamedPipeClientStream(".",name,PipeDirection.Out)) {
-                            try { client.Connect(700); return client.IsConnected; }
-                            catch(UnauthorizedAccessException){return false;}
-                            catch(TimeoutException){return false;}
-                            catch(IOException){return false;}
-                        }
-                    });
-                    if(outsiderConnected)return false;
-                    bool serviceConnected=WindowsIdentity.RunImpersonated(service,()=>{
-                        using(var client=new NamedPipeClientStream(".",name,PipeDirection.Out)){
-                            client.Connect(4000);
-                            if(!client.IsConnected)return false;
-                            client.WriteByte(0x51);
-                            client.Flush();
-                            return true;
-                        }
-                    });
-                    if(!serviceConnected)return false;
-                    if(!pending.Wait(4000))return false;
-                    var one=new byte[1];
-                    var read=server.ReadAsync(one,0,1);
-                    if(!read.Wait(3000))return false;
-                    return read.Result==1 && one[0]==0x51;
-                }
-            }
-        }
-    }
 }
 '@
     $serviceRead = [WinSyntheticPrincipalAccess]::CanRead(
@@ -138,14 +89,8 @@ public static class WinSyntheticPrincipalAccess {
         throw 'NTFS service-only file access denial failed'
     }
     Write-Output 'PASS_WINDOWS_IMPERSONATED_NTFS_SERVICE_ONLY_ACCESS'
-    Write-Output 'WINDOWS_PIPE_PROBE_BEGIN'
-    $pipeAllowed = [WinSyntheticPrincipalAccess]::ProbeSameUserPipe(
-        $serviceName,$otherName,$env:COMPUTERNAME,$passwordA,$passwordB)
-    if (-not $pipeAllowed) { throw 'Windows CurrentUserOnly named-pipe SID isolation failed' }
-    Write-Output 'PASS_WINDOWS_CURRENT_USER_ONLY_NAMED_PIPE_DENIAL'
-    # CurrentUserOnly enforces a local OS pipe DACL but does not implement
-    # a production service, validate a distinct authorized client SID, or
-    # protect privileged administrators from overriding this fixture.
+    # A separate-process authenticated named-pipe experiment is blocked
+    # pending redesign. Never claim IPC authorization from file DACL tests.
     Write-Output 'PASS_WINDOWS_NO_SERVICE_INSTALL'
 } finally {
     if (Test-Path -LiteralPath $root) {
