@@ -236,8 +236,11 @@ def main():
                 and os.environ.get("GITHUB_ACTIONS") == "true"
                 and os.environ.get("OMSI_SYNTHETIC_HOSTED_RUNNER") == "github-hosted",
                 "child restricted to disposable GitHub-hosted runner")
-        require(pathlib.Path(os.environ.get("RUNNER_TEMP", "/nonexistent")).is_dir(),
-                "hosted runner TEMP required")
+        # Distinct UIDs cannot stat RUNNER_TEMP on hosted runners because
+        # its parent is private. The root orchestrator checked it earlier;
+        # children only require the inherited hosted-runner declaration.
+        require(bool(os.environ.get("RUNNER_TEMP")),
+                "hosted runner TEMP declaration required")
         temp = pathlib.Path("/tmp").resolve()
         if parsed.mode == "server":
             require(len(parsed.args) == 3, "wrong server arguments")
