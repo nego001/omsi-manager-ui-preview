@@ -108,3 +108,19 @@ Verificação manual futura, somente na máquina de teste com consentimento, em 
 6. Registrar separadamente versão do Electron, do Arch, do Hyprland e do backend de portal efetivo. A homologação real **ainda não ocorreu**.
 
 Fontes: [especificação FileChooser](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileChooser.html) e [documentação de portais do Hyprland](https://wiki.hypr.land/Hypr-Ecosystem/xdg-desktop-portal-hyprland/).
+
+
+## Homologação real de seletor nativo no Arch + Hyprland
+
+Existe um teste manual **opt-in e fora da CI** que abre o seletor do Electron *sem mockar \`dialog.showOpenDialog\`*. Rode apenas numa instalação **de teste** Arch Linux + Hyprland, como usuário comum, dentro de \`react-prototype/\` com Node.js 22 e dependências de desenvolvimento:
+
+\`\`\`bash
+npm install --no-audit --no-fund
+npm run build
+npm run package:linux
+npm run test:manual:hyprland -- --confirm-interactive
+\`\`\`
+
+O comando exige terminal interativo, Wayland, sessão declarando Hyprland, socket Wayland e propriedade FileChooser anunciada no D-Bus. Primeiro aparece uma janela de seleção que deve ser **cancelada**. Depois o script cria uma pasta OMSI fictícia em TEMP e pede para escolher **somente essa pasta** no segundo diálogo. Em ambos os casos o operador confirma que realmente viu a janela. Ele verifica retorno, contagem e SHA-256 de um arquivo fictício, depois remove a pasta temporária. Não use pastas de jogos reais nesse teste.
+
+O teste imprime o caminho da pasta temporária **apenas no terminal local**, para permitir selecioná-la; não compartilhe esse caminho em capturas públicas. O projeto CI testa somente as recusas e invariantes de segurança com \`npm run test:manual:contract\`, sem abrir janelas. Mesmo um \`PASS\` manual **não identifica o backend exato** que desenhou a janela (\`portalBackendVerified: false\`). A compatibilidade Arch/Hyprland só pode ser afirmada após executar e registrar a homologação na máquina real.

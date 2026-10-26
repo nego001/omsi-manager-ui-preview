@@ -30,7 +30,9 @@
     "test:witness:portable": "node --test native-lab/synthetic-operation-observer.test.cjs native-lab/synthetic-evidence-checkpoint.test.cjs native-lab/synthetic-evidence-authenticator.test.cjs native-lab/synthetic-memory-verifier.test.cjs native-lab/synthetic-service-boundary.test.cjs",
     "package:linux": "node scripts/package-linux.mjs",
     "test:portable:linux": "node scripts/portable-linux-smoke.mjs",
-    "test:wayland:headless": "node scripts/wayland-weston-smoke.mjs"
+    "test:wayland:headless": "node scripts/wayland-weston-smoke.mjs",
+    "test:manual:hyprland": "node scripts/manual-wayland-portal-smoke.mjs",
+    "test:manual:contract": "node --test scripts/manual-wayland-portal-contract.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
