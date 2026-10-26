@@ -1398,12 +1398,13 @@ test('timestamp restoration mutator is never included in shipped Electron packag
 // positive fixture is covered above; every negative attempt below must
 // exit without success output and must preserve any fake neighboring bytes.
 // No game folders, real mods or external files are ever used.
-async function timestampMutationRefused(root,nonce){
+async function timestampMutationRefused(root,nonce,tempParent=null){
  const script=join(__dirname,'restore-basic-times.synthetic.ps1');
  await assert.rejects(execAsync('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
   '-File',script,'-Root',root,'-Nonce',nonce
- ],{windowsHide:true,timeout:30000,maxBuffer:2048}),error=>{
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048,
+  ...(tempParent===null?{}:{env:tempEnv(tempParent)})}),error=>{
   assert.equal(error.code,3,'all rejected inputs use a single denial status');
   assert.equal(error.stdout,'','no false RESTORATION_PERFORMED token');
   assert.equal(error.stderr.trim(),'Synthetic timestamp restoration refused');
@@ -1488,12 +1489,13 @@ test('timestamp mutator refuses direct-child scope escape despite copied marker'
 
 // Deterministic two-process barrier AFTER the fixture-only writer has pinned
 // root, child directory, marker and the exact expected .scs file handles.
-async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE'){
+async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE',tempParent=null){
  const script=join(__dirname,'restore-basic-times.synthetic.ps1');
  const child=spawn('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
   '-File',script,'-Root',f.root,'-Nonce',f.nonce,'-HoldAfterPin'
- ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+ ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe'],
+  ...(tempParent===null?{}:{env:tempEnv(tempParent)})});
  let stdout='',stderr='';
  let readyResolve;
  const held=new Promise(resolve=>{readyResolve=resolve;});
@@ -1656,4 +1658,56 @@ test('relative-handle writer never reopens the child with a full pathname',
  assert.match(source,/AssertExactRootNames\(root\)/);
  assert.doesNotMatch(source,/OpenFile\(file,|OpenFile\(marker,|OpenFile\(directory,/);
  assert.match(source,/This narrows TOCTOU/);
+});
+
+test('TEMP ancestor remains pinned during the synthetic write barrier',
+ {skip:!ready,timeout:90000},async()=>{
+ // Override TMP/TEMP only inside the child test process and only with an
+ // independently generated directory under the actual system temporary area.
+ const parent=await syntheticTemp();
+ const f=await fixtureAt(parent);
+ const p=join(f.dir,'metadata-probe.scs');
+ const pristine='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(p,pristine);
+ const renamed=parent+'.relocated';
+ roots.add(renamed);
+ const r=await runPinnedTimestampBarrier(f,async()=>{
+  await assert.rejects(fs.rename(parent,renamed),
+   'pinned temporary parent must not be renamed during write');
+  assert.equal(await fs.readFile(p,'utf8'),pristine);
+ },'CONTINUE',parent);
+ assert.equal(r.code,0,r.stderr);
+ assert.equal(r.stdout,'HANDLE_HELD\nRESTORATION_PERFORMED\n');
+ assert.equal(r.stderr,'');
+ assert.equal(await fs.readFile(p,'utf8'),pristine);
+});
+
+test('TEMP ancestor junction is refused rather than used as a mutation root',
+ {skip:!ready,timeout:90000},async(t)=>{
+ const parent=await syntheticTemp();
+ const real=join(parent,'real-temp');
+ const junction=join(parent,'redirected-temp');
+ await fs.mkdir(real);
+ try{await fs.symlink(real,junction,'junction');}
+ catch(err){if(['EPERM','EACCES','ENOSYS'].includes(err.code)){
+  t.skip('Windows cannot create a disposable junction in this runner');
+  return;
+ }throw err;}
+ const f=await fixtureAt(junction);
+ const p=join(f.dir,'metadata-probe.scs');
+ const pristine='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(p,pristine);
+ await timestampMutationRefused(f.root,f.nonce,junction);
+ assert.equal(await fs.readFile(p,'utf8'),pristine);
+});
+
+test('TEMP parent holds the root open by relative handle and has no write capability',
+ {skip:!ready},async()=>{
+ const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ assert.match(src,/using \(var tempHandle = OpenFile\(temp,/);
+ assert.match(src,/CheckDirectory\(tempHandle\)/);
+ assert.match(src,/OpenChild\(tempHandle,\s*Path\.GetFileName\(root\)/);
+ assert.match(src,/SameId\(NativeInfo\(rootHandle\), NativeInfo\(rootPathCheck\)\)/);
+ assert.doesNotMatch(src,/OpenFile\(root, readAttributes \| readData/);
+ assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes|File\.Move/);
 });
