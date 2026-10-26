@@ -62,8 +62,8 @@ A native Linux x64 Electron portable build and GUI smoke test are now planned in
 
 Packaging the preview for Linux does **not** satisfy any of the privileged verifier-service release gates above.
 
-## Windows named-pipe local SID check (synthetic proof only)
+## Windows named-pipe IPC: blocked pending redesign
 
-The hosted Windows SID/NTFS fixture now also instantiates a disposable `NamedPipeServerStream` with `PipeOptions.CurrentUserOnly` **under the temporary service account's impersonated token**. An unrelated disposable account's token must not connect, while the service account must connect and transmit one fixed test byte. A passing test shows Windows kernel enforcement of a local same-user-only pipe in this laboratory, and reports `PASS_WINDOWS_CURRENT_USER_ONLY_NAMED_PIPE_DENIAL`.
+An attempted test using `NamedPipeServerStream` and `CurrentUserOnly` under impersonation **stalled**, and CI correctly failed after its four-minute timeout. This does **not** prove kernel named-pipe authorization or deny behavior, and it must never be reported as passing. The blocking experiment was removed from the required workflow pending a separate-process client/server test with bounded connection, cancellation and authenticated peer checks.
 
-This deliberately does **not** implement the eventual service's authenticated caller identity, permission to invoke arbitrary UI operations, named-pipe DACL for a *distinct* authorized client, ACL lifecycle, service process token isolation, long-running server, session binding or robust protocol replay prevention. In production, `CurrentUserOnly` would exclude every client running under another user, even authorized ones; designing a suitable restricted ACL and verifying the caller's security token are separate release blockers. Nothing is deployed on the user's machine.
+The **existing Windows test that still passes** creates two disposable local accounts with distinct SIDs, and uses impersonated `LogonUser` tokens to verify an NTFS file DACL. That is a file-permission result only, **not a named-pipe result**. No production service, IPC listener or mod writer is installed. The Windows IPC release blocker remains open.
