@@ -13,8 +13,8 @@
 
 | Required gate | Windows candidate | Linux candidate | Status |
 | --- | --- | --- | --- |
-| Distinct OS principal | Dedicated low-privilege service identity or service SID with an independently audited token | Dedicated non-root service UID, restricted groups and reviewed systemd sandboxing | **Not implemented** |
-| Authenticated peer | Local-only named pipe with restrictive DACL, server identity validation and audited client token validation | Local Unix-domain socket with restrictive filesystem permissions and `SO_PEERCRED` verification | **Not implemented** |
+| Distinct OS principal | Dedicated low-privilege service identity or service SID with an independently audited token | Dedicated non-root service UID, restricted groups and reviewed systemd sandboxing | **Linux synthetic fixture-only different-UID test added; production service not implemented** |
+| Authenticated peer | Local-only named pipe with restrictive DACL, server identity validation and audited client token validation | Local Unix-domain socket with restrictive filesystem permissions and `SO_PEERCRED` verification | **Linux temporary socket `SO_PEERCRED` denial tested; production channel not implemented** |
 | Filesystem constraints | Explicit deny on game, mods, profile and arbitrary user paths; verify ACLs and reparse-point behavior | Deny game/mod/home file access; explicit sandbox, mount namespace / path rules and symlink audit | **Not implemented** |
 | Key custody | Access-controlled service-only key, explicit lifecycle/rotation/backup policy, investigated DPAPI/CNG or hardware protection | Credentials isolated from UI user, key lifecycle, sealed/ephemeral storage review and memory process inspection controls | **Not implemented** |
 | Deployment identity | Verifiable service binary, release provenance, controlled startup, no implicit administrator elevation | Signed/reproducible artifact policy, restricted unit definition, controlled startup and restart | **Not implemented** |
@@ -37,3 +37,13 @@ Do not treat `HMAC matched`, `completion_observed_not_durable`, a passing UI tes
 6. Explicit new user authorization and a separate threat-model review before considering **any** game/mod write operation.
 
 **Current immutable safety boundaries:** `operationsEnabled:false`, `supportsRealGameInspection:false`, `guaranteesNoABA:false`, `atomicPathContainmentProven:false`. Keep PR #1 in draft; do not merge to main or install a service from these laboratory files.
+
+## Linux hosted-runner real-UID experiment (fixture-only)
+
+The new `synthetic-linux-principal-lab.py` runs **only** within GitHub Actions on explicitly marked `github-hosted` Linux runners using `sudo`. It deliberately refuses the admin orchestration path on developer machines, self-hosted runners, or missing `RUNNER_TEMP`. It creates three short-lived users: a service process UID, an authorized client UID, and an unauthorized client UID, plus a newly allocated TEMP subtree. At exit, it terminates the disposable socket subprocess, deletes the subtree and removes the synthetic test users. Nothing registers a systemd unit, installs a package, alters user home directories or touches OMSI files.
+
+The service-user subprocess creates a 32-byte **test canary** under a private `0700` directory and a `0600` file. Actual kernel DAC tests require that *both* client UIDs receive `PermissionError` for that file, and the service UID can read it. A world-connectable **test socket** (intentionally `0666` for this proof) tests defense beyond basic socket permissions: the server calls Linux `SO_PEERCRED` on the accepted connection and accepts only one fixed `probe` operation from the authorized UID. The outsider, client-supplied UID/role assertion, arbitrary installation operation and client pathname field must all be denied. No secret is signed or returned. This proves narrowly that separate kernel UIDs and kernel-reported peer UIDs work inside a hosted, disposable CI VM.
+
+**Not a production service:** socket directory access on a production system would need restrictive mode/group and peer authorization; the demonstration's `0666` socket exists solely to test `SO_PEERCRED` rejection. Real deployment needs a service definition, managed service UID, validated caller identity, a production ACL/sandbox, lifecycle hardening, key custody and new security review. It does not prove Windows service SID/DACL behavior, SELinux/AppArmor confinement, symlink/race resistance, remote access isolation or any OMSI file operation.
+
+An explicit OS-hosted test can pass while the release blocker **“production service with distinct principal”** remains unsatisfied.
