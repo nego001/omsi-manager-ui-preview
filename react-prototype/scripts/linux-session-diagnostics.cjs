@@ -61,7 +61,7 @@ function parseFileChooserVersion(output){
  if(typeof output!=='string'||output.length>4096)return null;
  // dbus-send Properties.Get returns one variant containing an unsigned
  // 32-bit version. Reject absent, ambiguous or implausible values.
- const matches=[...output.matchAll(/\bvariant\s+uint32\s+([0-9]{1,3})\b/gu)];
+ const matches=[...output.matchAll(/^[ \t]*variant[ \t]+uint32[ \t]+([0-9]{1,3})[ \t]*$/gmu)];
  if(matches.length!==1)return null;
  const number=Number(matches[0][1]);
  return Number.isInteger(number)&&number>=1&&number<=999?number:null;
