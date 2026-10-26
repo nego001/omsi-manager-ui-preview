@@ -164,8 +164,10 @@ async function readSyntheticOperationLedger(root,nonce){
    previous=row.digest;
    records.push({sequence:row.sequence,event:row.event});
   }
+  // This head is a publicly recomputable digest, not a MAC or signature.
+  // A separate test-only sibling checkpoint can snapshot it.
   return {schema:SCHEMA,status:summarize(records),
-   events:records.map(r=>r.event)};
+   events:records.map(r=>r.event),chainHead:previous};
  }catch(error){
   if(error?.code==='ENOENT')throw error;
   deny();
