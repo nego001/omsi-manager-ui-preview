@@ -16,7 +16,13 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 $token = [Guid]::NewGuid().ToString('N').Substring(0,11)
 $serviceName = "omsis$token"
 $otherName = "omsiu$token"
-$root = Join-Path $env:RUNNER_TEMP ("omsi-win-principal-lab-" + [Guid]::NewGuid().ToString('N'))
+# Hosted Windows RUNNER_TEMP can be private to the runner account. Create
+# a random disposable folder under Public for cross-user traversal, then
+# strip inheritance from service-private and grant only explicit SIDs.
+if (-not $env:PUBLIC -or -not (Test-Path -LiteralPath $env:PUBLIC -PathType Container)) {
+    throw 'Hosted public test-parent missing'
+}
+$root = Join-Path $env:PUBLIC ("omsi-win-principal-lab-" + [Guid]::NewGuid().ToString('N'))
 $made = @()
 try {
     $passwordA = 'M8!' + [Guid]::NewGuid().ToString('N') + 'z'
