@@ -1207,7 +1207,8 @@ test('USN still advances after all four FILE_BASIC_INFO timestamps are restored 
   const restored=await execAsync('powershell.exe',[
    '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
    '-File',script,'-Root',f.root,'-Nonce',f.nonce
-  ],{windowsHide:true,timeout:30000,maxBuffer:2048});
+  ],{windowsHide:true,timeout:30000,maxBuffer:2048,
+   env:{...process.env,OMSI_SYNTHETIC_DIAG:'1'}});
   assert.equal(restored.stdout.trim(),'RESTORATION_PERFORMED');
   assert.equal(restored.stderr,'');
  },'CONTINUE',null,[],
@@ -1493,7 +1494,8 @@ async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE'){
  const child=spawn('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
   '-File',script,'-Root',f.root,'-Nonce',f.nonce,'-HoldAfterPin'
- ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+ ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe'],
+  env:{...process.env,OMSI_SYNTHETIC_DIAG:'1'}});
  let stdout='',stderr='';
  let readyResolve;
  const held=new Promise(resolve=>{readyResolve=resolve;});
