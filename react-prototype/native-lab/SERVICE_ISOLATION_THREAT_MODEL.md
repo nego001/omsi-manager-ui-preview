@@ -61,3 +61,9 @@ An actual Windows `LogonUser` token and `WindowsIdentity.RunImpersonated` must d
 A native Linux x64 Electron portable build and GUI smoke test are now planned in the CI `build` job. They package the same React/Electron **read-only preview** using `@electron/packager` and check the emitted ELF GUI under `xvfb` with a synthetic OMSI directory. The archive, if validated, is an unsigned, experimental `.tar.gz` and SHA-256 checksum. It is not an Arch Linux native package, systemd unit, Proton/Wine adapter, OMSI 2 runtime, nor a mod installation manager. The Windows-only Win32 lab and PowerShell scripts remain excluded from the packaged `app.asar`.
 
 Packaging the preview for Linux does **not** satisfy any of the privileged verifier-service release gates above.
+
+## Windows named-pipe local SID check (synthetic proof only)
+
+The hosted Windows SID/NTFS fixture now also instantiates a disposable `NamedPipeServerStream` with `PipeOptions.CurrentUserOnly` **under the temporary service account's impersonated token**. An unrelated disposable account's token must not connect, while the service account must connect and transmit one fixed test byte. A passing test shows Windows kernel enforcement of a local same-user-only pipe in this laboratory, and reports `PASS_WINDOWS_CURRENT_USER_ONLY_NAMED_PIPE_DENIAL`.
+
+This deliberately does **not** implement the eventual service's authenticated caller identity, permission to invoke arbitrary UI operations, named-pipe DACL for a *distinct* authorized client, ACL lifecycle, service process token isolation, long-running server, session binding or robust protocol replay prevention. In production, `CurrentUserOnly` would exclude every client running under another user, even authorized ones; designing a suitable restricted ACL and verifying the caller's security token are separate release blockers. Nothing is deployed on the user's machine.
