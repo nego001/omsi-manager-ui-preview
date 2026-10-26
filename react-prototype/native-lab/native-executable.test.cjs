@@ -1475,3 +1475,110 @@ test('timestamp mutator refuses direct-child scope escape despite copied marker'
  await timestampMutationRefused(nested,f.nonce);
  assert.equal(await fs.readFile(p,'utf8'),'COPIED NONCE DOES NOT ALLOW NESTED MUTATION');
 });
+
+
+// Deterministic two-process barrier AFTER the fixture-only writer has pinned
+// root, child directory, marker and the exact expected .scs file handles.
+async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE'){
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ const child=spawn('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',f.root,'-Nonce',f.nonce,'-HoldAfterPin'
+ ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+ let stdout='',stderr='';
+ let readyResolve;
+ const held=new Promise(resolve=>{readyResolve=resolve;});
+ const finished=new Promise((resolve,reject)=>{
+  child.once('error',reject);
+  child.once('close',code=>resolve(code));
+ });
+ child.stdout.on('data',data=>{
+  stdout+=data.toString();
+  if(/^HANDLE_HELD\r?\n/.test(stdout))readyResolve();
+ });
+ child.stderr.on('data',data=>{stderr+=data.toString();});
+ async function bounded(p){
+  let timer;
+  try{return await Promise.race([p,new Promise((_,reject)=>{
+   timer=setTimeout(()=>reject(Error('pinned test writer timed out')),30000);
+  })]);}
+  finally{clearTimeout(timer);}
+ }
+ try{
+  await bounded(Promise.race([held,finished.then(code=>{
+   throw Error('writer did not pin fixture: '+code+' '+stderr);
+  })]));
+  await mutate(f);
+  child.stdin.end(reply+'\n');
+  const code=await bounded(finished);
+  return {code,stdout:stdout.replace(/\r\n/g,'\n'),stderr};
+ }finally{
+  if(child.exitCode===null)child.kill();
+ }
+}
+
+test('pinned mutator blocks concurrent fake-file rewrite and rename before writing',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(p,original);
+ const result=await runPinnedTimestampBarrier(f,async()=>{
+  await assert.rejects(fs.writeFile(p,'OUTSIDE WRITER ATTEMPT'));
+  await assert.rejects(fs.rename(p,join(f.dir,'moved-probe.scs')));
+  assert.equal(await fs.readFile(p,'utf8'),original);
+ });
+ assert.equal(result.code,0,result.stderr);
+ assert.equal(result.stdout,'HANDLE_HELD\nRESTORATION_PERFORMED\n');
+ assert.equal(result.stderr,'');
+ assert.equal(await fs.readFile(p,'utf8'),original);
+ await assert.rejects(fs.stat(join(f.dir,'moved-probe.scs')),{code:'ENOENT'});
+});
+
+test('pinned mutator blocks root/child directory and marker replacement',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const p=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ const safe=join(f.root,'outside-sentinel.txt');
+ await fs.writeFile(p,original);
+ await fs.writeFile(safe,'SENTINEL UNTOUCHED');
+ const result=await runPinnedTimestampBarrier(f,async()=>{
+  await assert.rejects(fs.rename(f.dir,f.dir+'.renamed'));
+  await assert.rejects(fs.rename(f.root,f.root+'.renamed'));
+  await assert.rejects(fs.rename(join(f.root,MARKER),join(f.root,MARKER+'.renamed')));
+  await assert.rejects(fs.writeFile(join(f.root,MARKER),'0'.repeat(32)));
+  assert.equal(await fs.readFile(safe,'utf8'),'SENTINEL UNTOUCHED');
+ });
+ assert.equal(result.code,0,result.stderr);
+ assert.equal(result.stdout,'HANDLE_HELD\nRESTORATION_PERFORMED\n');
+ assert.equal(result.stderr,'');
+ assert.equal(await fs.readFile(p,'utf8'),original);
+ assert.equal(await fs.readFile(safe,'utf8'),'SENTINEL UNTOUCHED');
+});
+
+test('pinned mutator refuses invalid continuation before any fake-file write',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture(),p=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(p,original);
+ const result=await runPinnedTimestampBarrier(f,async()=>{},'INSTALL');
+ assert.equal(result.code,3);
+ assert.equal(result.stdout,'HANDLE_HELD\n');
+ assert.equal(result.stderr.trim(),'Synthetic timestamp restoration refused');
+ assert.equal(result.stderr.includes(f.root),false);
+ assert.equal(result.stderr.includes(f.nonce),false);
+ assert.equal(await fs.readFile(p,'utf8'),original);
+});
+
+test('test-only mutator writes through one fixed native handle, never by pathname',
+ {skip:!ready},async()=>{
+ const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ assert.match(src,/new FileStream\(fileHandle, FileAccess.ReadWrite/);
+ assert.match(src,/shareRead, IntPtr.Zero, openExisting, openReparse/);
+ assert.match(src,/SameId\(initialIdentity, reopened\)/);
+ assert.match(src,/CheckNonce\(markerStream, nonce\)/);
+ assert.match(src,/WriteExact\(stream, intermediate\)/);
+ assert.match(src,/WriteExact\(stream, original\)/);
+ assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes|File\.Delete|File\.Move/);
+});
