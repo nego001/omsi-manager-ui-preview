@@ -46,6 +46,26 @@ jobs:
         run: xvfb-run -a npm run test:desktop
       - name: Native folder inspection IPC E2E
         run: xvfb-run -a npm run test:inspection:e2e
+      - name: Build Linux x64 unsigned portable preview
+        run: npm run package:linux
+      - name: Test packaged Linux ELF GUI using synthetic game folder
+        timeout-minutes: 5
+        run: xvfb-run -a npm run test:portable:linux
+      - name: Archive Linux portable preview and SHA256
+        run: |
+          test -x release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
+          tar -czf release/OMSI-Manager-Preview-Linux-x64.tar.gz -C release OMSI-Manager-Preview-linux-x64
+          cd release
+          sha256sum OMSI-Manager-Preview-Linux-x64.tar.gz > OMSI-Manager-Preview-Linux-x64.sha256
+      - name: Upload unsigned Linux portable preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: |
+            react-prototype/release/OMSI-Manager-Preview-Linux-x64.tar.gz
+            react-prototype/release/OMSI-Manager-Preview-Linux-x64.sha256
+          if-no-files-found: error
+          retention-days: 14
       - name: Public UI screenshots and test diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,6 +100,12 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Synthetic witness crash and incomplete-history tests
         run: npm run test:witness
+      - name: Windows disposable local SID and NTFS DACL proof
+        if: runner.environment == 'github-hosted'
+        shell: pwsh
+        env:
+          OMSI_SYNTHETIC_HOSTED_RUNNER: ${{ runner.environment }}
+        run: ./native-lab/synthetic-windows-principal-lab.ps1
       - name: Compile standalone C# Win32 handle observer
         shell: pwsh
         run: dotnet publish native-lab/OmsiNativeDirectoryLab.csproj --configuration Release --runtime win-x64 --self-contained false --output native-lab/out
