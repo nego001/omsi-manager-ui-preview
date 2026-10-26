@@ -733,3 +733,44 @@ alinhamento de 4 bytes para a verificação correta de
 `NumberOfLinks`; ambos foram corrigidos e validados
 nos testes Windows. Fonte oficial de `FILE_BASIC_INFO`:
 https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_basic_info
+
+
+## Verificação estrita de buffers USN V2/V3 (25–26/10/2026)
+
+O parser do `FSCTL_READ_FILE_USN_DATA` recebeu uma
+etapa **fail-closed** antes de aceitar qualquer número USN.
+Ele exige resposta com exatamente um registro, tamanho
+declarado igual aos bytes retornados, alinhamento de 8 bytes,
+versão principal **2 ou 3**, versão secundária **0**, cabeçalho
+completo, USN positivo e comprimentos/offsets do campo
+de nome válidos dentro do buffer. O nome **não é decodificado,
+impresso ou incluído em nenhum relatório**; esses metadados
+só servem para rejeitar registros malformados. Versões futuras,
+dados truncados, respostas de erro ou registro de tamanho
+inesperado são recusados em vez de inferir segurança.
+
+O modo de teste `--rdcw-probe --test-usn-record-guards`
+verifica essa **mesma função de validação** com dois registros
+fictícios bem formados (USN_RECORD_V2 e V3) e **26 variantes
+malformadas**. Apenas se ambos os positivos forem aceitos e
+todos os negativos recusados, encerra com código **13**,
+que ainda representa **recusa genérica**, stdout vazio e
+nenhuma autorização. A fixture deve possuir marcador
+nonce válido na raiz filha direta da TEMP; flags extras,
+ausência de opt-in e nonce inválido sempre recusam.
+Nenhum journal é percorrido, criado, restaurado ou removido
+nessa prova de parser, que é totalmente em memória.
+
+O teste não reproduz uma desativação real do USN Journal,
+reinício de geração ou transbordamento do journal; essas
+condições continuam **sem comprovação operacional**. A
+validação do buffer também **não** prova ausência de ABA
+ou sequência completa de eventos. Mantidos
+`guaranteesNoABA:false`,
+`atomicPathContainmentProven:false`,
+`supportsRealGameInspection:false`,
+`operationsEnabled:false`.
+
+Documentação de estruturas:
+https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v2
+https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v3
