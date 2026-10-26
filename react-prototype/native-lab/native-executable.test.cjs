@@ -1772,3 +1772,72 @@ test('mutator pins the volume-to-TEMP chain before fake file opens',
  assert.doesNotMatch(src,/using \(var tempHandle = OpenFile\(temp,/);
  assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes/);
 });
+
+test('pinned writer rejects a new synthetic sibling created after the race barrier',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const sibling=join(f.dir,'unexpected-sibling.scs');
+ const pristine='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,pristine);
+ let created=false;
+ const result=await runPinnedTimestampBarrier(f,async()=>{
+  try{
+   await fs.writeFile(sibling,'SYNTHETIC SIBLING CREATED DURING BARRIER',{flag:'wx'});
+   created=true;
+  }catch(err){
+   assert.ok(['EPERM','EACCES','EBUSY'].includes(err.code),
+    'unexpected sibling creation failure: '+err.code);
+  }
+ });
+ // If Windows prevents the sibling creation itself, the protected target may
+ // safely finish. If creation succeeds, the pinned writer must refuse.
+ assert.equal(result.code,created?3:0,result.stderr);
+ assert.equal(result.stderr.trim(),
+   created?'Synthetic timestamp restoration refused':'');
+ assert.equal(await fs.readFile(target,'utf8'),pristine);
+ if(created)assert.equal(await fs.readFile(sibling,'utf8'),
+  'SYNTHETIC SIBLING CREATED DURING BARRIER');
+});
+
+test('pinned writer refuses a metadata change attempted after verification',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const pristine='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,pristine);
+ const before=await fs.stat(target);
+ let changed=false;
+ const result=await runPinnedTimestampBarrier(f,async()=>{
+  try{
+   await fs.utimes(target,new Date('2012-01-01T00:00:00Z'),
+    new Date('2012-01-01T00:00:00Z'));
+   const now=await fs.stat(target);
+   changed=Math.abs(now.mtimeMs-before.mtimeMs)>1000;
+  }catch(err){
+   assert.ok(['EPERM','EACCES','EBUSY'].includes(err.code),
+    'unexpected metadata change failure: '+err.code);
+  }
+ });
+ assert.equal(result.code,changed?3:0,result.stderr);
+ assert.equal(result.stderr.trim(),
+   changed?'Synthetic timestamp restoration refused':'');
+ assert.equal(await fs.readFile(target,'utf8'),pristine);
+});
+
+test('synthetic writer reattests pinned ancestry and nonce around both data writes',
+ {skip:!ready},async()=>{
+ const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ const check=/CheckPinnedFixture\(ancestors, root, directory,/g;
+ assert.equal([...src.matchAll(check)].length,2);
+ assert.match(src,/private static void CheckPinnedFixture\(/);
+ assert.match(src,/ancestors\.Verify\(\)/);
+ assert.match(src,/markerStream\.Position = 0;\s*CheckNonce\(markerStream, nonce\)/);
+ assert.match(src,/!Same\(fileBasic, current\)/);
+ assert.match(src,/SameId\(fileId, NativeInfo\(fileHandle\)\)/);
+ const checks=[...src.matchAll(check)].map(x=>x.index);
+ const firstWrite=src.indexOf('WriteExact(stream, intermediate);');
+ const restore=src.indexOf('if (!SetBasic(fileHandle, 0, ref restore, 40))');
+ assert.ok(checks[0]<firstWrite && firstWrite<restore && restore<checks[1],
+  'fixture identities must be checked before writing and after restoring');
+});
