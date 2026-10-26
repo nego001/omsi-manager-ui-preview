@@ -1207,8 +1207,7 @@ test('USN still advances after all four FILE_BASIC_INFO timestamps are restored 
   const restored=await execAsync('powershell.exe',[
    '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
    '-File',script,'-Root',f.root,'-Nonce',f.nonce
-  ],{windowsHide:true,timeout:30000,maxBuffer:2048,
-   env:{...process.env,OMSI_SYNTHETIC_DIAG:'1'}});
+  ],{windowsHide:true,timeout:30000,maxBuffer:2048});
   assert.equal(restored.stdout.trim(),'RESTORATION_PERFORMED');
   assert.equal(restored.stderr,'');
  },'CONTINUE',null,[],
@@ -1494,8 +1493,7 @@ async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE'){
  const child=spawn('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
   '-File',script,'-Root',f.root,'-Nonce',f.nonce,'-HoldAfterPin'
- ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe'],
-  env:{...process.env,OMSI_SYNTHETIC_DIAG:'1'}});
+ ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
  let stdout='',stderr='';
  let readyResolve;
  const held=new Promise(resolve=>{readyResolve=resolve;});
@@ -1594,6 +1592,17 @@ test('test-only mutator writes through one fixed native handle, never by pathnam
  assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes|File\.Delete|File\.Move/);
 });
 
+
+test('pinned marker gate rejects oversized fake nonce without reading or changing target',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const pristine='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,pristine);
+ await fs.writeFile(join(f.root,MARKER),f.nonce+'X'.repeat(8192));
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(target,'utf8'),pristine);
+});
 
 test('relative-handle mutator rejects wrong-case child directory despite Windows lookup',
  {skip:!ready,timeout:60000},async()=>{
