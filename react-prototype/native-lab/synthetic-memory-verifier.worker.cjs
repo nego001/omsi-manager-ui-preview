@@ -27,6 +27,9 @@ async function handle(line){
  if(!req||Array.isArray(req)||typeof req!=='object'||
     Object.keys(req).sort().join(',')!=='id,op'||
     !Number.isSafeInteger(req.id)||req.id<1||req.id>9999||
+    // Canonical single-line input rejects duplicate JSON keys, alternate
+    // spellings, field reordering and injected parameters.
+    JSON.stringify({id:req.id,op:req.op})!==line||
     typeof req.op!=='string'||
     !['arm','verify','shutdown'].includes(req.op)){
   send({id:null,result:'refused'});return;
