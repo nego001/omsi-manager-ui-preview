@@ -1908,3 +1908,118 @@ test('native fake writer checks exact bytes at each stage and through a second r
  assert.match(src,/injectCorruption && !holdAfterPin/);
  assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes/);
 });
+
+// Kill checkpoints are exclusively disposable, nonce-marked subprocesses.
+// A process kill is deliberately NOT an electrical power-loss simulation.
+async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint){
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ const child=spawn('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',f.root,'-Nonce',f.nonce,
+  '-HoldAfterPin',flag
+ ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe']});
+ let stdout='',stderr='',closed=false;
+ const done=new Promise((resolve,reject)=>{
+  child.once('error',reject);
+  child.once('close',(code,signal)=>{closed=true;resolve({code,signal});});
+ });
+ child.stdout.on('data',data=>{stdout+=data.toString().replace(/\r\n/g,'\n');});
+ child.stderr.on('data',data=>{stderr+=data.toString();});
+ async function until(marker){
+  const deadline=Date.now()+25000;
+  while(!stdout.includes(marker)){
+   if(closed)throw Error('synthetic child exited before '+marker+': '+stderr);
+   if(Date.now()>deadline)throw Error('synthetic kill checkpoint timeout: '+marker);
+   await new Promise(resolve=>setTimeout(resolve,25));
+  }
+ }
+ try{
+  await until('HANDLE_HELD\n');
+  child.stdin.write('CONTINUE\n');
+  await until(checkpoint+'\n');
+  const heldBytes=await fs.readFile(join(f.dir,'metadata-probe.scs'));
+  assert.equal(stdout.includes('RESTORATION_PERFORMED'),false);
+  assert.equal(stderr,'');
+  assert.equal(child.kill(),true,'synthetic child must be terminable');
+  const exit=await Promise.race([done,new Promise((_,reject)=>{
+   setTimeout(()=>reject(Error('synthetic kill failed to terminate')),10000);
+  })]);
+  assert.notEqual(exit.code,0,'interrupted process cannot report success');
+  assert.equal(stdout.includes('RESTORATION_PERFORMED'),false);
+  return {stdout,stderr,heldBytes,exit};
+ }finally{
+  if(!closed)child.kill();
+  child.stdin.destroy();
+ }
+}
+
+test('abrupt child-process exit after intermediate flush preserves intermediate bytes and denies rerun',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ const intermediate='SYNTHETIC FIXTURE INTERMEDIATE CONTENT';
+ await fs.writeFile(target,original);
+ const markerBefore=await fs.readFile(join(f.root,MARKER));
+ const outcome=await killSyntheticWriterAtCheckpoint(f,
+  '-HoldAfterIntermediateForTest','INTERMEDIATE_HELD');
+ assert.equal(outcome.stdout,'HANDLE_HELD\nINTERMEDIATE_HELD\n');
+ assert.deepEqual(outcome.heldBytes,Buffer.from(intermediate));
+ assert.equal(await fs.readFile(target,'utf8'),intermediate);
+ assert.deepEqual(await fs.readFile(join(f.root,MARKER)),markerBefore);
+ // The default mutator must refuse the incomplete byte sequence, not
+ // silently treat the interrupted fixture as restored or repair a real mod.
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(target,'utf8'),intermediate);
+});
+
+test('abrupt exit with restored bytes but pending timestamps cannot claim success',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ const outcome=await killSyntheticWriterAtCheckpoint(f,
+  '-HoldAfterRestoredBytesForTest','RESTORED_BYTES_HELD');
+ assert.equal(outcome.stdout,'HANDLE_HELD\nRESTORED_BYTES_HELD\n');
+ assert.deepEqual(outcome.heldBytes,Buffer.from(original));
+ assert.equal(await fs.readFile(target,'utf8'),original);
+ // Exact content alone cannot attest that timestamps were restored or
+ // that the process returned a successful operation receipt.
+});
+
+test('crash checkpoint options require explicit synthetic pinned barrier',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ for(const option of ['-HoldAfterIntermediateForTest',
+                       '-HoldAfterRestoredBytesForTest']){
+  await assert.rejects(execAsync('powershell.exe',[
+   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+   '-File',script,'-Root',f.root,'-Nonce',f.nonce,option
+  ],{windowsHide:true,timeout:30000,maxBuffer:2048}),error=>{
+   assert.equal(error.code,3);
+   assert.equal(error.stdout,'');
+   assert.equal(error.stderr.trim(),'Synthetic timestamp restoration refused');
+   return true;
+  });
+  assert.equal(await fs.readFile(target,'utf8'),original);
+ }
+});
+
+test('intermediate and restored-byte crash gates are sequenced before timestamp restore',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ const flushed=source.indexOf('VerifyExact(stream, intermediate);');
+ const middle=source.indexOf('Console.Out.WriteLine("INTERMEDIATE_HELD");');
+ const restored=source.indexOf('VerifyExact(stream, original);',middle);
+ const stage=source.indexOf('Console.Out.WriteLine("RESTORED_BYTES_HELD");');
+ const basic=source.indexOf('if (!SetBasic(fileHandle, 0, ref restore, 40))');
+ assert.ok(flushed>=0 && flushed<middle && middle<restored &&
+  restored<stage && stage<basic);
+ assert.match(source,/holdIntermediate && holdRestoredBytes/);
+ assert.match(source,/injectCorruption && \(holdIntermediate \|\| holdRestoredBytes\)/);
+});
