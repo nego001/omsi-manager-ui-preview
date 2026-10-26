@@ -51,6 +51,13 @@ jobs:
       - name: Test packaged Linux ELF GUI using synthetic game folder
         timeout-minutes: 5
         run: xvfb-run -a npm run test:portable:linux
+      - name: Install Weston for a real headless Wayland socket
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends weston
+      - name: Native Wayland packaged GUI smoke in disposable Weston
+        timeout-minutes: 5
+        run: npm run test:wayland:headless
       - name: Archive Linux portable preview and SHA256
         run: |
           test -x release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
