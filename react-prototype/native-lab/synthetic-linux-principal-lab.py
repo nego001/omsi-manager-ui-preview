@@ -118,8 +118,10 @@ def orchestrate(script):
     require(bool(root_env) and pathlib.Path(root_env).is_dir(),
             "RUNNER_TEMP missing")
     require(SO_PEERCRED is not None, "Linux peer credentials unavailable")
-    # Never work outside a newly allocated GitHub runner TEMP child.
-    root = pathlib.Path(tempfile.mkdtemp(prefix=PREFIX, dir=root_env))
+    # RUNNER_TEMP is private (not traversable by other UIDs) on the hosted
+    # Linux runner. Use a NEW unpredictable directory under world-traversable
+    # /tmp solely for this hosted-lab test; private key dir stays 0700.
+    root = pathlib.Path(tempfile.mkdtemp(prefix=PREFIX, dir="/tmp"))
     os.chmod(root, 0o755)
     # GitHub checkout is intentionally not traversable by synthetic UIDs.
     # Copy only this fixture worker into the disposable directory instead
@@ -234,7 +236,9 @@ def main():
                 and os.environ.get("GITHUB_ACTIONS") == "true"
                 and os.environ.get("OMSI_SYNTHETIC_HOSTED_RUNNER") == "github-hosted",
                 "child restricted to disposable GitHub-hosted runner")
-        temp = pathlib.Path(os.environ.get("RUNNER_TEMP", "/nonexistent")).resolve()
+        require(pathlib.Path(os.environ.get("RUNNER_TEMP", "/nonexistent")).is_dir(),
+                "hosted runner TEMP required")
+        temp = pathlib.Path("/tmp").resolve()
         if parsed.mode == "server":
             require(len(parsed.args) == 3, "wrong server arguments")
             endpoint = pathlib.Path(parsed.args[0]).resolve()
