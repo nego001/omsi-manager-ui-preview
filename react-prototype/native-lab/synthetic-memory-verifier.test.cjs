@@ -217,3 +217,32 @@ test('memory worker source has no key persistence or arbitrary signing interface
  assert.doesNotMatch(source,/writeFile|writeSync|createWriteStream|\.env\b/);
  assert.doesNotMatch(source,/function signArbitrary|privateKey|JSON\.stringify\(secret\)/);
 });
+
+test('worker IPC rejects replay, out-of-order IDs and fake OS principal claims',async()=>{
+ const f=await fixture(['started','interrupted']);
+ await withVerifier(f,async v=>{
+  assert.deepEqual(await v.send({id:10,op:'arm'}),{id:10,result:'armed'});
+  assert.deepEqual(await v.send({id:10,op:'verify'}),{id:null,result:'refused'});
+  assert.deepEqual(await v.send({id:9,op:'verify'}),{id:null,result:'refused'});
+  assert.deepEqual(await v.send({
+   id:11,op:'verify',peerCredentialsVerified:true
+  }),{id:null,result:'refused'});
+  assert.deepEqual(await v.send({id:11,op:'verify'}),{
+   id:11,result:'matched',status:'interrupted_before_write'
+  });
+  await v.shutdown();
+ });
+});
+
+test('worker rejects overlong input even without an earlier newline',async()=>{
+ const f=await fixture(['started','interrupted']);
+ await withVerifier(f,async v=>{
+  const oversized='X'.repeat(20000);
+  assert.deepEqual(await v.send(oversized),{id:null,result:'refused'});
+  assert.deepEqual(await v.send({id:1,op:'arm'}),{id:1,result:'armed'});
+  assert.deepEqual(await v.send({id:2,op:'verify'}),{
+   id:2,result:'matched',status:'interrupted_before_write'
+  });
+  await v.shutdown();
+ });
+});
