@@ -1290,3 +1290,60 @@ test('USN parser uses strict bounds, versions and positive values without decodi
  assert.match(source,/guaranteesNoABA"\] = false/);
  assert.match(source,/operationsEnabled"\] = false/);
 });
+
+
+test('synthetic timestamp mutator refuses a marked grandchild, even with matching nonce',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const nested=join(f.root,'omsi-manager-recovery-fixture-nested');
+ const target=join(nested,'native-enum','metadata-probe.scs');
+ await fs.mkdir(join(nested,'native-enum'),{recursive:true});
+ await fs.writeFile(join(nested,MARKER),f.nonce);
+ await fs.writeFile(target,'SYNTHETIC NESTED - MUST STAY');
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',nested,'-Nonce',f.nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ assert.equal(await fs.readFile(target,'utf8'),'SYNTHETIC NESTED - MUST STAY');
+});
+
+test('synthetic timestamp mutator rejects an unmarked sibling prefix lookalike',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const sibling=join(dirname(f.root),'omsi-manager-recovery-fixture-INVALID_name');
+ roots.add(sibling);
+ await fs.mkdir(join(sibling,'native-enum'),{recursive:true});
+ const target=join(sibling,'native-enum','metadata-probe.scs');
+ await fs.writeFile(join(sibling,MARKER),f.nonce);
+ await fs.writeFile(target,'SYNTHETIC INVALID-NAME');
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',sibling,'-Nonce',f.nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ assert.equal(await fs.readFile(target,'utf8'),'SYNTHETIC INVALID-NAME');
+});
+
+test('synthetic timestamp mutator refuses junction target without modifying other fixture',
+ {skip:!ready,timeout:60000},async(t)=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ await fs.writeFile(target,'SYNTHETIC ORIGINAL');
+ const alternate=join(f.root,'alternate-file.scs');
+ await fs.writeFile(alternate,'SYNTHETIC ALTERNATE');
+ await fs.rm(target);
+ try{await fs.symlink(alternate,target,'file');}
+ catch(error){
+  if(['EPERM','EACCES','ENOSYS'].includes(error.code)){
+   t.skip('Windows test runner cannot create file symlink');return;
+  }
+  throw error;
+ }
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',f.root,'-Nonce',f.nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ assert.equal(await fs.readFile(alternate,'utf8'),'SYNTHETIC ALTERNATE');
+});
