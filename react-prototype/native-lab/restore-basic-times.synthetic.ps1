@@ -2,7 +2,9 @@ param(
  [Parameter(Mandatory=$true)][string]$Root,
  [Parameter(Mandatory=$true)][string]$Nonce,
  [switch]$HoldAfterPin,
- [switch]$InjectPostRestoreCorruptionForTest
+ [switch]$InjectPostRestoreCorruptionForTest,
+ [switch]$HoldAfterIntermediateForTest,
+ [switch]$HoldAfterRestoredBytesForTest
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -403,7 +405,8 @@ public static class SyntheticBasicTimeRestoration {
     // This narrows TOCTOU; it is not proof against privileged kernel adversaries.
     public static void Run(string temp, string root, string directory,
                            string file, string marker, string nonce,
-                           bool holdAfterPin, bool injectCorruption) {
+                           bool holdAfterPin, bool injectCorruption,
+                           bool holdIntermediate, bool holdRestoredBytes) {
         const uint readAttributes = 0x80;
         const uint shareRead = 0x1;
         const uint openExisting = 3, openReparse = 0x00200000;
@@ -412,8 +415,13 @@ public static class SyntheticBasicTimeRestoration {
             "SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS");
         byte[] intermediate = Encoding.ASCII.GetBytes(
             "SYNTHETIC FIXTURE INTERMEDIATE CONTENT");
-        if (injectCorruption && !holdAfterPin)
-            throw new IOException("Test-only fault requires held-handle barrier");
+        // The two mid-write gates are opt-in for independent CI test processes.
+        // They cannot be combined with each other or the corruption injector.
+        if (injectCorruption && !holdAfterPin ||
+            (holdIntermediate || holdRestoredBytes) && !holdAfterPin ||
+            holdIntermediate && holdRestoredBytes ||
+            injectCorruption && (holdIntermediate || holdRestoredBytes))
+            throw new IOException("Test-only fault requires isolated barrier");
 
         // The entire local volume-to-TEMP chain is pinned first. The
         // fixture root and every writable descendant use relative handles.
@@ -485,8 +493,24 @@ public static class SyntheticBasicTimeRestoration {
                 VerifyExact(stream, original);
                 WriteExact(stream, intermediate);
                 VerifyExact(stream, intermediate);
+                if (holdIntermediate) {
+                    // Kill the disposable child here: a flushed intermediate
+                    // state must remain, with NO success acknowledgement.
+                    Console.Out.WriteLine("INTERMEDIATE_HELD");
+                    Console.Out.Flush();
+                    if (Console.In.ReadLine() != "CONTINUE")
+                        throw new IOException("Intermediate test barrier refused");
+                }
                 WriteExact(stream, original);
                 VerifyExact(stream, original);
+                if (holdRestoredBytes) {
+                    // Bytes are original, but four timestamps have NOT yet
+                    // been restored. This is not a committed operation.
+                    Console.Out.WriteLine("RESTORED_BYTES_HELD");
+                    Console.Out.Flush();
+                    if (Console.In.ReadLine() != "CONTINUE")
+                        throw new IOException("Restored-bytes test barrier refused");
+                }
                 FileBasicInfo restore = before;
                 if (!SetBasic(fileHandle, 0, ref restore, 40))
                     throw new IOException("Fixture time restoration failed");
@@ -539,7 +563,7 @@ public static class SyntheticBasicTimeRestoration {
 }
 '@
 Add-Type -TypeDefinition $code -ErrorAction Stop
-[SyntheticBasicTimeRestoration]::Run($temp,$path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin,[bool]$InjectPostRestoreCorruptionForTest)
+[SyntheticBasicTimeRestoration]::Run($temp,$path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin,[bool]$InjectPostRestoreCorruptionForTest,[bool]$HoldAfterIntermediateForTest,[bool]$HoldAfterRestoredBytesForTest)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
 } catch {
  # Nothing about filenames, TEMP paths, nonce, binary content or stack traces
