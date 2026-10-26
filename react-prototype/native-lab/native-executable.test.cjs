@@ -1704,10 +1704,71 @@ test('TEMP ancestor junction is refused rather than used as a mutation root',
 test('TEMP parent holds the root open by relative handle and has no write capability',
  {skip:!ready},async()=>{
  const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
- assert.match(src,/using \(var tempHandle = OpenFile\(temp,/);
- assert.match(src,/CheckDirectory\(tempHandle\)/);
- assert.match(src,/OpenChild\(tempHandle,\s*Path\.GetFileName\(root\)/);
+ assert.match(src,/using \(var ancestors = AncestorPins\.Pin\(temp\)\)/);
+ assert.match(src,/OpenChild\(ancestors\.TemporaryHandle,\s*Path\.GetFileName\(root\)/);
+ assert.match(src,/using \(SafeFileHandle relative = OpenChild\(handles\[i - 1\]/);
+ assert.match(src,/if \(!SameId\(NativeInfo\(handles\[i\]\), NativeInfo\(relative\)\)\)/);
  assert.match(src,/SameId\(NativeInfo\(rootHandle\), NativeInfo\(rootPathCheck\)\)/);
  assert.doesNotMatch(src,/OpenFile\(root, readAttributes \| readData/);
  assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes|File\.Move/);
+});
+
+
+test('grandparent TEMP ancestor cannot be renamed while fake target is pinned',
+ {skip:!ready,timeout:90000},async()=>{
+ const grandparent=await syntheticTemp();
+ const parent=join(grandparent,'nested-temp');
+ await fs.mkdir(parent);
+ const f=await fixtureAt(parent);
+ const file=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(file,original);
+ const relocated=grandparent+'.relocated';
+ roots.add(relocated);
+ const r=await runPinnedTimestampBarrier(f,async()=>{
+  await assert.rejects(fs.rename(grandparent,relocated),
+   'the test-only TEMP grandparent must be pinned against rename');
+  assert.equal(await fs.readFile(file,'utf8'),original);
+ },'CONTINUE',parent);
+ assert.equal(r.code,0,r.stderr);
+ assert.equal(r.stdout,'HANDLE_HELD\nRESTORATION_PERFORMED\n');
+ assert.equal(r.stderr,'');
+ assert.equal(await fs.readFile(file,'utf8'),original);
+});
+
+test('junction in an ancestor ABOVE synthetic TEMP is rejected before fake write',
+ {skip:!ready,timeout:90000},async(t)=>{
+ const outer=await syntheticTemp();
+ const real=join(outer,'real-parent');
+ const junction=join(outer,'link-parent');
+ await fs.mkdir(real);
+ try {await fs.symlink(real,junction,'junction');}
+ catch(err){
+  if(['EPERM','EACCES','ENOSYS'].includes(err.code)){
+   t.skip('Windows cannot create disposable ancestor junction');
+   return;
+  }
+  throw err;
+ }
+ const inner=join(junction,'nested-temp');
+ await fs.mkdir(inner);
+ const f=await fixtureAt(inner);
+ const file=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(file,original);
+ await timestampMutationRefused(f.root,f.nonce,inner);
+ assert.equal(await fs.readFile(file,'utf8'),original);
+});
+
+test('mutator pins the volume-to-TEMP chain before fake file opens',
+ {skip:!ready},async()=>{
+ const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ assert.match(src,/private sealed class AncestorPins : IDisposable/);
+ assert.match(src,/Path\.GetPathRoot\(temp\)/);
+ assert.match(src,/volume\.Length != 3/);
+ assert.match(src,/pins\.Verify\(\)/);
+ assert.match(src,/for \(int i = handles\.Count - 1; i >= 0; i--\)/);
+ assert.match(src,/using \(var ancestors = AncestorPins\.Pin\(temp\)\)/);
+ assert.doesNotMatch(src,/using \(var tempHandle = OpenFile\(temp,/);
+ assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes/);
 });
