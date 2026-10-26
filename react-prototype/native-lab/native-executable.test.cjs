@@ -10,6 +10,8 @@ const {tmpdir}=require('node:os');
 const {join,dirname}=require('node:path');
 const {randomBytes}=require('node:crypto');
 const {PREFIX,MARKER}=require('../scripts/temp-recovery-fixture.cjs');
+const {createSyntheticOperationLedger,readSyntheticOperationLedger,FILE:LEDGER_FILE}=
+ require('./synthetic-operation-ledger.cjs');
 const {checkResult,createTemporaryNativeDirectoryBackend}=require('../scripts/temp-main-native-directory-backend.cjs');
 const {createInspectionExecutor}=require('../electron/inspection-executor.cjs');
 const {createInspectionGrantGate}=require('../electron/inspection-grant.cjs');
@@ -1490,7 +1492,7 @@ test('timestamp mutator refuses direct-child scope escape despite copied marker'
 // Deterministic two-process barrier AFTER the fixture-only writer has pinned
 // root, child directory, marker and the exact expected .scs file handles.
 async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE',tempParent=null,
- injectPostRestoreCorruption=false){
+ injectPostRestoreCorruption=false,ledger=null){
  const script=join(__dirname,'restore-basic-times.synthetic.ps1');
  const child=spawn('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
@@ -1521,10 +1523,17 @@ async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE',tempParent=
   await bounded(Promise.race([held,finished.then(code=>{
    throw Error('writer did not pin fixture: '+code+' '+stderr);
   })]));
+  if(ledger)await ledger.append('started');
   await mutate(f);
   child.stdin.end(reply+'\n');
   const code=await bounded(finished);
-  return {code,stdout:stdout.replace(/\r\n/g,'\n'),stderr};
+  const normalized=stdout.replace(/\r\n/g,'\n');
+  if(ledger && code===0 && stderr==='' &&
+     normalized==='HANDLE_HELD\nRESTORATION_PERFORMED\n' &&
+     (await fs.readFile(join(f.dir,'metadata-probe.scs'),'utf8'))===
+     'SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS')
+    await ledger.append('completed_observed');
+  return {code,stdout:normalized,stderr};
  }finally{
   if(child.exitCode===null)child.kill();
  }
@@ -1911,7 +1920,7 @@ test('native fake writer checks exact bytes at each stage and through a second r
 
 // Kill checkpoints are exclusively disposable, nonce-marked subprocesses.
 // A process kill is deliberately NOT an electrical power-loss simulation.
-async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint){
+async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint,ledger=null){
  const script=join(__dirname,'restore-basic-times.synthetic.ps1');
  const child=spawn('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
@@ -1935,8 +1944,11 @@ async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint){
  }
  try{
   await until('HANDLE_HELD\n');
+  if(ledger)await ledger.append('started');
   child.stdin.write('CONTINUE\n');
   await until(checkpoint+'\n');
+  if(ledger)await ledger.append(checkpoint==='INTERMEDIATE_HELD'
+   ?'intermediate_observed':'bytes_restored_unconfirmed');
   const heldBytes=await fs.readFile(join(f.dir,'metadata-probe.scs'));
   assert.equal(stdout.includes('RESTORATION_PERFORMED'),false);
   assert.equal(stderr,'');
@@ -1947,6 +1959,7 @@ async function killSyntheticWriterAtCheckpoint(f,flag,checkpoint){
   })]).finally(()=>clearTimeout(timeoutId));
   assert.notEqual(exit.code,0,'interrupted process cannot report success');
   assert.equal(stdout.includes('RESTORATION_PERFORMED'),false);
+  if(ledger)await ledger.append('interrupted');
   return {stdout:stdout.replace(/\r\n/g,'\n'),stderr,heldBytes,exit};
  }finally{
   if(!closed)child.kill();
@@ -1962,8 +1975,16 @@ test('abrupt child-process exit after intermediate flush preserves intermediate 
  const intermediate='SYNTHETIC FIXTURE INTERMEDIATE CONTENT';
  await fs.writeFile(target,original);
  const markerBefore=await fs.readFile(join(f.root,MARKER));
- const outcome=await killSyntheticWriterAtCheckpoint(f,
-  '-HoldAfterIntermediateForTest','INTERMEDIATE_HELD');
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ let outcome;
+ try{
+  outcome=await killSyntheticWriterAtCheckpoint(f,
+   '-HoldAfterIntermediateForTest','INTERMEDIATE_HELD',ledger);
+ }finally{await ledger.close();}
+ const evidence=await readSyntheticOperationLedger(f.root,f.nonce);
+ assert.equal(evidence.status,'interrupted_intermediate');
+ assert.deepEqual(evidence.events,
+  ['started','intermediate_observed','interrupted']);
  assert.equal(outcome.stdout,'HANDLE_HELD\nINTERMEDIATE_HELD\n');
  assert.deepEqual(outcome.heldBytes,Buffer.from(intermediate));
  assert.equal(await fs.readFile(target,'utf8'),intermediate);
@@ -1980,8 +2001,16 @@ test('abrupt exit with restored bytes but pending timestamps cannot claim succes
  const target=join(f.dir,'metadata-probe.scs');
  const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
  await fs.writeFile(target,original);
- const outcome=await killSyntheticWriterAtCheckpoint(f,
-  '-HoldAfterRestoredBytesForTest','RESTORED_BYTES_HELD');
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ let outcome;
+ try{
+  outcome=await killSyntheticWriterAtCheckpoint(f,
+   '-HoldAfterRestoredBytesForTest','RESTORED_BYTES_HELD',ledger);
+ }finally{await ledger.close();}
+ const evidence=await readSyntheticOperationLedger(f.root,f.nonce);
+ assert.equal(evidence.status,'interrupted_metadata_pending');
+ assert.deepEqual(evidence.events,
+  ['started','bytes_restored_unconfirmed','interrupted']);
  assert.equal(outcome.stdout,'HANDLE_HELD\nRESTORED_BYTES_HELD\n');
  assert.deepEqual(outcome.heldBytes,Buffer.from(original));
  assert.equal(await fs.readFile(target,'utf8'),original);
@@ -2023,4 +2052,75 @@ test('intermediate and restored-byte crash gates are sequenced before timestamp 
   restored<stage && stage<basic);
  assert.match(source,/holdIntermediate && holdRestoredBytes/);
  assert.match(source,/injectCorruption && \(holdIntermediate \|\| holdRestoredBytes\)/);
+});
+
+test('external synthetic ledger observes a successful acknowledgement but never authorizes a write',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ let result;
+ try{result=await runPinnedTimestampBarrier(f,async()=>{},
+  'CONTINUE',null,false,ledger);}
+ finally{await ledger.close();}
+ assert.equal(result.code,0,result.stderr);
+ const observed=await readSyntheticOperationLedger(f.root,f.nonce);
+ assert.equal(observed.status,'completion_observed_not_durable');
+ assert.deepEqual(observed.events,['started','completed_observed']);
+ assert.equal(await fs.readFile(target,'utf8'),original);
+});
+
+test('fresh independent Node process can review synthetic interrupted evidence read-only',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.dir,'metadata-probe.scs'),
+  'SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS');
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ try{await killSyntheticWriterAtCheckpoint(f,
+  '-HoldAfterIntermediateForTest','INTERMEDIATE_HELD',ledger);}
+ finally{await ledger.close();}
+ const script="const {readSyntheticOperationLedger}=require(process.argv[1]);"+
+  "readSyntheticOperationLedger(process.argv[2],process.argv[3])"+
+  ".then(v=>process.stdout.write(v.status+'\\n')).catch(()=>process.exit(3));";
+ const output=await execAsync(process.execPath,
+  ['-e',script,join(__dirname,'synthetic-operation-ledger.cjs'),f.root,f.nonce],
+  {windowsHide:true,timeout:15000,maxBuffer:1024});
+ assert.equal(output.stdout.trim(),'interrupted_intermediate');
+ assert.equal(output.stderr,'');
+ assert.equal(await fs.readFile(join(f.dir,'metadata-probe.scs'),'utf8'),
+  'SYNTHETIC FIXTURE INTERMEDIATE CONTENT');
+});
+
+test('synthetic ledger refuses forged success and malformed or truncated records',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ try{
+  await ledger.append('started');
+  await ledger.append('intermediate_observed');
+  await ledger.append('interrupted');
+  await assert.rejects(ledger.append('completed_observed'),
+   /Synthetic operation witness refused/);
+ }finally{await ledger.close();}
+ assert.equal((await readSyntheticOperationLedger(f.root,f.nonce)).status,
+  'interrupted_intermediate');
+ const file=join(f.root,LEDGER_FILE);
+ await fs.appendFile(file,'{"schema":"untrusted"');
+ await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+  /Synthetic operation witness refused/);
+});
+
+test('synthetic ledger refuses invalid nonce and duplicate witness creation',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ await assert.rejects(createSyntheticOperationLedger(f.root,'f'.repeat(32)),
+  /Synthetic operation witness refused/);
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ try{
+  await assert.rejects(createSyntheticOperationLedger(f.root,f.nonce),
+   {code:'EEXIST'});
+ }finally{await ledger.close();}
+ assert.equal((await fs.readFile(join(f.root,MARKER),'utf8')),f.nonce);
 });
