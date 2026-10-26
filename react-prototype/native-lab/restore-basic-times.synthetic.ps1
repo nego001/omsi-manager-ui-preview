@@ -1,6 +1,7 @@
 param(
  [Parameter(Mandatory=$true)][string]$Root,
- [Parameter(Mandatory=$true)][string]$Nonce
+ [Parameter(Mandatory=$true)][string]$Nonce,
+ [switch]$HoldAfterPin
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -84,52 +85,139 @@ public static class SyntheticBasicTimeRestoration {
             a.FileAttributes == b.FileAttributes;
     }
 
-    public static void Run(string file) {
-        const uint readAttributes = 0x80, writeAttributes = 0x100;
-        FileBasicInfo saved = new FileBasicInfo();
-        using (var handle = OpenFile(file, readAttributes|writeAttributes,
-                7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
-            if (handle.IsInvalid)
-                throw new IOException("Fixture-only metadata handle unavailable");
-            NativeFileInfo raw;
-            if (!GetNativeInfo(handle,out raw) || raw.NumberOfLinks != 1 ||
-                (raw.Attributes & (0x10u|0x400u)) != 0)
-                throw new IOException("Fixture-only regular single-linked file required");
-            FileBasicInfo before;
-            if (!GetBasic(handle,0,out before,40))
-                throw new IOException("Fixture-only basic metadata query failed");
-            saved = before;
-            byte[] content = File.ReadAllBytes(file);
-            try {
-                File.WriteAllBytes(file, Encoding.ASCII.GetBytes(
-                    "SYNTHETIC FIXTURE INTERMEDIATE CONTENT"));
-                File.WriteAllBytes(file,content);
-                FileBasicInfo restore = before;
-                if (!SetBasic(handle,0,ref restore,40))
-                    throw new IOException("Fixture-only time restoration failed");
-            }
-            finally {
-                // On an error never claim restoration or continue with USN evidence.
-            }
-            FileBasicInfo current;
-            if (!GetBasic(handle,0,out current,40) || !Same(before,current))
-                throw new IOException("Fixture metadata was not fully restored");
+    private static NativeFileInfo NativeInfo(SafeFileHandle handle) {
+        if (handle.IsInvalid) throw new IOException("Fixture handle invalid");
+        NativeFileInfo info;
+        if (!GetNativeInfo(handle, out info))
+            throw new IOException("Fixture metadata unavailable");
+        return info;
+    }
+    private static bool SameId(NativeFileInfo a, NativeFileInfo b) {
+        return a.VolumeSerial == b.VolumeSerial &&
+            a.IndexHigh == b.IndexHigh && a.IndexLow == b.IndexLow;
+    }
+    private static void CheckDirectory(SafeFileHandle handle) {
+        NativeFileInfo info = NativeInfo(handle);
+        if ((info.Attributes & 0x10u) == 0 ||
+            (info.Attributes & 0x400u) != 0)
+            throw new IOException("Only real fixture directories permitted");
+    }
+    private static void CheckNonce(SafeFileHandle handle, string nonce) {
+        byte[] expected = Encoding.ASCII.GetBytes(nonce);
+        using (var stream = new FileStream(handle, FileAccess.Read, 4096, false)) {
+            if (stream.Length != expected.Length)
+                throw new IOException("Marker length changed");
+            for (int i = 0; i < expected.Length; i++)
+                if (stream.ReadByte() != expected[i])
+                    throw new IOException("Marker changed");
         }
-        using (var afterHandle = OpenFile(file, readAttributes,
-            7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero)) {
-            if (afterHandle.IsInvalid)
-                throw new IOException("Fixture verification handle unavailable");
-            FileBasicInfo finalBasic;
-            if (!GetBasic(afterHandle,0,out finalBasic,40) ||
-                !Same(saved,finalBasic))
-                throw new IOException("Fixture metadata differs after handle closure");
-            // Caller also validates final bytes and USN; never publish timestamps.
+    }
+    private static void WriteExact(FileStream stream, byte[] bytes) {
+        stream.Position = 0;
+        stream.Write(bytes, 0, bytes.Length);
+        stream.SetLength(bytes.Length);
+        stream.Flush(true);
+    }
+
+    // Open and pin all three path components BEFORE writing. FILE_SHARE_READ
+    // intentionally omits FILE_SHARE_DELETE/WRITE: Windows refuses concurrent
+    // pathname replacement, renaming and new writers while our handles live.
+    // The ONLY mutation is through the already pinned, single-link SafeFileHandle.
+    // This narrows TOCTOU; it is not proof against privileged kernel adversaries.
+    public static void Run(string root, string directory, string file,
+                           string marker, string nonce, bool holdAfterPin) {
+        const uint readData = 0x1, writeData = 0x2;
+        const uint readAttributes = 0x80, writeAttributes = 0x100;
+        const uint shareRead = 0x1, shareReadWrite = 0x3;
+        const uint openExisting = 3, openReparse = 0x00200000;
+        const uint backupSemantics = 0x02000000;
+        byte[] original = Encoding.ASCII.GetBytes(
+            "SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS");
+        byte[] intermediate = Encoding.ASCII.GetBytes(
+            "SYNTHETIC FIXTURE INTERMEDIATE CONTENT");
+
+        using (var rootHandle = OpenFile(root, readAttributes | readData,
+                    shareRead, IntPtr.Zero, openExisting,
+                    backupSemantics | openReparse, IntPtr.Zero))
+        using (var directoryHandle = OpenFile(directory, readAttributes | readData,
+                    shareRead, IntPtr.Zero, openExisting,
+                    backupSemantics | openReparse, IntPtr.Zero))
+        using (var markerHandle = OpenFile(marker, readAttributes | readData,
+                    shareRead, IntPtr.Zero, openExisting, openReparse, IntPtr.Zero))
+        using (var fileHandle = OpenFile(file,
+                    readAttributes | writeAttributes | readData | writeData,
+                    shareRead, IntPtr.Zero, openExisting, openReparse, IntPtr.Zero)) {
+            CheckDirectory(rootHandle);
+            CheckDirectory(directoryHandle);
+            NativeFileInfo markerInfo = NativeInfo(markerHandle);
+            if ((markerInfo.Attributes & (0x10u | 0x400u)) != 0 ||
+                markerInfo.NumberOfLinks != 1)
+                throw new IOException("Marker is not a single regular file");
+            CheckNonce(markerHandle, nonce);
+
+            // Recheck exact spelling while each directory and target is pinned.
+            string[] entries = Directory.GetFileSystemEntries(directory);
+            if (entries.Length != 1 ||
+                !String.Equals(Path.GetFileName(entries[0]),
+                               "metadata-probe.scs", StringComparison.Ordinal))
+                throw new IOException("Unexpected fixture entry");
+            NativeFileInfo initialIdentity = NativeInfo(fileHandle);
+            if (initialIdentity.NumberOfLinks != 1 ||
+                (initialIdentity.Attributes & (0x10u | 0x400u)) != 0)
+                throw new IOException("Only a single linked regular fake file permitted");
+
+            using (var stream = new FileStream(fileHandle, FileAccess.ReadWrite,
+                                                4096, false)) {
+                // Refuse unknown bytes, including a real mod moved into the
+                // disposable directory. No user-selected content is writable.
+                if (stream.Length != original.Length)
+                    throw new IOException("Unknown fixture content length");
+                for (int i = 0; i < original.Length; i++)
+                    if (stream.ReadByte() != original[i])
+                        throw new IOException("Unknown fixture contents");
+
+                FileBasicInfo before;
+                if (!GetBasic(fileHandle, 0, out before, 40))
+                    throw new IOException("Cannot read fixture metadata");
+                if (holdAfterPin) {
+                    Console.Out.WriteLine("HANDLE_HELD");
+                    Console.Out.Flush();
+                    if (Console.In.ReadLine() != "CONTINUE")
+                        throw new IOException("Test barrier refused");
+                }
+
+                WriteExact(stream, intermediate);
+                WriteExact(stream, original);
+                FileBasicInfo restore = before;
+                if (!SetBasic(fileHandle, 0, ref restore, 40))
+                    throw new IOException("Fixture time restoration failed");
+
+                FileBasicInfo current;
+                if (!GetBasic(fileHandle, 0, out current, 40) ||
+                    !Same(before, current) ||
+                    !SameId(initialIdentity, NativeInfo(fileHandle)))
+                    throw new IOException("Pinned fixture metadata changed");
+
+                // Cross-check the path while the original handle still denies
+                // DELETE and external WRITE access. The second handle shares
+                // WRITE only with our already pinned writer.
+                using (var verification = OpenFile(file, readAttributes,
+                        shareReadWrite, IntPtr.Zero, openExisting,
+                        openReparse, IntPtr.Zero)) {
+                    NativeFileInfo reopened = NativeInfo(verification);
+                    FileBasicInfo finalBasic;
+                    if (!SameId(initialIdentity, reopened) ||
+                        !GetBasic(verification, 0, out finalBasic, 40) ||
+                        !Same(before, finalBasic))
+                        throw new IOException("Pinned file/path identity diverged");
+                }
+            }
         }
     }
 }
 '@
 Add-Type -TypeDefinition $code -ErrorAction Stop
-[SyntheticBasicTimeRestoration]::Run($file)
+[SyntheticBasicTimeRestoration]::Run($path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
 } catch {
  # Nothing about filenames, TEMP paths, nonce, binary content or stack traces
