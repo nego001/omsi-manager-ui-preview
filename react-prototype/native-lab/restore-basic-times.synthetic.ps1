@@ -5,6 +5,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+$script:syntheticPhase = 'parameters'
 try {
 
 # Standalone, test-only mutator. Never shipped or called by Electron.
@@ -44,6 +45,7 @@ using System.Text;
 using Microsoft.Win32.SafeHandles;
 
 public static class SyntheticBasicTimeRestoration {
+    public static string DiagnosticGate = "entry";
     [StructLayout(LayoutKind.Sequential)]
     public struct FileBasicInfo {
         public long CreationTime, LastAccessTime, LastWriteTime, ChangeTime;
@@ -107,6 +109,7 @@ public static class SyntheticBasicTimeRestoration {
             expectedName != ".omsi-test-fixture-marker" &&
             expectedName != "metadata-probe.scs")
             throw new IOException("Unexpected fixture child");
+        DiagnosticGate = "child-open:" + expectedName;
         const uint readAttributes = 0x80, writeAttributes = 0x100;
         const uint synchronize = 0x00100000;
         const uint shareRead = 1, shareReadWrite = 3;
@@ -237,10 +240,13 @@ public static class SyntheticBasicTimeRestoration {
         byte[] intermediate = Encoding.ASCII.GetBytes(
             "SYNTHETIC FIXTURE INTERMEDIATE CONTENT");
 
+        DiagnosticGate = "root-open";
         using (var rootHandle = OpenFile(root, readAttributes | readData,
                     shareRead, IntPtr.Zero, openExisting,
                     backupSemantics | openReparse, IntPtr.Zero)) {
+            DiagnosticGate = "root-check";
             CheckDirectory(rootHandle);
+            DiagnosticGate = "root-names";
             AssertExactRootNames(root);
             using (var directoryHandle = OpenChild(rootHandle,
                         "native-enum", true, false, false))
@@ -248,6 +254,7 @@ public static class SyntheticBasicTimeRestoration {
                         ".omsi-test-fixture-marker", false, false, false))
             using (var fileHandle = OpenChild(directoryHandle,
                         "metadata-probe.scs", false, true, false)) {
+            DiagnosticGate = "children-verified";
             CheckDirectory(directoryHandle);
             NativeFileInfo markerInfo = NativeInfo(markerHandle);
             if ((markerInfo.Attributes & (0x10u | 0x400u)) != 0 ||
@@ -255,6 +262,7 @@ public static class SyntheticBasicTimeRestoration {
                 throw new IOException("Marker is not a single regular file");
             using (var markerStream = new FileStream(markerHandle, FileAccess.Read,
                                                       4096, false)) {
+                DiagnosticGate = "nonce-check";
                 CheckNonce(markerStream, nonce);
 
             // Recheck exact spelling while each directory and target is pinned.
@@ -288,6 +296,7 @@ public static class SyntheticBasicTimeRestoration {
                         throw new IOException("Test barrier refused");
                 }
 
+                DiagnosticGate = "write";
                 WriteExact(stream, intermediate);
                 WriteExact(stream, original);
                 FileBasicInfo restore = before;
@@ -303,6 +312,7 @@ public static class SyntheticBasicTimeRestoration {
                 // Cross-check the path while the original handle still denies
                 // DELETE and external WRITE access. The second handle shares
                 // WRITE only with our already pinned writer.
+                DiagnosticGate = "final-verification";
                 using (var verification = OpenChild(directoryHandle,
                         "metadata-probe.scs", false, false, true)) {
                     NativeFileInfo reopened = NativeInfo(verification);
@@ -319,10 +329,18 @@ public static class SyntheticBasicTimeRestoration {
     }
 }
 '@
+$script:syntheticPhase = 'compile'
 Add-Type -TypeDefinition $code -ErrorAction Stop
+$script:syntheticPhase = 'native'
 [SyntheticBasicTimeRestoration]::Run($path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
 } catch {
+ if ($env:OMSI_SYNTHETIC_DIAG -ceq '1') {
+  [Console]::Error.WriteLine('SYNTHETIC_PHASE=' + $script:syntheticPhase)
+  if ($script:syntheticPhase -eq 'native') {
+   [Console]::Error.WriteLine('SYNTHETIC_GATE=' + [SyntheticBasicTimeRestoration]::DiagnosticGate)
+  }
+ }
  # Nothing about filenames, TEMP paths, nonce, binary content or stack traces
  # is printed by this disposable test-only mutator on refusal.
  [Console]::Error.WriteLine('Synthetic timestamp restoration refused')
