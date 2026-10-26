@@ -101,4 +101,20 @@ async function readSyntheticOperationLedger(root,nonce){
  }
  return {schema:SCHEMA,status:summarize(records),events:records.map(r=>r.event)};
 }
-module.exports={createSyntheticOperationLedger,readSyntheticOperationLedger,SCHEMA,FILE};
+// Read-only, fail-closed classification for an external auditor. An invalid
+// or absent witness cannot be turned into a completed operation. Authentication
+// of the disposable root still MUST succeed; only witness-file failures are
+// classified as inconclusive. Never use this result as mutation authority.
+async function reviewSyntheticOperationLedger(root,nonce){
+ await authenticate(root,nonce);
+ try{return await readSyntheticOperationLedger(root,nonce);}
+ catch(err){
+  if(err?.message!=='Synthetic operation witness refused'&&err?.code!=='ENOENT')
+   throw err;
+  return {schema:SCHEMA,status:'unverifiable_incomplete',events:[]};
+ }
+}
+module.exports={
+ createSyntheticOperationLedger,readSyntheticOperationLedger,
+ reviewSyntheticOperationLedger,SCHEMA,FILE
+};
