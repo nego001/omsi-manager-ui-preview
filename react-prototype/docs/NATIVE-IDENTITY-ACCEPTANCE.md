@@ -576,3 +576,31 @@ reinício, perda, desativação ou substituição do
 journal. Todos os indicadores de permissão e
 garantia anti-ABA permanecem **false**; nenhum
 jogo ou mod real é lido ou alterado.
+
+
+## Parsing USN defensivo e validação de rejeição sintética
+
+Antes de usar `FSCTL_READ_FILE_USN_DATA`, o
+helper isolado valida os buffers retornados pelo
+Windows: único registro V2/V3 com versão secundária
+zero, comprimento declarado exato, alinhado a
+8 bytes e contido na resposta, offsets de cabeçalho,
+campo de nome não vazio com tamanho par e contido no
+registro, e USN estritamente positivo. Nunca interpreta
+ou emite nome, conteúdo do `.scs` ou identificadores.
+
+O diagnóstico `--rdcw-probe --test-usn-record-guards`
+injeta dados **somente em memória**, executa 2
+exemplos íntegros e **26 inválidos** na mesma função
+de parsing e exige recusa **13** exclusivamente
+se todos os gates estiverem corretos. Com marcador
+inconsistente, comando extra, versão desconhecida,
+comprimento truncado ou conteúdo de teste adversarial,
+o caminho normal é **recusa 3**, sem JSON de sucesso.
+
+Esses casos não são uma simulação de reinício ou
+desativação REAL do journal NTFS, nem demonstram
+continuidade USN entre sessões. A detecção de troca
+de conteúdo em fixtures permanece apenas um
+testemunho limitado, sem autorizar inspeção ou
+modificação de instalações de jogos reais.
