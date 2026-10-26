@@ -73,3 +73,16 @@ O registro fica em `${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.omsi_m
 A seleção da pasta continua por `dialog.showOpenDialog` **do processo principal do Electron**. A interface JavaScript nunca recebe permissão para escolher um caminho diretamente nem possui acesso direto ao sistema de arquivos. O diálogo exige `openDirectory`, evita adicionar pastas aos documentos recentes e não define `defaultPath`, porque o comportamento dos portais Linux varia conforme a versão do backend. O teste Weston verifica cancelamento e uma seleção sintética, revalidando o modo somente leitura e preservando o arquivo .bus fictício.
 
 O teste de seleção **substitui a resposta da janela de seleção por um resultado simulado**, portanto **não comprova que `xdg-desktop-portal`, `xdg-desktop-portal-hyprland` ou um backend GTK tenha aberto um seletor real**. Isso precisará ser exercitado quando o ambiente Arch Linux/Hyprland estiver disponível. Consulte a [documentação do diálogo do Electron](https://www.electronjs.org/docs/latest/api/dialog) para as limitações relacionadas a portais.
+
+
+## Diagnóstico de sessão Linux (somente leitura, opcional)
+
+O pacote inclui `OMSI-Manager-Linux-Diagnostics.cjs`, que pode ser executado **voluntariamente**, sem `sudo`, com Node.js 22 instalado no sistema:
+
+```bash
+node ./OMSI-Manager-Linux-Diagnostics.cjs
+```
+
+Esse comando não instala serviços, não altera configuração do Hyprland e não lê pastas de jogos. Ele verifica apenas os indicadores `XDG_SESSION_TYPE` e `XDG_CURRENT_DESKTOP`, a presença de um **socket Unix real** para `WAYLAND_DISPLAY` dentro de `XDG_RUNTIME_DIR` e o estado de propriedade do nome `org.freedesktop.portal.Desktop` no barramento de sessão. Não imprime caminhos, usuários, processos, variáveis de ambiente brutas nem logs do sistema. O comando do D-Bus utiliza `NameHasOwner`, que não inicia um seletor de arquivos nem ativa deliberadamente o portal. Se `dbus-send` não estiver disponível ou não houver barramento de sessão, a resposta fica como `unknown`, não como falha confirmada.
+
+Os campos `portalPickerVerified: false` e `hyprlandCompatibilityVerified: false` são intencionais: **detectar um socket ou um serviço de portal não comprova que um seletor gráfico real funciona**, nem garante integração com Arch/Hyprland. A CI executa os testes com um socket Unix sintético e arquivos descartáveis, mantendo todos os jogos e mods reais intocados. A distribuição continua uma prévia portátil não assinada e totalmente somente leitura.

@@ -41,4 +41,6 @@ await chmod(script,0o755);
 // the ELF (not inside app.asar) and is NEVER executed during packaging.
 await copyFile(resolve('scripts/linux-desktop-integration.cjs'),
  join(bundled[0],'OMSI-Manager-Desktop-Integration.cjs'),constants.COPYFILE_EXCL);
+await copyFile(resolve('scripts/linux-session-diagnostics.cjs'),
+ join(bundled[0],'OMSI-Manager-Linux-Diagnostics.cjs'),constants.COPYFILE_EXCL);
 console.log('Linux read-only preview created at:',bundled[0]);

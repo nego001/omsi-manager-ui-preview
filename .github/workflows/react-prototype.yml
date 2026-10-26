@@ -28,6 +28,8 @@ jobs:
       - run: npm run test:security
       - name: Optional XDG desktop shortcut tests (disposable HOME)
         run: node --test scripts/linux-desktop-integration.test.cjs
+      - name: Wayland session and portal diagnostics (isolated Unix sockets)
+        run: node --test scripts/linux-session-diagnostics.test.cjs
       - name: Isolated temporary recovery / process restart fixture
         run: npm run test:recovery:fixture
       - name: Synthetic witness crash and incomplete-history tests

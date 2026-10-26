@@ -23,6 +23,20 @@ assert.deepEqual([...elf.subarray(0,4)],[0x7f,0x45,0x4c,0x46],
 const temp=await mkdtemp(join(tmpdir(),'omsi-linux-portable-smoke-'));
 const helper=join(dirname(executable),'OMSI-Manager-Desktop-Integration.cjs');
 await access(helper,constants.R_OK);
+const doctor=join(dirname(executable),'OMSI-Manager-Linux-Diagnostics.cjs');
+await access(doctor,constants.R_OK);
+const diagnostic=spawnSync(process.execPath,[doctor],{
+ env:{...process.env,XDG_RUNTIME_DIR:temp,WAYLAND_DISPLAY:'',XDG_SESSION_TYPE:'wayland',
+ XDG_CURRENT_DESKTOP:'Hyprland'},
+ encoding:'utf8',timeout:10000
+});
+assert.equal(diagnostic.status,0,diagnostic.stderr);
+const reported=JSON.parse(diagnostic.stdout);
+assert.equal(reported.scope,'read-only');
+assert.equal(reported.portalPickerVerified,false);
+assert.equal(reported.hyprlandCompatibilityVerified,false);
+assert.equal(reported.waylandSocket,'not-configured');
+assert.ok(!diagnostic.stdout.includes(temp),'diagnostic must not expose temp paths');
 const xdg=join(temp,'isolated-xdg');
 const entry=join(xdg,'applications','org.omsi_manager.Preview.desktop');
 const runShortcut=(cmd)=>spawnSync(process.execPath,[helper,cmd],{
