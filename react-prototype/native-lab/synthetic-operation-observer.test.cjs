@@ -7,7 +7,7 @@ const fs=require('node:fs/promises');
 const {spawn}=require('node:child_process');
 const {join}=require('node:path');
 const {tmpdir}=require('node:os');
-const {randomBytes}=require('node:crypto');
+const {randomBytes,createHash}=require('node:crypto');
 const {
  readSyntheticOperationLedger,reviewSyntheticOperationLedger,
  createSyntheticOperationLedger,SCHEMA,FILE
@@ -238,4 +238,105 @@ test('witness symlink redirect is refused even when pointing at valid fixture by
  assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
   'unverifiable_incomplete');
  assert.equal((await fs.readFile(other,'utf8')).includes('"started"'),true);
+});
+
+// Independent public, unkeyed hash calculator used to prove that a complete
+// malicious rewrite remains forgeable. It is NOT a signature or trusted seal.
+function recomputePublicChain(events){
+ let previous='0'.repeat(64);
+ return events.map((event,i)=>{
+  const core={schema:SCHEMA,sequence:i+1,event,previous};
+  const digest=createHash('sha256').update(
+   'OMSI-SYNTHETIC-WITNESS-CHAIN-V2\\n'+JSON.stringify(core),'utf8'
+  ).digest('hex');
+  previous=digest;
+  return {...core,digest};
+ });
+}
+async function createChainedFixture(events){
+ const f=await fixture();
+ const ledger=await createSyntheticOperationLedger(f.root,f.nonce);
+ try{for(const event of events)await ledger.append(event);}
+ finally{await ledger.close();}
+ return f;
+}
+
+test('v2 hash-chain fields follow independent public SHA-256 derivation',async()=>{
+ const events=['started','intermediate_observed','interrupted'];
+ const f=await createChainedFixture(events);
+ const parsed=(await fs.readFile(join(f.root,FILE),'utf8'))
+  .trimEnd().split('\n').map(JSON.parse);
+ assert.deepEqual(parsed,recomputePublicChain(events));
+ const result=await readSyntheticOperationLedger(f.root,f.nonce);
+ assert.equal(result.status,'interrupted_intermediate');
+ assert.deepEqual(result.events,events);
+});
+
+test('single record mutation without recomputing digest is rejected',async()=>{
+ const f=await createChainedFixture(
+  ['started','intermediate_observed','interrupted']);
+ const file=join(f.root,FILE);
+ const rows=(await fs.readFile(file,'utf8'))
+  .trimEnd().split('\n').map(JSON.parse);
+ rows[1].event='bytes_restored_unconfirmed';
+ await fs.writeFile(file,rows.map(r=>JSON.stringify(r)).join('\n')+'\n');
+ await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+  /Synthetic operation witness refused/);
+ assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+  'unverifiable_incomplete');
+});
+
+test('linkage break, swapped hashes and erased middle event are refused',async()=>{
+ const events=['started','intermediate_observed','interrupted'];
+ for(const tamper of ['previous','digest','remove']){
+  const f=await createChainedFixture(events);
+  const file=join(f.root,FILE);
+  const rows=(await fs.readFile(file,'utf8'))
+   .trimEnd().split('\n').map(JSON.parse);
+  if(tamper==='previous')rows[2].previous='a'.repeat(64);
+  else if(tamper==='digest')rows[0].digest=rows[1].digest;
+  else rows.splice(1,1);
+  await fs.writeFile(file,rows.map(r=>JSON.stringify(r)).join('\n')+'\n');
+  await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+   /Synthetic operation witness refused/);
+  assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+   'unverifiable_incomplete');
+ }
+});
+
+test('truncated valid event prefix is only incomplete, not completed',async()=>{
+ const f=await createChainedFixture(['started','completed_observed']);
+ const file=join(f.root,FILE);
+ const text=await fs.readFile(file,'utf8');
+ await fs.writeFile(file,text.split('\n')[0]+'\n');
+ const result=await readSyntheticOperationLedger(f.root,f.nonce);
+ assert.equal(result.status,'incomplete_unconfirmed');
+ assert.deepEqual(result.events,['started']);
+});
+
+test('full unkeyed-chain forgery remains possible and never grants real authority',async()=>{
+ const f=await createChainedFixture(['started','intermediate_observed','interrupted']);
+ const file=join(f.root,FILE);
+ // Someone with write access can forge a different VALID history by
+ // recalculating all SHA-256 values. The reader cannot authenticate it.
+ const forged=recomputePublicChain(['started','completed_observed']);
+ await fs.writeFile(file,forged.map(r=>JSON.stringify(r)).join('\n')+'\n');
+ const result=await readSyntheticOperationLedger(f.root,f.nonce);
+ assert.equal(result.status,'completion_observed_not_durable');
+ assert.deepEqual(result.events,['started','completed_observed']);
+ assert.equal(await fs.readFile(join(f.root,MARKER),'utf8'),f.nonce);
+ await assert.rejects(fs.stat(join(f.root,'metadata-probe.scs')),{code:'ENOENT'});
+});
+
+test('v1 unlinked witness is not accidentally accepted as chained v2',async()=>{
+ const f=await fixture();
+ const line=JSON.stringify({
+  schema:'omsi-synthetic-operation-witness-v1',
+  sequence:1,event:'started'
+ })+'\n';
+ await fs.writeFile(join(f.root,FILE),line,{flag:'wx'});
+ await assert.rejects(readSyntheticOperationLedger(f.root,f.nonce),
+  /Synthetic operation witness refused/);
+ assert.equal((await reviewSyntheticOperationLedger(f.root,f.nonce)).status,
+  'unverifiable_incomplete');
 });
