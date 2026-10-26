@@ -1347,3 +1347,48 @@ test('synthetic timestamp mutator refuses junction target without modifying othe
  ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
  assert.equal(await fs.readFile(alternate,'utf8'),'SYNTHETIC ALTERNATE');
 });
+
+
+test('synthetic timestamp restoration refuses missing marker and preserves the fake package',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(), p=join(f.dir,'metadata-probe.scs');
+ await fs.writeFile(p,'PRESERVE FAKE FILE');
+ await fs.rm(join(f.root,MARKER));
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',f.root,'-Nonce',f.nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ assert.equal(await fs.readFile(p,'utf8'),'PRESERVE FAKE FILE');
+});
+
+test('synthetic timestamp restoration refuses absent expected file without creating it',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),p=join(f.dir,'metadata-probe.scs');
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',f.root,'-Nonce',f.nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ await assert.rejects(fs.stat(p),{code:'ENOENT'});
+});
+
+test('synthetic timestamp restoration rejects an unmarked TEMP sibling',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture(),p=join(f.dir,'metadata-probe.scs');
+ await fs.writeFile(p,'UNTOUCHED');
+ const script=join(__dirname,'restore-basic-times.synthetic.ps1');
+ await assert.rejects(execAsync('powershell.exe',[
+  '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+  '-File',script,'-Root',join(f.root,'native-enum'),'-Nonce',f.nonce
+ ],{windowsHide:true,timeout:30000,maxBuffer:2048}));
+ assert.equal(await fs.readFile(p,'utf8'),'UNTOUCHED');
+});
+
+test('timestamp restoration mutator is never included in shipped Electron package',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ assert.match(source,/Standalone, test-only mutator/);
+ const electron=await fs.readFile(join(__dirname,'../package.json'),'utf8');
+ assert.doesNotMatch(electron,/restore-basic-times\.synthetic\.ps1/);
+});
