@@ -337,6 +337,12 @@ $script:syntheticPhase = 'native'
 } catch {
  if ($env:OMSI_SYNTHETIC_DIAG -ceq '1') {
   [Console]::Error.WriteLine('SYNTHETIC_PHASE=' + $script:syntheticPhase)
+  if ($script:syntheticPhase -eq 'compile') {
+   $safeCodes = @([regex]::Matches(($_.Exception.ToString()), 'CS[0-9]{4}') |
+      ForEach-Object { $_.Value } | Select-Object -Unique)
+   [Console]::Error.WriteLine('SYNTHETIC_COMPILE_CODES=' + ($safeCodes -join ','))
+   [Console]::Error.WriteLine('SYNTHETIC_ERROR_CLASS=' + $_.Exception.GetType().Name)
+  }
   if ($script:syntheticPhase -eq 'native') {
    [Console]::Error.WriteLine('SYNTHETIC_GATE=' + [SyntheticBasicTimeRestoration]::DiagnosticGate)
   }
