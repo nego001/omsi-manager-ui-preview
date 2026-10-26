@@ -1489,11 +1489,13 @@ test('timestamp mutator refuses direct-child scope escape despite copied marker'
 
 // Deterministic two-process barrier AFTER the fixture-only writer has pinned
 // root, child directory, marker and the exact expected .scs file handles.
-async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE',tempParent=null){
+async function runPinnedTimestampBarrier(f, mutate, reply='CONTINUE',tempParent=null,
+ injectPostRestoreCorruption=false){
  const script=join(__dirname,'restore-basic-times.synthetic.ps1');
  const child=spawn('powershell.exe',[
   '-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
-  '-File',script,'-Root',f.root,'-Nonce',f.nonce,'-HoldAfterPin'
+  '-File',script,'-Root',f.root,'-Nonce',f.nonce,'-HoldAfterPin',
+  ...(injectPostRestoreCorruption?['-InjectPostRestoreCorruptionForTest']:[])
  ],{windowsHide:true,shell:false,stdio:['pipe','pipe','pipe'],
   ...(tempParent===null?{}:{env:tempEnv(tempParent)})});
  let stdout='',stderr='';
@@ -1840,4 +1842,69 @@ test('synthetic writer reattests pinned ancestry and nonce around both data writ
  const restore=src.indexOf('if (!SetBasic(fileHandle, 0, ref restore, 40))');
  assert.ok(checks[0]<firstWrite && firstWrite<restore && restore<checks[1],
   'fixture identities must be checked before writing and after restoring');
+});
+
+test('fake file bytes survive successful native timestamp restoration without shortcuts',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ const before=await fs.readFile(target);
+ const outcome=await runPinnedTimestampBarrier(f,async()=>{
+  assert.deepEqual(await fs.readFile(target),before);
+ });
+ assert.equal(outcome.code,0,outcome.stderr);
+ assert.equal(outcome.stdout,'HANDLE_HELD\nRESTORATION_PERFORMED\n');
+ assert.equal(outcome.stderr,'');
+ assert.deepEqual(await fs.readFile(target),before);
+});
+
+test('fault-injected post-restore byte corruption is detected and never reported as success',
+ {skip:!ready,timeout:90000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ const outcome=await runPinnedTimestampBarrier(f,async()=>{
+  assert.equal(await fs.readFile(target,'utf8'),original);
+ },'CONTINUE',null,true);
+ assert.equal(outcome.code,3);
+ assert.equal(outcome.stdout,'HANDLE_HELD\n');
+ assert.equal(outcome.stderr.trim(),'Synthetic timestamp restoration refused');
+ assert.ok(!outcome.stderr.includes(f.root) && !outcome.stderr.includes(f.nonce));
+ const after=await fs.readFile(target,'utf8');
+ assert.equal(after.length,original.length);
+ assert.equal(after,'X'+original.slice(1));
+ // This demonstrates refusal, not rollback; all files are disposable.
+});
+
+test('wrong-length and same-length fake file data are refused before a native write',
+ {skip:!ready,timeout:90000},async()=>{
+ for(const bad of ['SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS!',
+                    'SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPX']){
+  const f=await fixture();
+  const target=join(f.dir,'metadata-probe.scs');
+  await fs.writeFile(target,bad);
+  await timestampMutationRefused(f.root,f.nonce);
+  assert.equal(await fs.readFile(target,'utf8'),bad);
+ }
+});
+
+test('native fake writer checks exact bytes at each stage and through a second read-only handle',
+ {skip:!ready},async()=>{
+ const src=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ assert.match(src,/private static void VerifyExact\(FileStream stream, byte\[\] expected\)/);
+ assert.match(src,/if \(stream.Length != expected.Length\)/);
+ assert.match(src,/stream.ReadByte\(\) != expected\[i\]/);
+ const before=src.indexOf('WriteExact(stream, intermediate);');
+ const between=src.indexOf('VerifyExact(stream, intermediate);');
+ const restore=src.indexOf('WriteExact(stream, original);');
+ const after=src.indexOf('VerifyExact(stream, original);',restore);
+ assert.ok(before>=0 && before<between && between<restore && restore<after);
+ assert.match(src,/verification, FileAccess.Read, 4096, false/);
+ assert.match(src,/VerifyExact\(reader, original\)/);
+ assert.match(src,/if \(readBytes && \(!verifier \|\| directory \|\| writer/);
+ assert.match(src,/injectCorruption && !holdAfterPin/);
+ assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes/);
 });
