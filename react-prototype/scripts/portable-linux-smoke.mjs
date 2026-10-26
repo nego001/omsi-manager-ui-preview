@@ -3,12 +3,19 @@ import {listPackage} from '@electron/asar';
 import {access,readFile,mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join,resolve} from 'node:path';
+import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 await access(executable,constants.X_OK);
+const launcher=join(dirname(executable),'OMSI-Manager-Preview.sh');
+await access(launcher,constants.X_OK);
+const wrapper=await readFile(launcher,'utf8');
+assert.ok(wrapper.startsWith('#!/bin/sh\n'));
+assert.match(wrapper,/OMSI_MANAGER_NATIVE_WAYLAND/);
+assert.match(wrapper,/--ozone-platform=wayland/);
+assert.doesNotMatch(wrapper,/--no-sandbox|--disable-web-security|sudo |pkexec /);
 const elf=await readFile(executable);
 assert.deepEqual([...elf.subarray(0,4)],[0x7f,0x45,0x4c,0x46],
  'Linux package must contain an actual ELF executable');
@@ -21,7 +28,7 @@ try{
  const sentinel=join(fixture,'Vehicles','Dummy Bus','fixture.bus');
  await writeFile(sentinel,'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n','utf8');
  application=await electron.launch({
-  executablePath:executable,
+  executablePath:launcher,
   args:[],
   cwd:temp,
   env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0'},
@@ -71,7 +78,7 @@ try{
  assert.ok(!JSON.stringify(outcome).includes(temp),'absolute path must not leak');
  assert.equal(await readFile(sentinel,'utf8'),
   'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n');
- console.log('PASS_LINUX_PACKAGED_ELF_GUI_AND_READ_ONLY_SYNTHETIC_INSPECTION');
+ console.log('PASS_LINUX_PACKAGED_LAUNCHER_X11_AND_READ_ONLY_SYNTHETIC_INSPECTION');
 }finally{
  await application?.close();
  await rm(temp,{recursive:true,force:true});
