@@ -77,6 +77,109 @@ public static class SyntheticBasicTimeRestoration {
     private static extern bool GetNativeInfo(SafeFileHandle handle,
         out NativeFileInfo info);
 
+    // Child opens are relative to already pinned directory handles. Do not
+    // let Win32 resolve any intermediate pathname during a fixture write.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct UnicodeString {
+        public ushort Length, MaximumLength;
+        public IntPtr Buffer;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ObjectAttributes {
+        public uint Length;
+        public IntPtr RootDirectory, ObjectName;
+        public uint Attributes;
+        public IntPtr SecurityDescriptor, SecurityQualityOfService;
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IoStatusBlock {
+        public IntPtr Status, Information;
+    }
+    [DllImport("ntdll.dll", ExactSpelling=true)]
+    private static extern int NtOpenFile(out SafeFileHandle handle,
+        uint desiredAccess, ref ObjectAttributes attributes,
+        out IoStatusBlock ioStatus, uint shareAccess, uint openOptions);
+
+    private static SafeFileHandle OpenChild(SafeFileHandle parent,
+            string expectedName, bool directory, bool writer, bool verifier) {
+        // Only three hardcoded fixture child names can ever be requested.
+        if (expectedName != "native-enum" &&
+            expectedName != ".omsi-test-fixture-marker" &&
+            expectedName != "metadata-probe.scs")
+            throw new IOException("Unexpected fixture child");
+        const uint readAttributes = 0x80, writeAttributes = 0x100;
+        const uint synchronize = 0x00100000;
+        const uint shareRead = 1, shareReadWrite = 3;
+        const uint openReparse = 0x00200000, syncIo = 0x20;
+        const uint directoryFile = 1, nonDirectoryFile = 0x40;
+        const uint caseInsensitive = 0x40;
+        IntPtr namePointer = IntPtr.Zero;
+        IntPtr unicodePointer = IntPtr.Zero;
+        try {
+            namePointer = Marshal.StringToHGlobalUni(expectedName);
+            UnicodeString name = new UnicodeString {
+                Length = checked((ushort)(expectedName.Length * 2)),
+                MaximumLength = checked((ushort)((expectedName.Length + 1) * 2)),
+                Buffer = namePointer
+            };
+            unicodePointer = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UnicodeString)));
+            Marshal.StructureToPtr(name, unicodePointer, false);
+            ObjectAttributes attributes = new ObjectAttributes {
+                Length = (uint)Marshal.SizeOf(typeof(ObjectAttributes)),
+                RootDirectory = parent.DangerousGetHandle(),
+                ObjectName = unicodePointer,
+                Attributes = caseInsensitive
+            };
+            uint access = readAttributes | synchronize;
+            if (directory || !verifier) access |= 1; // list directory/read data
+            if (writer) access |= 2 | writeAttributes;
+            uint options = syncIo | openReparse |
+                (directory ? directoryFile : nonDirectoryFile);
+            SafeFileHandle child;
+            IoStatusBlock io;
+            int status = NtOpenFile(out child, access, ref attributes, out io,
+                verifier ? shareReadWrite : shareRead, options);
+            if (status < 0 || child == null || child.IsInvalid) {
+                if (child != null) child.Dispose();
+                throw new IOException("Relative fixture open refused");
+            }
+            NativeFileInfo info = NativeInfo(child);
+            if ((info.Attributes & 0x400u) != 0 ||
+                ((info.Attributes & 0x10u) != 0) != directory) {
+                child.Dispose();
+                throw new IOException("Relative fixture is wrong type");
+            }
+            return child;
+        } finally {
+            if (unicodePointer != IntPtr.Zero) Marshal.FreeHGlobal(unicodePointer);
+            if (namePointer != IntPtr.Zero) Marshal.FreeHGlobal(namePointer);
+        }
+    }
+
+    private static void AssertExactRootNames(string root) {
+        bool markerFound = false, directoryFound = false;
+        string[] entries = Directory.GetFileSystemEntries(root);
+        foreach (string entry in entries) {
+            string name = Path.GetFileName(entry);
+            if (String.Equals(name, ".omsi-test-fixture-marker",
+                              StringComparison.OrdinalIgnoreCase)) {
+                if (!String.Equals(name, ".omsi-test-fixture-marker",
+                                   StringComparison.Ordinal) || markerFound)
+                    throw new IOException("Marker spelling differs");
+                markerFound = true;
+            }
+            if (String.Equals(name, "native-enum",
+                              StringComparison.OrdinalIgnoreCase)) {
+                if (!String.Equals(name, "native-enum",
+                                   StringComparison.Ordinal) || directoryFound)
+                    throw new IOException("Directory spelling differs");
+                directoryFound = true;
+            }
+        }
+        if (!markerFound || !directoryFound)
+            throw new IOException("Expected root fixture names absent");
+    }
+
     private static bool Same(FileBasicInfo a, FileBasicInfo b) {
         return a.CreationTime == b.CreationTime &&
             a.LastAccessTime == b.LastAccessTime &&
@@ -136,16 +239,15 @@ public static class SyntheticBasicTimeRestoration {
 
         using (var rootHandle = OpenFile(root, readAttributes | readData,
                     shareRead, IntPtr.Zero, openExisting,
-                    backupSemantics | openReparse, IntPtr.Zero))
-        using (var directoryHandle = OpenFile(directory, readAttributes | readData,
-                    shareRead, IntPtr.Zero, openExisting,
-                    backupSemantics | openReparse, IntPtr.Zero))
-        using (var markerHandle = OpenFile(marker, readAttributes | readData,
-                    shareRead, IntPtr.Zero, openExisting, openReparse, IntPtr.Zero))
-        using (var fileHandle = OpenFile(file,
-                    readAttributes | writeAttributes | readData | writeData,
-                    shareRead, IntPtr.Zero, openExisting, openReparse, IntPtr.Zero)) {
+                    backupSemantics | openReparse, IntPtr.Zero)) {
             CheckDirectory(rootHandle);
+            AssertExactRootNames(root);
+            using (var directoryHandle = OpenChild(rootHandle,
+                        "native-enum", true, false, false))
+            using (var markerHandle = OpenChild(rootHandle,
+                        ".omsi-test-fixture-marker", false, false, false))
+            using (var fileHandle = OpenChild(directoryHandle,
+                        "metadata-probe.scs", false, true, false)) {
             CheckDirectory(directoryHandle);
             NativeFileInfo markerInfo = NativeInfo(markerHandle);
             if ((markerInfo.Attributes & (0x10u | 0x400u)) != 0 ||
@@ -201,9 +303,8 @@ public static class SyntheticBasicTimeRestoration {
                 // Cross-check the path while the original handle still denies
                 // DELETE and external WRITE access. The second handle shares
                 // WRITE only with our already pinned writer.
-                using (var verification = OpenFile(file, readAttributes,
-                        shareReadWrite, IntPtr.Zero, openExisting,
-                        openReparse, IntPtr.Zero)) {
+                using (var verification = OpenChild(directoryHandle,
+                        "metadata-probe.scs", false, false, true)) {
                     NativeFileInfo reopened = NativeInfo(verification);
                     FileBasicInfo finalBasic;
                     if (!SameId(initialIdentity, reopened) ||
@@ -213,7 +314,8 @@ public static class SyntheticBasicTimeRestoration {
                 }
             }
             } // markerStream remains open and locks the nonce marker until exit
-        }
+            } // child handles are pinned to the verified root/directory
+        } // root handle is released last
     }
 }
 '@
