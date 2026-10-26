@@ -1591,3 +1591,58 @@ test('test-only mutator writes through one fixed native handle, never by pathnam
  assert.match(src,/WriteExact\(stream, original\)/);
  assert.doesNotMatch(src,/File\.WriteAllBytes|File\.ReadAllBytes|File\.Delete|File\.Move/);
 });
+
+
+test('relative-handle mutator rejects wrong-case child directory despite Windows lookup',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ await fs.rmdir(f.dir);
+ const wrong=join(f.root,'NATIVE-ENUM');
+ await fs.mkdir(wrong);
+ const target=join(wrong,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(target,'utf8'),original);
+});
+
+test('relative-handle mutator rejects wrong-case fixture marker despite valid nonce',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const oldMarker=join(f.root,MARKER);
+ const wrongMarker=join(f.root,MARKER.toUpperCase());
+ await fs.rm(oldMarker);
+ await fs.writeFile(wrongMarker,f.nonce);
+ const target=join(f.dir,'metadata-probe.scs');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(target,'utf8'),original);
+ assert.equal(await fs.readFile(wrongMarker,'utf8'),f.nonce);
+});
+
+test('relative-handle mutator refuses hardlinked source even with exact fake bytes',
+ {skip:!ready,timeout:60000},async()=>{
+ const f=await fixture();
+ const target=join(f.dir,'metadata-probe.scs');
+ const alias=join(f.root,'synthetic-hardlink-alias.txt');
+ const original='SYNTHETIC ONLY RESTORE ALL FOUR TIMESTAMPS';
+ await fs.writeFile(target,original);
+ await fs.link(target,alias);
+ await timestampMutationRefused(f.root,f.nonce);
+ assert.equal(await fs.readFile(target,'utf8'),original);
+ assert.equal(await fs.readFile(alias,'utf8'),original);
+});
+
+test('relative-handle writer never reopens the child with a full pathname',
+ {skip:!ready},async()=>{
+ const source=await fs.readFile(join(__dirname,'restore-basic-times.synthetic.ps1'),'utf8');
+ assert.match(source,/NtOpenFile\(out child, access, ref attributes/);
+ assert.match(source,/RootDirectory = parent\.DangerousGetHandle\(\)/);
+ assert.match(source,/OpenChild\(rootHandle,\s*"native-enum"/);
+ assert.match(source,/OpenChild\(rootHandle,\s*"\.omsi-test-fixture-marker"/);
+ assert.match(source,/OpenChild\(directoryHandle,\s*"metadata-probe.scs"/);
+ assert.match(source,/AssertExactRootNames\(root\)/);
+ assert.doesNotMatch(source,/OpenFile\(file,|OpenFile\(marker,|OpenFile\(directory,/);
+ assert.match(source,/This narrows TOCTOU/);
+});
