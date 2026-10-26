@@ -146,6 +146,10 @@ def orchestrate(script):
         ipc.mkdir(mode=0o755)
         os.chown(private, uid(service), -1)
         os.chmod(private, 0o700)
+        # Only the service UID can create/remove the disposable socket;
+        # clients may traverse this test directory and attempt connection.
+        os.chown(ipc, uid(service), -1)
+        os.chmod(ipc, 0o755)
         sock_path = ipc / "synthetic.sock"
         key_path = private / SECRET_NAME
         cmd = ["runuser", "-u", service, "--", sys.executable,
