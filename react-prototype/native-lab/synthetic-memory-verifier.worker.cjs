@@ -2,7 +2,8 @@
 // TEST-ONLY process boundary: ephemeral key never leaves this child process.
 // Same-user administrators/debuggers can still inspect/replace the process;
 // there is NO distinct operating-system principal, TPM or production trust.
-const {createInterface}=require('node:readline');
+const {createSyntheticServiceBoundary,boundedFrames,LAB_POLICY}=
+ require('./synthetic-service-boundary.cjs');
 const {randomBytes,createHmac,timingSafeEqual}=require('node:crypto');
 const {readSyntheticOperationLedger}=require('./synthetic-operation-ledger.cjs');
 
@@ -13,7 +14,7 @@ let secret=null;
 let seal=null;
 let armed=false;
 let ended=false;
-let chain=Promise.resolve();
+const admission=createSyntheticServiceBoundary();
 function mac(witness,nonce){
  const input=JSON.stringify({
   domain:DOMAIN,nonce,head:witness.chainHead,count:witness.events.length
@@ -21,17 +22,8 @@ function mac(witness,nonce){
  return createHmac('sha256',secret).update(input,'utf8').digest();
 }
 function send(obj){process.stdout.write(JSON.stringify(obj)+'\n');}
-async function handle(line){
- let req;
- try{req=JSON.parse(line);}catch{send({id:null,result:'refused'});return;}
- if(!req||Array.isArray(req)||typeof req!=='object'||
-    Object.keys(req).sort().join(',')!=='id,op'||
-    !Number.isSafeInteger(req.id)||req.id<1||req.id>9999||
-    // Canonical single-line input rejects duplicate JSON keys, alternate
-    // spellings, field reordering and injected parameters.
-    JSON.stringify({id:req.id,op:req.op})!==line||
-    typeof req.op!=='string'||
-    !['arm','verify','shutdown'].includes(req.op)){
+async function handle(req){
+ if(!req||!['arm','verify','shutdown'].includes(req.op)){
   send({id:null,result:'refused'});return;
  }
  if(req.op==='shutdown'){
@@ -75,12 +67,16 @@ async function main(){
  // Authenticate the nonce-marked, disposable fixture before indicating ready.
  await readSyntheticOperationLedger(args[0],args[1]);
  send({result:'ready'});
- const reader=createInterface({input:process.stdin,crlfDelay:Infinity});
- for await(const line of reader){
+ // No privilege or identity claims are derived from client IPC. This
+ // experiment explicitly DOES NOT attest a separate OS service principal.
+ if(LAB_POLICY.principalSeparationProven||
+    LAB_POLICY.operationsEnabled||LAB_POLICY.supportsRealGameInspection)
+  throw Error(REFUSAL);
+ // Streaming decoder bounds memory BEFORE a newline. Session IDs must be
+ // strictly increasing; invalid frames never authorize any operation.
+ for await(const line of boundedFrames(process.stdin)){
   if(ended)break;
-  if(line.length>160){send({id:null,result:'refused'});continue;}
-  // Serial execution prevents two concurrent arm commands from racing.
-  await handle(line);
+  await handle(admission.admit(line));
  }
 }
 main().catch(()=>{
