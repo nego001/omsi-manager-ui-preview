@@ -1,5 +1,5 @@
 import {resolve,join} from 'node:path';
-import {writeFile,chmod} from 'node:fs/promises';
+import {writeFile,chmod,copyFile,constants} from 'node:fs/promises';
 import {packager} from '@electron/packager';
 
 // Read-only Linux desktop preview. This is not a service, installer, Wine/
@@ -37,4 +37,8 @@ const launcher=[
 ].join('\n');
 await writeFile(script,launcher,{mode:0o755,flag:'wx'});
 await chmod(script,0o755);
+// Optional per-user XDG shortcut helper. The helper is copied alongside
+// the ELF (not inside app.asar) and is NEVER executed during packaging.
+await copyFile(resolve('scripts/linux-desktop-integration.cjs'),
+ join(bundled[0],'OMSI-Manager-Desktop-Integration.cjs'),constants.COPYFILE_EXCL);
 console.log('Linux read-only preview created at:',bundled[0]);
