@@ -86,3 +86,25 @@ node ./OMSI-Manager-Linux-Diagnostics.cjs
 Esse comando não instala serviços, não altera configuração do Hyprland e não lê pastas de jogos. Ele verifica apenas os indicadores `XDG_SESSION_TYPE` e `XDG_CURRENT_DESKTOP`, a presença de um **socket Unix real** para `WAYLAND_DISPLAY` dentro de `XDG_RUNTIME_DIR` e o estado de propriedade do nome `org.freedesktop.portal.Desktop` no barramento de sessão. Não imprime caminhos, usuários, processos, variáveis de ambiente brutas nem logs do sistema. O comando do D-Bus utiliza `NameHasOwner`, que não inicia um seletor de arquivos nem ativa deliberadamente o portal. Se `dbus-send` não estiver disponível ou não houver barramento de sessão, a resposta fica como `unknown`, não como falha confirmada.
 
 Os campos `portalPickerVerified: false` e `hyprlandCompatibilityVerified: false` são intencionais: **detectar um socket ou um serviço de portal não comprova que um seletor gráfico real funciona**, nem garante integração com Arch/Hyprland. A CI executa os testes com um socket Unix sintético e arquivos descartáveis, mantendo todos os jogos e mods reais intocados. A distribuição continua uma prévia portátil não assinada e totalmente somente leitura.
+
+
+### API D-Bus FileChooser, sem abrir janela
+
+O diagnóstico também consulta a propriedade `org.freedesktop.portal.FileChooser.version`, **somente quando** `NameHasOwner` já confirmou que o portal está registrado. É uma leitura de propriedade pelo D-Bus, sem chamar `OpenFile`, `SaveFile`, `SaveFiles`, selecionar pastas ou ativar instalações.
+
+- `portalFileChooserInterface: advertised`: o serviço apresentou uma versão numérica válida (campo `portalFileChooserVersion`).
+- `portalFileChooserInterface: unknown`: serviço ausente, indisponível, propriedade ilegível ou resposta inesperada. Não significa necessariamente que o seletor esteja quebrado.
+- `portalPickerVerified: false`: permanece **sempre falso** até um teste de janela real e interação com o usuário ser concluído.
+
+**Para Arch + Hyprland:** o backend `xdg-desktop-portal-hyprland` não implementa FileChooser isoladamente. A documentação Hyprland recomenda também `xdg-desktop-portal-gtk`, ou outro backend com FileChooser configurado. Verificar apenas o nome do serviço ou a propriedade version não comprova o backend ativo nem o fluxo gráfico.
+
+Verificação manual futura, somente na máquina de teste com consentimento, em sessão Arch/Hyprland e usando **somente uma pasta fictícia**:
+
+1. Executar `node ./OMSI-Manager-Linux-Diagnostics.cjs` dentro do pacote; registrar os campos sem divulgar dados pessoais.
+2. Iniciar `./OMSI-Manager-Preview.sh` sem `sudo` e sem `--no-sandbox`; observar janela, escala 100%/150%/200%, teclas e diálogos.
+3. Abrir a inspeção OMSI e cancelar o seletor; confirmar que não surge inspeção indevida.
+4. Selecionar uma pasta sintética com `Vehicles/` e `maps/`; confirmar apenas nomes/contagens, nenhuma modificação de bytes.
+5. Fechar, reabrir e repetir em sessão Wayland nativa; confirmar que não há travamento ou vazamento de caminhos.
+6. Registrar separadamente versão do Electron, do Arch, do Hyprland e do backend de portal efetivo. A homologação real **ainda não ocorreu**.
+
+Fontes: [especificação FileChooser](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.FileChooser.html) e [documentação de portais do Hyprland](https://wiki.hypr.land/Hypr-Ecosystem/xdg-desktop-portal-hyprland/).

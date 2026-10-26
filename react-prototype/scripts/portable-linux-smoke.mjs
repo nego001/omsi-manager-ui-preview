@@ -34,6 +34,8 @@ assert.equal(diagnostic.status,0,diagnostic.stderr);
 const reported=JSON.parse(diagnostic.stdout);
 assert.equal(reported.scope,'read-only');
 assert.equal(reported.portalPickerVerified,false);
+assert.ok(['advertised','unknown'].includes(reported.portalFileChooserInterface));
+assert.equal(reported.portalFileChooserInterface==='unknown',reported.portalFileChooserVersion===null);
 assert.equal(reported.hyprlandCompatibilityVerified,false);
 assert.equal(reported.waylandSocket,'not-configured');
 assert.ok(!diagnostic.stdout.includes(temp),'diagnostic must not expose temp paths');

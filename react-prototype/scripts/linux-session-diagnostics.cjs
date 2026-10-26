@@ -56,13 +56,41 @@ function probePortalName(){
  }catch{}
  return 'unknown';
 }
-async function diagnose(env=process.env,{platform=process.platform,portalProbe=probePortalName,inspect=inspectSocket}={}){
+
+function parseFileChooserVersion(output){
+ if(typeof output!=='string'||output.length>4096)return null;
+ // dbus-send Properties.Get returns one variant containing an unsigned
+ // 32-bit version. Reject absent, ambiguous or implausible values.
+ const matches=[...output.matchAll(/\bvariant\s+uint32\s+([0-9]{1,3})\b/gu)];
+ if(matches.length!==1)return null;
+ const number=Number(matches[0][1]);
+ return Number.isInteger(number)&&number>=1&&number<=999?number:null;
+}
+function probeFileChooserVersion(run=spawnSync){
+ // Called only after NameHasOwner returned true. Properties.Get inspects a
+ // passive interface property; it does not invoke OpenFile/SaveFile.
+ try{
+  const cmd=run('dbus-send',[
+   '--session','--type=method_call','--print-reply',
+   '--dest=org.freedesktop.portal.Desktop','/org/freedesktop/portal/desktop',
+   'org.freedesktop.DBus.Properties.Get',
+   'string:org.freedesktop.portal.FileChooser','string:version'
+  ],{encoding:'utf8',timeout:2000,maxBuffer:4096,windowsHide:true});
+  if(cmd.status!==0||typeof cmd.stdout!=='string')return null;
+  return parseFileChooserVersion(cmd.stdout);
+ }catch{return null;}
+}
+async function diagnose(env=process.env,{platform=process.platform,portalProbe=probePortalName,inspect=inspectSocket,fileChooserProbe=probeFileChooserVersion}={}){
  if(platform!=='linux')return {name:NAME,scope:'read-only',supported:false};
  const kind=String(env.XDG_SESSION_TYPE||'').toLowerCase();
  const session=['wayland','x11','tty'].includes(kind)?kind:'unknown';
  const desktop=String(env.XDG_CURRENT_DESKTOP||'').split(':').some(x=>x.toLowerCase()==='hyprland');
  const portal=portalProbe();
  const portalState=['registered','not-running','unknown'].includes(portal)?portal:'unknown';
+ // Do not make a Properties.Get call if no portal service owns the name.
+ const reportedVersion=portalState==='registered'?fileChooserProbe():null;
+ const chooserVersion=Number.isInteger(reportedVersion)&&reportedVersion>=1&&reportedVersion<=999
+  ?reportedVersion:null;
  const socketState=await inspect(env);
  return {
   name:NAME,scope:'read-only',supported:true,
@@ -70,9 +98,11 @@ async function diagnose(env=process.env,{platform=process.platform,portalProbe=p
   nativeWaylandRequested:env.OMSI_MANAGER_NATIVE_WAYLAND==='1',
   waylandSocket:statuses.includes(socketState)?socketState:'inaccessible',
   portalService:portalState,
+  portalFileChooserInterface:chooserVersion===null?'unknown':'advertised',
+  portalFileChooserVersion:chooserVersion,
   portalPickerVerified:false,
   hyprlandCompatibilityVerified:false,
-  note:'A socket and a D-Bus name are hints, not proof of a working file picker or Hyprland compatibility.'
+  note:'An advertised FileChooser interface is not proof that the graphical picker or Hyprland works.'
  };
 }
 async function main(argv=process.argv.slice(2)){
@@ -81,4 +111,4 @@ async function main(argv=process.argv.slice(2)){
  process.stdout.write(JSON.stringify(info,null,2)+'\n');
 }
 if(require.main===module)main().catch(()=>{process.stderr.write('Linux session diagnostics unavailable\n');process.exitCode=3;});
-module.exports={diagnose,inspectSocket,chooseSocket,probePortalName,safeSocketName};
+module.exports={diagnose,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName};
