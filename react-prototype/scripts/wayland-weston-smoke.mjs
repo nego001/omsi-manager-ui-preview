@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
-import {access, mkdtemp, rm, stat} from 'node:fs/promises';
+import {access, mkdtemp, mkdir, writeFile, readFile, rm, stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, resolve, dirname} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
@@ -71,6 +71,37 @@ try{
  assert.deepEqual(safe,{
   mode:'read-only',install:false,remove:false,command:false,node:'undefined'
  });
+ // This proves the existing native-dialog IPC flow works on Wayland, but
+ // mocks the native chooser return value. It does NOT attest that a real
+ // xdg-desktop-portal file picker was opened.
+ const selected=join(root,'SYNTHETIC-OMSI-ONLY');
+ const sentinel=join(selected,'Vehicles','Fixture','test.bus');
+ await mkdir(join(selected,'Vehicles','Fixture'),{recursive:true});
+ await mkdir(join(selected,'maps','Fixture Map'),{recursive:true});
+ await writeFile(sentinel,'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=async(_win,opts)=>{
+   if(!opts.properties.includes('openDirectory')||
+      !opts.properties.includes('dontAddToRecent')||
+      'defaultPath' in opts)
+     throw Error('Unexpected Wayland directory-dialog contract');
+   return {canceled:true,filePaths:[]};
+  };
+ });
+ const cancelled=await win.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.equal(cancelled.status,'cancelled');
+ await application.evaluate(({dialog},folder)=>{
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[folder]});
+ },selected);
+ const inspected=await win.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.equal(inspected.status,'ok');
+ assert.equal(inspected.mode,'read-only');
+ assert.equal(inspected.groups[0].count,1);
+ assert.equal(inspected.groups[1].count,1);
+ assert.ok(!JSON.stringify(inspected).includes(selected));
+ assert.equal(await readFile(sentinel,'utf8'),
+  'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
+ console.log('PASS_NATIVE_WAYLAND_WESTON_DIALOG_CANCEL_AND_SYNTHETIC_READ_ONLY');
  console.log('PASS_NATIVE_WAYLAND_WESTON_HEADLESS_ELECTRON_READ_ONLY');
 } finally {
  await application?.close();
