@@ -38,6 +38,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
 public static class SyntheticBasicTimeRestoration {
@@ -100,9 +101,16 @@ public static class SyntheticBasicTimeRestoration {
     private static SafeFileHandle OpenChild(SafeFileHandle parent,
             string expectedName, bool directory, bool writer, bool verifier) {
         // Only three hardcoded fixture child names can ever be requested.
-        if (expectedName != "native-enum" &&
-            expectedName != ".omsi-test-fixture-marker" &&
-            expectedName != "metadata-probe.scs")
+        // Dynamic root is allowed ONLY as the direct child of a pinned TEMP
+        // handle, with the same strict synthetic fixture prefix as the PS gate.
+        bool fixedChild = expectedName == "native-enum" ||
+            expectedName == ".omsi-test-fixture-marker" ||
+            expectedName == "metadata-probe.scs";
+        bool fixtureRoot = directory && !writer && !verifier &&
+            expectedName.Length <= 96 && Regex.IsMatch(expectedName,
+                @"^omsi-manager-recovery-fixture-[A-Za-z0-9]+$",
+                RegexOptions.CultureInvariant);
+        if (!fixedChild && !fixtureRoot)
             throw new IOException("Unexpected fixture child");
         const uint readAttributes = 0x80, writeAttributes = 0x100;
         const uint synchronize = 0x00100000;
@@ -222,8 +230,9 @@ public static class SyntheticBasicTimeRestoration {
     // pathname replacement, renaming and new writers while our handles live.
     // The ONLY mutation is through the already pinned, single-link SafeFileHandle.
     // This narrows TOCTOU; it is not proof against privileged kernel adversaries.
-    public static void Run(string root, string directory, string file,
-                           string marker, string nonce, bool holdAfterPin) {
+    public static void Run(string temp, string root, string directory,
+                           string file, string marker, string nonce,
+                           bool holdAfterPin) {
         const uint readData = 0x1;
         const uint readAttributes = 0x80;
         const uint shareRead = 0x1;
@@ -234,11 +243,24 @@ public static class SyntheticBasicTimeRestoration {
         byte[] intermediate = Encoding.ASCII.GetBytes(
             "SYNTHETIC FIXTURE INTERMEDIATE CONTENT");
 
-        using (var rootHandle = OpenFile(root, readAttributes | readData,
+        // Opening only TEMP by absolute path narrows pathname resolution.
+        // Fixture root and all descendants are opened RELATIVE to held parent
+        // handles; no synthetic target is written through a pathname.
+        using (var tempHandle = OpenFile(temp, readAttributes | readData,
                     shareRead, IntPtr.Zero, openExisting,
                     backupSemantics | openReparse, IntPtr.Zero)) {
+            CheckDirectory(tempHandle);
+            using (var rootHandle = OpenChild(tempHandle,
+                        Path.GetFileName(root), true, false, false)) {
             CheckDirectory(rootHandle);
             AssertExactRootNames(root);
+            using (var rootPathCheck = OpenFile(root,
+                    readAttributes, shareRead, IntPtr.Zero, openExisting,
+                    backupSemantics | openReparse, IntPtr.Zero)) {
+                CheckDirectory(rootPathCheck);
+                if (!SameId(NativeInfo(rootHandle), NativeInfo(rootPathCheck)))
+                    throw new IOException("Fixture root pathname diverged");
+            }
             using (var directoryHandle = OpenChild(rootHandle,
                         "native-enum", true, false, false))
             using (var markerHandle = OpenChild(rootHandle,
@@ -310,14 +332,15 @@ public static class SyntheticBasicTimeRestoration {
                         throw new IOException("Pinned file/path identity diverged");
                 }
             }
-            } // markerStream remains open and locks the nonce marker until exit
-            } // child handles are pinned to the verified root/directory
-        } // root handle is released last
+            } // markerStream remains open until file verification finishes
+            } // child handles remain pinned until all writes have completed
+            } // fixture root is opened relative to the TEMP parent handle
+        } // TEMP parent is released last
     }
 }
 '@
 Add-Type -TypeDefinition $code -ErrorAction Stop
-[SyntheticBasicTimeRestoration]::Run($path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
+[SyntheticBasicTimeRestoration]::Run($temp,$path,$dir,$file,$marker,$Nonce,[bool]$HoldAfterPin)
 [Console]::Out.WriteLine('RESTORATION_PERFORMED')
 } catch {
  # Nothing about filenames, TEMP paths, nonce, binary content or stack traces
