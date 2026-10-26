@@ -77,6 +77,7 @@ async function main(){
  for await(const line of boundedFrames(process.stdin)){
   if(ended)break;
   await handle(admission.admit(line));
+  if(ended)break;
  }
 }
 main().catch(()=>{
