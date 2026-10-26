@@ -5,8 +5,10 @@ const fs=require('node:fs/promises');
 const {constants}=require('node:fs');
 const {join,dirname,basename,resolve}=require('node:path');
 const {tmpdir}=require('node:os');
+const {createHash}=require('node:crypto');
 
-const SCHEMA='omsi-synthetic-operation-witness-v1';
+const SCHEMA='omsi-synthetic-operation-witness-v2';
+const GENESIS='0'.repeat(64);
 const FILE='.omsi-test-operation-witness.jsonl';
 const PREFIX='omsi-manager-recovery-fixture-';
 const MARKER='.omsi-test-fixture-marker';
@@ -22,6 +24,15 @@ const allowed={
  completed_observed:new Set()
 };
 const deny=()=>{throw Error('Synthetic operation witness refused');};
+// No key or signature: this chain only detects edits by parties who do NOT
+// recalculate every subsequent digest. It is NEVER authentication.
+function linkedRecord(sequence,event,previous){
+ const core={schema:SCHEMA,sequence,event,previous};
+ const digest=createHash('sha256').update(
+  'OMSI-SYNTHETIC-WITNESS-CHAIN-V2\\n'+JSON.stringify(core),'utf8'
+ ).digest('hex');
+ return {...core,digest};
+}
 
 async function authenticate(root,nonce){
  if(typeof root!=='string'||typeof nonce!=='string'||
@@ -61,19 +72,22 @@ async function createSyntheticOperationLedger(root,nonce){
  // Path writes belong to this disposable OUTSIDE observer, not the pinned
  // PowerShell writer. This file is evidence only and never grants authority.
  const handle=await fs.open(join(directory,FILE),'wx',0o600);
- let state=null,sequence=0,closed=false;
+ let state=null,sequence=0,closed=false,previous=GENESIS;
  return {
    async append(event){
      if(closed)deny();
      const next=advance(state,event);
-     const line=Buffer.from(JSON.stringify({
-       schema:SCHEMA,sequence:sequence+1,event:next
-     })+'\n','utf8');
+     if(sequence>=MAX_EVENTS)deny();
+     const record=linkedRecord(sequence+1,next,previous);
+     const line=Buffer.from(JSON.stringify(record)+'\n','utf8');
+     const info=await handle.stat();
+     if(info.size+line.length>MAX_WITNESS_BYTES)deny();
      const {bytesWritten}=await handle.write(line,0,line.length,null);
      if(bytesWritten!==line.length)deny();
      await handle.sync();
      sequence++;
      state=next;
+     previous=record.digest;
      return summarize([{event:state}]);
    },
    async close(){
@@ -126,22 +140,28 @@ async function readSyntheticOperationLedger(root,nonce){
   if(!bytes.endsWith('\n')||bytes.includes('\r'))deny();
   const rows=bytes.slice(0,-1).split('\n');
   if(rows.length<1||rows.length>MAX_EVENTS)deny();
-  let state=null;
+  let state=null,previous=GENESIS;
   const records=[];
   for(let i=0;i<rows.length;i++){
    let row;
    try{row=JSON.parse(rows[i]);}catch{deny();}
    if(!row||Array.isArray(row)||typeof row!=='object'||
-      Object.keys(row).sort().join(',')!=='event,schema,sequence'||
+      Object.keys(row).sort().join(',')!=='digest,event,previous,schema,sequence'||
       row.schema!==SCHEMA||row.sequence!==i+1||
-      typeof row.event!=='string')deny();
-   // Reject repeated object keys, escaped alternatives, added whitespace,
-   // reordered fields and other non-canonical records. A canonical forgery
-   // is still possible: this format has NO cryptographic authentication.
-   if(JSON.stringify({
-    schema:row.schema,sequence:row.sequence,event:row.event
-   })!==rows[i])deny();
+      typeof row.event!=='string'||
+      typeof row.previous!=='string'||
+      typeof row.digest!=='string'||
+      !/^[0-9a-f]{64}$/.test(row.previous)||
+      !/^[0-9a-f]{64}$/.test(row.digest))deny();
+   if(row.previous!==previous)deny();
+   const expected=linkedRecord(row.sequence,row.event,previous);
+   if(row.digest!==expected.digest)deny();
+   // Canonical serialization rejects duplicate keys, shuffled fields,
+   // whitespace changes and alternate encodings. A full-chain forgery is
+   // still possible because this uses unkeyed hashes, not authentication.
+   if(JSON.stringify(expected)!==rows[i])deny();
    state=advance(state,row.event);
+   previous=row.digest;
    records.push({sequence:row.sequence,event:row.event});
   }
   return {schema:SCHEMA,status:summarize(records),
