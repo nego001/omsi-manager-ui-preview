@@ -102,15 +102,13 @@ public static class SyntheticBasicTimeRestoration {
             (info.Attributes & 0x400u) != 0)
             throw new IOException("Only real fixture directories permitted");
     }
-    private static void CheckNonce(SafeFileHandle handle, string nonce) {
+    private static void CheckNonce(FileStream stream, string nonce) {
         byte[] expected = Encoding.ASCII.GetBytes(nonce);
-        using (var stream = new FileStream(handle, FileAccess.Read, 4096, false)) {
-            if (stream.Length != expected.Length)
-                throw new IOException("Marker length changed");
-            for (int i = 0; i < expected.Length; i++)
-                if (stream.ReadByte() != expected[i])
-                    throw new IOException("Marker changed");
-        }
+        if (stream.Length != expected.Length)
+            throw new IOException("Marker length changed");
+        for (int i = 0; i < expected.Length; i++)
+            if (stream.ReadByte() != expected[i])
+                throw new IOException("Marker changed");
     }
     private static void WriteExact(FileStream stream, byte[] bytes) {
         stream.Position = 0;
@@ -153,7 +151,9 @@ public static class SyntheticBasicTimeRestoration {
             if ((markerInfo.Attributes & (0x10u | 0x400u)) != 0 ||
                 markerInfo.NumberOfLinks != 1)
                 throw new IOException("Marker is not a single regular file");
-            CheckNonce(markerHandle, nonce);
+            using (var markerStream = new FileStream(markerHandle, FileAccess.Read,
+                                                      4096, false)) {
+                CheckNonce(markerStream, nonce);
 
             // Recheck exact spelling while each directory and target is pinned.
             string[] entries = Directory.GetFileSystemEntries(directory);
@@ -212,6 +212,7 @@ public static class SyntheticBasicTimeRestoration {
                         throw new IOException("Pinned file/path identity diverged");
                 }
             }
+            } // markerStream remains open and locks the nonce marker until exit
         }
     }
 }
