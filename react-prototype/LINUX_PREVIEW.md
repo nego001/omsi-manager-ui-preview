@@ -241,3 +241,20 @@ Há também um job separado chamado **Windows + Linux archives / same-commit rea
 O teste recusa travessia de diretórios, links em TAR, entradas duplicadas e manifestos inconsistentes. Confere que cada pacote contém seu executável nativo e `app.asar`, que não mistura o executável de outra plataforma e que ambos os manifestos declaram **o commit exato da CI**, a prévia não assinada e o modo somente leitura.
 
 Essa verificação não prova que os binários tenham sido assinados, não substitui verificação independente de procedência nem certifica funcionamento gráfico em GNOME, KDE ou Hyprland reais. Trata-se de um controle adicional para evitar pacotes cruzados ou versões divergentes.
+
+## Nova verificação de geometria e escala da janela
+
+O pacote Electron Linux agora tem um contrato de geometria que confere
+a existência da navegação e do conteúdo, título visível, ausência de
+rolagem horizontal inesperada e manutenção do modo somente leitura.
+A CI redimensiona a janela real no X11/Xvfb para 1280×800, 1024×720 e
+850×600; no Weston headless, observa a área útil sem alegar clique físico.
+
+O piloto manual KDE/GNOME/Hyprland também observa a área útil e
+o fator de escala da sessão. Nenhuma captura de tela, caminho do sistema
+ou dado privado é enviado por esse diagnóstico.
+
+**Limite:** esses testes não homologam a aparência numa sessão KWin,
+Mutter ou Hyprland real, nem garantem escala fracionária perfeita ou
+funcionamento de todos os dispositivos de entrada. A validação real
+continua pendente e não autoriza modificações em mods.

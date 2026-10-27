@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
+import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
@@ -106,6 +107,15 @@ try{
   runtime:{operatingSystem:'linux',platformSelection:'automatic',gameOperations:'disabled'},
   read:false,install:false,remove:false,execute:false,inspect:true
  });
+ // Check real packaged Electron window geometry under Xvfb (not KWin/Mutter).
+ for(const size of [[1280,800],[1024,720],[850,600]]){
+  await application.evaluate(({BrowserWindow},dims)=>{
+   BrowserWindow.getAllWindows()[0].setSize(dims[0],dims[1]);
+  },size);
+  const layout=checkLayout(await captureLayout(window));
+  assert.equal(layout.readOnly,true);
+ }
+ console.log('PASS_XVFB_1280_1024_850_WINDOW_LAYOUT');
  // Verify the Windows/Linux family reaches the user-facing Settings page.
  await window.getByRole('navigation',{name:'Navegação principal'})
   .getByRole('button',{name:'Configurações'}).click();
@@ -161,6 +171,7 @@ try{
    inspect:window.omsiPreview?.capabilities?.inspectDirectories
   }));
   assert.deepEqual(isolated,security);
+  checkLayout(await captureLayout(view));
   assert.equal(await readFile(sentinel,'utf8'),
    'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n');
   await application.close();

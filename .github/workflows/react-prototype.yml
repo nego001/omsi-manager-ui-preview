@@ -34,6 +34,8 @@ jobs:
         run: node --test scripts/linux-session-diagnostics.test.cjs
       - name: GNOME KDE Hyprland manual picker contracts (no GUI)
         run: npm run test:manual:contract
+      - name: Safe desktop geometry contract
+        run: node --test scripts/desktop-layout-contract.test.mjs
       - name: Isolated temporary recovery / process restart fixture
         run: npm run test:recovery:fixture
       - name: Synthetic witness crash and incomplete-history tests

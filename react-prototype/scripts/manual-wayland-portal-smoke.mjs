@@ -6,6 +6,7 @@ import {basename,dirname,join,resolve} from 'node:path';
 import {createInterface} from 'node:readline/promises';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
+import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
 import {_electron as electron} from 'playwright';
 import {gate,requestedDesktop,validateSecurity,validateCancel,validateSelection}
  from './manual-wayland-portal-contract.mjs';
@@ -78,6 +79,7 @@ async function run(desktop){
    execute:window.omsiPreview?.capabilities?.executeCommands
   }));
   validateSecurity({...native,...security},session);
+  const layout=checkLayout(await captureLayout(win));
   console.log('ETAPA 1: confirme visualmente a janela nativa e cancele.');
   const cancel=win.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
   if((await terminal.question('Janela visível? Digite SIM e depois cancele: ')).trim()!=='SIM')
@@ -94,7 +96,8 @@ async function run(desktop){
   assert.equal(sha(await readFile(sentinel)),before,'synthetic-bytes-changed');
   console.log(JSON.stringify({result:'PASS',desktopFamily:desktop,session,
    nativeChooserManuallyObserved:true,fileChooserInterfaceAdvertised:chooserAdvertised,
-   portalBackendVerified:false,syntheticFixtureUnchanged:true,readOnly:true}));
+   portalBackendVerified:false,syntheticFixtureUnchanged:true,readOnly:true,
+   viewport:layout.viewport,deviceScaleFactor:layout.scale}));
  }finally{
   terminal.close();
   await app?.close().catch(()=>{});
