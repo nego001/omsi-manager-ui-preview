@@ -145,7 +145,9 @@ try{
    .waitFor({timeout:25000});
   const isolated=await view.evaluate(()=>({
    nodeRequire:typeof window.require,nodeProcess:typeof window.process,
-   mode:window.omsiPreview?.mode,read:window.omsiPreview?.capabilities?.readGameFiles,
+   mode:window.omsiPreview?.mode,
+   runtime:window.omsiPreview?.runtime,
+   read:window.omsiPreview?.capabilities?.readGameFiles,
    install:window.omsiPreview?.capabilities?.installMods,
    remove:window.omsiPreview?.capabilities?.uninstallMods,
    execute:window.omsiPreview?.capabilities?.executeCommands,
