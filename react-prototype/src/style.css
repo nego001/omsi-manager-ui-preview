@@ -804,3 +804,12 @@
 .session-batch-history li>span{color:#bed0eb}
 .session-batch-history li>small{color:#d0baa4}
 .session-batch-history li>p{margin:6px 0}
+
+.library-cooperative-review{margin:15px 0;padding:14px;border:1px solid #46556d;border-radius:10px;background:#202c3d}
+.library-cooperative-review summary{cursor:pointer;font-size:13px;font-weight:650;line-height:1.5}
+.library-cooperative-review>p{margin:9px 0;font-size:12px}
+.library-cooperative-review ol{margin:10px 0;padding-left:23px;display:grid;gap:10px}
+.library-cooperative-review li{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.library-cooperative-review li strong,.library-cooperative-review li span,.library-cooperative-review li small{display:block}
+.library-cooperative-review li span{color:#dae1ee}
+.library-cooperative-review li small{color:#d9bd89}

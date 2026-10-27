@@ -154,3 +154,8 @@ A tela mantém explícito que nenhuma instalação, desinstalação ou atualiza�
 real foi registrada. Importar outro catálogo limpa o histórico declarativo
 para evitar misturar análises de fontes diferentes. Instalar/remover continua
 desabilitado.
+
+
+### Biblioteca e checklist do analisador cooperativo
+
+A análise conjunta passou a exibir, sob demanda, os **oito módulos que precisarão verificar os mods reais**: gate de segurança, estrutura, manifesto, definições, recursos, áudio, imagens e relações. Essa lista é derivada do **mesmo plano sintético já existente** em `distributed-reader-contract.ts`. O componente não executa nenhum leitor, não calcula hash, não identifica mods reais e mantém os oito estados como **Não executado**. O gate aparece antes dos demais e a instalação permanece bloqueada. Essa separação impede que as relações declaradas no JSON sejam apresentadas como evidências coletadas pelos especialistas.
