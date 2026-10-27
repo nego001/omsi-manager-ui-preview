@@ -151,7 +151,8 @@ test('Biblioteca permite análise conjunta apenas sobre os favoritos marcados',a
  await expect(results).toBeVisible();
  await expect(results.getByText(/2 mod\(s\) selecionado\(s\) · 1 bloqueio/)).toBeVisible();
  await expect(results.getByText(/Mod a declara conflito com Mod b/)).toBeVisible();
- await expect(results.locator('ol li')).toHaveCount(3);
+ // The eight unexecuted reader specialists have their own list.
+ await expect(results.locator('.library-batch-game ol li')).toHaveCount(3);
  await expect(results).toContainText('Instalação e remoção continuam bloqueadas');
  await page.getByRole('checkbox',{name:'Selecionar Mod truck para análise conjunta'}).check();
  await expect(results).toHaveCount(0);
