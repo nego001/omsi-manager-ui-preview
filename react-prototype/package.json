@@ -34,7 +34,10 @@
     "test:manual:hyprland": "node scripts/manual-wayland-portal-smoke.mjs --desktop hyprland",
     "test:manual:contract": "node --test scripts/manual-wayland-portal-contract.test.mjs",
     "test:manual:kde": "node scripts/manual-wayland-portal-smoke.mjs --desktop kde",
-    "test:manual:gnome": "node scripts/manual-wayland-portal-smoke.mjs --desktop gnome"
+    "test:manual:gnome": "node scripts/manual-wayland-portal-smoke.mjs --desktop gnome",
+    "test:manual:auto:hyprland": "node scripts/manual-auto-launch-smoke.mjs --desktop hyprland",
+    "test:manual:auto:kde": "node scripts/manual-auto-launch-smoke.mjs --desktop kde",
+    "test:manual:auto:gnome": "node scripts/manual-auto-launch-smoke.mjs --desktop gnome"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

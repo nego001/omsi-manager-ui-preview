@@ -258,3 +258,27 @@ ou dado privado é enviado por esse diagnóstico.
 Mutter ou Hyprland real, nem garantem escala fracionária perfeita ou
 funcionamento de todos os dispositivos de entrada. A validação real
 continua pendente e não autoriza modificações em mods.
+
+## Piloto manual do executável automático (KDE, GNOME e Hyprland)
+
+O teste de seletor anterior usa um wrapper Electron para permitir instrumentação Playwright.
+Para verificar também **o verdadeiro `OMSI-Manager-Auto`**, há um segundo piloto
+opt-in. Na máquina Linux do teste, com o pacote gerado em `release/` e uma sessão
+gráfica real já aberta, rode **apenas um** dos comandos a seguir, conforme seu desktop:
+
+```bash
+npm run test:manual:auto:kde -- --confirm-interactive
+npm run test:manual:auto:gnome -- --confirm-interactive
+npm run test:manual:auto:hyprland -- --confirm-interactive
+```
+
+O piloto recusa CI, root, sessões remotas X11, ambiente divergente e terminal
+não interativo. Ele inicia **diretamente** o ELF `OMSI-Manager-Auto` sem flags,
+sem shell e sem `sudo`. A pessoa confirma no terminal que a janela apareceu,
+que a navegação por teclado funciona e que a escala da interface é legível.
+O processo é encerrado ao final; não acessa pasta de jogos nem abre o seletor.
+
+Um resultado `PASS_MANUAL_VISUAL_ONLY` é apenas o testemunho do operador,
+não uma prova automática de que Mutter, KWin ou Hyprland foram homologados.
+O teste de diálogo nativo e pasta sintética continua separado, e os testes
+de CI validam apenas os contratos não interativos do novo piloto.

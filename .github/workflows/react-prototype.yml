@@ -36,6 +36,8 @@ jobs:
         run: npm run test:manual:contract
       - name: Safe desktop geometry contract
         run: node --test scripts/desktop-layout-contract.test.mjs
+      - name: Native auto-launcher manual desktop contracts (no GUI)
+        run: node --test scripts/manual-auto-launch-contract.test.mjs
       - name: Isolated temporary recovery / process restart fixture
         run: npm run test:recovery:fixture
       - name: Synthetic witness crash and incomplete-history tests
