@@ -102,6 +102,45 @@ try{
   'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
  console.log('PASS_NATIVE_WAYLAND_WESTON_DIALOG_CANCEL_AND_SYNTHETIC_READ_ONLY');
  console.log('PASS_NATIVE_WAYLAND_WESTON_HEADLESS_ELECTRON_READ_ONLY');
+ // Follow-up regression: the portable wrapper must also launch under Wayland
+ // with NO explicit override and NO X server. This specifically exercises
+ // Electron 38's default Ozone platform selection in a true Wayland session.
+ // Native chooser interaction is still not attested here.
+ await application.close();
+ application=undefined;
+ const automaticEnv={...env,OMSI_MANAGER_NATIVE_WAYLAND:'0'};
+ assert.equal(automaticEnv.DISPLAY,'');
+ assert.equal(automaticEnv.XDG_SESSION_TYPE,'wayland');
+ assert.equal(automaticEnv.WAYLAND_DISPLAY,socketName);
+ const existingSocket=await stat(join(runtime,socketName));
+ assert.equal(existingSocket.isSocket(),true);
+ application=await electron.launch({
+  executablePath:launcher,args:[],cwd:root,env:automaticEnv,timeout:90000
+ });
+ const autoInfo=await application.evaluate(({app})=>({
+  packaged:app.isPackaged,
+  ozoneSwitch:app.commandLine.getSwitchValue('ozone-platform')
+ }));
+ assert.equal(autoInfo.packaged,true);
+ // The switch can be empty/auto/wayland depending on Electron's internal
+ // normalization; render success without DISPLAY is the meaningful witness.
+ assert.ok(['','auto','wayland'].includes(autoInfo.ozoneSwitch),
+  'Auto Wayland launcher unexpectedly forced a different backend');
+ const autoWindow=await application.firstWindow();
+ await autoWindow.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
+  .waitFor({timeout:25000});
+ const autoSafe=await autoWindow.evaluate(()=>({
+  mode:window.omsiPreview?.mode,
+  install:window.omsiPreview?.capabilities?.installMods,
+  remove:window.omsiPreview?.capabilities?.uninstallMods,
+  command:window.omsiPreview?.capabilities?.executeCommands,
+  node:typeof window.require
+ }));
+ assert.deepEqual(autoSafe,safe,
+  'Automatic Wayland backend must preserve renderer security');
+ assert.equal(await readFile(sentinel,'utf8'),
+  'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
+ console.log('PASS_NATIVE_WAYLAND_WESTON_AUTO_BACKEND_NO_X11_READ_ONLY');
 } finally {
  await application?.close();
  if(!exited){
