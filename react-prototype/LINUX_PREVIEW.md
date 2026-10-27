@@ -206,3 +206,8 @@ A mesma aplicação Electron detecta o sistema operacional na inicialização. N
 ### Teste visual de identificação automática (Windows e Linux)
 
 Além de verificar o campo limitado do preload, a CI agora abre **Configurações** no executável Windows, no pacote Linux/X11 e no Linux/Weston e verifica que a interface apresenta `Sistema detectado automaticamente: Windows` ou `Linux`, conforme a plataforma real. Todos os testes mantêm o renderer isolado, o modo somente leitura e as operações de modificação bloqueadas. Esses testes validam os pacotes, não a execução de jogos ou a homologação do KDE/GNOME/Hyprland em computadores reais.
+
+
+### Limitação da automação de navegação no Weston headless
+
+O Weston headless da CI não fornece necessariamente dispositivos de mouse ou teclado que permitam ao Playwright realizar um clique físico. Para testar a exibição da identificação da plataforma na tela **Configurações**, o teste Wayland aciona o botão do próprio DOM e confere o conteúdo renderizado. A interface e o Electron continuam reais, mas **não se afirma que o compositor processou entrada física**. A suíte Windows e X11/Xvfb continuam usando cliques Playwright e a seleção de pastas real ainda necessita homologação manual.

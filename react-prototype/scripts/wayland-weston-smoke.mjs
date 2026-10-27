@@ -73,8 +73,13 @@ try{
   mode:'read-only',install:false,remove:false,command:false,node:'undefined'
  });
  // Shared Settings platform label must work under a native Wayland compositor.
+ // Weston headless has no physical pointer input. Dispatch a DOM activation
+ // only for the read-only Settings navigation, then assert actual renderer UI.
+ // Mouse/keyboard input is covered separately in Windows/Xvfb UI suites;
+ // this does NOT certify compositor pointer input or a real XDG picker.
  await win.getByRole('navigation',{name:'Navegação principal'})
-  .getByRole('button',{name:'Configurações'}).click();
+  .getByRole('button',{name:'Configurações'})
+  .evaluate(button=>button.click());
  await win.getByText('Sistema detectado automaticamente: Linux',{exact:true})
   .waitFor({timeout:12000});
  assert.match(await win.locator('.settings-panel').innerText(),
