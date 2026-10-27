@@ -115,3 +115,18 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 ### Nota de precisão
 
 Todas as funções avançadas de reconhecimento por estrutura, leitura distribuída de arquivos de mod, geração de preview 3D, editores reais de skin/som, atualizações automáticas, compatibilidade confirmada e transações de instalação/desinstalação **são especificações futuras**. O protótipo atual não as executa. Nenhum mod do usuário foi analisado ou alterado para produzir este documento.
+
+## Retorno à etapa funcional: análise conjunta de favoritos
+
+A Biblioteca oferece agora seleção de vários favoritos e um relatório conjunto
+que **cruza metadados declarados** do JSON, reúne dependências teóricas e
+detecta conflitos entre raízes independentes. O relatório separa OMSI 2,
+ETS2 e ATS e mostra bloqueios e avisos com as limitações explicitadas.
+
+Esta função não lê os binários dos mods, não identifica instalações reais,
+não valida compatibilidade com as versões dos jogos e não oferece instalação.
+A seleção é transitória da interface e não expõe caminhos. O relatório nunca
+pode liberar as ações de instalar ou remover.
+
+A próxima etapa continua sendo o núcleo cooperativo real, somente após
+gate de segurança, corpus sintético adversarial e contratos verificáveis.
