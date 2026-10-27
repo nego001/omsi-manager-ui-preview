@@ -6,7 +6,7 @@ test('accepts one mapped OMSI window and rejects unrelated or ambiguous titles',
  const example='     0x200007 "OMSI Manager · Prévia segura": ("app" "App")  1440x900+0+0';
  assert.equal(findPreviewWindow('xwininfo tree\n'+example),'0x200007');
  for(const invalid of ['', '0x100 "Another app": 800x600',
-  example+'\n'+example,'0x100 "OMSI Manager": 800x600',
+  example+'\n'+example,'0x100 "OMSI Manager" 800x600',
   '0x2 "OMSI Manager", not an actual window']){
   assert.throws(()=>findPreviewWindow(invalid),/X11_WINDOW_NOT_VERIFIED/);
  }
