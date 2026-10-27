@@ -104,6 +104,28 @@ test('Resumo declarado pode ser consultado no Histórico apenas nesta sessão',a
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
 });
+test('restaurar demonstração limpa seleção e histórico da fonte importada',async({page})=>{
+ const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'reset-catalog.json',mimeType:'application/json',buffer:Buffer.from(payload)
+ });
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Mod a',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Mod a para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+});
+
 test('Biblioteca permite análise conjunta apenas sobre os favoritos marcados',async({page})=>{
  const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
  const parsed=parseCatalogManifest(payload);
