@@ -27,7 +27,7 @@ tar -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
 ./OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
 ```
 
-No `pacman` package, desktop integration, systemd unit, auto-update process or application installer is delivered. Avoid `sudo`, disabling Electron's sandbox, or modifying game folders to make a preview run. If the native preview fails to launch, collect application stderr and system information in a **separate** troubleshooting step rather than bypassing security.
+No `pacman` package, automatic desktop integration, systemd unit, auto-update process or application installer is delivered; an optional user-only XDG shortcut helper is documented below. Avoid `sudo`, disabling Electron's sandbox, or modifying game folders to make a preview run. If the native preview fails to launch, collect application stderr and system information in a **separate** troubleshooting step rather than bypassing security.
 
 ## Cross-platform architecture and remaining work
 
@@ -122,7 +122,7 @@ npm run package:linux
 npm run test:manual:hyprland -- --confirm-interactive
 ```
 
-O comando exige terminal interativo, Wayland, sessão declarando Hyprland, socket Wayland e propriedade FileChooser anunciada no D-Bus. Primeiro aparece uma janela de seleção que deve ser **cancelada**. Depois o script cria uma pasta OMSI fictícia em TEMP e pede para escolher **somente essa pasta** no segundo diálogo. Em ambos os casos o operador confirma que realmente viu a janela. Ele verifica retorno, contagem e SHA-256 de um arquivo fictício, depois remove a pasta temporária. Não use pastas de jogos reais nesse teste.
+O teste Hyprland exige terminal interativo, sessão Wayland declarada, socket Wayland real e confirmação explícita. A propriedade FileChooser do D-Bus é somente diagnóstica; não é pré-requisito rígido para testar uma janela nativa real. Os testes GNOME e KDE são documentados na matriz de ambientes mais abaixo. Primeiro aparece uma janela de seleção que deve ser **cancelada**. Depois o script cria uma pasta OMSI fictícia em TEMP e pede para escolher **somente essa pasta** no segundo diálogo. Em ambos os casos o operador confirma que realmente viu a janela. Ele verifica retorno, contagem e SHA-256 de um arquivo fictício, depois remove a pasta temporária. Não use pastas de jogos reais nesse teste.
 
 O teste imprime o caminho da pasta temporária **apenas no terminal local**, para permitir selecioná-la; não compartilhe esse caminho em capturas públicas. O projeto CI testa somente as recusas e invariantes de segurança com `npm run test:manual:contract`, sem abrir janelas. Mesmo um `PASS` manual **não identifica o backend exato** que desenhou a janela (`portalBackendVerified: false`). A compatibilidade Arch/Hyprland só pode ser afirmada após executar e registrar a homologação na máquina real.
 
