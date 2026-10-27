@@ -84,6 +84,26 @@ test('marcar todos os favoritos exibidos respeita os filtros, sem incluir jogo o
  await expect(results).toContainText('Instalação e remoção continuam bloqueadas');
 });
 
+test('Resumo declarado pode ser consultado no Histórico apenas nesta sessão',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const demo=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await demo.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const region=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await expect(region).toContainText('Ônibus Urbano Clássico');
+ await expect(region).toContainText('Instalação e compatibilidade não verificadas');
+ await expect(page.getByRole('heading',{name:'Sem operações reais registradas'})).toBeVisible();
+ await page.reload();
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Sem operações reais registradas'})).toBeVisible();
+});
 test('Biblioteca permite análise conjunta apenas sobre os favoritos marcados',async({page})=>{
  const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
  const parsed=parseCatalogManifest(payload);

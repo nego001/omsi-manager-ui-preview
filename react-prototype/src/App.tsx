@@ -14,6 +14,11 @@ type GameId='omsi'|'ets2'|'ats';
 type Screen='home'|'games'|'catalog'|'library'|'details'|'queue'|'history'|'settings'|'security';
 type Category='Todos'|'Ônibus'|'Mapas'|'Caminhões'|'Sons'|'Gráficos';
 type Mod=CatalogMod;
+type SessionBatchRecord={
+ id:number;selectedTitles:string[];selectedCount:number;
+ games:GameId[];blockers:number;notices:number;
+ source:'catalog-declarations';compatibilityVerified:false;installationVerified:false;
+};
 const games:Record<GameId,{title:string;publisher:string;app:number;color:string}> = {
  omsi:{title:'OMSI 2',publisher:'Aerosoft',app:252530,color:'#607fc8'},
  ets2:{title:'Euro Truck Simulator 2',publisher:'SCS Software',app:227300,color:'#b88c65'},
@@ -112,6 +117,7 @@ export default function App(){
  const [favorites,setFavorites]=useState<string[]>(initialPrefs.favorites);
  const [batchSelected,setBatchSelected]=useState<string[]>([]);
  const [batchOpen,setBatchOpen]=useState(false);
+ const [batchHistory,setBatchHistory]=useState<SessionBatchRecord[]>([]);
  const [sidebar,setSidebar]=useState(initialPrefs.sidebar);
  const [dense,setDense]=useState(initialPrefs.dense);
  const [toast,setToast]=useState('');
@@ -152,6 +158,21 @@ export default function App(){
   }
   return list;
  },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,librarySearch,librarySort,declaredStatuses]);
+ function saveBatchToSession(){
+  if(!batchReport||!batchOpen)return;
+  const selectedTitles=activeBatch.map(id=>catalogMods.find(m=>m.id===id)?.title)
+   .filter((title):title is string=>typeof title==='string');
+  if(selectedTitles.length!==batchReport.selectedCount)return;
+  setBatchHistory(existing=>[{
+   id:(existing[0]?.id??0)+1,selectedTitles,
+   selectedCount:batchReport.selectedCount,
+   games:batchReport.groups.map(g=>g.game),
+   blockers:batchReport.blockers,notices:batchReport.notices,
+   source:'catalog-declarations' as const,compatibilityVerified:false as const,
+   installationVerified:false as const
+  },...existing].slice(0,10));
+  setToast('Resumo declarado guardado somente nesta sessão. Não representa instalação.');
+ }
  function goto(id:Screen){setScreen(id);setToast('')}
  function detail(id:string){setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
  function openDeclaredDiagnostic(id:string){setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
@@ -168,7 +189,7 @@ export default function App(){
    setCatalogError('');
    setSelectedMod(next[0].id);
    setSelectedGame('all');setCategory('Todos');setSearch('');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySearch('');setLibrarySort('catalog');
+   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
@@ -254,7 +275,7 @@ export default function App(){
  <p role="status">{batchReport.selectedCount} mod(s) selecionado(s) · {batchReport.blockers} bloqueio(s) lógico(s) · {batchReport.notices} aviso(s)</p>
  {batchReport.groups.map(group=><div key={group.game} className="library-batch-game"><h4>{games[group.game].title} · {group.requested} selecionado(s)</h4><p>Sequência teórica de dependências declaradas (não executável):</p><ol>{group.sequence.map(m=><li key={m.id}>{m.title} <small>v{m.version} (declarada) · {activeBatch.includes(m.id)?'selecionado':'dependência adicionada somente ao relatório'}</small></li>)}</ol></div>)}
  {batchReport.issues.length>0?<ul className="library-batch-issues">{batchReport.issues.map((issue,i)=><li key={i} className={issue.severity}><strong>{issue.severity==='blocking'?'Bloqueio declarado':'Aviso declarado'} · {games[issue.game].title}:</strong> {issue.message}</li>)}</ul>:<p>Nenhuma inconsistência encontrada no catálogo selecionado. Isso não comprova compatibilidade.</p>}
- <p className="library-batch-disclaimer"><LockKeyhole size={15}/> Não verificado: arquivos reais, versões instaladas, integridade e funcionamento dos mods. Instalação e remoção continuam bloqueadas.</p></div>}
+ <p className="library-batch-disclaimer"><LockKeyhole size={15}/> Não verificado: arquivos reais, versões instaladas, integridade e funcionamento dos mods. Instalação e remoção continuam bloqueadas.</p><button className="btn secondary" type="button" onClick={saveBatchToSession}>Guardar resumo nesta sessão</button></div>}
  </section>}
  {favoriteMods.length===0?<div className="empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui, separados por jogo e categoria.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>:libraryMods.length?modCards(libraryMods):<div className="empty library-empty-filter"><Library size={28}/><h3>Nenhum favorito nesses filtros</h3><p>Seus favoritos continuam salvos. Altere a busca, o jogo, a categoria ou os alertas do catálogo para encontrá-los.</p><button className="btn secondary" onClick={()=>{setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySearch('');setLibrarySort('catalog')}}>Limpar filtros da biblioteca</button></div>}
  </>}
@@ -341,7 +362,10 @@ export default function App(){
   <p className="report-footnote"><LockKeyhole size={16}/> Este relatório é informativo. Compatibilidade não verificada. Instalar e remover continuam bloqueados.</p>
  </section></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
-    {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div><div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div><SyntheticDiagnosticPreview/></>}
+    {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>Sem registros de instalação: análises declarativas desta sessão são mantidas separadas de operações reais.</p></div>
+ {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><button className="btn secondary" type="button" onClick={()=>setBatchHistory([])}>Limpar resumos da sessão</button></div>
+ <ol>{batchHistory.map(record=><li key={record.id}><strong>{record.selectedCount} mod(s) declarados · {record.blockers} bloqueio(s) · {record.notices} aviso(s)</strong><span>{record.games.map(id=>games[id].title).join(' · ')}</span><p>{record.selectedTitles.join(' · ')}</p><small>Somente metadados de catálogo. Instalação e compatibilidade não verificadas.</small></li>)}</ol></section>}
+ <div className="empty"><History size={32}/><h3>Sem operações reais registradas</h3><p>O programa não registra instalações, desinstalações ou atualizações concluídas nesta prévia.</p></div><SyntheticDiagnosticPreview/></>}
     {screen==='settings'&&<><div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Preferências visuais salvas localmente neste dispositivo.</p></div><div className="settings-panel"><h3>Aparência</h3><label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label><label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label><div className="divider"/><h3>Plataforma</h3><div className="disabled-integration"><ShieldCheck size={18}/><div><strong>Sistema detectado automaticamente: {osLabel}</strong><small>{runtime?.platformSelection==='automatic'?'Aplicativo portátil com recursos específicos da plataforma, sem configuração manual.':'Somente prévia visual: a identificação nativa exige o aplicativo desktop.'} Instalação e remoção de mods permanecem bloqueadas.</small></div></div><div className="divider"/><h3>Integrações</h3><div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Integração somente leitura</strong><small>Inspeção manual de pastas na tela Jogos, sem instalação ou exclusão</small></div></div></div></>}
     {screen==='security'&&<><div className="page-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>A inspeção local é manual e só conta entradas diretas de pastas conhecidas, sem ler conteúdo de arquivos.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}
    </main><footer className="footer"><span>OMSI Manager · Interface React independente</span><span><ShieldCheck size={13}/> Modo demonstração seguro</span></footer>

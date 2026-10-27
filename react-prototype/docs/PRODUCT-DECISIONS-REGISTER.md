@@ -142,3 +142,15 @@ A ordem é reconstruída de forma determinística, visitando dependências
 antes dos mods consumidores, independentemente da ordem dos cliques.
 Ciclos e bloqueios continuam impedindo qualquer interpretação dessa
 sequência como um plano de instalação. Operações reais seguem desligadas.
+
+### Histórico temporário do relatório conjunto
+
+Após gerar um relatório, a pessoa pode guardá-lo em **Histórico** somente
+durante a sessão atual. Esse histórico limitado a dez resumos guarda
+contagens, títulos declarados e jogos, sem caminhos, hashes de arquivos
+pessoais ou dados da instalação. Não é persistido nem enviado à rede.
+
+A tela mantém explícito que nenhuma instalação, desinstalação ou atualização
+real foi registrada. Importar outro catálogo limpa o histórico declarativo
+para evitar misturar análises de fontes diferentes. Instalar/remover continua
+desabilitado.
