@@ -54,6 +54,7 @@ test('Biblioteca mostra etapas compartilhadas não executadas após análise dec
  await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
  await page.getByRole('button',{name:'Analisar seleção'}).click();
  const results=page.getByRole('region',{name:'Resultado da análise conjunta'});
+ await results.getByText('O que o analisador cooperativo precisará verificar?').click();
  const steps=results.getByRole('list',{name:'Verificações cooperativas pendentes'}).locator('li');
  await expect(steps).toHaveCount(8);
  await expect(steps.first()).toContainText('Segurança do pacote');
