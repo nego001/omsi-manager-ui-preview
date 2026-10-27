@@ -12,7 +12,7 @@ const bundled=await packager({
  prune:true,
  asar:true,
  ignore:[
-  /[/\\](tests|examples|scripts|native-lab|test-results|playwright-report|release)([/\\]|$)/,
+  /[/\\](tests|examples|scripts|native-lab|native-launcher|test-results|playwright-report|release)([/\\]|$)/,
   /[/\\](\.git|\.github)([/\\]|$)/
  ]
 });

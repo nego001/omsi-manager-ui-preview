@@ -3,13 +3,18 @@ import {listPackage} from '@electron/asar';
 import {access, mkdir, mkdtemp, readFile, rm, writeFile} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join, resolve} from 'node:path';
+import {join, resolve, dirname} from 'node:path';
 import { _electron as electron } from 'playwright';
 
 // This must point to the packaged Windows EXE, not "electron ." from node_modules.
 if(process.platform!=='win32')throw new Error('O smoke do executável portátil exige Windows.');
 const exe=resolve(process.argv[2]??'release/OMSI-Manager-Preview-win32-x64/OMSI-Manager-Preview.exe');
 await access(exe,constants.R_OK);
+// Windows must not carry a Linux-only native ELF or its source tree.
+await assert.rejects(
+ access(join(dirname(exe),'OMSI-Manager-Auto')),
+ {code:'ENOENT'}
+);
 const shots=resolve('test-results/screenshots/portable-windows');
 await mkdir(shots,{recursive:true});
 const root=await mkdtemp(join(tmpdir(),'omsi-portable-smoke-'));
@@ -42,9 +47,9 @@ try{
  assert.ok(Array.isArray(archivedEntries)&&archivedEntries.length>0,
   'Packaged app.asar should expose a nonempty file manifest');
  const forbidden=archivedEntries.filter(entry=>
-  /(^|\/)(native-lab|scripts)(\/|$)/.test(entry.replace(/\\/g,'/')));
+  /(^|\/)(native-lab|native-launcher|scripts|tests|test-results|playwright-report)(\/|$)/.test(entry.replace(/\\/g,'/')));
  assert.deepEqual(forbidden,[],
-  'The native C# lab and fixture scripts must not be packaged in app.asar');
+  'Windows app.asar must exclude lab, Linux-only ELF sources and test scripts');
  assert.ok(info.windows>0,'Deve abrir uma janela');
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor({timeout:30000});

@@ -10,6 +10,11 @@ import {_electron as electron} from 'playwright';
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 await access(executable,constants.X_OK);
+// Linux must never include a stray Windows executable.
+await assert.rejects(
+ access(join(dirname(executable),'OMSI-Manager-Preview.exe')),
+ {code:'ENOENT'}
+);
 const automaticExecutable=join(dirname(executable),'OMSI-Manager-Auto');
 await access(automaticExecutable,constants.X_OK);
 assert.deepEqual([...(await readFile(automaticExecutable)).subarray(0,4)],[0x7f,0x45,0x4c,0x46]);
@@ -78,8 +83,8 @@ try{
  const archive=listPackage(info.appPath);
  assert.ok(archive.length>0);
  assert.deepEqual(archive.filter(name=>
-  /(^|\/)(native-lab|scripts|tests)(\/|$)/.test(name.replace(/\\/g,'/'))),[],
-  'Lab files must not be bundled in Linux app.asar');
+  /(^|\/)(native-lab|native-launcher|scripts|tests|test-results|playwright-report)(\/|$)/.test(name.replace(/\\/g,'/'))),[],
+  'Linux app.asar must exclude native ELF source, labs and test scripts');
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
   .waitFor({timeout:30000});

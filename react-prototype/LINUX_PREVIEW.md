@@ -211,3 +211,8 @@ Além de verificar o campo limitado do preload, a CI agora abre **Configuraçõe
 ### Limitação da automação de navegação no Weston headless
 
 O Weston headless da CI não fornece necessariamente dispositivos de mouse ou teclado que permitam ao Playwright realizar um clique físico. Para testar a exibição da identificação da plataforma na tela **Configurações**, o teste Wayland aciona o botão do próprio DOM e confere o conteúdo renderizado. A interface e o Electron continuam reais, mas **não se afirma que o compositor processou entrada física**. A suíte Windows e X11/Xvfb continuam usando cliques Playwright e a seleção de pastas real ainda necessita homologação manual.
+
+
+## Separação dos pacotes Windows e Linux
+
+A montagem dos pacotes exclui arquivos de laboratório, fontes do lançador nativo Linux (`native-launcher/`) e roteiros de teste do `app.asar`. A CI inspeciona o arquivo `app.asar` **de cada executável realmente empacotado**, recusando diretórios de laboratório, scripts e fontes experimentais. Também confirma que o pacote Windows não contém `OMSI-Manager-Auto` e o pacote Linux não contém `OMSI-Manager-Preview.exe`. Os dois continuam compartilhando o código da interface e a API restrita de inspeção. Essas verificações evitam misturar artefatos das plataformas, sem afirmar que existe um executável binário idêntico para os dois sistemas.
