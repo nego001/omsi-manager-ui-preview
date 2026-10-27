@@ -95,6 +95,43 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  arch_portable_audit:
+    name: Arch Linux x64 container / ELF runtime audit (no GUI)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: archlinux:base
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Electron desktop runtime libraries inside disposable Arch container
+        shell: bash
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm --needed \
+            binutils gtk3 nss alsa-lib libxss mesa libdrm libxkbcommon
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: arch-portable
+      - name: Verify checksum, archive paths and packaged ELF dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd arch-portable
+          sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256
+          if tar -tzf OMSI-Manager-Preview-Linux-x64.tar.gz |
+            grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+            echo 'Unsafe archive entry' >&2
+            exit 1
+          fi
+          tar -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
+          OMSI_ARCH_AUDIT_SCOPE=CI_UNSIGNED_PACKAGE_ONLY \
+            bash ../react-prototype/scripts/arch-portable-dependency-audit.sh \
+            OMSI-Manager-Preview-linux-x64
+      # Not Hyprland certification: no compositor, GPU, picker or game folders.
+
   windows_native_lab:
     name: Windows standalone native directory lab (test-only)
     runs-on: windows-latest

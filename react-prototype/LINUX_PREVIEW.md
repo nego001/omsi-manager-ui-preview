@@ -125,3 +125,17 @@ npm run test:manual:hyprland -- --confirm-interactive
 O comando exige terminal interativo, Wayland, sessão declarando Hyprland, socket Wayland e propriedade FileChooser anunciada no D-Bus. Primeiro aparece uma janela de seleção que deve ser **cancelada**. Depois o script cria uma pasta OMSI fictícia em TEMP e pede para escolher **somente essa pasta** no segundo diálogo. Em ambos os casos o operador confirma que realmente viu a janela. Ele verifica retorno, contagem e SHA-256 de um arquivo fictício, depois remove a pasta temporária. Não use pastas de jogos reais nesse teste.
 
 O teste imprime o caminho da pasta temporária **apenas no terminal local**, para permitir selecioná-la; não compartilhe esse caminho em capturas públicas. O projeto CI testa somente as recusas e invariantes de segurança com `npm run test:manual:contract`, sem abrir janelas. Mesmo um `PASS` manual **não identifica o backend exato** que desenhou a janela (`portalBackendVerified: false`). A compatibilidade Arch/Hyprland só pode ser afirmada após executar e registrar a homologação na máquina real.
+
+
+## Arch Linux OCI / ELF: verificação automatizada de portabilidade
+
+Além dos testes Ubuntu/Weston e Windows, o workflow inclui um job dependente do build que baixa **o mesmo pacote Linux x64 não assinado** produzido pelo Ubuntu e o verifica numa imagem oficial do Arch Linux. O contêiner é descartável e instala apenas as bibliotecas necessárias ao teste. O aplicativo OMSI Manager **não é executado como root**.
+
+- Verifica o SHA-256 e recusa caminhos absolutos ou travessia de diretórios no arquivo TAR.
+- Confere a estrutura portátil, permissões de execução, `app.asar` e o formato ELF64 x86_64.
+- Verifica a sintaxe do lançador e rejeita opções que desativem o sandbox.
+- Audita bibliotecas dinâmicas com `ldd`; o job falha caso faltem dependências no conjunto de bibliotecas instalado.
+
+**Limites:** o teste não comprova renderização gráfica, Hyprland, drivers de GPU, seleção real de pastas, Proton ou openOMSI. Trata-se de um **teste de integridade e dependências em Arch**, não de homologação do desktop. A distribuição continua experimental e sem operações de escrita em mods.
+
+Origem do contêiner: [imagem oficial Arch Linux](https://hub.docker.com/_/archlinux).
