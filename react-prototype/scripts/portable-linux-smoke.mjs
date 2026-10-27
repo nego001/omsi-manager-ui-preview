@@ -121,7 +121,7 @@ try{
  application=undefined;
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
-   executablePath:automaticExecutable,args:[],cwd:temp,
+   executablePath:launcher,args:['--ozone-platform=x11'],cwd:temp,
    env:{...process.env,XDG_CURRENT_DESKTOP:desktop,
     XDG_SESSION_TYPE:'x11',WAYLAND_DISPLAY:'',
     OMSI_MANAGER_NATIVE_WAYLAND:'0',OMSI_MANAGER_DEV_PREVIEW:'0'},

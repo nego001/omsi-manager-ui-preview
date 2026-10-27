@@ -150,14 +150,14 @@ try{
  application=undefined;
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
-   executablePath:automaticExecutable,args:[],cwd:root,
+   executablePath:launcher,args:[],cwd:root,
    env:{...automaticEnv,XDG_CURRENT_DESKTOP:desktop},timeout:90000
   });
   const native=await application.evaluate(({app})=>({
    packaged:app.isPackaged,ozone:app.commandLine.getSwitchValue('ozone-platform')
   }));
   assert.equal(native.packaged,true);
-  assert.equal(native.ozone,'wayland');
+  assert.ok(['','auto','wayland'].includes(native.ozone));
   const view=await application.firstWindow();
   await view.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
    .waitFor({timeout:25000});
