@@ -139,3 +139,28 @@ Além dos testes Ubuntu/Weston e Windows, o workflow inclui um job dependente do
 **Limites:** o teste não comprova renderização gráfica, Hyprland, drivers de GPU, seleção real de pastas, Proton ou openOMSI. Trata-se de um **teste de integridade e dependências em Arch**, não de homologação do desktop. A distribuição continua experimental e sem operações de escrita em mods.
 
 Origem do contêiner: [imagem oficial Arch Linux](https://hub.docker.com/_/archlinux).
+
+
+## GNOME e KDE Plasma: matriz de compatibilidade
+
+A mesma prévia Electron foi preparada para **GNOME, KDE Plasma e Hyprland**, sem criar versões separadas nem modificar arquivos de jogos. A detecção usa `XDG_CURRENT_DESKTOP` (com aliases `KDE`/`PLASMA` e `GNOME`/`GNOME-Classic`); se houver múltiplos desktops conflitantes na variável, a classificação é `ambiguous` e o piloto recusa execução. A variável indica o ambiente informado, **não garante** que o compositor real tenha sido homologado.
+
+| Desktop | Wayland | X11 | Seletor de arquivos |
+| --- | --- | --- | --- |
+| Hyprland | Alvo de homologação | Não se aplica à sessão Hyprland | Requer backend FileChooser compatível, normalmente GTK |
+| KDE Plasma | Alvo de homologação | Alvo de homologação | Portal `xdg-desktop-portal-kde` ou diálogo nativo equivalente |
+| GNOME | Alvo de homologação | Alvo de homologação | Portal `xdg-desktop-portal-gnome` / GTK ou diálogo nativo equivalente |
+
+Com Node.js 22, dependências de desenvolvimento e build Linux criados **na máquina de teste**, execute a partir de `react-prototype/` o teste correspondente à sessão já aberta:
+
+```bash
+npm run test:manual:hyprland -- --confirm-interactive
+npm run test:manual:kde -- --confirm-interactive
+npm run test:manual:gnome -- --confirm-interactive
+```
+
+Execute **um comando por vez**, só para o desktop efetivo: os scripts recusam identidade divergente e sessão não interativa. GNOME/KDE podem testar Wayland ou X11 local; Hyprland exige Wayland. Cada teste abre a caixa nativa real, exige cancelar a primeira seleção e escolher uma pasta sintética na segunda, verifica leitura de estrutura e SHA-256 do arquivo fictício e remove a fixture temporária. O teste **não mocka** o diálogo.
+
+A propriedade D-Bus `FileChooser.version` é registrada quando anunciada, mas sua ausência **não impede o piloto interativo**: alguns ambientes podem usar um seletor GTK/Qt direto. O sucesso observa o seletor nativo, **não prova qual backend o atendeu**. A CI executa só contratos automáticos de gate e segurança; não certifica KDE/GNOME/Hyprland no desktop de uma pessoa.
+
+Documentação técnica: [Portal XDG](https://flatpak.github.io/xdg-desktop-portal/docs/), [seleção de backends](https://flatpak.github.io/xdg-desktop-portal/docs/configuration-file.html) e [Electron 38 / Wayland](https://www.electronjs.org/blog/electron-38-0).

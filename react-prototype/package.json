@@ -31,8 +31,10 @@
     "package:linux": "node scripts/package-linux.mjs",
     "test:portable:linux": "node scripts/portable-linux-smoke.mjs",
     "test:wayland:headless": "node scripts/wayland-weston-smoke.mjs",
-    "test:manual:hyprland": "node scripts/manual-wayland-portal-smoke.mjs",
-    "test:manual:contract": "node --test scripts/manual-wayland-portal-contract.test.mjs"
+    "test:manual:hyprland": "node scripts/manual-wayland-portal-smoke.mjs --desktop hyprland",
+    "test:manual:contract": "node --test scripts/manual-wayland-portal-contract.test.mjs",
+    "test:manual:kde": "node scripts/manual-wayland-portal-smoke.mjs --desktop kde",
+    "test:manual:gnome": "node scripts/manual-wayland-portal-smoke.mjs --desktop gnome"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

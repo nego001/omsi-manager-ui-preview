@@ -7,19 +7,21 @@ import {createInterface} from 'node:readline/promises';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
 import {_electron as electron} from 'playwright';
-import {gate,validateSecurity,validateCancel,validateSelection}
+import {gate,requestedDesktop,validateSecurity,validateCancel,validateSelection}
  from './manual-wayland-portal-contract.mjs';
 const {diagnose}=createRequire(import.meta.url)('./linux-session-diagnostics.cjs');
+const argv=process.argv.slice(2);
+const desktop=requestedDesktop(argv);
 const allowed=gate({platform:process.platform,uid:process.getuid?.(),
- args:process.argv.slice(2),env:process.env,
+ args:argv,env:process.env,
  stdinTTY:process.stdin.isTTY,stdoutTTY:process.stdout.isTTY});
 if(!allowed){
- console.error('HYPRLAND_MANUAL_PILOT_REFUSED: explicit interactive Hyprland session required');
+ console.error('DESKTOP_MANUAL_PILOT_REFUSED: explicit matching Linux desktop session required');
  process.exitCode=3;
 }else{
- await run().catch(()=>{
-  // Deliberately avoid error strings: native exceptions can contain private paths.
-  console.error('HYPRLAND_MANUAL_PILOT: NOT VERIFIED');
+ await run(desktop).catch(()=>{
+  // Native dialog errors can contain private paths; never print them.
+  console.error('DESKTOP_MANUAL_PILOT: NOT VERIFIED');
   process.exitCode=4;
  });
 }
@@ -30,19 +32,22 @@ async function deadline(task){
   timer=setTimeout(()=>reject(Error('interaction-timeout')),120000);
  })]);}finally{clearTimeout(timer);}
 }
-async function run(){
+async function run(desktop){
+ const session=process.env.XDG_SESSION_TYPE;
  const report=await diagnose();
- if(report.session!=='wayland'||!report.hyprlandReported||
-  report.waylandSocket!=='available'||
-  report.portalFileChooserInterface!=='advertised')
-  throw Error('Wayland or portal preflight not ready');
+ if(report.desktopFamily!==desktop||report.session!==session||
+  (session==='wayland'&&report.waylandSocket!=='available'))
+  throw Error('Desktop or display preflight not ready');
+ // Unknown FileChooser version may mean GTK native dialog or missing D-Bus
+ // tooling; do not mark the picker verified, but allow a manual real test.
+ const chooserAdvertised=report.portalFileChooserInterface==='advertised';
  const exec=resolve('release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
  const launcher=join(dirname(exec),'OMSI-Manager-Preview.sh');
  await access(exec,constants.X_OK);
  await access(launcher,constants.X_OK);
  const mode=await lstat(launcher);
  if(mode.isSymbolicLink()||!mode.isFile())throw Error('invalid portable launcher');
- const root=await mkdtemp(join(tmpdir(),'omsi-hyprland-portal-manual-'));
+ const root=await mkdtemp(join(tmpdir(),'omsi-desktop-portal-manual-'));
  await chmod(root,0o700);
  const terminal=createInterface({input:process.stdin,output:process.stdout});
  let app;
@@ -53,8 +58,11 @@ async function run(){
   const sentinel=join(fixture,'Vehicles','Test Bus','test.bus');
   await writeFile(sentinel,'SYNTHETIC ONLY - DO NOT MODIFY\n',{flag:'wx',mode:0o600});
   const before=sha(await readFile(sentinel));
-  app=await electron.launch({executablePath:launcher,args:[],cwd:dirname(exec),
-   env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0',OMSI_MANAGER_NATIVE_WAYLAND:'1'},
+  app=await electron.launch({executablePath:launcher,
+   args:session==='x11'?['--ozone-platform=x11']:[],
+   cwd:dirname(exec),
+   env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0',
+    OMSI_MANAGER_NATIVE_WAYLAND:session==='wayland'?'1':'0'},
    timeout:90000});
   const native=await app.evaluate(({app})=>({
    packaged:app.isPackaged,ozone:app.commandLine.getSwitchValue('ozone-platform')
@@ -69,7 +77,7 @@ async function run(){
    remove:window.omsiPreview?.capabilities?.uninstallMods,
    execute:window.omsiPreview?.capabilities?.executeCommands
   }));
-  validateSecurity({...native,...security});
+  validateSecurity({...native,...security},session);
   console.log('ETAPA 1: confirme visualmente a janela nativa e cancele.');
   const cancel=win.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
   if((await terminal.question('Janela visível? Digite SIM e depois cancele: ')).trim()!=='SIM')
@@ -84,7 +92,8 @@ async function run(){
   validateSelection(chosen,basename(fixture));
   assert.ok(!JSON.stringify(chosen).includes(root),'renderer-path-leak');
   assert.equal(sha(await readFile(sentinel)),before,'synthetic-bytes-changed');
-  console.log(JSON.stringify({result:'PASS',nativeChooserManuallyObserved:true,
+  console.log(JSON.stringify({result:'PASS',desktopFamily:desktop,session,
+   nativeChooserManuallyObserved:true,fileChooserInterfaceAdvertised:chooserAdvertised,
    portalBackendVerified:false,syntheticFixtureUnchanged:true,readOnly:true}));
  }finally{
   terminal.close();
