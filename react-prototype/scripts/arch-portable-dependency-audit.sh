@@ -18,7 +18,8 @@ fi
 binary="$root/OMSI-Manager-Preview"
 launcher="$root/OMSI-Manager-Preview.sh"
 archive="$root/resources/app.asar"
-for target in "$binary" "$launcher" "$archive"; do
+manifest="$root/OMSI-Manager-Preview-build.json"
+for target in "$binary" "$launcher" "$archive" "$manifest"; do
   if [[ ! -f "$target" || -L "$target" ]]; then
     printf '%s\n' 'ARCH_AUDIT_REFUSED: invalid package layout' >&2
     exit 3
@@ -27,6 +28,17 @@ done
 if [[ ! -x "$binary" || ! -x "$launcher" || ! -s "$archive" ]]; then
   printf '%s\n' 'ARCH_AUDIT_REFUSED: executable or app.asar missing' >&2
   exit 3
+fi
+# Manifest is advisory metadata, not a signature of the downloaded archive.
+grep -Fq '"operatingSystem": "linux"' "$manifest"
+grep -Fq '"architecture": "x64"' "$manifest"
+grep -Fq '"mode": "read-only"' "$manifest"
+grep -Fq '"modificationEnabled": false' "$manifest"
+grep -Fq '"signatureStatus": "unsigned"' "$manifest"
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
+  [[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]]
+  grep -Fq "\"sourceRevision\": \"${GITHUB_SHA}\"" "$manifest"
+  grep -Fq '"buildEnvironment": "github-actions"' "$manifest"
 fi
 readelf -h "$binary" | grep -Eq 'Class:[[:space:]]+ELF64'
 readelf -h "$binary" | grep -Eq 'Machine:[[:space:]]+Advanced Micro Devices X86-64'

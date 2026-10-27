@@ -216,3 +216,19 @@ O Weston headless da CI não fornece necessariamente dispositivos de mouse ou te
 ## Separação dos pacotes Windows e Linux
 
 A montagem dos pacotes exclui arquivos de laboratório, fontes do lançador nativo Linux (`native-launcher/`) e roteiros de teste do `app.asar`. A CI inspeciona o arquivo `app.asar` **de cada executável realmente empacotado**, recusando diretórios de laboratório, scripts e fontes experimentais. Também confirma que o pacote Windows não contém `OMSI-Manager-Auto` e o pacote Linux não contém `OMSI-Manager-Preview.exe`. Os dois continuam compartilhando o código da interface e a API restrita de inspeção. Essas verificações evitam misturar artefatos das plataformas, sem afirmar que existe um executável binário idêntico para os dois sistemas.
+
+## Manifesto de origem Windows e Linux
+
+Os dois pacotes portáteis incluem **`OMSI-Manager-Preview-build.json`**, fora do `app.asar`.
+Ele indica a plataforma (`windows` ou `linux`), arquitetura `x64`, commit de origem
+(`sourceRevision`) e limites da prévia (`mode: read-only`,
+`modificationEnabled: false`, `signatureStatus: unsigned`).
+
+Numa mesma execução do GitHub Actions, os dois pacotes devem identificar **o mesmo commit**.
+A CI verifica o manifesto de cada pacote e, no contêiner Arch, compara a revisão indicada
+com o commit do workflow. Uma compilação local sem `GITHUB_SHA` recebe
+`sourceRevision: null` e `buildEnvironment: local`.
+
+**Este arquivo não é uma assinatura digital nem comprova reprodutibilidade.**
+Para verificar a integridade do download, confira o SHA-256 do ZIP/TAR.
+O manifesto não autoriza leitura automática de jogos nem escrita em mods reais.
