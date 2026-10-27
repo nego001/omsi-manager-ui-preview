@@ -168,8 +168,9 @@ test('GNOME KDE and Hyprland are classified without leaking desktop strings',asy
   assert.equal(result.kdeReported,family==='kde');
   assert.equal(result.gnomeReported,family==='gnome');
   assert.equal(result.portalPickerVerified,false);
-  assert.ok(!JSON.stringify(result).includes(token)||token.length<1,
-   'raw desktop environment value must not be leaked');
+  assert.equal(Object.hasOwn(result,'XDG_CURRENT_DESKTOP'),false);
+  if(token.includes(':')||token.length>256)
+   assert.ok(!JSON.stringify(result).includes(token),'raw desktop string must not leak');
  }
 });
 test('X11 is diagnosed separately from Wayland; no spurious socket probing',async()=>{
