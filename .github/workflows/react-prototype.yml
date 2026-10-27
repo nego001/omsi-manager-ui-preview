@@ -54,6 +54,8 @@ jobs:
         run: xvfb-run -a npm run test:inspection:e2e
       - name: Build Linux x64 unsigned portable preview
         run: npm run package:linux
+      - name: Automatic Linux ELF launcher regression (synthetic process)
+        run: node --test scripts/linux-auto-launcher.test.cjs
       - name: Test packaged Linux ELF GUI using synthetic game folder
         timeout-minutes: 5
         run: xvfb-run -a npm run test:portable:linux

@@ -1,5 +1,8 @@
 import {resolve,join} from 'node:path';
 import {writeFile,chmod,copyFile,constants} from 'node:fs/promises';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+const execFileAsync=promisify(execFile);
 import {packager} from '@electron/packager';
 
 // Read-only Linux desktop preview. This is not a service, installer, Wine/
@@ -16,7 +19,7 @@ const bundled=await packager({
  prune:true,
  asar:true,
  ignore:[
-  /[/\\](tests|examples|scripts|native-lab|test-results|playwright-report|release)([/\\]|$)/,
+  /[/\\](tests|examples|scripts|native-lab|native-launcher|test-results|playwright-report|release)([/\\]|$)/,
   /[/\\](\.git|\.github)([/\\]|$)/
  ]
 });
@@ -37,6 +40,14 @@ const launcher=[
 ].join('\n');
 await writeFile(script,launcher,{mode:0o755,flag:'wx'});
 await chmod(script,0o755);
+// Native ELF auto-launcher is compiled at packaging time only.
+// End users need neither Node.js nor GCC to run the portable app.
+await execFileAsync('cc',[
+ '-std=c11','-O2','-Wall','-Wextra','-Werror','-fPIE','-pie',
+ resolve('native-launcher/omsi-manager-auto.c'),
+ '-o',join(bundled[0],'OMSI-Manager-Auto')
+],{timeout:30000});
+await chmod(join(bundled[0],'OMSI-Manager-Auto'),0o755);
 // Optional per-user XDG shortcut helper. The helper is copied alongside
 // the ELF (not inside app.asar) and is NEVER executed during packaging.
 await copyFile(resolve('scripts/linux-desktop-integration.cjs'),

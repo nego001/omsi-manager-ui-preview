@@ -49,6 +49,13 @@ check_links(){
     exit 1
   fi
 }
+auto_launcher="$root/OMSI-Manager-Auto"
+if [[ ! -x "$auto_launcher" || -L "$auto_launcher" ]]; then
+  printf '%s\n' 'ARCH_AUDIT_FAILED: portable auto-launcher missing' >&2
+  exit 1
+fi
+readelf -h "$auto_launcher" | grep -Eq 'Class:[[:space:]]+ELF64'
+check_links "$auto_launcher"
 check_links "$binary"
 for file in "$root"/*.so "$root"/*.so.*; do
   [[ -f "$file" && ! -L "$file" ]] || continue

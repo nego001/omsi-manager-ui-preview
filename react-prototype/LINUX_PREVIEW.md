@@ -174,3 +174,17 @@ A CI testa a interface empacotada com `XDG_CURRENT_DESKTOP=GNOME` e `KDE`, de du
 - **X11:** o mesmo **Xvfb** já usado na suíte, forçando o backend X11; verifica inicialização, segurança e preservação de um arquivo `.bus` sintético.
 
 Essas execuções confirmam o comportamento diante das variáveis de ambiente, **não** executam os compositores Mutter (GNOME) ou KWin (KDE), nem abrem um seletor XDG real. A homologação final permanece manual por desktop, com o teste específico documentado acima. Os caminhos reais dos jogos continuam fora dos testes.
+
+## Executável nativo com detecção automática de GNOME, KDE e Hyprland
+
+O pacote portátil Linux x64 contém agora **`OMSI-Manager-Auto`**, um binário ELF que pode ser aberto diretamente pelo gerenciador de arquivos ou pelo terminal:
+
+```bash
+./OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto
+```
+
+Ele identifica a família de desktop por `XDG_CURRENT_DESKTOP` e a sessão por `XDG_SESSION_TYPE`. Se houver sinais suficientes, seleciona o backend gráfico `wayland` ou `x11`; se forem conflitantes ou insuficientes, usa o modo `auto` do Electron 38. O lançador nunca executa shell nem aceita flags arbitrárias, recusa root e não desliga o sandbox.
+
+**Portátil, não monolítico:** `OMSI-Manager-Auto` deve ficar na pasta extraída ao lado de `OMSI-Manager-Preview`, `resources/` e das demais bibliotecas Electron. Não é necessário instalar Node.js ou GCC para utilizar o programa. A compilação C acontece somente no job de empacotamento.
+
+O menu opcional XDG mantém o atalho para `OMSI-Manager-Preview.sh`, que também usa a detecção automática do Electron. Nenhum arquivo OMSI real é manipulado. Os testes de desktop simulados não equivalem a uma homologação gráfica real em KWin, Mutter ou Hyprland.

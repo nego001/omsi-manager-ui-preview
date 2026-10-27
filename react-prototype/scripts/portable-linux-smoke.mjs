@@ -10,6 +10,9 @@ import {_electron as electron} from 'playwright';
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 await access(executable,constants.X_OK);
+const automaticExecutable=join(dirname(executable),'OMSI-Manager-Auto');
+await access(automaticExecutable,constants.X_OK);
+assert.deepEqual([...(await readFile(automaticExecutable)).subarray(0,4)],[0x7f,0x45,0x4c,0x46]);
 const launcher=join(dirname(executable),'OMSI-Manager-Preview.sh');
 await access(launcher,constants.X_OK);
 const wrapper=await readFile(launcher,'utf8');
@@ -118,7 +121,7 @@ try{
  application=undefined;
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
-   executablePath:launcher,args:['--ozone-platform=x11'],cwd:temp,
+   executablePath:automaticExecutable,args:[],cwd:temp,
    env:{...process.env,XDG_CURRENT_DESKTOP:desktop,
     XDG_SESSION_TYPE:'x11',WAYLAND_DISPLAY:'',
     OMSI_MANAGER_NATIVE_WAYLAND:'0',OMSI_MANAGER_DEV_PREVIEW:'0'},

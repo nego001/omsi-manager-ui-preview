@@ -11,6 +11,8 @@ import {_electron as electron} from 'playwright';
 if(process.platform!=='linux')throw Error('Wayland test requires Linux');
 const executable=resolve('release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 const launcher=join(dirname(executable),'OMSI-Manager-Preview.sh');
+const automaticExecutable=join(dirname(executable),'OMSI-Manager-Auto');
+await access(automaticExecutable);
 await access(launcher);
 const root=await mkdtemp(join(tmpdir(),'omsi-native-wayland-ci-'));
 const socketName='omsi-ci-wayland';
@@ -148,14 +150,14 @@ try{
  application=undefined;
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
-   executablePath:launcher,args:[],cwd:root,
+   executablePath:automaticExecutable,args:[],cwd:root,
    env:{...automaticEnv,XDG_CURRENT_DESKTOP:desktop},timeout:90000
   });
   const native=await application.evaluate(({app})=>({
    packaged:app.isPackaged,ozone:app.commandLine.getSwitchValue('ozone-platform')
   }));
   assert.equal(native.packaged,true);
-  assert.ok(['','auto','wayland'].includes(native.ozone));
+  assert.equal(native.ozone,'wayland');
   const view=await application.firstWindow();
   await view.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
    .waitFor({timeout:25000});
