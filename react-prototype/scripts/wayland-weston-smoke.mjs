@@ -72,6 +72,13 @@ try{
  assert.deepEqual(safe,{
   mode:'read-only',install:false,remove:false,command:false,node:'undefined'
  });
+ // Shared Settings platform label must work under a native Wayland compositor.
+ await win.getByRole('navigation',{name:'Navegação principal'})
+  .getByRole('button',{name:'Configurações'}).click();
+ await win.getByText('Sistema detectado automaticamente: Linux',{exact:true})
+  .waitFor({timeout:12000});
+ assert.match(await win.locator('.settings-panel').innerText(),
+  /Instalação e remoção de mods permanecem bloqueadas/);
  // This proves the existing native-dialog IPC flow works on Wayland, but
  // mocks the native chooser return value. It does NOT attest that a real
  // xdg-desktop-portal file picker was opened.

@@ -99,6 +99,13 @@ try{
   runtime:{operatingSystem:'linux',platformSelection:'automatic',gameOperations:'disabled'},
   read:false,install:false,remove:false,execute:false,inspect:true
  });
+ // Verify the Windows/Linux family reaches the user-facing Settings page.
+ await window.getByRole('navigation',{name:'Navegação principal'})
+  .getByRole('button',{name:'Configurações'}).click();
+ await window.getByText('Sistema detectado automaticamente: Linux',{exact:true})
+  .waitFor({timeout:12000});
+ assert.match(await window.locator('.settings-panel').innerText(),
+  /Instalação e remoção de mods permanecem bloqueadas/);
  await window.getByRole('navigation',{name:'Navegação principal'})
   .getByRole('button',{name:'Detalhes'}).click();
  assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);

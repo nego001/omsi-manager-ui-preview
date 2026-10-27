@@ -201,3 +201,8 @@ A integração com o menu permanece opcional, exige Node.js apenas na configura�
 A mesma aplicação Electron detecta o sistema operacional na inicialização. No Windows, o pacote próprio usa `OMSI-Manager-Preview.exe`; no Linux, o pacote próprio pode ser aberto por `OMSI-Manager-Auto`, que seleciona Wayland/X11. Ambos exibem em **Configurações** a identificação da plataforma por um campo limitado do preload sandboxed, sem vazar caminhos ou variáveis de ambiente. Uma prévia no navegador não afirma detectar o sistema do aplicativo.
 
 **Dois executáveis, uma aplicação:** um arquivo `.exe` de Windows não é um binário Linux; um ELF Linux não é um aplicativo Windows. A distribuição entrega artefatos separados, mas o código da interface e das operações de inspeção segura é compartilhado. Não há troca manual de modo Windows/Linux dentro do programa. A CI testa o indicador de plataforma em ambos os pacotes e mantém instalação, remoção e execução de comandos desativadas.
+
+
+### Teste visual de identificação automática (Windows e Linux)
+
+Além de verificar o campo limitado do preload, a CI agora abre **Configurações** no executável Windows, no pacote Linux/X11 e no Linux/Weston e verifica que a interface apresenta `Sistema detectado automaticamente: Windows` ou `Linux`, conforme a plataforma real. Todos os testes mantêm o renderer isolado, o modo somente leitura e as operações de modificação bloqueadas. Esses testes validam os pacotes, não a execução de jogos ou a homologação do KDE/GNOME/Hyprland em computadores reais.

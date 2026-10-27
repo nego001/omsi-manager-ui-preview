@@ -73,6 +73,18 @@ try{
    read:false,install:false,uninstall:false,
    command:false,inspect:'function'
  });
+ // Windows must show the same platform indicator as the Linux build,
+ // without exposing paths or turning on write operations.
+ await window.getByRole('navigation',{name:'Navegação principal'})
+  .getByRole('button',{name:'Configurações'}).click();
+ await window.getByText('Sistema detectado automaticamente: Windows',{exact:true})
+  .waitFor({timeout:12000});
+ assert.match(await window.locator('.settings-panel').innerText(),
+  /Instalação e remoção de mods permanecem bloqueadas/);
+ await window.getByRole('navigation',{name:'Navegação principal'})
+  .getByRole('button',{name:'Início'}).click();
+ await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
+  .waitFor({timeout:12000});
  const featured=window.getByRole('region',{name:'Destaque de simuladores'});
  await featured.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).click();
  assert.equal(await featured.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).getAttribute('aria-pressed'),'true');
