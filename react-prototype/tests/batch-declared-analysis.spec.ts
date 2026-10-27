@@ -98,11 +98,11 @@ test('Resumo declarado pode ser consultado no Histórico apenas nesta sessão',a
  const region=page.getByRole('region',{name:'Análises declarativas desta sessão'});
  await expect(region).toContainText('Ônibus Urbano Clássico');
  await expect(region).toContainText('Instalação e compatibilidade não verificadas');
- await expect(page.getByRole('heading',{name:'Sem operações reais registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  await page.reload();
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Histórico'}).click();
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
- await expect(page.getByRole('heading',{name:'Sem operações reais registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
 });
 test('Biblioteca permite análise conjunta apenas sobre os favoritos marcados',async({page})=>{
  const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
