@@ -16,6 +16,12 @@ MAX_ENTRY_PATH = 160
 MAX_DEPTH = 12
 MAX_RATIO = 100
 CHUNK = 16_384
+# Fixed output schema. These are filename SUFFIXES only, never parsed format
+# evidence or an identification of the target simulator.
+SUFFIXES = (
+    "bus", "cfg", "sco", "sli", "sii", "scs", "dds",
+    "png", "jpg", "wav", "ogg", "bank", "json", "other"
+)
 VALID_NAME = re.compile(r"[A-Za-z0-9_./-]+\Z", re.ASCII)
 RESERVED = re.compile(r"(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?\Z", re.IGNORECASE)
 
@@ -32,6 +38,7 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     declared = actual = files = dirs = 0
     seen: set[str] = set()
     file_names: set[str] = set()
+    suffix_counts = {suffix: 0 for suffix in SUFFIXES}
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
             infos = zf.infolist()
@@ -76,6 +83,11 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 if declared > MAX_EXPANDED_BYTES:
                     refuse()
                 file_names.add(normalized)
+                # Only an aggregate count derived from a *declared filename*.
+                # Never expose names, roots, original case or full paths.
+                last = parts[-1].lower()
+                extension = last.rsplit(".", 1)[-1] if "." in last else ""
+                suffix_counts[extension if extension in suffix_counts else "other"] += 1
                 files += 1
             for name in seen:
                 parts = name.split("/")
@@ -108,6 +120,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "directoryCount": dirs,
         "actualInflatedBytes": actual,
         "zipHeadersAndCrcRead": True,
+        "declaredSuffixCounts": suffix_counts,
+        "declaredSuffixesAreContentProof": False,
         "archiveOriginVerified": False,
         "gameRecognized": False,
         "compatibilityVerified": False,

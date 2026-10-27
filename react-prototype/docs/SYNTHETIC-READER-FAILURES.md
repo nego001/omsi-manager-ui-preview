@@ -39,3 +39,24 @@ uma afirmação de que todo ZIP de usuário com diretórios DEFLATE seja malicio
 Quando o teste de abertura X11 falha, ele registra somente categorias
 de erro pré-definidas (sandbox, display, bibliotecas, GPU, filesystem e runtime),
 sem publicar stderr bruto, caminhos do computador, nomes de usuário ou conteúdo.
+
+### Contagem de extensões declaradas, sem nomes de arquivos
+
+O leitor experimental agora devolve somente contagens agregadas de sufixos
+(.bus, .cfg, .sco, .sli, .sii, .scs, .dds, .png, .jpg, .wav, .ogg,
+.bank, .json e outros). Não devolve nomes, diretórios ou caminhos.
+A contagem é gerada a partir do nome declarado na entrada ZIP, não do
+conteúdo nem de uma assinatura de formato. Portanto, mesmo com arquivos
+com extensão .bus ou .sii, os campos gameRecognized,
+compatibilityVerified, installationEnabled e
+declaredSuffixesAreContentProof permanecem falsos.
+
+Os testes cobrem um ZIP fictício com indícios misturados de OMSI/ETS/ATS
+e nomes sensíveis inventados, verificando que eles nunca chegam à saída.
+
+### Bloqueio conhecido no lançador X11
+
+Na execução 40573648625, o lançador nativo produziu SIGTRAP e indicação
+de problema com sandbox antes de criar a janela. Não foi desabilitado
+o sandbox nem transformado em sucesso o teste correspondente.
+O funcionamento X11 do lançador Auto permanece sem certificação nesse runner.

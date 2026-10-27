@@ -34,10 +34,55 @@ class ControlledZipReaderTests(unittest.TestCase):
         self.assertEqual(report["actualInflatedBytes"],
                          len(b"synthetic-bus") + len(b"not-actual-wave"))
         self.assertTrue(report["zipHeadersAndCrcRead"])
+        self.assertEqual(report["declaredSuffixCounts"]["bus"], 1)
+        self.assertEqual(report["declaredSuffixCounts"]["wav"], 1)
+        self.assertEqual(sum(report["declaredSuffixCounts"].values()), 2)
+        self.assertFalse(report["declaredSuffixesAreContentProof"])
         for key in ("archiveOriginVerified", "gameRecognized",
                     "compatibilityVerified", "installationEnabled",
                     "realGameFilesTouched"):
             self.assertFalse(report[key])
+
+    def test_only_fixed_suffix_counts_not_names_are_returned(self):
+        import json
+        samples = [
+            ("Vehicles/SECRET_CUSTOMER_BUS_917.bus", b"fixture"),
+            ("def/private_truck.sii", b"fixture"),
+            ("mod/packed.scs", b"fixture"),
+            ("sounds/secret_audio.OGG", b"fixture"),
+            ("covers/image.png", b"fixture"),
+            ("scripts/suspicious.exe", b"fixture"),
+        ]
+        report = examine_controlled_zip_bytes(bundle(samples))
+        expected = {
+            "bus": 1, "cfg": 0, "sco": 0, "sli": 0,
+            "sii": 1, "scs": 1, "dds": 0,
+            "png": 1, "jpg": 0, "wav": 0, "ogg": 1,
+            "bank": 0, "json": 0, "other": 1
+        }
+        self.assertEqual(report["declaredSuffixCounts"], expected)
+        self.assertEqual(sum(expected.values()), report["fileCount"])
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["declaredSuffixesAreContentProof"])
+        self.assertFalse(report["installationEnabled"])
+        serialized = json.dumps(report)
+        for forbidden in (
+            "SECRET_CUSTOMER_BUS_917", "private_truck", "packed.scs",
+            "secret_audio", "suspicious.exe", "Vehicles/"
+        ):
+            self.assertNotIn(forbidden, serialized)
+
+    def test_filename_suffix_is_never_confused_with_actual_content_format(self):
+        # A .bus or .sii name does not make arbitrary bytes a valid game file.
+        report = examine_controlled_zip_bytes(bundle([
+            ("vehicles/not-a-real-bus.bus", b"not a definition"),
+            ("def/not-a-real-sii.sii", b"not a definition"),
+        ]))
+        self.assertEqual(report["declaredSuffixCounts"]["bus"], 1)
+        self.assertEqual(report["declaredSuffixCounts"]["sii"], 1)
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["compatibilityVerified"])
+        self.assertFalse(report["declaredSuffixesAreContentProof"])
 
     def test_deflated_directory_metadata_is_rejected(self):
         mem = io.BytesIO()
