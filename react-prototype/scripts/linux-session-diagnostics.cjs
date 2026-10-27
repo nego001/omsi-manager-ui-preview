@@ -80,29 +80,48 @@ function probeFileChooserVersion(run=spawnSync){
   return parseFileChooserVersion(cmd.stdout);
  }catch{return null;}
 }
+
+// Do not report raw XDG_CURRENT_DESKTOP values; they can contain private text.
+// Accept one recognized family only; conflicting tokens are never attributed
+// to a tested compositor. The environment alone is NOT a compatibility proof.
+function detectDesktop(value){
+ if(typeof value!=='string'||value.length>256)return 'unknown';
+ const tokens=value.toLowerCase().split(':').map(x=>x.trim());
+ const hits=new Set();
+ for(const token of tokens){
+  if(token==='hyprland')hits.add('hyprland');
+  else if(token==='kde'||token==='plasma')hits.add('kde');
+  else if(token==='gnome'||token==='gnome-classic')hits.add('gnome');
+ }
+ if(hits.size>1)return 'ambiguous';
+ return hits.values().next().value||'unknown';
+}
 async function diagnose(env=process.env,{platform=process.platform,portalProbe=probePortalName,inspect=inspectSocket,fileChooserProbe=probeFileChooserVersion}={}){
  if(platform!=='linux')return {name:NAME,scope:'read-only',supported:false};
  const kind=String(env.XDG_SESSION_TYPE||'').toLowerCase();
  const session=['wayland','x11','tty'].includes(kind)?kind:'unknown';
- const desktop=String(env.XDG_CURRENT_DESKTOP||'').split(':').some(x=>x.toLowerCase()==='hyprland');
+ const desktop=detectDesktop(env.XDG_CURRENT_DESKTOP);
  const portal=portalProbe();
  const portalState=['registered','not-running','unknown'].includes(portal)?portal:'unknown';
  // Do not make a Properties.Get call if no portal service owns the name.
  const reportedVersion=portalState==='registered'?fileChooserProbe():null;
  const chooserVersion=Number.isInteger(reportedVersion)&&reportedVersion>=1&&reportedVersion<=999
   ?reportedVersion:null;
- const socketState=await inspect(env);
+ const socketState=session==='wayland'?await inspect(env):'not-applicable';
  return {
   name:NAME,scope:'read-only',supported:true,
-  session,hyprlandReported:desktop,
+  session,desktopFamily:desktop,
+  hyprlandReported:desktop==='hyprland',
+  kdeReported:desktop==='kde',
+  gnomeReported:desktop==='gnome',
   nativeWaylandRequested:env.OMSI_MANAGER_NATIVE_WAYLAND==='1',
-  waylandSocket:statuses.includes(socketState)?socketState:'inaccessible',
+  waylandSocket:socketState==='not-applicable'?'not-applicable':(statuses.includes(socketState)?socketState:'inaccessible'),
   portalService:portalState,
   portalFileChooserInterface:chooserVersion===null?'unknown':'advertised',
   portalFileChooserVersion:chooserVersion,
   portalPickerVerified:false,
   hyprlandCompatibilityVerified:false,
-  note:'An advertised FileChooser interface is not proof that the graphical picker or Hyprland works.'
+  note:'An advertised FileChooser interface is not proof that the graphical picker works in Hyprland, KDE or GNOME.'
  };
 }
 async function main(argv=process.argv.slice(2)){
@@ -111,4 +130,4 @@ async function main(argv=process.argv.slice(2)){
  process.stdout.write(JSON.stringify(info,null,2)+'\n');
 }
 if(require.main===module)main().catch(()=>{process.stderr.write('Linux session diagnostics unavailable\n');process.exitCode=3;});
-module.exports={diagnose,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName};
+module.exports={diagnose,detectDesktop,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName};
