@@ -52,7 +52,7 @@ assert.equal(installed.status,0,installed.stderr);
 const desktop=await readFile(entry,'utf8');
 assert.match(desktop,/X-OMSI-Manager-ReadOnly-Preview=true/);
 assert.match(desktop,/Terminal=false/);
-assert.match(desktop,/^Exec=".*OMSI-Manager-Preview\.sh"$/m);
+assert.match(desktop,/^Exec=".*OMSI-Manager-Auto"$/m);
 const removed=runShortcut('remove');
 assert.equal(removed.status,0,removed.stderr);
 await assert.rejects(access(entry),{code:'ENOENT'});

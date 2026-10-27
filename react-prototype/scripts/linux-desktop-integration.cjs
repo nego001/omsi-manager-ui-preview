@@ -21,7 +21,7 @@ function hasUnsafePathChars(value){
 }
 function launcherIn(packageDir){
  if(process.platform!=='linux'||!path.isAbsolute(packageDir))deny();
- const launcher=path.join(packageDir,'OMSI-Manager-Preview.sh');
+ const launcher=path.join(packageDir,'OMSI-Manager-Auto');
  // Restrict the portable location instead of trying to implement every
  // desktop-spec quoting corner case. Spaces and accents are supported.
  if(hasUnsafePathChars(launcher))deny();
@@ -75,6 +75,9 @@ async function install({packageDir,env=process.env}){
  if(exec!==launcher)deny(); // no launcher symlink redirection
  const st=await fs.stat(launcher);
  if(!st.isFile()||(st.mode&0o111)===0)deny();
+ // The menu must point to the native ELF, not a shell or a symlink.
+ const magic=(await fs.readFile(launcher)).subarray(0,4);
+ if(magic.length!==4||!magic.equals(Buffer.from([0x7f,0x45,0x4c,0x46])))deny();
  const applications=appDir(env);
  const base=path.dirname(applications);
  await fs.mkdir(base,{recursive:true,mode:0o700});
@@ -109,7 +112,10 @@ async function remove({packageDir,env=process.env}){
   return {result:'not-installed'};
  const expected=makeEntry(launcherIn(packageDir));
  const existing=await fs.readFile(target,'utf8');
- if(existing!==expected)deny(); // never erase an entry we do not own
+ const legacy=makeEntry(path.join(packageDir,'OMSI-Manager-Preview.sh'));
+ if(existing!==expected&&existing!==legacy)deny();
+ // An exact legacy entry from this very package is also removable.
+ // Installation never silently rewrites a previous shortcut.
  await fs.unlink(target);
  return {result:'removed'};
 }

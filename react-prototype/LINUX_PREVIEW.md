@@ -65,7 +65,7 @@ Para remover somente o atalho criado para **esta pasta de aplicativo**, execute:
 node ./OMSI-Manager-Desktop-Integration.cjs remove
 ```
 
-O registro fica em `${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.omsi_manager.Preview.desktop`. Ele aponta ao lançador `OMSI-Manager-Preview.sh` pelo caminho absoluto, respeitando espaços comuns no caminho. O helper recusa root/sudo, lançadores redirecionados, entradas pré-existentes não correspondentes e symlinks diretos no destino ou no diretório de atalhos. Não configura autostart, systemd, atualizações ou associação de extensões. Mover o pacote após registrar o atalho invalida esse caminho: remova o atalho antes de mudar a pasta e instale-o novamente depois.
+O registro fica em `${XDG_DATA_HOME:-$HOME/.local/share}/applications/org.omsi_manager.Preview.desktop`. Ele aponta ao executável nativo `OMSI-Manager-Auto` pelo caminho absoluto, respeitando espaços comuns no caminho. O helper recusa root/sudo, lançadores redirecionados, entradas pré-existentes não correspondentes e symlinks diretos no destino ou no diretório de atalhos. Não configura autostart, systemd, atualizações ou associação de extensões. Mover o pacote após registrar o atalho invalida esse caminho: remova o atalho antes de mudar a pasta e instale-o novamente depois.
 
 **Limitação de distribuição:** essa integração opcional usa Node.js no comando de instalação do atalho, mas a execução cotidiana do Electron portátil não necessita do Node do sistema. Um instalador nativo sem dependências externas e verificação formal de todas as condições TOCTOU ainda não foi desenvolvido. A suíte CI cria `HOME`/`XDG_DATA_HOME` fictícios para conferir instalação, remoção e recusa de sobrescrita; não modifica o menu de um usuário real.
 
@@ -187,4 +187,10 @@ Ele identifica a família de desktop por `XDG_CURRENT_DESKTOP` e a sessão por `
 
 **Portátil, não monolítico:** `OMSI-Manager-Auto` deve ficar na pasta extraída ao lado de `OMSI-Manager-Preview`, `resources/` e das demais bibliotecas Electron. Não é necessário instalar Node.js ou GCC para utilizar o programa. A compilação C acontece somente no job de empacotamento.
 
-O menu opcional XDG mantém o atalho para `OMSI-Manager-Preview.sh`, que também usa a detecção automática do Electron. Nenhum arquivo OMSI real é manipulado. Os testes de desktop simulados não equivalem a uma homologação gráfica real em KWin, Mutter ou Hyprland.
+O atalho XDG opcional passa a apontar diretamente para `OMSI-Manager-Auto`. Nenhum arquivo OMSI real é manipulado. Os testes de desktop simulados não equivalem a uma homologação gráfica real em KWin, Mutter ou Hyprland.
+
+### Migração segura dos atalhos antigos
+
+Atalhos criados anteriormente que apontam para `OMSI-Manager-Preview.sh` não são sobrescritos automaticamente. Se existir um atalho **idêntico ao que esta mesma pasta criou**, use primeiro `node ./OMSI-Manager-Desktop-Integration.cjs remove` e depois `node ./OMSI-Manager-Desktop-Integration.cjs install` dentro da pasta extraída. O comando de remoção aceita tanto a versão antiga quanto a atual **somente se corresponderem exatamente ao caminho desta pasta**; atalhos desconhecidos ou apontando para outra pasta continuam protegidos.
+
+A integração com o menu permanece opcional, exige Node.js apenas na configuração do atalho e não é um serviço. A execução do aplicativo pelo atalho ou pelo ELF não exige Node.js de sistema.

@@ -22,6 +22,10 @@ async function fixture(){
  await fs.writeFile(join(packageDir,'OMSI-Manager-Preview.sh'),
   '#!/bin/sh\nexit 0\n',{mode:0o755});
  await fs.chmod(join(packageDir,'OMSI-Manager-Preview.sh'),0o755);
+ // Tiny synthetic ELF header: helper only checks type, not execution.
+ await fs.writeFile(join(packageDir,'OMSI-Manager-Auto'),
+  Buffer.from([0x7f,0x45,0x4c,0x46]),{mode:0o755});
+ await fs.chmod(join(packageDir,'OMSI-Manager-Auto'),0o755);
  const env={HOME:root,XDG_DATA_HOME:join(root,'test-xdg-data')};
  const target=join(env.XDG_DATA_HOME,'applications',NAME);
  return {root,packageDir,env,target};
@@ -32,7 +36,7 @@ test('opt-in only: no shortcut is written before explicit install',async()=>{
  const result=await install(f);
  assert.equal(result.result,'installed');
  const entry=await fs.readFile(f.target,'utf8');
- assert.equal(entry,makeEntry(join(f.packageDir,'OMSI-Manager-Preview.sh')));
+ assert.equal(entry,makeEntry(join(f.packageDir,'OMSI-Manager-Auto')));
  assert.ok(entry.includes(MARKER));
  assert.match(entry,/^Exec=".*OMSI preview with spaces.*"$/m);
  assert.match(entry,/Terminal=false/);
@@ -81,7 +85,7 @@ test('refuses symlinked applications directory',async(t)=>{
 });
 test('rejects a relocated launcher symlink and invalid injected path characters',async(t)=>{
  const f=await fixture();
- const launcher=join(f.packageDir,'OMSI-Manager-Preview.sh');
+ const launcher=join(f.packageDir,'OMSI-Manager-Auto');
  await fs.rename(launcher,join(f.root,'safe-real-launcher'));
  try{await fs.symlink(join(f.root,'safe-real-launcher'),launcher);}
  catch(e){if(['EPERM','ENOSYS','EACCES'].includes(e.code)){t.skip();return;}throw e;}
@@ -90,6 +94,34 @@ test('rejects a relocated launcher symlink and invalid injected path characters'
   assert.throws(()=>launcherIn(join(f.root,bad)),
    /Linux desktop integration refused/);
  }
+});
+test('preexisting legacy script shortcut requires explicit remove before installing ELF shortcut',async()=>{
+ const f=await fixture();
+ await fs.mkdir(join(f.env.XDG_DATA_HOME,'applications'),{recursive:true});
+ const old=makeEntry(join(f.packageDir,'OMSI-Manager-Preview.sh'));
+ await fs.writeFile(f.target,old,{mode:0o600});
+ await assert.rejects(install(f),/Linux desktop integration refused/);
+ assert.equal(await fs.readFile(f.target,'utf8'),old);
+ assert.equal((await remove(f)).result,'removed');
+ assert.equal((await install(f)).result,'installed');
+ const updated=await fs.readFile(f.target,'utf8');
+ assert.equal(updated,makeEntry(join(f.packageDir,'OMSI-Manager-Auto')));
+ assert.notEqual(updated,old);
+});
+test('legacy shortcut from another portable directory is not removed',async()=>{
+ const f=await fixture();
+ await fs.mkdir(join(f.env.XDG_DATA_HOME,'applications'),{recursive:true});
+ const old=makeEntry(join(f.root,'unrelated','OMSI-Manager-Preview.sh'));
+ await fs.writeFile(f.target,old);
+ await assert.rejects(remove(f),/Linux desktop integration refused/);
+ await assert.rejects(install(f),/Linux desktop integration refused/);
+ assert.equal(await fs.readFile(f.target,'utf8'),old);
+});
+test('refuses a shell script in place of the expected native ELF launcher',async()=>{
+ const f=await fixture();
+ await fs.writeFile(join(f.packageDir,'OMSI-Manager-Auto'),'#!/bin/sh\nexit 0\n',{mode:0o755});
+ await assert.rejects(install(f),/Linux desktop integration refused/);
+ await assert.rejects(fs.stat(f.target),{code:'ENOENT'});
 });
 test('standalone helper accepts install/remove only, no arbitrary actions',async()=>{
  const f=await fixture();
