@@ -30,10 +30,11 @@ try{
   let exitCode=null;
   let exitSignal=null;
   const observed={nativeProcess:false,windowFound:false,mapped:false};
+  const startupHints=new Set();
   let checkpoint='startup';
   try{
    child=spawn(binary,[],{
-    cwd:dirname(binary),detached:true,stdio:'ignore',shell:false,
+    cwd:dirname(binary),detached:true,stdio:['ignore','ignore','pipe'],shell:false,
     env:{...process.env,
      XDG_CURRENT_DESKTOP:desktop,XDG_SESSION_TYPE:'x11',
      WAYLAND_DISPLAY:'',OMSI_MANAGER_DEV_PREVIEW:'0',
@@ -42,7 +43,20 @@ try{
      XDG_CACHE_HOME:join(root,'cache'),XDG_DATA_HOME:join(root,'data')
     }
    });
-   child.once('error',()=>{failed=true;});
+   child.stderr.on('data',data=>{
+    // Observe only categories, never output raw native stderr, paths or secrets.
+    const text=data.toString('utf8').slice(0,4096);
+    const patterns=[
+     ['sandbox',/sandbox|zygote|setuid/i],
+     ['display',/x11|xserver|display|ozone/i],
+     ['libraries',/shared object|library|symbol lookup/i],
+     ['gpu',/gpu|egl|mesa|glx/i],
+     ['filesystem',/permission denied|access denied|read-only/i],
+     ['runtime',/xdg_runtime_dir|runtime directory/i]
+    ];
+    for(const [label,re] of patterns)if(re.test(text))startupHints.add(label);
+   });
+   child.once('error',()=>{failed=true;startupHints.add('spawn-error');});
    child.once('exit',(code,signal)=>{failed=true;exitCode=code;exitSignal=signal;});
    let found=false;
    for(let i=0;i<70;i++){
@@ -69,7 +83,7 @@ try{
     await sleep(200);
    }
    if(!found)console.error('AUTO_X11_SANITIZED_CHECKPOINT',JSON.stringify({
-    desktop,observed,checkpoint,
+    desktop,observed,checkpoint,startupHints:[...startupHints].sort(),
     exited:failed,exitCode:Number.isInteger(exitCode)?exitCode:null,
     exitSignal:typeof exitSignal==='string'&&/^[A-Z0-9]{1,12}$/.test(exitSignal)?
      exitSignal:null

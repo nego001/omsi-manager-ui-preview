@@ -30,3 +30,12 @@ Não lê ZIP/SCS de disco, não abre mods de verdade, não executa programas,
 não extrai entradas e não tem garantia de sandbox de produção.
 Um ZIP tecnicamente bem formado não prova autenticidade, ausência de malware,
 compatibilidade, licença nem capacidade de instalação. Instalar permanece bloqueado.
+
+O leitor de fixtures recusa também diretórios vazios registrados com
+compressão DEFLATE. O contrato exige entradas de diretório ZIP_STORED
+de tamanho zero; isso é uma restrição conservadora do laboratório, não
+uma afirmação de que todo ZIP de usuário com diretórios DEFLATE seja malicioso.
+
+Quando o teste de abertura X11 falha, ele registra somente categorias
+de erro pré-definidas (sandbox, display, bibliotecas, GPU, filesystem e runtime),
+sem publicar stderr bruto, caminhos do computador, nomes de usuário ou conteúdo.

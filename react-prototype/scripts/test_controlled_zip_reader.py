@@ -11,7 +11,14 @@ def bundle(entries, compression=zipfile.ZIP_STORED):
     mem = io.BytesIO()
     with zipfile.ZipFile(mem, "w", compression=compression) as zf:
         for name, data in entries:
-            zf.writestr(name, data)
+            # Directory entries are intentionally stored, never deflated.
+            # The constrained reader rejects compressed empty directory metadata.
+            if name.endswith("/"):
+                item = zipfile.ZipInfo(name)
+                item.compress_type = zipfile.ZIP_STORED
+                zf.writestr(item, data)
+            else:
+                zf.writestr(name, data)
     return mem.getvalue()
 
 class ControlledZipReaderTests(unittest.TestCase):
@@ -31,6 +38,15 @@ class ControlledZipReaderTests(unittest.TestCase):
                     "compatibilityVerified", "installationEnabled",
                     "realGameFilesTouched"):
             self.assertFalse(report[key])
+
+    def test_deflated_directory_metadata_is_rejected(self):
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w") as zf:
+            item = zipfile.ZipInfo("vehicles/")
+            item.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(item, b"")
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(mem.getvalue())
 
     def test_path_traversal_and_device_names_are_refused(self):
         for name in (
