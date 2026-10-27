@@ -46,6 +46,44 @@ test('seleção inválida nunca produz relatório de instalação',()=>{
  for(const ids of [[],['a','a'],['unknown'],Array(201).fill('a')])
   expect(()=>analyzeDeclaredBatch(combined,ids)).toThrow();
 });
+
+test('ordenação do relatório não depende da ordem de marcação dos favoritos',()=>{
+ const first=analyzeDeclaredBatch(combined,['a','b']);
+ const reversed=analyzeDeclaredBatch(combined,['b','a']);
+ expect(first.groups[0].sequence.map(m=>m.id))
+  .toEqual(reversed.groups[0].sequence.map(m=>m.id));
+ const chain=[mod('top','omsi',['middle']),mod('middle','omsi',['foundation']),mod('foundation')];
+ const result=analyzeDeclaredBatch(chain,['top']);
+ expect(result.groups[0].sequence.map(m=>m.id))
+  .toEqual(['foundation','middle','top']);
+ expect(result.canInstall).toBe(false);
+});
+test('marcar todos os favoritos exibidos respeita os filtros, sem incluir jogo oculto',async({page})=>{
+ const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'batch-selection.json',mimeType:'application/json',buffer:Buffer.from(payload)
+ });
+ for(const name of ['Mod a','Mod b','Mod truck']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'}).selectOption('omsi');
+ await page.getByRole('button',{name:'Marcar favoritos exibidos'}).click();
+ await expect(page.getByText('2 selecionado(s)')).toBeVisible();
+ await page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'}).selectOption('all');
+ await expect(page.getByRole('checkbox',{name:'Selecionar Mod truck para análise conjunta'})).not.toBeChecked();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ const results=page.getByRole('region',{name:'Resultado da análise conjunta'});
+ await expect(results).toBeVisible();
+ await expect(results.locator('.library-batch-game')).toHaveCount(1);
+ await expect(results).toContainText('dependência adicionada somente ao relatório');
+ await expect(results).toContainText('Instalação e remoção continuam bloqueadas');
+});
+
 test('Biblioteca permite análise conjunta apenas sobre os favoritos marcados',async({page})=>{
  const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
  const parsed=parseCatalogManifest(payload);

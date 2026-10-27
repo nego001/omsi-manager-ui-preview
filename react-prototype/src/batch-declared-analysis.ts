@@ -55,7 +55,24 @@ export function analyzeDeclaredBatch(catalog:readonly CatalogMod[],selection:rea
     push(game,issue);
    }
   }
-  const sequence=[...expanded.values()];
+  // Stable dependency-first ordering, independent from checkbox click order.
+  // Cycles are separately reported as logical blockers; their order cannot
+  // be an executable installation plan (install remains permanently false).
+  const sequence:CatalogMod[]=[];
+  const visited=new Set<string>();
+  const visiting=new Set<string>();
+  const visit=(mod:CatalogMod):void=>{
+   if(visited.has(mod.id)||visiting.has(mod.id))return;
+   visiting.add(mod.id);
+   for(const id of mod.requires??[]){
+    const dependency=expanded.get(id);
+    if(dependency&&dependency.game===game)visit(dependency);
+   }
+   visiting.delete(mod.id);
+   visited.add(mod.id);
+   sequence.push(mod);
+  };
+  for(const mod of catalog)if(expanded.has(mod.id))visit(mod);
   const included=new Set(sequence.map(mod=>mod.id));
   const seenConflicts=new Set<string>();
   for(const mod of sequence){

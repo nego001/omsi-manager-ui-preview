@@ -130,3 +130,15 @@ pode liberar as ações de instalar ou remover.
 
 A próxima etapa continua sendo o núcleo cooperativo real, somente após
 gate de segurança, corpus sintético adversarial e contratos verificáveis.
+
+### Refinamento de seleção e ordem determinística
+
+A ação **Marcar favoritos exibidos** respeita os filtros atuais de jogo,
+categoria, alertas e pesquisa. A análise permanece explicitamente
+limitada aos metadados do catálogo. Cada item da sequência informa se
+foi selecionado ou aparece somente como dependência teórica.
+
+A ordem é reconstruída de forma determinística, visitando dependências
+antes dos mods consumidores, independentemente da ordem dos cliques.
+Ciclos e bloqueios continuam impedindo qualquer interpretação dessa
+sequência como um plano de instalação. Operações reais seguem desligadas.
