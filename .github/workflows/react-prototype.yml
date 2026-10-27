@@ -65,6 +65,16 @@ jobs:
       - name: Test packaged Linux ELF GUI using synthetic game folder
         timeout-minutes: 5
         run: xvfb-run -a npm run test:portable:linux
+      - name: Native auto X11 GUI contract (synthetic read-only)
+        run: node --test scripts/auto-real-x11-contract.test.mjs
+      - name: Run real OMSI-Manager-Auto on GNOME/KDE X11 labels in Xvfb
+        timeout-minutes: 3
+        env:
+          CI: 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends x11-utils
+          xvfb-run -a node scripts/auto-real-x11-smoke.mjs
       - name: Install Weston for a real headless Wayland socket
         run: |
           sudo apt-get update -qq

@@ -282,3 +282,17 @@ Um resultado `PASS_MANUAL_VISUAL_ONLY` é apenas o testemunho do operador,
 não uma prova automática de que Mutter, KWin ou Hyprland foram homologados.
 O teste de diálogo nativo e pasta sintética continua separado, e os testes
 de CI validam apenas os contratos não interativos do novo piloto.
+
+## Abertura real do executável ELF automático na CI X11
+
+A CI também **executa diretamente `OMSI-Manager-Auto`** no Xvfb,
+com etiquetas de sessão GNOME e KDE, sem argumentos e sem `sudo`.
+O teste consulta o processo por `/proc` para conferir a opção Ozone
+e utiliza `xwininfo` para atestar uma janela X11 efetivamente visível
+(mapeada), com dimensão mínima, sem ler arquivos do jogo.
+O aplicativo roda com diretórios HOME/XDG temporários e é encerrado.
+
+**Atenção:** Xvfb não é GNOME Mutter nem KDE KWin. Este teste não
+comprova acesso ao seletor gráfico real, entrada física de mouse nem
+funcionamento do executável no Hyprland. Os pilotos manuais reais
+continuam obrigatórios para essa homologação.
