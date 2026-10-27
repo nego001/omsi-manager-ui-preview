@@ -164,3 +164,13 @@ Execute **um comando por vez**, só para o desktop efetivo: os scripts recusam i
 A propriedade D-Bus `FileChooser.version` é registrada quando anunciada, mas sua ausência **não impede o piloto interativo**: alguns ambientes podem usar um seletor GTK/Qt direto. O sucesso observa o seletor nativo, **não prova qual backend o atendeu**. A CI executa só contratos automáticos de gate e segurança; não certifica KDE/GNOME/Hyprland no desktop de uma pessoa.
 
 Documentação técnica: [Portal XDG](https://flatpak.github.io/xdg-desktop-portal/docs/), [seleção de backends](https://flatpak.github.io/xdg-desktop-portal/docs/configuration-file.html) e [Electron 38 / Wayland](https://www.electronjs.org/blog/electron-38-0).
+
+
+### CI: matriz de ambientes GNOME e KDE sem certificar os compositores
+
+A CI testa a interface empacotada com `XDG_CURRENT_DESKTOP=GNOME` e `KDE`, de duas formas:
+
+- **Wayland:** o mesmo socket de compositor **Weston headless** usado anteriormente, sem servidor X e sem forçar o backend; verifica inicialização e isolamento do renderer.
+- **X11:** o mesmo **Xvfb** já usado na suíte, forçando o backend X11; verifica inicialização, segurança e preservação de um arquivo `.bus` sintético.
+
+Essas execuções confirmam o comportamento diante das variáveis de ambiente, **não** executam os compositores Mutter (GNOME) ou KWin (KDE), nem abrem um seletor XDG real. A homologação final permanece manual por desktop, com o teste específico documentado acima. Os caminhos reais dos jogos continuam fora dos testes.

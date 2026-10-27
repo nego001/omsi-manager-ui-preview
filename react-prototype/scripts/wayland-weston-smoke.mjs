@@ -141,6 +141,38 @@ try{
  assert.equal(await readFile(sentinel,'utf8'),
   'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
  console.log('PASS_NATIVE_WAYLAND_WESTON_AUTO_BACKEND_NO_X11_READ_ONLY');
+ // Desktop environment tokens are simulated against the SAME Weston socket.
+ // Confirms no crash or disabled-sandbox regression for GNOME and KDE labels.
+ // It does not pretend Weston implements GNOME Mutter or KDE KWin.
+ await application.close();
+ application=undefined;
+ for(const desktop of ['GNOME','KDE']){
+  application=await electron.launch({
+   executablePath:launcher,args:[],cwd:root,
+   env:{...automaticEnv,XDG_CURRENT_DESKTOP:desktop},timeout:90000
+  });
+  const native=await application.evaluate(({app})=>({
+   packaged:app.isPackaged,ozone:app.commandLine.getSwitchValue('ozone-platform')
+  }));
+  assert.equal(native.packaged,true);
+  assert.ok(['','auto','wayland'].includes(native.ozone));
+  const view=await application.firstWindow();
+  await view.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
+   .waitFor({timeout:25000});
+  const isolated=await view.evaluate(()=>({
+   mode:window.omsiPreview?.mode,
+   install:window.omsiPreview?.capabilities?.installMods,
+   remove:window.omsiPreview?.capabilities?.uninstallMods,
+   command:window.omsiPreview?.capabilities?.executeCommands,
+   node:typeof window.require
+  }));
+  assert.deepEqual(isolated,safe);
+  assert.equal(await readFile(sentinel,'utf8'),
+   'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
+  await application.close();
+  application=undefined;
+ }
+ console.log('PASS_GNOME_KDE_WAYLAND_ENVIRONMENT_MATRIX_WESTON_ONLY');
 } finally {
  await application?.close();
  if(!exited){

@@ -112,6 +112,40 @@ try{
  assert.equal(await readFile(sentinel,'utf8'),
   'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n');
  console.log('PASS_LINUX_PACKAGED_LAUNCHER_X11_AND_READ_ONLY_SYNTHETIC_INSPECTION');
+ // GNOME/Plasma environment compatibility smoke with an Xvfb X11 server.
+ // XDG_CURRENT_DESKTOP is simulated here: this is NOT actual GNOME/KWin.
+ await application.close();
+ application=undefined;
+ for(const desktop of ['GNOME','KDE']){
+  application=await electron.launch({
+   executablePath:launcher,args:['--ozone-platform=x11'],cwd:temp,
+   env:{...process.env,XDG_CURRENT_DESKTOP:desktop,
+    XDG_SESSION_TYPE:'x11',WAYLAND_DISPLAY:'',
+    OMSI_MANAGER_NATIVE_WAYLAND:'0',OMSI_MANAGER_DEV_PREVIEW:'0'},
+   timeout:90000
+  });
+  const native=await application.evaluate(({app})=>({
+   packaged:app.isPackaged,ozone:app.commandLine.getSwitchValue('ozone-platform')
+  }));
+  assert.deepEqual(native,{packaged:true,ozone:'x11'});
+  const view=await application.firstWindow();
+  await view.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
+   .waitFor({timeout:25000});
+  const isolated=await view.evaluate(()=>({
+   nodeRequire:typeof window.require,nodeProcess:typeof window.process,
+   mode:window.omsiPreview?.mode,read:window.omsiPreview?.capabilities?.readGameFiles,
+   install:window.omsiPreview?.capabilities?.installMods,
+   remove:window.omsiPreview?.capabilities?.uninstallMods,
+   execute:window.omsiPreview?.capabilities?.executeCommands,
+   inspect:window.omsiPreview?.capabilities?.inspectDirectories
+  }));
+  assert.deepEqual(isolated,security);
+  assert.equal(await readFile(sentinel,'utf8'),
+   'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n');
+  await application.close();
+  application=undefined;
+ }
+ console.log('PASS_GNOME_KDE_X11_ENVIRONMENT_MATRIX_XVFB_ONLY');
 }finally{
  await application?.close();
  await rm(temp,{recursive:true,force:true});
