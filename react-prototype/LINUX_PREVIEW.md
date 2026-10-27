@@ -232,3 +232,12 @@ com o commit do workflow. Uma compilação local sem `GITHUB_SHA` recebe
 **Este arquivo não é uma assinatura digital nem comprova reprodutibilidade.**
 Para verificar a integridade do download, confira o SHA-256 do ZIP/TAR.
 O manifesto não autoriza leitura automática de jogos nem escrita em mods reais.
+
+
+## Auditoria cruzada dos artefatos Windows e Linux
+
+Há também um job separado chamado **Windows + Linux archives / same-commit read-only provenance**, executado **somente depois** da criação dos dois pacotes. Ele baixa o ZIP Windows e o TAR.GZ Linux da mesma execução do GitHub Actions, verifica os arquivos SHA-256 e examina os membros compactados **sem extrair ou executar binários**.
+
+O teste recusa travessia de diretórios, links em TAR, entradas duplicadas e manifestos inconsistentes. Confere que cada pacote contém seu executável nativo e `app.asar`, que não mistura o executável de outra plataforma e que ambos os manifestos declaram **o commit exato da CI**, a prévia não assinada e o modo somente leitura.
+
+Essa verificação não prova que os binários tenham sido assinados, não substitui verificação independente de procedência nem certifica funcionamento gráfico em GNOME, KDE ou Hyprland reais. Trata-se de um controle adicional para evitar pacotes cruzados ou versões divergentes.

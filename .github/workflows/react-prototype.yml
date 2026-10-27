@@ -226,3 +226,30 @@ jobs:
             react-prototype/release/OMSI-Manager-Preview-Windows-x64.sha256
           if-no-files-found: error
           retention-days: 14
+
+
+  portable_pair_audit:
+    name: Windows + Linux archives / same-commit read-only provenance
+    needs: [build, windows_portable]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test synthetic archive-pair refusal contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_portable_pair_audit.py -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: pair-artifacts/linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Windows-x64-UNSIGNED
+          path: pair-artifacts/windows
+      - name: Verify both SHA256 sidecars and common source commit without extraction
+        env:
+          OMSI_PAIR_AUDIT_SCOPE: CI_UNSIGNED_PAIRS_ONLY
+        run: |
+          python3 react-prototype/scripts/portable_pair_audit.py \
+            pair-artifacts/linux pair-artifacts/windows
+      # Metadata parity is not a digital signature or a real KDE/GNOME test.
