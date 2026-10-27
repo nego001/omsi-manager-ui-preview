@@ -6,7 +6,7 @@ const path=require('node:path');
 const os=require('node:os');
 const net=require('node:net');
 const {spawnSync}=require('node:child_process');
-const {diagnose,inspectSocket,chooseSocket,parseFileChooserVersion,probeFileChooserVersion}=require('./linux-session-diagnostics.cjs');
+const {diagnose,detectDesktop,inspectSocket,chooseSocket,parseFileChooserVersion,probeFileChooserVersion}=require('./linux-session-diagnostics.cjs');
 const roots=[];
 test.after(async()=>{for(const dir of roots)await fs.rm(dir,{recursive:true,force:true});});
 async function fixture(){
@@ -144,5 +144,44 @@ test('interface missing or invalid version is never reported as picker-ready',as
   assert.equal(result.portalFileChooserInterface,'unknown');
   assert.equal(result.portalFileChooserVersion,null);
   assert.equal(result.portalPickerVerified,false);
+ }
+});
+
+
+test('GNOME KDE and Hyprland are classified without leaking desktop strings',async()=>{
+ const cases=[
+  ['GNOME','gnome'],['ubuntu:GNOME','gnome'],
+  ['GNOME-Classic','gnome'],['KDE','kde'],['PLASMA','kde'],
+  ['KDE:Plasma','kde'],['Hyprland','hyprland'],['sway','unknown'],
+  ['GNOME:KDE','ambiguous'],['GNOME:Hyprland','ambiguous'],
+  ['KDE:Hyprland','ambiguous'],['','unknown'],['x'.repeat(300),'unknown']
+ ];
+ const f=await fixture();
+ for(const [token,family] of cases){
+  assert.equal(detectDesktop(token),family);
+  const result=await diagnose({...f.env,XDG_CURRENT_DESKTOP:token},{
+   portalProbe:()=> 'not-running',fileChooserProbe:()=> {throw Error('should not call');},
+   inspect:async()=> 'available'
+  });
+  assert.equal(result.desktopFamily,family);
+  assert.equal(result.hyprlandReported,family==='hyprland');
+  assert.equal(result.kdeReported,family==='kde');
+  assert.equal(result.gnomeReported,family==='gnome');
+  assert.equal(result.portalPickerVerified,false);
+  assert.ok(!JSON.stringify(result).includes(token)||token.length<1,
+   'raw desktop environment value must not be leaked');
+ }
+});
+test('X11 is diagnosed separately from Wayland; no spurious socket probing',async()=>{
+ const f=await fixture();
+ for(const desktop of ['GNOME','KDE','PLASMA']){
+  const environment={...f.env,XDG_CURRENT_DESKTOP:desktop,
+   XDG_SESSION_TYPE:'x11',WAYLAND_DISPLAY:'wayland-stale'};
+  const report=await diagnose(environment,{portalProbe:()=> 'unknown',
+   inspect:async()=> {throw Error('Wayland socket must not be probed on X11');}});
+  assert.equal(report.session,'x11');
+  assert.equal(report.waylandSocket,'not-applicable');
+  assert.equal(report.portalPickerVerified,false);
+  assert.equal(report.hyprlandCompatibilityVerified,false);
  }
 });
