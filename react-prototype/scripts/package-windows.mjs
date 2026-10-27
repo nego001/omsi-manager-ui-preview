@@ -1,5 +1,6 @@
 import {resolve} from 'node:path';
 import { packager } from '@electron/packager';
+import {writeBuildManifest} from './portable-build-manifest.mjs';
 
 const root=resolve('.');
 const bundled=await packager({
@@ -17,4 +18,5 @@ const bundled=await packager({
  ]
 });
 if(bundled.length!==1)throw new Error('Era esperado exatamente um pacote portátil Windows.');
+await writeBuildManifest(bundled[0],{platform:'win32'});
 console.log('Pacote portátil criado em:', bundled[0]);

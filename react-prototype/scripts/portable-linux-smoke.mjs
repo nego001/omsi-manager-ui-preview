@@ -6,10 +6,12 @@ import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
+import {verifyBuildManifest} from './portable-build-manifest.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 await access(executable,constants.X_OK);
+await verifyBuildManifest(dirname(executable),{platform:'linux'});
 // Linux must never include a stray Windows executable.
 await assert.rejects(
  access(join(dirname(executable),'OMSI-Manager-Preview.exe')),

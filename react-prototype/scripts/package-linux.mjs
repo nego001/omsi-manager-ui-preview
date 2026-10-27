@@ -4,6 +4,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 const execFileAsync=promisify(execFile);
 import {packager} from '@electron/packager';
+import {writeBuildManifest} from './portable-build-manifest.mjs';
 
 // Read-only Linux desktop preview. This is not a service, installer, Wine/
 // Proton integration or an authorisation to modify any game installation.
@@ -48,6 +49,7 @@ await execFileAsync('cc',[
  '-o',join(bundled[0],'OMSI-Manager-Auto')
 ],{timeout:30000});
 await chmod(join(bundled[0],'OMSI-Manager-Auto'),0o755);
+await writeBuildManifest(bundled[0],{platform:'linux'});
 // Optional per-user XDG shortcut helper. The helper is copied alongside
 // the ELF (not inside app.asar) and is NEVER executed during packaging.
 await copyFile(resolve('scripts/linux-desktop-integration.cjs'),

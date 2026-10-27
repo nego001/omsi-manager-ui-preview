@@ -5,11 +5,13 @@ import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join, resolve, dirname} from 'node:path';
 import { _electron as electron } from 'playwright';
+import {verifyBuildManifest} from './portable-build-manifest.mjs';
 
 // This must point to the packaged Windows EXE, not "electron ." from node_modules.
 if(process.platform!=='win32')throw new Error('O smoke do executável portátil exige Windows.');
 const exe=resolve(process.argv[2]??'release/OMSI-Manager-Preview-win32-x64/OMSI-Manager-Preview.exe');
 await access(exe,constants.R_OK);
+await verifyBuildManifest(dirname(exe),{platform:'win32'});
 // Windows must not carry a Linux-only native ELF or its source tree.
 await assert.rejects(
  access(join(dirname(exe),'OMSI-Manager-Auto')),
