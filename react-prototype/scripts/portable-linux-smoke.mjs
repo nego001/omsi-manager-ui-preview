@@ -87,6 +87,7 @@ try{
   nodeRequire:typeof window.require,
   nodeProcess:typeof window.process,
   mode:window.omsiPreview?.mode,
+  runtime:window.omsiPreview?.runtime,
   read:window.omsiPreview?.capabilities?.readGameFiles,
   install:window.omsiPreview?.capabilities?.installMods,
   remove:window.omsiPreview?.capabilities?.uninstallMods,
@@ -95,6 +96,7 @@ try{
  }));
  assert.deepEqual(security,{
   nodeRequire:'undefined',nodeProcess:'undefined',mode:'read-only',
+  runtime:{operatingSystem:'linux',platformSelection:'automatic',gameOperations:'disabled'},
   read:false,install:false,remove:false,execute:false,inspect:true
  });
  await window.getByRole('navigation',{name:'Navegação principal'})

@@ -59,6 +59,7 @@ try{
    nodeProcess:typeof window.process,
    rawIpc:typeof window.ipcRenderer,
    previewMode:window.omsiPreview?.mode,
+   runtime:window.omsiPreview?.runtime,
    read:window.omsiPreview?.capabilities?.readGameFiles,
    install:window.omsiPreview?.capabilities?.installMods,
    uninstall:window.omsiPreview?.capabilities?.uninstallMods,
@@ -67,7 +68,9 @@ try{
  }));
  assert.deepEqual(isolation,{
    nodeRequire:'undefined',nodeProcess:'undefined',rawIpc:'undefined',
-   previewMode:'read-only',read:false,install:false,uninstall:false,
+   previewMode:'read-only',
+   runtime:{operatingSystem:'windows',platformSelection:'automatic',gameOperations:'disabled'},
+   read:false,install:false,uninstall:false,
    command:false,inspect:'function'
  });
  const featured=window.getByRole('region',{name:'Destaque de simuladores'});

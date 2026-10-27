@@ -24,6 +24,8 @@ declare global {
  interface Window {
   omsiPreview?: {
    mode:'read-only';
+   runtime?:{operatingSystem:'windows'|'linux'|'unsupported';
+    platformSelection:'automatic';gameOperations:'disabled'};
    capabilities:{readGameFiles:false;inspectDirectories?:boolean;installMods:false;uninstallMods:false;executeCommands:false};
    inspectGame?: (game:InspectionGameId)=>Promise<FolderInspection>;
   };

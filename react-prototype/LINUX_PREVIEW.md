@@ -194,3 +194,10 @@ O atalho XDG opcional passa a apontar diretamente para `OMSI-Manager-Auto`. Nenh
 Atalhos criados anteriormente que apontam para `OMSI-Manager-Preview.sh` não são sobrescritos automaticamente. Se existir um atalho **idêntico ao que esta mesma pasta criou**, use primeiro `node ./OMSI-Manager-Desktop-Integration.cjs remove` e depois `node ./OMSI-Manager-Desktop-Integration.cjs install` dentro da pasta extraída. O comando de remoção aceita tanto a versão antiga quanto a atual **somente se corresponderem exatamente ao caminho desta pasta**; atalhos desconhecidos ou apontando para outra pasta continuam protegidos.
 
 A integração com o menu permanece opcional, exige Node.js apenas na configuração do atalho e não é um serviço. A execução do aplicativo pelo atalho ou pelo ELF não exige Node.js de sistema.
+
+
+## Identificação automática Windows e Linux
+
+A mesma aplicação Electron detecta o sistema operacional na inicialização. No Windows, o pacote próprio usa `OMSI-Manager-Preview.exe`; no Linux, o pacote próprio pode ser aberto por `OMSI-Manager-Auto`, que seleciona Wayland/X11. Ambos exibem em **Configurações** a identificação da plataforma por um campo limitado do preload sandboxed, sem vazar caminhos ou variáveis de ambiente. Uma prévia no navegador não afirma detectar o sistema do aplicativo.
+
+**Dois executáveis, uma aplicação:** um arquivo `.exe` de Windows não é um binário Linux; um ELF Linux não é um aplicativo Windows. A distribuição entrega artefatos separados, mas o código da interface e das operações de inspeção segura é compartilhado. Não há troca manual de modo Windows/Linux dentro do programa. A CI testa o indicador de plataforma em ambos os pacotes e mantém instalação, remoção e execução de comandos desativadas.
