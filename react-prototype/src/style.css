@@ -813,3 +813,16 @@
 .library-cooperative-review li strong,.library-cooperative-review li span,.library-cooperative-review li small{display:block}
 .library-cooperative-review li span{color:#dae1ee}
 .library-cooperative-review li small{color:#d9bd89}
+
+/* Completely synthetic, opt-in examples. Not the user's actual mod contents. */
+.synthetic-gate-lab{border:1px solid #3d4c60;background:#1d2634;border-radius:13px;padding:17px;margin:18px 0;min-width:0}
+.synthetic-gate-lab summary{font-size:14px;cursor:pointer;font-weight:700;line-height:1.6}
+.synthetic-gate-lab details>p{font-size:12px;line-height:1.6;color:#d4ddea;margin:12px 0}
+.synthetic-gate-lab label{font-size:12px;display:grid;gap:7px;max-width:460px}
+.synthetic-gate-lab select{max-width:100%;min-width:0;color:inherit;background:#283449;border:1px solid #61718b;border-radius:8px;padding:10px}
+.synthetic-gate-outcome{display:flex;gap:11px;align-items:flex-start;border:1px solid #65738a;border-radius:9px;margin:14px 0;padding:12px;overflow-wrap:anywhere}
+.synthetic-gate-outcome.rejected{border-color:#96714e}
+.synthetic-gate-outcome strong{font-size:13px}
+.synthetic-gate-outcome p{font-size:12px;line-height:1.6;margin:6px 0}
+.synthetic-gate-outcome small{font-size:11px;color:#d7deec}
+.synthetic-gate-warning{display:flex;gap:8px;align-items:flex-start}

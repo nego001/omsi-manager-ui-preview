@@ -159,3 +159,10 @@ desabilitado.
 ### Biblioteca e checklist do analisador cooperativo
 
 A análise conjunta passou a exibir, sob demanda, os **oito módulos que precisarão verificar os mods reais**: gate de segurança, estrutura, manifesto, definições, recursos, áudio, imagens e relações. Essa lista é derivada do **mesmo plano sintético já existente** em `distributed-reader-contract.ts`. O componente não executa nenhum leitor, não calcula hash, não identifica mods reais e mantém os oito estados como **Não executado**. O gate aparece antes dos demais e a instalação permanece bloqueada. Essa separação impede que as relações declaradas no JSON sejam apresentadas como evidências coletadas pelos especialistas.
+
+
+### Laboratório interativo do gate de pacotes fictícios
+
+A Biblioteca ganhou um laboratório opt-in com seis exemplos predeterminados: pacote fictício de estrutura regular, travessia de caminho, link, colisão de nomes, razão de expansão excessiva e formato malformado. O componente usa **o mesmo simulador de índice sintético já testado**, sem arquivar, extrair, enumerar arquivos do usuário nem invocar IPC. No exemplo regular, apenas o índice fictício é criado; o resultado segue **incompleto**, porque não há relatórios de especialistas. Nos demais, o gate fictício recusa o pacote antes de divulgar índice algum.
+
+O laboratório não interpreta favoritos nem relaciona seus resultados com os mods do catálogo: é uma ferramenta didática e de regressão de segurança. As interfaces e os testes confirmam `realPackageRead: false`, `compatibilityVerified: false` e `operationsEnabled: false`. O digest declarado é fictício e nunca implica hash real verificado.
