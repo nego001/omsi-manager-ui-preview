@@ -16,3 +16,17 @@ Os limites ARTIFICIAIS são: 128 entradas, caminhos de 160 caracteres, profundid
 Um candidato emitido pelo coordenador permanece não verificado. O resultado incompleto, cancelado, bloqueado ou ambíguo nunca contém autorização de instalar, remover, atualizar ou editar um mod.
 
 Nenhum arquivo original, jogo, backup ou código do OMSI Manager principal foi modificado. PR isolado em rascunho, sem merge.
+
+## Leitura de ZIP real em memória: somente fixtures da CI
+
+O laboratório em scripts/controlled_zip_reader.py aceita somente objetos
+Python bytes, não caminhos, e utiliza zipfile para ler cabeçalhos ZIP e
+validar CRC do conteúdo descompactado de fixtures geradas em memória.
+Exige limites de entradas, tamanho e expansão, rejeita links, traversal,
+caminhos duplicados, nomes reservados e formatos não suportados.
+
+É uma etapa de testes e NÃO um parser liberado para arquivos de usuários.
+Não lê ZIP/SCS de disco, não abre mods de verdade, não executa programas,
+não extrai entradas e não tem garantia de sandbox de produção.
+Um ZIP tecnicamente bem formado não prova autenticidade, ausência de malware,
+compatibilidade, licença nem capacidade de instalação. Instalar permanece bloqueado.

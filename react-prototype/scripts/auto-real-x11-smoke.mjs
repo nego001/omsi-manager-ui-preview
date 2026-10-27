@@ -22,34 +22,45 @@ const root=await mkdtemp(join(tmpdir(),'omsi-x11-native-auto-'));
 await mkdir(join(root,'config'),{mode:0o700});
 await mkdir(join(root,'cache'),{mode:0o700});
 await mkdir(join(root,'data'),{mode:0o700});
+await mkdir(join(root,'runtime'),{mode:0o700});
 try{
  for(const desktop of ['GNOME','KDE']){
   let child;
   let failed=false;
+  let exitCode=null;
+  let exitSignal=null;
+  const observed={nativeProcess:false,windowFound:false,mapped:false};
+  let checkpoint='startup';
   try{
    child=spawn(binary,[],{
     cwd:dirname(binary),detached:true,stdio:'ignore',shell:false,
     env:{...process.env,
      XDG_CURRENT_DESKTOP:desktop,XDG_SESSION_TYPE:'x11',
      WAYLAND_DISPLAY:'',OMSI_MANAGER_DEV_PREVIEW:'0',
-     HOME:root,XDG_CONFIG_HOME:join(root,'config'),
+     HOME:root,XDG_RUNTIME_DIR:join(root,'runtime'),
+     LIBGL_ALWAYS_SOFTWARE:'1',XDG_CONFIG_HOME:join(root,'config'),
      XDG_CACHE_HOME:join(root,'cache'),XDG_DATA_HOME:join(root,'data')
     }
    });
    child.once('error',()=>{failed=true;});
-   child.once('exit',()=>{failed=true;});
+   child.once('exit',(code,signal)=>{failed=true;exitCode=code;exitSignal=signal;});
    let found=false;
    for(let i=0;i<70;i++){
     if(failed||child.exitCode!==null)break;
     try{
      const command=await readFile('/proc/'+child.pid+'/cmdline');
      verifyNativeCommandLine(command,'x11');
+     observed.nativeProcess=true;
+     checkpoint='window-search';
      const {stdout}=await execAsync('xwininfo',['-root','-tree'],
       {encoding:'utf8',timeout:2000,maxBuffer:65536});
      const id=findPreviewWindow(stdout);
+     observed.windowFound=true;
+     checkpoint='map-state';
      const detail=await execAsync('xwininfo',['-id',id],
       {encoding:'utf8',timeout:2000,maxBuffer:16384});
      verifyMappedWindow(detail.stdout);
+     observed.mapped=true;
      found=true;
      break;
     }catch{
@@ -57,6 +68,12 @@ try{
     }
     await sleep(200);
    }
+   if(!found)console.error('AUTO_X11_SANITIZED_CHECKPOINT',JSON.stringify({
+    desktop,observed,checkpoint,
+    exited:failed,exitCode:Number.isInteger(exitCode)?exitCode:null,
+    exitSignal:typeof exitSignal==='string'&&/^[A-Z0-9]{1,12}$/.test(exitSignal)?
+     exitSignal:null
+   }));
    assert.equal(found,true,'AUTO_X11_NATIVE_GUI_NOT_VERIFIED');
    assert.equal(failed,false,'AUTO_X11_NATIVE_PROCESS_EXITED');
    console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
