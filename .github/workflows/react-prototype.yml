@@ -121,8 +121,8 @@ jobs:
           set -euo pipefail
           cd arch-portable
           sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256
-          if tar -tzf OMSI-Manager-Preview-Linux-x64.tar.gz |
-            grep -Eq '(^/|(^|/)\.\.(/|$))'; then
+          entries="$(tar -tzf OMSI-Manager-Preview-Linux-x64.tar.gz)"
+          if grep -Eq '(^/|(^|/)\.\.(/|$))' <<< "$entries"; then
             echo 'Unsafe archive entry' >&2
             exit 1
           fi

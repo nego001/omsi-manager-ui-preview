@@ -2,7 +2,7 @@
 # Headless ABI audit of the unsigned portable preview inside a disposable
 # Arch Linux container. Electron is NEVER launched with administrator rights.
 set -euo pipefail
-if [[ "$OMSI_ARCH_AUDIT_SCOPE" != "CI_UNSIGNED_PACKAGE_ONLY" ]]; then
+if [[ "${OMSI_ARCH_AUDIT_SCOPE:-}" != "CI_UNSIGNED_PACKAGE_ONLY" ]]; then
   printf '%s\n' 'ARCH_AUDIT_REFUSED: explicit CI scope missing' >&2
   exit 3
 fi
