@@ -110,3 +110,25 @@ sandbox. Essa separação impede que um defeito conhecido no lançador
 cancele a criação do artefato Linux e as auditorias independentes do
 leitor, Arch Linux e par Windows/Linux. Uma CI com falha no X11 **não**
 pode ser divulgada como totalmente aprovada.
+
+### Comparação de 2 a 4 ZIPs fictícios, sem arquivos reais
+
+O módulo Python `controlled_fixture_group.py` recebe apenas uma tupla
+de dois a quatro objetos `bytes` de ZIPs criados para testes. Antes de
+comparar referências, reaplica o gate e as verificações CRC/limites do
+leitor de cada pacote. Limites combinados: 6 MB de entrada compactada,
+8 MB de conteúdo expandido e 512 diretivas declarativas. Nenhuma entrada
+é extraída para disco. Os resultados incluem somente contagens por posição
+do pacote, nunca caminhos, nomes, texto ou arquivos originais.
+
+A comparação separa referências presentes no próprio ZIP, referências
+cujo nome aparece em outro ZIP fornecido, referências ausentes de todos
+os ZIPs de teste, caminhos perigosos e sugestões não suportadas.
+
+**Candidato em outro ZIP não é dependência confirmada.** A comparação
+depende exclusivamente do nome relativo no pequeno dialeto sintético
+em memória e não valida load order, formatos binários, integridade
+semântica, veículos reais, instalações OMSI/ETS2/ATS, licenças ou mods
+de terceiros. Todos os campos de verificação real e instalação continuam
+falsos. O leitor ainda não recebe arquivos do usuário nem participa do
+Electron/preload/IPC.
