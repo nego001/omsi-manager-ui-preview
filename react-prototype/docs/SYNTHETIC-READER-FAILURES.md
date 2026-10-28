@@ -442,7 +442,11 @@ o teste X11 continua reprovado até a janela real do Auto ser comprovada.
 
 O teste nativo `auto-real-x11-smoke.mjs` lança o executável empacotado em
 Xvfb sob as duas etiquetas de sessão, **GNOME e KDE**, preservando o sandbox
-Chromium/Electron. O resultado de cada etiqueta é verificado separadamente.
+Chromium/Electron. Cada etiqueta usa seu próprio `HOME` descartável com
+pastas XDG separadas. O Electron executado diretamente no controle diferencial
+usa um terceiro perfil isolado, evitando falso diagnóstico por bloqueio de
+instância entre processos. Esses diretórios são criados só na CI e apagados
+ao final; não constituem sandbox do sistema operacional. O resultado de cada etiqueta é verificado separadamente.
 Se o lançador falhar, uma sondagem auxiliar executa o mesmo Electron empacotado
 diretamente com `--ozone-platform=x11`, também sem desativar o sandbox.
 Os diagnósticos mostram apenas classes fixas de stderr, estado da janela e
