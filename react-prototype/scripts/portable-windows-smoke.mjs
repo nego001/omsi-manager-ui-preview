@@ -225,7 +225,22 @@ try{
  };
  const navigate=async(name,heading)=>{
    await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name}).click();
-   await window.getByRole('heading',{name:heading,exact:true}).waitFor({timeout:12000});
+   const expected=window.getByRole('heading',{name:heading,exact:true});
+   try{
+    await expected.waitFor({timeout:12000});
+   }catch(error){
+    // Bound diagnostics to fixed booleans/counts. No HTML or file paths.
+    const nav=window.getByRole('navigation',{name:'Navegação principal'});
+    const activeCount=await nav.locator('[aria-current="page"]').count().catch(()=>-1);
+    const targetActive=await nav.getByRole('button',{name})
+     .getAttribute('aria-current').catch(()=>null);
+    const zoom=await application.evaluate(({BrowserWindow})=>
+     BrowserWindow.getAllWindows()[0]?.webContents.getZoomFactor()).catch(()=>null);
+    console.error('WINDOWS_NAVIGATION_CHECK',JSON.stringify({
+     activeCount,targetActive:targetActive==='page',zoom
+    }));
+    throw error;
+   }
    const active=window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name});
    assert.match(await active.getAttribute('class')??'',/active/);
    assert.equal(await active.getAttribute('aria-current'),'page');
@@ -349,6 +364,11 @@ try{
  await application.evaluate(({BrowserWindow})=>{
    BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1);
  });
+ // Reflow after zoom is asynchronous. Settle before another actual pointer
+ // click; preserve all navigation and disabled-install assertions.
+ await window.waitForTimeout(300);
+ assert.equal(await application.evaluate(({BrowserWindow})=>
+  BrowserWindow.getAllWindows()[0].webContents.getZoomFactor()),1);
  // Focused catalog-only diagnostic jump on the REAL packaged Windows app.
  // The fixture is generated inside our temporary test directory, never the user's games.
  const alertFixture=join(root,'catalog-abstract-alert.json');
