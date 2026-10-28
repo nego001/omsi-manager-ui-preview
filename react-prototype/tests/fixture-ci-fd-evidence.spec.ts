@@ -107,25 +107,19 @@ test('recusa números adulterados, slots ausentes e campos capazes de vazar path
  }
 });
 
-// E2E on Linux GitHub CI only: Python creates ZIPs on a disposable filesystem,
-// opens them as read-only file descriptors, a separate worker reads ZIP bytes,
-// and this test independently validates and projects the anonymous counts.
-// The desktop application still cannot access user ZIPs or this worker.
+// End-to-end CI chain: a standalone Python process opens disposable files,
+// emits anonymous JSON to a fixed CI-only location, and this separate TS test
+// independently checks every category and the projected per-package report.
+// No child process, user paths, game files or Electron IPC in this test.
 test('evidência física descartável atravessa Python FD → relatório individual',async()=>{
  test.skip(process.platform!=='linux'||process.env.GITHUB_ACTIONS!=='true',
   'Somente na CI Linux com ZIPs inventados');
- const {execFile}=await import('node:child_process');
- const {promisify}=await import('node:util');
+ const {readFileSync}=await import('node:fs');
  const {fileURLToPath}=await import('node:url');
- const {resolve}=await import('node:path');
- const run=promisify(execFile);
- const pythonScript=fileURLToPath(new URL(
-  '../scripts/emit_controlled_ci_fd_evidence.py',import.meta.url));
- const {stdout,stderr}=await run('python3',['-I','-S','-B',pythonScript],{
-  cwd:'/',env:{CI:'true',GITHUB_ACTIONS:'true',PYTHONIOENCODING:'utf-8'},
-  timeout:20000,maxBuffer:32768
- });
- expect(stderr).toBe('');
+ const evidencePath=fileURLToPath(new URL(
+  '../test-results/ci-disposable-fd-evidence.json',import.meta.url));
+ const stdout=readFileSync(evidencePath,'utf8');
+ expect(stdout.length).toBeLessThan(30000);
  expect(stdout).not.toContain('Vehicles/');
  expect(stdout).not.toContain('missing.dds');
  expect(stdout).not.toContain('ci-fd-evidence-');
