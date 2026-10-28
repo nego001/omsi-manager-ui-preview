@@ -89,6 +89,35 @@ class _SockFprog(ctypes.Structure):
     ]
 
 
+
+def prime_ci_fixture_parser_runtime() -> None:
+    """Exercise a fixed, invented DEFLATE ZIP entirely in memory BEFORE seccomp.
+
+    Python may lazily load codecs and ZIP helpers. Under the kernel openat deny
+    filter, such imports cannot occur. This makes those imports happen from
+    reviewed Python modules before processing any external fixture descriptor.
+    A new or unhandled lazy import still fails closed after seccomp.
+    """
+    try:
+        import io
+        import zipfile
+        from controlled_zip_reader import examine_controlled_zip_bytes
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("A/invented.bus",
+                             b"[model]\\nmodel.cfg\\n[mesh]\\npart.o3d\\n")
+            archive.writestr("A/model.cfg", b"[mesh]\\npart.o3d\\n")
+            archive.writestr("A/part.o3d", b"ci-fixture-only")
+        inspected = examine_controlled_zip_bytes(buffer.getvalue())
+        if (inspected["fileCount"] != 3 or
+                inspected["zipHeadersAndCrcRead"] is not True or
+                inspected["realGameFilesTouched"] is not False):
+            raise CiSyscallGuardRefused("CI_SYSCALL_GUARD_REFUSED")
+    except Exception:
+        # No error string, file path or generated ZIP bytes may be exposed.
+        raise CiSyscallGuardRefused("CI_SYSCALL_GUARD_REFUSED") from None
+
+
 def enforce_disposable_worker_syscall_guard() -> None:
     """Install a fail-closed seccomp deny filter in this CI subprocess.
 
