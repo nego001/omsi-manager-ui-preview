@@ -23,6 +23,12 @@ await access(binary,constants.X_OK);
 async function probeDirectPackagedElectron(desktop,root){
  const binaryDirect=resolve('release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
  await access(binaryDirect,constants.X_OK);
+ // Use a separate disposable HOME so an unfinished Auto instance cannot
+ // lock the direct-control Electron profile and produce a false diagnosis.
+ const directRoot=join(root,'direct');
+ await mkdir(directRoot,{mode:0o700});
+ for(const part of ['config','cache','data','runtime'])
+  await mkdir(join(directRoot,part),{mode:0o700});
  const seen={nativeProcess:false,windowFound:false,mapped:false};
  const hints=new Set();
  let exited=false,exitCode=null,exitSignal=null,child;
@@ -33,9 +39,9 @@ async function probeDirectPackagedElectron(desktop,root){
    env:{...process.env,
     XDG_CURRENT_DESKTOP:desktop,XDG_SESSION_TYPE:'x11',
     WAYLAND_DISPLAY:'',OMSI_MANAGER_DEV_PREVIEW:'0',
-    HOME:root,XDG_RUNTIME_DIR:join(root,'runtime'),
-    LIBGL_ALWAYS_SOFTWARE:'1',XDG_CONFIG_HOME:join(root,'config'),
-    XDG_CACHE_HOME:join(root,'cache'),XDG_DATA_HOME:join(root,'data')
+    HOME:directRoot,XDG_RUNTIME_DIR:join(directRoot,'runtime'),
+    LIBGL_ALWAYS_SOFTWARE:'1',XDG_CONFIG_HOME:join(directRoot,'config'),
+    XDG_CACHE_HOME:join(directRoot,'cache'),XDG_DATA_HOME:join(directRoot,'data')
    }
   });
   child.stderr.on('data',data=>{
@@ -82,13 +88,15 @@ async function probeDirectPackagedElectron(desktop,root){
 }
 
 const root=await mkdtemp(join(tmpdir(),'omsi-x11-native-auto-'));
-await mkdir(join(root,'config'),{mode:0o700});
-await mkdir(join(root,'cache'),{mode:0o700});
-await mkdir(join(root,'data'),{mode:0o700});
-await mkdir(join(root,'runtime'),{mode:0o700});
 const outcomes=[];
 try{
  for(const desktop of ['GNOME','KDE']){
+  // GNOME and KDE use independent disposable roots under this CI-only
+  // directory. This is a profile-state separation, not an OS sandbox.
+  const desktopRoot=join(root,desktop.toLowerCase());
+  await mkdir(desktopRoot,{mode:0o700});
+  for(const part of ['config','cache','data','runtime'])
+   await mkdir(join(desktopRoot,part),{mode:0o700});
   let child;
   let failed=false;
   let exitCode=null;
@@ -103,9 +111,9 @@ try{
     env:{...process.env,
      XDG_CURRENT_DESKTOP:desktop,XDG_SESSION_TYPE:'x11',
      WAYLAND_DISPLAY:'',OMSI_MANAGER_DEV_PREVIEW:'0',
-     HOME:root,XDG_RUNTIME_DIR:join(root,'runtime'),
-     LIBGL_ALWAYS_SOFTWARE:'1',XDG_CONFIG_HOME:join(root,'config'),
-     XDG_CACHE_HOME:join(root,'cache'),XDG_DATA_HOME:join(root,'data')
+     HOME:desktopRoot,XDG_RUNTIME_DIR:join(desktopRoot,'runtime'),
+     LIBGL_ALWAYS_SOFTWARE:'1',XDG_CONFIG_HOME:join(desktopRoot,'config'),
+     XDG_CACHE_HOME:join(desktopRoot,'cache'),XDG_DATA_HOME:join(desktopRoot,'data')
     }
    });
    child.stderr.on('data',data=>{
@@ -156,7 +164,7 @@ try{
     // Distinguish an Auto-only launcher failure from a packaged Electron
     // or hosted-kernel failure. Never supply --no-sandbox or other bypasses.
     try{
-     const direct=await probeDirectPackagedElectron(desktop,root);
+     const direct=await probeDirectPackagedElectron(desktop,desktopRoot);
      console.error('AUTO_X11_DIRECT_SANDBOX_CONTROL',
       JSON.stringify({desktop,...direct}));
     }catch{
