@@ -6,7 +6,7 @@ const path=require('node:path');
 const os=require('node:os');
 const net=require('node:net');
 const {spawnSync}=require('node:child_process');
-const {diagnose,detectDesktop,inspectSocket,chooseSocket,parseFileChooserVersion,probeFileChooserVersion}=require('./linux-session-diagnostics.cjs');
+const {diagnose,detectDesktop,inspectSocket,chooseSocket,parseFileChooserVersion,probeFileChooserVersion,probeElectronUserNamespacePrerequisites}=require('./linux-session-diagnostics.cjs');
 const roots=[];
 test.after(async()=>{for(const dir of roots)await fs.rm(dir,{recursive:true,force:true});});
 async function fixture(){
@@ -185,4 +185,65 @@ test('X11 is diagnosed separately from Wayland; no spurious socket probing',asyn
   assert.equal(report.portalPickerVerified,false);
   assert.equal(report.hyprlandCompatibilityVerified,false);
  }
+});
+
+test('Electron namespace diagnostics infer risk only from three fixed read-only proc files',async()=>{
+ const paths=[
+  '/proc/sys/kernel/apparmor_restrict_unprivileged_userns',
+  '/proc/sys/kernel/unprivileged_userns_clone',
+  '/proc/sys/user/max_user_namespaces'
+ ];
+ async function evaluate(inputs){
+  const calls=[];
+  const report=await probeElectronUserNamespacePrerequisites(async (file,encoding)=>{
+   assert.equal(encoding,'utf8');
+   assert.ok(paths.includes(file));
+   calls.push(file);
+   if(inputs[file] instanceof Error)throw inputs[file];
+   return inputs[file];
+  });
+  assert.deepEqual(calls,paths);
+  assert.equal(report.userNamespaceCreationVerified,false);
+  assert.equal(report.electronSandboxVerified,false);
+  assert.equal(report.hostSecurityPolicyChanged,false);
+  assert.ok(!JSON.stringify(report).includes('/proc/'));
+  return report;
+ }
+ const normal=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,['0\n','1\n','8192\n'][i]])));
+ assert.equal(normal.userNamespacePolicyHint,'no-obvious-restriction');
+ assert.equal(normal.apparmorUsernsRestriction,'disabled');
+ assert.equal(normal.usernsCapacity,'positive');
+ const denied=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,['1','1','8192'][i]])));
+ assert.equal(denied.userNamespacePolicyHint,'restriction-indicated');
+ const off=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,['0','0','8192'][i]])));
+ assert.equal(off.userNamespacePolicyHint,'restriction-indicated');
+ const zero=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,['0','1','0'][i]])));
+ assert.equal(zero.userNamespacePolicyHint,'restriction-indicated');
+ const unknown=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,[new Error('private path'), '1', '8192'][i]])));
+ assert.equal(unknown.userNamespacePolicyHint,'undetermined');
+ assert.equal(unknown.apparmorUsernsRestriction,'unavailable');
+ const privateOutput=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,['/home/private/name','1', '8192'][i]])));
+ assert.equal(privateOutput.apparmorUsernsRestriction,'unknown');
+ assert.equal(privateOutput.userNamespacePolicyHint,'undetermined');
+ assert.ok(!JSON.stringify(privateOutput).includes('/home/private'));
+ const malformed=await evaluate(Object.fromEntries(paths.map((p,i)=>[p,['0','1','8e3'][i]])));
+ assert.equal(malformed.usernsCapacity,'unknown');
+ assert.equal(malformed.userNamespacePolicyHint,'undetermined');
+});
+test('Linux session report includes only policy hints, never sandbox certification',async()=>{
+ const data=await diagnose({XDG_SESSION_TYPE:'x11',XDG_CURRENT_DESKTOP:'GNOME'},{
+  platform:'linux',portalProbe:()=> 'not-running',
+  sandboxProbe:async()=>({
+   apparmorUsernsRestriction:'enabled',
+   unprivilegedUsernsSwitch:'enabled',usernsCapacity:'positive',
+   userNamespacePolicyHint:'restriction-indicated',
+   userNamespaceCreationVerified:false,electronSandboxVerified:false,
+   hostSecurityPolicyChanged:false
+  })
+ });
+ assert.equal(data.electronUserNamespacePrerequisites.userNamespacePolicyHint,
+  'restriction-indicated');
+ assert.equal(data.electronUserNamespacePrerequisites.electronSandboxVerified,false);
+ assert.equal(data.portalPickerVerified,false);
+ assert.equal(data.hyprlandCompatibilityVerified,false);
 });
