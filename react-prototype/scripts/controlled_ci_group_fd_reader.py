@@ -21,7 +21,8 @@ from controlled_fixture_group import (
     MAX_PACKAGES, MAX_COMBINED_INPUT_BYTES, examine_fixture_group,
 )
 from controlled_ci_linux_hardening import enforce_no_new_privileges
-from controlled_ci_syscall_guard import enforce_disposable_worker_syscall_guard
+from controlled_ci_syscall_guard import (enforce_disposable_worker_syscall_guard,
+                                          prime_ci_fixture_parser_runtime)
 from controlled_zip_reader import ControlledZipRefused
 
 
@@ -91,6 +92,9 @@ def _main():
     enforce_no_new_privileges()
     # Additional kernel guard denies new opens/socket/exec in this child only.
     # It does NOT establish a comprehensive operating-system sandbox.
+    # Resolve lazy, reviewed Python ZIP helpers on invented in-memory data
+    # before denying new file opens. Actual fixture FDs remain unread here.
+    prime_ci_fixture_parser_runtime()
     enforce_disposable_worker_syscall_guard()
     print(json.dumps(inspect_open_fixture_group_fds(fds),
                      sort_keys=True, separators=(",", ":")))
