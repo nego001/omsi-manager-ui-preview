@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from controlled_ci_linux_hardening import enforce_no_new_privileges
 from controlled_ci_syscall_guard import (enforce_disposable_worker_syscall_guard,
                                           prime_ci_fixture_parser_runtime)
+from controlled_ci_fd_inventory import verify_exact_inherited_ci_fixture_fds
 from controlled_zip_reader import MAX_ARCHIVE_BYTES, examine_controlled_zip_bytes
 
 CHUNK = 16_384
@@ -108,6 +109,9 @@ def _main():
     # Resolve lazy, reviewed Python ZIP helpers on invented in-memory data
     # before denying new file opens. Actual fixture FDs remain unread here.
     prime_ci_fixture_parser_runtime()
+    # No other inherited handles, including otherwise unread extra files.
+    # This is an inventory check, not file-origin authentication.
+    verify_exact_inherited_ci_fixture_fds((fd,))
     enforce_disposable_worker_syscall_guard()
     print(json.dumps(inspect_open_read_only_fixture_fd(fd),
                      sort_keys=True, separators=(",", ":")))
