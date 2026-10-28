@@ -308,3 +308,28 @@ processos, kernel, memória, descritores herdados ou rede preexistente.
 `osSandboxVerified=false` continua obrigatório. Não é homologação de
 mods não confiáveis de usuários, nem habilitação de leitura no Electron.
 Portabilidade além de Linux x86_64 é recusada, não simulada.
+
+### Inventário estrito de descritores herdados no laboratório
+
+O módulo `controlled_ci_fd_inventory.py` exige que os únicos descritores
+abertos com número a partir de 3 no worker sejam exatamente os ZIPs fictícios
+fornecidos pela CI por `pass_fds`. Antes da ativação do filtro seccomp, o
+worker inspeciona `/proc/self/fd`, consulta metadados com `fstat` e
+`F_GETFL`, e recusa descritores extras, arquivos não regulares,
+hardlinks e acessos de escrita. A leitura de `/proc/self/fd` cria um
+descritor efêmero, ignorado apenas se `fstat` comprovar `EBADF` após
+o fechamento.
+
+Os testes `test_controlled_ci_fd_inventory.py` verificam que um ZIP
+fictício legítimo passa, mas outro descritor **não declarado** faz o leitor
+individual e o comparador de pacotes recusarem integralmente a execução.
+Nenhum caminho observado, nome ou conteúdo de ZIP aparece nos relatórios.
+
+**Escopo e limites:** esse inventário confere o conjunto de FDs durante
+a inicialização do processo, não autentica a origem dos dados nem impede
+todas as possíveis condições de corrida. Descritores 0, 1 e 2 são usados
+para entrada/saída do worker e não passam pelo mesmo inventário. O kernel
+seccomp continua operando com lista de negações, e
+`osSandboxVerified=false` permanece obrigatório. Nenhum mod real ou
+aplicativo principal passa a ser acessível. Essa implementação requer
+validação do GitHub Actions antes de qualquer declaração de aprovação.
