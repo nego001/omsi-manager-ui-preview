@@ -41,9 +41,10 @@ jobs:
       - name: Emit CI-only disposable ZIP FD evidence for per-package UI contract
         run: |
           set -euo pipefail
-          mkdir -p test-results
-          python3 -I -S -B scripts/emit_controlled_ci_fd_evidence.py > test-results/ci-disposable-fd-evidence.json
-          test -s test-results/ci-disposable-fd-evidence.json
+          # scripts/ is excluded from distributed Electron packages and
+          # is not Playwright's auto-cleaned test-results/ directory.
+          python3 -I -S -B scripts/emit_controlled_ci_fd_evidence.py > scripts/ci-disposable-fd-evidence.json
+          test -s scripts/ci-disposable-fd-evidence.json
       - name: Native auto-launcher manual desktop contracts (no GUI)
         run: node --test scripts/manual-auto-launch-contract.test.mjs
       - name: Isolated temporary recovery / process restart fixture
