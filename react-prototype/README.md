@@ -43,6 +43,35 @@ Comandos auxiliares:
 - `npm run test:security`: contratos estáticos das opções seguras e URLs permitidas.
 - `npm run test:desktop`: abre a janela Electron e verifica o preload seguro, sem tocar em jogos. No Linux headless, usar `xvfb-run -a npm run test:desktop`.
 
+## Diagnóstico Linux do sandbox (somente leitura)
+
+A prévia Linux inclui o utilitário `OMSI-Manager-Linux-Diagnostics.cjs`,
+executável manualmente com Node.js, **sem privilégios de administrador**:
+
+```bash
+node OMSI-Manager-Linux-Diagnostics.cjs
+```
+
+Além das informações de sessão Wayland/X11 e portal, o relatório agora
+inclui `electronUserNamespacePrerequisites`: três categorias obtidas
+passivamente de entradas fixas em `/proc/sys`:
+`apparmorUsernsRestriction`, `unprivilegedUsernsSwitch` e
+`usernsCapacity`. O campo `userNamespacePolicyHint` pode indicar
+`restriction-indicated`, `no-obvious-restriction` ou `undetermined`.
+
+**Atenção:** são indícios de política, nunca um diagnóstico definitivo da
+causa de uma falha. O utilitário **não executa unshare**, não testa o
+sandbox do Electron e não modifica AppArmor, kernel, segurança do sistema
+ou arquivos do jogo. As flags `userNamespaceCreationVerified` e
+`electronSandboxVerified` permanecem falsas.
+
+Em duas execuções da CI de 28/10/2026, o mesmo aplicativo empacotado
+conseguiu mapear janelas no Xvfb do Ubuntu 22.04, sob etiquetas GNOME/KDE,
+mas falhou com `SIGTRAP` no Ubuntu 24.04. O último host reportou
+restrições de AppArmor/user namespaces, sem prova de causalidade exclusiva.
+Esses testes não equivalem a homologação em máquinas físicas com
+GNOME Shell ou KDE Plasma e não justificam desativar o sandbox.
+
 ## Limites de segurança
 
 - `contextIsolation: true`, `sandbox: true`, `nodeIntegration: false`, `webSecurity: true`.
