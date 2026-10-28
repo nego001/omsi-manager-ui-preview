@@ -826,3 +826,17 @@
 .synthetic-gate-outcome p{font-size:12px;line-height:1.6;margin:6px 0}
 .synthetic-gate-outcome small{font-size:11px;color:#d7deec}
 .synthetic-gate-warning{display:flex;gap:8px;align-items:flex-start}
+
+/* Pure display of fixed Python-CI-checked fixtures; no file upload or parsing. */
+.cross-fixture-lab{border:1px solid #3d4c60;background:#1d2634;border-radius:13px;padding:17px;margin:14px 0 20px;min-width:0}
+.cross-fixture-lab summary{font-size:14px;cursor:pointer;font-weight:700;line-height:1.6}
+.cross-fixture-lab details>p{font-size:12px;line-height:1.6;color:#d4ddea;margin:12px 0}
+.cross-fixture-lab label{font-size:12px;display:grid;gap:7px;max-width:460px}
+.cross-fixture-lab select{max-width:100%;min-width:0;color:inherit;background:#283449;border:1px solid #61718b;border-radius:8px;padding:10px}
+.cross-fixture-results{margin:16px 0;border:1px solid #52647b;border-radius:10px;padding:14px}
+.cross-fixture-title{display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px}
+.cross-fixture-results dl{display:grid;gap:0;margin:0}
+.cross-fixture-results dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-top:1px solid #3d4c60;padding:8px 0}
+.cross-fixture-results dt{font-size:12px;color:#dce5f3}
+.cross-fixture-results dd{font-size:13px;font-variant-numeric:tabular-nums;font-weight:700;margin:0}
+@media(max-width:540px){.cross-fixture-lab{padding:12px}.cross-fixture-results{padding:10px}}

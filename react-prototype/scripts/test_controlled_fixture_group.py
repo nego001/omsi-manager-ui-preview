@@ -116,5 +116,65 @@ class FixtureGroupTests(unittest.TestCase):
                                  kind["notFoundInProvidedFixtures"] +
                                  kind["unsafePath"] + kind["unsupportedHint"])
 
+
+    def test_react_fixture_example_numbers_match_python_zip_reader(self):
+        """UI numbers must match real in-memory ZIP fixture results, no drift."""
+        from pathlib import Path
+        fixture_path = Path(__file__).resolve().parents[1] / (
+            "src/fixture-cross-package-examples.json")
+        examples = json.loads(fixture_path.read_text(encoding="utf-8"))
+        cases = {
+            "matched": (
+                bundle([
+                    ("Vehicles/demo.bus",
+                     b"[model]\nmodel.cfg\n[sound]\nsound.cfg\n"),
+                    ("Vehicles/sound.cfg", b"fixture-only"),
+                ]),
+                bundle([("Vehicles/model.cfg", b"fixture-only")]),
+            ),
+            "absent": (
+                bundle([
+                    ("Vehicles/demo.bus",
+                     b"[model]\nmodel.cfg\n[sound]\nsound.cfg\n"),
+                ]),
+                bundle([("Vehicles/unrelated.cfg", b"fixture-only")]),
+            ),
+            "unsafe": (
+                bundle([
+                    ("Vehicles/demo.bus",
+                     b"[model]\n../../secret.cfg\n"
+                     b"[mesh]\nhttp://example.invalid/fake.o3d\n"
+                     b"[model]\nnot-a-cfg.txt\n"),
+                ]),
+                bundle([("Vehicles/secret.cfg", b"fixture-only")]),
+            ),
+        }
+        self.assertEqual([e["id"] for e in examples],
+                         ["matched", "absent", "unsafe"])
+        self.assertEqual(set(cases), {e["id"] for e in examples})
+        for entry in examples:
+            report = examine_fixture_group(cases[entry["id"]])
+            categories = {
+                "declared": 0, "withinOwn": 0, "otherCandidate": 0,
+                "unresolved": 0, "unsafe": 0, "unsupported": 0
+            }
+            for slot in report["slots"]:
+                for counts in slot["hints"].values():
+                    for item, source_key in (
+                        ("declared", "declared"),
+                        ("withinOwn", "insideOwnFixture"),
+                        ("otherCandidate", "candidateInOtherFixture"),
+                        ("unresolved", "notFoundInProvidedFixtures"),
+                        ("unsafe", "unsafePath"),
+                        ("unsupported", "unsupportedHint"),
+                    ):
+                        categories[item] += counts[source_key]
+            self.assertEqual(report["fixtureCount"], entry["fixtureCount"])
+            for item, actual in categories.items():
+                self.assertEqual(actual, entry[item],
+                                 f"UI fixture {entry['id']} mismatch: {item}")
+            self.assertFalse(report["realPackagesRead"])
+            self.assertFalse(report["installationEnabled"])
+
 if __name__ == "__main__":
     unittest.main()

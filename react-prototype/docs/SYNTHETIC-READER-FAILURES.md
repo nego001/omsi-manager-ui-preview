@@ -132,3 +132,17 @@ semântica, veículos reais, instalações OMSI/ETS2/ATS, licenças ou mods
 de terceiros. Todos os campos de verificação real e instalação continuam
 falsos. O leitor ainda não recebe arquivos do usuário nem participa do
 Electron/preload/IPC.
+
+### Biblioteca: exemplos de comparação de ZIPs fictícios
+
+A Biblioteca mostra agora três **relatórios estáticos exemplificativos**
+(referência candidata, referências ausentes e caminhos inseguros).
+O JSON `src/fixture-cross-package-examples.json` contém somente números,
+identificadores fixos e descrições genéricas. A suíte Python gera os mesmos
+cenários ZIP em memória, executa o leitor de grupos e verifica a exatidão
+de cada número exibido pela interface. O teste Playwright confere as
+mudanças de cenário e a permanência do botão Instalar bloqueado.
+
+**Não é um upload ou analisador ZIP no navegador.** O novo componente
+não recebe caminhos, pacotes, fotos, arquivos do jogo, favoritos nem dados
+pessoais. Ele não invoca IPC. Nenhum candidato é dependência comprovada.

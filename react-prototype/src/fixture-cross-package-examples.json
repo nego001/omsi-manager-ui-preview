@@ -1,0 +1,35 @@
+[
+  {
+    "id": "matched",
+    "label": "Referência localizada em outro ZIP",
+    "fixtureCount": 2,
+    "declared": 2,
+    "withinOwn": 1,
+    "otherCandidate": 1,
+    "unresolved": 0,
+    "unsafe": 0,
+    "unsupported": 0
+  },
+  {
+    "id": "absent",
+    "label": "Referências não encontradas",
+    "fixtureCount": 2,
+    "declared": 2,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "unresolved": 2,
+    "unsafe": 0,
+    "unsupported": 0
+  },
+  {
+    "id": "unsafe",
+    "label": "Caminhos perigosos e sufixo incorreto",
+    "fixtureCount": 2,
+    "declared": 3,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "unresolved": 0,
+    "unsafe": 2,
+    "unsupported": 1
+  }
+]
