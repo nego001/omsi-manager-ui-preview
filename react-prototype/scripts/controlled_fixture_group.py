@@ -24,7 +24,8 @@ MAX_COMBINED_EXPANDED_BYTES = 8_000_000
 MAX_COMBINED_DECLARATIONS = 512
 FIELDS = (
     "declared", "insideOwnFixture", "candidateInOtherFixture",
-    "notFoundInProvidedFixtures", "unsafePath", "unsupportedHint",
+    "ambiguousAcrossFixtures", "notFoundInProvidedFixtures",
+    "unsafePath", "unsupportedHint",
 )
 
 def _refuse():
@@ -37,7 +38,9 @@ def examine_fixture_group(payloads: tuple[bytes, ...]) -> dict:
     """Bounded count-only comparison of two to four *synthetic* ZIP objects.
 
     A candidate means only that a string reference points to an entry name in
-    another provided fixture. It proves nothing about contents, compatibility,
+    exactly one other fixture. If multiple other ZIPs carry the same path,
+    the reference is ambiguous and never counted as a unique candidate.
+    This proves nothing about contents, compatibility,
     load order, external installed mods or the game's actual path rules.
     """
     if (type(payloads) is not tuple or not 2 <= len(payloads) <= MAX_PACKAGES
@@ -76,11 +79,12 @@ def examine_fixture_group(payloads: tuple[bytes, ...]) -> dict:
             EOFError, OSError, NotImplementedError, MemoryError, OverflowError):
         _refuse()
 
-    union = frozenset().union(*indexes)
     output = []
     combined_declarations = 0
 
     for index, (own, fixtures, checked) in enumerate(zip(indexes, sources, singles)):
+        other_indexes = tuple(paths for slot, paths in enumerate(indexes)
+                              if slot != index)
         counts = _blank()
         inspected = not_inspected = 0
         verified_local = empty_counts()
@@ -88,30 +92,33 @@ def examine_fixture_group(payloads: tuple[bytes, ...]) -> dict:
             for filename, suffix, content in fixtures:
                 own_counts = (inspect_fixture_references(
                     suffix, content, filename, own) if content is not None else None)
-                union_counts = (inspect_fixture_references(
-                    suffix, content, filename, union) if content is not None else None)
-                if own_counts is None or union_counts is None:
+                cross_counts = (inspect_fixture_references(
+                    suffix, content, filename, own, other_indexes)
+                    if content is not None else None)
+                if own_counts is None or cross_counts is None:
                     not_inspected += 1
                     continue
                 inspected += 1
                 for kind in KINDS:
                     local = own_counts[kind]
-                    across = union_counts[kind]
+                    across = cross_counts[kind]
                     for key in local:
                         verified_local[kind][key] += local[key]
-                    candidates = across["presentInFixture"] - local["presentInFixture"]
-                    if (candidates < 0 or candidates > local["absentFromFixture"] or
-                        local["declared"] != across["declared"] or
+                    if (local["declared"] != across["declared"] or
+                        local["presentInFixture"] != across["presentInFixture"] or
+                        local["absentFromFixture"] !=
+                            across["absentFromFixture"] +
+                            across["candidateInOtherFixture"] +
+                            across["ambiguousAcrossFixtures"] or
                         local["unsafePath"] != across["unsafePath"] or
                         local["unsupportedHint"] != across["unsupportedHint"]):
                         _refuse()
                     current = counts[kind]
                     current["declared"] += local["declared"]
                     current["insideOwnFixture"] += local["presentInFixture"]
-                    current["candidateInOtherFixture"] += candidates
-                    current["notFoundInProvidedFixtures"] += (
-                        local["absentFromFixture"] - candidates
-                    )
+                    current["candidateInOtherFixture"] += across["candidateInOtherFixture"]
+                    current["ambiguousAcrossFixtures"] += across["ambiguousAcrossFixtures"]
+                    current["notFoundInProvidedFixtures"] += across["absentFromFixture"]
                     current["unsafePath"] += local["unsafePath"]
                     current["unsupportedHint"] += local["unsupportedHint"]
                     combined_declarations += local["declared"]

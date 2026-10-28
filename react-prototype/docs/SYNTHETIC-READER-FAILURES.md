@@ -146,3 +146,20 @@ mudanças de cenário e a permanência do botão Instalar bloqueado.
 **Não é um upload ou analisador ZIP no navegador.** O novo componente
 não recebe caminhos, pacotes, fotos, arquivos do jogo, favoritos nem dados
 pessoais. Ele não invoca IPC. Nenhum candidato é dependência comprovada.
+
+### Ambiguidade quando vários ZIPs fictícios declaram o mesmo caminho
+
+O comparador agora distingue **candidato em um único outro ZIP** de
+**referência ambígua em dois ou mais ZIPs**. Uma referência encontrada
+no ZIP de origem prevalece na categoria `insideOwnFixture`, sem
+escolher entre os externos. Referências com caminhos inseguros jamais
+são resolvidas por candidatos externos. A contagem de ambiguidade é
+por referência declarada, e não por quantidade de cópias encontradas.
+
+O laboratório da Biblioteca exibe o quarto cenário, com três ZIPs
+fictícios e um arquivo com nome repetido entre dois fornecedores.
+As contagens JSON são confrontadas com o leitor Python durante CI.
+Os resultados continuam apenas agregados, sem caminhos, bytes,
+instalações reais ou promessa de ordem de carregamento. Nenhuma
+referência é validada semanticamente e todas as operações reais
+permanecem indisponíveis.

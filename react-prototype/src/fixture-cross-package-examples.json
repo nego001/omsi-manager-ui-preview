@@ -8,7 +8,8 @@
     "otherCandidate": 1,
     "unresolved": 0,
     "unsafe": 0,
-    "unsupported": 0
+    "unsupported": 0,
+    "ambiguous": 0
   },
   {
     "id": "absent",
@@ -18,6 +19,19 @@
     "withinOwn": 0,
     "otherCandidate": 0,
     "unresolved": 2,
+    "unsafe": 0,
+    "unsupported": 0,
+    "ambiguous": 0
+  },
+  {
+    "id": "ambiguous",
+    "label": "Mesmo arquivo declarado em dois ZIPs",
+    "fixtureCount": 3,
+    "declared": 1,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "ambiguous": 1,
+    "unresolved": 0,
     "unsafe": 0,
     "unsupported": 0
   },
@@ -30,6 +44,7 @@
     "otherCandidate": 0,
     "unresolved": 0,
     "unsafe": 2,
-    "unsupported": 1
+    "unsupported": 1,
+    "ambiguous": 0
   }
 ]

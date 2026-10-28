@@ -7,7 +7,8 @@ import examples from './fixture-cross-package-examples.json';
 type Example=(typeof examples)[number];
 const kinds=[
  {id:'withinOwn',title:'Presente no próprio ZIP'},
- {id:'otherCandidate',title:'Candidato em outro ZIP'},
+ {id:'otherCandidate',title:'Candidato em um único outro ZIP'},
+ {id:'ambiguous',title:'Ambíguo em vários ZIPs'},
  {id:'unresolved',title:'Não encontrado nos ZIPs do exemplo'},
  {id:'unsafe',title:'Caminho perigoso'},
  {id:'unsupported',title:'Formato de referência não suportado'},
@@ -42,8 +43,9 @@ export default function FixtureCrossPackageLab(){
     </dl>
    </div>
    <p className="synthetic-gate-warning"><LockKeyhole size={15} aria-hidden="true"/>
-    Referência candidata não significa mod instalado ou dependência confirmada.
-    Nenhuma leitura real, compatibilidade ou instalação foi autorizada.</p>
+    Se dois ZIPs declaram o mesmo destino, o resultado é ambíguo e não escolhe
+    um deles. Nenhuma referência candidata significa mod instalado ou dependência
+    confirmada. Nenhuma leitura real, compatibilidade ou instalação foi autorizada.</p>
   </details>
  </section>;
 }

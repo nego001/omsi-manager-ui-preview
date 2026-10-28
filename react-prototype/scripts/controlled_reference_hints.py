@@ -33,12 +33,18 @@ def empty_counts():
                   "unsupportedHint": 0} for key in KINDS}
 
 def inspect_fixture_references(suffix: str, content: bytes,
-                               source: str, paths: frozenset[str]):
+                               source: str, paths: frozenset[str],
+                               other_indexes: tuple[frozenset[str], ...] = ()):
     """Return counts, or None if the bounded source cannot be interpreted.
 
     Does not follow references, open files, infer game compatibility or expose
     filenames. All entries in paths MUST come from the already vetted ZIP
     central index, not from outside the memory fixture.
+
+    Optional other_indexes distinguishes a unique filename match in exactly
+    one other fixture from an ambiguous match in multiple other fixtures.
+    The default stays unchanged for the single-ZIP reader. No target is
+    ever returned or exposed.
     """
     if suffix not in ("bus", "cfg") or type(content) is not bytes or len(content) > TEXT_LIMIT:
         return None
@@ -54,6 +60,10 @@ def inspect_fixture_references(suffix: str, content: bytes,
     logical = [line.strip() for line in lines
                if line.strip() and not line.lstrip().startswith(("#", "//", ";"))]
     counts = empty_counts()
+    if other_indexes:
+        for item in counts.values():
+            item["candidateInOtherFixture"] = 0
+            item["ambiguousAcrossFixtures"] = 0
     n = 0
     for i, line in enumerate(logical):
         matched = DIRECTIVE.fullmatch(line)
@@ -83,6 +93,14 @@ def inspect_fixture_references(suffix: str, content: bytes,
         target = (source_dir + "/" if source_dir else "") + normalized.lower()
         if target in paths:
             result["presentInFixture"] += 1
+        elif other_indexes:
+            matches = sum(target in other for other in other_indexes)
+            if matches == 1:
+                result["candidateInOtherFixture"] += 1
+            elif matches > 1:
+                result["ambiguousAcrossFixtures"] += 1
+            else:
+                result["absentFromFixture"] += 1
         else:
             result["absentFromFixture"] += 1
     return counts

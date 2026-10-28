@@ -26,7 +26,8 @@ class FixtureGroupTests(unittest.TestCase):
         original = result["slots"][0]["hints"]
         self.assertEqual(original["model"], {
             "declared": 2, "insideOwnFixture": 0,
-            "candidateInOtherFixture": 1, "notFoundInProvidedFixtures": 1,
+            "candidateInOtherFixture": 1, "ambiguousAcrossFixtures": 0,
+            "notFoundInProvidedFixtures": 1,
             "unsafePath": 0, "unsupportedHint": 0
         })
         self.assertEqual(original["sound"]["insideOwnFixture"], 1)
@@ -113,9 +114,63 @@ class FixtureGroupTests(unittest.TestCase):
                 self.assertEqual(kind["declared"],
                                  kind["insideOwnFixture"] +
                                  kind["candidateInOtherFixture"] +
+                                 kind["ambiguousAcrossFixtures"] +
                                  kind["notFoundInProvidedFixtures"] +
                                  kind["unsafePath"] + kind["unsupportedHint"])
 
+
+
+    def test_same_target_in_two_other_zips_is_ambiguous_not_resolved(self):
+        origin = bundle([("Vehicles/test.bus",
+                          b"[model]\nshared.cfg\n[mesh]\nbody.o3d\n")])
+        other_a = bundle([("Vehicles/shared.cfg", b"not a verified definition"),
+                          ("Vehicles/body.o3d", b"not a real model")])
+        other_b = bundle([("Vehicles/shared.cfg", b"conflicting fake definition")])
+        report = examine_fixture_group((origin, other_a, other_b))
+        model = report["slots"][0]["hints"]["model"]
+        mesh = report["slots"][0]["hints"]["mesh"]
+        self.assertEqual(model["ambiguousAcrossFixtures"], 1)
+        self.assertEqual(model["candidateInOtherFixture"], 0)
+        self.assertEqual(model["notFoundInProvidedFixtures"], 0)
+        self.assertEqual(mesh["candidateInOtherFixture"], 1)
+        self.assertEqual(mesh["ambiguousAcrossFixtures"], 0)
+        self.assertFalse(report["crossPackageCandidatesVerified"])
+
+    def test_own_file_wins_over_duplicates_in_two_other_fixtures(self):
+        first = bundle([
+            ("A/bus.bus", b"[model]\nshared.cfg\n"),
+            ("A/shared.cfg", b"local fixture text"),
+        ])
+        other_a = bundle([("A/shared.cfg", b"external a")])
+        other_b = bundle([("A/shared.cfg", b"external b")])
+        report = examine_fixture_group((first, other_a, other_b))
+        model = report["slots"][0]["hints"]["model"]
+        self.assertEqual(model["insideOwnFixture"], 1)
+        self.assertEqual(model["candidateInOtherFixture"], 0)
+        self.assertEqual(model["ambiguousAcrossFixtures"], 0)
+
+    def test_unsafe_reference_stays_unsafe_even_with_multiple_matching_names(self):
+        first = bundle([("A/bus.bus", b"[model]\n../private.cfg\n")])
+        a = bundle([("A/private.cfg", b"a")])
+        b = bundle([("A/private.cfg", b"b")])
+        report = examine_fixture_group((first, a, b))
+        model = report["slots"][0]["hints"]["model"]
+        self.assertEqual(model["unsafePath"], 1)
+        self.assertEqual(model["ambiguousAcrossFixtures"], 0)
+        self.assertEqual(model["candidateInOtherFixture"], 0)
+
+    def test_ambiguous_result_does_not_leak_paths_or_fixture_bodies(self):
+        first = bundle([("CUSTOMER_PRIVATE/vehicle.bus",
+                          b"[model]\nHIDDEN_EXTERNAL.cfg\n")])
+        a = bundle([("CUSTOMER_PRIVATE/HIDDEN_EXTERNAL.cfg", b"secret alpha")])
+        b = bundle([("CUSTOMER_PRIVATE/HIDDEN_EXTERNAL.cfg", b"secret beta")])
+        report = examine_fixture_group((first, a, b))
+        self.assertEqual(report["slots"][0]["hints"]["model"]
+                         ["ambiguousAcrossFixtures"], 1)
+        serialized = json.dumps(report)
+        for token in ("CUSTOMER_PRIVATE", "HIDDEN_EXTERNAL.cfg",
+                      "secret alpha", "secret beta"):
+            self.assertNotIn(token, serialized)
 
     def test_react_fixture_example_numbers_match_python_zip_reader(self):
         """UI numbers must match real in-memory ZIP fixture results, no drift."""
@@ -139,6 +194,11 @@ class FixtureGroupTests(unittest.TestCase):
                 ]),
                 bundle([("Vehicles/unrelated.cfg", b"fixture-only")]),
             ),
+            "ambiguous": (
+                bundle([("Vehicles/demo.bus", b"[model]\nshared.cfg\n")]),
+                bundle([("Vehicles/shared.cfg", b"candidate a")]),
+                bundle([("Vehicles/shared.cfg", b"candidate b")]),
+            ),
             "unsafe": (
                 bundle([
                     ("Vehicles/demo.bus",
@@ -150,13 +210,13 @@ class FixtureGroupTests(unittest.TestCase):
             ),
         }
         self.assertEqual([e["id"] for e in examples],
-                         ["matched", "absent", "unsafe"])
+                         ["matched", "absent", "ambiguous", "unsafe"])
         self.assertEqual(set(cases), {e["id"] for e in examples})
         for entry in examples:
             report = examine_fixture_group(cases[entry["id"]])
             categories = {
                 "declared": 0, "withinOwn": 0, "otherCandidate": 0,
-                "unresolved": 0, "unsafe": 0, "unsupported": 0
+                "ambiguous": 0, "unresolved": 0, "unsafe": 0, "unsupported": 0
             }
             for slot in report["slots"]:
                 for counts in slot["hints"].values():
@@ -164,6 +224,7 @@ class FixtureGroupTests(unittest.TestCase):
                         ("declared", "declared"),
                         ("withinOwn", "insideOwnFixture"),
                         ("otherCandidate", "candidateInOtherFixture"),
+                        ("ambiguous", "ambiguousAcrossFixtures"),
                         ("unresolved", "notFoundInProvidedFixtures"),
                         ("unsafe", "unsafePath"),
                         ("unsupported", "unsupportedHint"),
