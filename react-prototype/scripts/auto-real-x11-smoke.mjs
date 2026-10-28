@@ -9,7 +9,7 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
- verifyNativeDesktopResults} from './auto-real-x11-contract.mjs';
+ verifyNativeWindowOwner,verifyNativeDesktopResults} from './auto-real-x11-contract.mjs';
 const execAsync=promisify(execFile);
 if(process.platform!=='linux'||process.getuid?.()===0||!process.env.DISPLAY||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
@@ -29,7 +29,7 @@ async function probeDirectPackagedElectron(desktop,root){
  await mkdir(directRoot,{mode:0o700});
  for(const part of ['config','cache','data','runtime'])
   await mkdir(join(directRoot,part),{mode:0o700});
- const seen={nativeProcess:false,windowFound:false,mapped:false};
+ const seen={nativeProcess:false,windowFound:false,windowOwned:false,mapped:false};
  const hints=new Set();
  let exited=false,exitCode=null,exitSignal=null,child;
  try{
@@ -65,6 +65,10 @@ async function probeDirectPackagedElectron(desktop,root){
      {encoding:'utf8',timeout:2000,maxBuffer:65536});
     const id=findPreviewWindow(stdout);
     seen.windowFound=true;
+    const ownership=await execAsync('xprop',['-id',id,'_NET_WM_PID'],
+     {encoding:'utf8',timeout:2000,maxBuffer:1024});
+    verifyNativeWindowOwner(ownership.stdout,child.pid);
+    seen.windowOwned=true;
     const detail=await execAsync('xwininfo',['-id',id],
      {encoding:'utf8',timeout:2000,maxBuffer:16384});
     verifyMappedWindow(detail.stdout);
@@ -101,7 +105,7 @@ try{
   let failed=false;
   let exitCode=null;
   let exitSignal=null;
-  const observed={nativeProcess:false,windowFound:false,mapped:false};
+  const observed={nativeProcess:false,windowFound:false,windowOwned:false,mapped:false};
   const startupHints=new Set();
   let checkpoint='startup';
   let found=false;
@@ -142,6 +146,11 @@ try{
       {encoding:'utf8',timeout:2000,maxBuffer:65536});
      const id=findPreviewWindow(stdout);
      observed.windowFound=true;
+     checkpoint='owner-check';
+     const ownership=await execAsync('xprop',['-id',id,'_NET_WM_PID'],
+      {encoding:'utf8',timeout:2000,maxBuffer:1024});
+     verifyNativeWindowOwner(ownership.stdout,child.pid);
+     observed.windowOwned=true;
      checkpoint='map-state';
      const detail=await execAsync('xwininfo',['-id',id],
       {encoding:'utf8',timeout:2000,maxBuffer:16384});
@@ -172,7 +181,8 @@ try{
       JSON.stringify({desktop,probeUnavailable:true}));
     }
    }
-   outcomes.push({desktop,mapped:found,failed});
+   outcomes.push({desktop,mapped:found,failed,
+    windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess});
    if(found&&!failed)
     console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
   }finally{
