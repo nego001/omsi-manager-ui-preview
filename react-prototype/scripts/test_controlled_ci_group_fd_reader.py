@@ -82,33 +82,39 @@ class ControlledCiGroupFdReaderTests(unittest.TestCase):
                 self.assertNotIn(secret, result.stdout)
 
     def test_group_rechecks_all_fds_after_comparison_and_rejects_late_change(self):
-        # The already-validated first ZIP may change while other ZIPs are
-        # compared. Simulate the race without altering a real filesystem file.
-        first = bundle([("A/original.bus", b"[model]\nmodel.cfg\n")])
+        # Check BOTH endpoints of the final validation sweep: a change to
+        # the first or last package must invalidate the entire result.
+        # Synthetic interception does not modify file contents or metadata.
+        first = bundle([("A/original.bus", b"[model]\\nmodel.cfg\\n")])
         second = bundle([("A/model.cfg", b"made-up cfg")])
         with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
             paths = (Path(root) / "first.zip", Path(root) / "second.zip")
             for path, data in zip(paths, (first, second)):
                 path.write_bytes(data)
             fds = tuple(open_fixture(path) for path in paths)
-            seen = []
             from controlled_ci_group_fd_reader import read_checked_fixture_fd_bytes
-            def fake_race(fd):
-                original = read_checked_fixture_fd_bytes(fd)
-                seen.append(fd)
-                if len(seen) == 3:
-                    # Different bytes, identical length and unchanged fstat.
-                    return bytes((original[0] ^ 1,)) + original[1:]
-                return original
             try:
-                with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
-                           side_effect=fake_race):
-                    with self.assertRaisesRegex(
-                        ControlledCiGroupFdRefused,
-                        "^CONTROLLED_CI_GROUP_FD_REFUSED$",
-                    ):
-                        inspect_open_fixture_group_fds(fds)
-                self.assertEqual(seen, [fds[0], fds[1], fds[0]])
+                for altered_read in (3, 4):
+                    with self.subTest(final_pass_slot=altered_read - 2):
+                        seen = []
+                        def fake_race(fd):
+                            original = read_checked_fixture_fd_bytes(fd)
+                            seen.append(fd)
+                            if len(seen) == altered_read:
+                                # Distinct bytes, identical byte count/fstat.
+                                return bytes((original[0] ^ 1,)) + original[1:]
+                            return original
+                        with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
+                                   side_effect=fake_race):
+                            with self.assertRaisesRegex(
+                                ControlledCiGroupFdRefused,
+                                "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                            ):
+                                inspect_open_fixture_group_fds(fds)
+                        self.assertEqual(
+                            seen,
+                            [fds[0], fds[1], *fds[:altered_read - 2]],
+                        )
             finally:
                 for fd in fds:
                     os.close(fd)
