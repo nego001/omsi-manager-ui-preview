@@ -408,3 +408,32 @@ verificações. O campo `osSandboxVerified=false` permanece obrigatório;
 operações de instalação, reparo, remoção e IPC de arquivos continuam
 inexistentes no protótipo. Essa etapa só deve ser considerada aprovada
 depois que a CI confirmar os testes sob o kernel do runner.
+
+### Diagnóstico diferencial do lançador X11 sem reduzir sandbox
+
+A etapa `Native Auto X11 real-window check (strict sandbox)` tem uma
+falha observada de `SIGTRAP` antes de encontrar uma janela X11.
+O teste continua exigindo que `OMSI-Manager-Auto` abra **uma janela
+real e mapeada** em Xvfb; o job **não** pode ficar verde com um processo
+que apenas iniciou ou com diagnóstico inconclusivo.
+
+Na falha, `auto-real-x11-smoke.mjs` tenta executar **o mesmo executável
+Electron empacotado** diretamente com `--ozone-platform=x11` sob o
+mesmo HOME/XDG descartável. Ele coleta apenas categorias fixas:
+processo observado, janela mapeada, sinal/código de saída e indicações
+de sandbox/display/GPU. Nunca publica a saída nativa do processo,
+variáveis particulares, caminhos do usuário ou capturas de arquivos.
+
+Antes do smoke, `auto-x11-host-capabilities.mjs` consulta indicadores
+do kernel e testa a criação de um namespace de usuário **sem sudo**
+para separar restrições de kernel/runner de problemas no lançador ELF.
+Publica somente estados categorizados e ignora mensagens nativas.
+Isso não modifica parâmetros do kernel, não concede novas permissões
+e não constitui certificação de sandbox ou compositor GNOME/KWin.
+Nenhum teste usa `--no-sandbox` ou desativa proteções do Chromium.
+
+**Interpretação:** se ambos os métodos falham com o mesmo sinal,
+a hipótese de limitação do ambiente ou do sandbox merece prioridade,
+sem prová-la por si só. Se o binário direto abre a janela mas o Auto não,
+o ELF de encaminhamento e suas variáveis são o foco. Em todos os casos,
+o teste X11 continua reprovado até a janela real do Auto ser comprovada.
