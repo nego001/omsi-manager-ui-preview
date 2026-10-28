@@ -437,3 +437,29 @@ a hipótese de limitação do ambiente ou do sandbox merece prioridade,
 sem prová-la por si só. Se o binário direto abre a janela mas o Auto não,
 o ELF de encaminhamento e suas variáveis são o foco. Em todos os casos,
 o teste X11 continua reprovado até a janela real do Auto ser comprovada.
+
+### Diagnóstico X11 diferencial: duas etiquetas obrigatórias
+
+O teste nativo `auto-real-x11-smoke.mjs` lança o executável empacotado em
+Xvfb sob as duas etiquetas de sessão, **GNOME e KDE**, preservando o sandbox
+Chromium/Electron. O resultado de cada etiqueta é verificado separadamente.
+Se o lançador falhar, uma sondagem auxiliar executa o mesmo Electron empacotado
+diretamente com `--ozone-platform=x11`, também sem desativar o sandbox.
+Os diagnósticos mostram apenas classes fixas de stderr, estado da janela e
+sinal de saída; não imprimem caminhos de usuário nem stderr original.
+
+A validação só permite sucesso quando **ambas** as etiquetas apresentarem
+uma janela real com `Map State: IsViewable` e dimensões mínimas, com processo
+sem falhas. Falhar em GNOME não interrompe a coleta de evidências KDE, mas
+mantém o job **reprovado**. O contrato `verifyNativeDesktopResults` é
+testado contra ausência de resultados, etiquetas duplicadas/trocadas e
+aprovação parcial.
+
+No runner GitHub observado em 28/10/2026, tanto o lançador Auto quanto
+o Electron direto encerraram com `SIGTRAP` antes de mapear a janela GNOME;
+houve sinalização de categoria `sandbox` e políticas AppArmor de
+user namespaces restritas. Isso sugere uma incompatibilidade com o ambiente
+hospedado, não comprova a causa única nem certifica que outro host passaria.
+Xvfb com etiquetas de sessão **não equivale** a testar os compositores
+GNOME Shell/KWin reais. A homologação X11 estrita continua pendente e
+`--no-sandbox` permanece proibido.
