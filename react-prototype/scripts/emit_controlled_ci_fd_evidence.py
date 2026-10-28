@@ -57,13 +57,22 @@ def main() -> int:
                 env={"PYTHONIOENCODING": "utf-8"},
                 capture_output=True, text=True, timeout=10, check=False,
             )
-            if result.returncode != 0 or result.stderr or len(result.stdout) > 30000:
+            if result.returncode != 0:
+                print("CI_FD_EMITTER_WORKER_REJECTED", file=sys.stderr)
                 return 2
-            envelope = json.loads(result.stdout)
+            if result.stderr or len(result.stdout) > 30000:
+                print("CI_FD_EMITTER_OUTPUT_REFUSED", file=sys.stderr)
+                return 2
+            try:
+                envelope = json.loads(result.stdout)
+            except ValueError:
+                print("CI_FD_EMITTER_JSON_REFUSED", file=sys.stderr)
+                return 2
             if (envelope.get("inputCount") != 3 or
                     envelope.get("osSandboxVerified") is not False or
                     envelope.get("realUserModsInspected") is not False or
                     envelope.get("installationEnabled") is not False):
+                print("CI_FD_EMITTER_CONTRACT_REFUSED", file=sys.stderr)
                 return 2
             # Emit only canonical counts, no filenames. The TS adapter will
             # independently enforce the exact field schema and all totals.
@@ -78,5 +87,6 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception:
-        print("CONTROLLED_CI_FD_EVIDENCE_REFUSED", file=sys.stderr)
+        # Fixed diagnostic only. Never show exception text, paths or ZIP bytes.
+        print("CI_FD_EMITTER_UNEXPECTED_REFUSAL", file=sys.stderr)
         sys.exit(2)
