@@ -265,3 +265,21 @@ O módulo `src/fixture-ci-fd-evidence.ts` define uma ponte de projeção para os
 **Limites importantes:** estabilidade de `fstat` antes/depois não demonstra invariância contínua contra ABA/TOCTOU. Os FDs provêm dos testes descartáveis, mas o leitor não autentica a origem de um FD arbitrário. As restrições de recurso não substituem isolamento completo de sistema operacional. O ZIP físico é real como arquivo de teste, mas o mod, as referências e as dependências são inteiramente inventados.
 
 **Critério de aprovação:** a CI precisa aprovar os novos testes Linux e o contrato TypeScript. A compilação Windows, a integridade dos pacotes e o bloqueio de instalação devem permanecer intactos. O lançamento X11 automático continua uma pendência independente, sem `--no-sandbox`.
+
+### Proteção kernel Linux no processo leitor CI (28/10/2026)
+
+Os leitores de ZIPs fictícios baseados em descritores herdados exigem
+`prctl(PR_SET_NO_NEW_PRIVS, 1)` no processo Python filho **antes** de analisar
+os bytes. O valor é confirmado com `PR_GET_NO_NEW_PRIVS`; erro do syscall,
+kernel sem suporte ou falha de confirmação causam **recusa integral**.
+A suíte `test_controlled_ci_linux_hardening.py` confere a ativação em
+processo separado e que erros não expõem informações do sistema.
+
+`no_new_privs` impede ganhos de privilégio em operações `execve` e é um
+pré-requisito para algumas modalidades de seccomp. **Não** restringe por si só
+acesso a arquivos, rede, syscalls, diretórios ou vazamentos; o processo ainda
+não dispõe de sandbox completa e `osSandboxVerified=false` permanece
+obrigatório. Nada foi conectado ao Electron, ao instalador ou a mods reais.
+
+A validação precisa ocorrer no GitHub Actions Linux antes de declarar a
+etapa aprovada. O X11 Auto e a homologação física permanecem pendentes.
