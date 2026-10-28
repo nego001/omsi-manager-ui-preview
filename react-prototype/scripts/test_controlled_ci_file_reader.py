@@ -18,10 +18,14 @@ def open_fixture(path):
     return os.open(path, os.O_RDONLY | os.O_NOFOLLOW |
                    os.O_CLOEXEC | os.O_NONBLOCK)
 
-def invoke(fd):
+def invoke(fd, diagnostic=False):
+    # Only successful synthetic-file regression cases request fixed categories.
+    env = {"PYTHONIOENCODING": "utf-8"}
+    if diagnostic:
+        env["CI_FD_LAB_DIAGNOSTIC"] = "1"
     return subprocess.run(
         [sys.executable, "-I", "-S", "-B", WORKER, "--fixture-fd", str(fd)],
-        pass_fds=(fd,), cwd="/", env={"PYTHONIOENCODING": "utf-8"},
+        pass_fds=(fd,), cwd="/", env=env,
         capture_output=True, text=True, timeout=8, check=False
     )
 
@@ -40,7 +44,7 @@ class ControlledCiFileReaderTests(unittest.TestCase):
             before = sample.stat()
             fd = open_fixture(sample)
             try:
-                result = invoke(fd)
+                result = invoke(fd, diagnostic=True)
             finally:
                 os.close(fd)
             self.assertEqual(result.returncode, 0, result.stderr[:100])
@@ -172,7 +176,7 @@ class ControlledCiFileReaderTests(unittest.TestCase):
             fd = open_fixture(path)
             try:
                 os.lseek(fd, 7, os.SEEK_SET)
-                result = invoke(fd)
+                result = invoke(fd, diagnostic=True)
                 self.assertEqual(result.returncode, 0, result.stderr[:100])
                 self.assertEqual(os.lseek(fd, 0, os.SEEK_CUR), 7)
                 self.assertFalse(json.loads(result.stdout)["writesPerformed"])
