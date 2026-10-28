@@ -24,6 +24,13 @@ test('native launcher execs the packaged ELF and never suppresses its sandbox',(
   Buffer.from('/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0'),'x11'),true);
  for(const input of [
   '/portable/OMSI-Manager-Preview\0--no-sandbox\0--ozone-platform=x11\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0--disable-setuid-sandbox\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0--disable-seccomp-filter-sandbox\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0--no-zygote\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0--single-process\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0--no-sandbox=1\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0--ozone-platform=x11\0',
+  '/portable/OMSI-Manager-Preview\0--ozone-platform=x11\0\0',
   '/portable/OMSI-Manager-Preview\0--ozone-platform=auto\0',
   '/portable/another-binary\0--ozone-platform=x11\0'
  ])assert.throws(()=>verifyNativeCommandLine(Buffer.from(input),'x11'));
