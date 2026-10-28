@@ -41,6 +41,46 @@ async function inspectSocket(env=process.env,{lstat=fs.lstat,getuid=process.getu
   return 'available';
  }catch(error){return error?.code==='ENOENT'?'missing':'inaccessible';}
 }
+// Read only three fixed /proc switches. Values are reduced to known categories
+// and cannot echo arbitrary kernel text, paths, usernames or environment data.
+// These hints do not execute unshare() or certify Electron's OS sandbox.
+async function probeElectronUserNamespacePrerequisites(read=fs.readFile){
+ async function readSwitch(file){
+  try{
+   const value=await read(file,'utf8');
+   if(typeof value!=='string'||value.length>32)return 'unknown';
+   const normalized=value.trim();
+   return normalized==='1'?'enabled':normalized==='0'?'disabled':'unknown';
+  }catch{return 'unavailable';}
+ }
+ async function readCapacity(){
+  try{
+   const value=await read('/proc/sys/user/max_user_namespaces','utf8');
+   if(typeof value!=='string'||value.length>32)return 'unknown';
+   const normalized=value.trim();
+   if(!/^[0-9]{1,18}$/.test(normalized))return 'unknown';
+   return BigInt(normalized)===0n?'zero':'positive';
+  }catch{return 'unavailable';}
+ }
+ const [apparmor,userns,capacity]=await Promise.all([
+  readSwitch('/proc/sys/kernel/apparmor_restrict_unprivileged_userns'),
+  readSwitch('/proc/sys/kernel/unprivileged_userns_clone'),
+  readCapacity()
+ ]);
+ const restriction=apparmor==='enabled'||userns==='disabled'||capacity==='zero';
+ const clear=apparmor==='disabled'&&userns==='enabled'&&capacity==='positive';
+ return {
+  apparmorUsernsRestriction:apparmor,
+  unprivilegedUsernsSwitch:userns,
+  usernsCapacity:capacity,
+  userNamespacePolicyHint:restriction?'restriction-indicated':
+   clear?'no-obvious-restriction':'undetermined',
+  userNamespaceCreationVerified:false,
+  electronSandboxVerified:false,
+  hostSecurityPolicyChanged:false
+ };
+}
+
 function probePortalName(){
  // NameHasOwner queries the existing session bus; it does not activate the
  // portal or open a chooser. A registered name is NOT a FileChooser test.
@@ -96,7 +136,7 @@ function detectDesktop(value){
  if(hits.size>1)return 'ambiguous';
  return hits.values().next().value||'unknown';
 }
-async function diagnose(env=process.env,{platform=process.platform,portalProbe=probePortalName,inspect=inspectSocket,fileChooserProbe=probeFileChooserVersion}={}){
+async function diagnose(env=process.env,{platform=process.platform,portalProbe=probePortalName,inspect=inspectSocket,fileChooserProbe=probeFileChooserVersion,sandboxProbe=probeElectronUserNamespacePrerequisites}={}){
  if(platform!=='linux')return {name:NAME,scope:'read-only',supported:false};
  const kind=String(env.XDG_SESSION_TYPE||'').toLowerCase();
  const session=['wayland','x11','tty'].includes(kind)?kind:'unknown';
@@ -121,6 +161,7 @@ async function diagnose(env=process.env,{platform=process.platform,portalProbe=p
   portalFileChooserVersion:chooserVersion,
   portalPickerVerified:false,
   hyprlandCompatibilityVerified:false,
+  electronUserNamespacePrerequisites:await sandboxProbe(),
   note:'An advertised FileChooser interface is not proof that the graphical picker works in Hyprland, KDE or GNOME.'
  };
 }
@@ -130,4 +171,4 @@ async function main(argv=process.argv.slice(2)){
  process.stdout.write(JSON.stringify(info,null,2)+'\n');
 }
 if(require.main===module)main().catch(()=>{process.stderr.write('Linux session diagnostics unavailable\n');process.exitCode=3;});
-module.exports={diagnose,detectDesktop,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName};
+module.exports={diagnose,detectDesktop,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName,probeElectronUserNamespacePrerequisites};
