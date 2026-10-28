@@ -94,7 +94,7 @@ class CiInheritedFdInventoryTests(unittest.TestCase):
         # Reject the unexpected inherited socket before ZIP parsing instead.
         with tempfile.TemporaryDirectory(prefix="ci-fd-inventory-") as folder:
             path = Path(folder) / "invented.zip"
-            path.write_bytes(bundle([("A/demo.bus", b"[model]\\nmodel.cfg\\n")]))
+            path.write_bytes(bundle([("A/demo.bus", b"[model]\nmodel.cfg\n")]))
             fd = open_fixture(path)
             local, remote = socket.socketpair()
             try:
