@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine}
- from './auto-real-x11-contract.mjs';
+import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
+ verifyNativeDesktopResults} from './auto-real-x11-contract.mjs';
 test('accepts one mapped OMSI window and rejects unrelated or ambiguous titles',()=>{
  const example='     0x200007 "OMSI Manager · Prévia segura": ("app" "App")  1440x900+0+0';
  assert.equal(findPreviewWindow('xwininfo tree\n'+example),'0x200007');
@@ -27,4 +27,27 @@ test('native launcher execs the packaged ELF and never suppresses its sandbox',(
   '/portable/OMSI-Manager-Preview\0--ozone-platform=auto\0',
   '/portable/another-binary\0--ozone-platform=x11\0'
  ])assert.throws(()=>verifyNativeCommandLine(Buffer.from(input),'x11'));
+});
+
+test('X11 CI only passes when GNOME and KDE EACH map with no process failure',()=>{
+ const success=[
+  {desktop:'GNOME',mapped:true,failed:false},
+  {desktop:'KDE',mapped:true,failed:false}
+ ];
+ assert.equal(verifyNativeDesktopResults(success),true);
+ for(const missingOrBad of [
+  [],
+  [success[0]],
+  [success[1]],
+  [success[0],success[0]],
+  [success[1],success[0]],
+  [success[0],{desktop:'KDE',mapped:false,failed:true}],
+  [{desktop:'GNOME',mapped:false,failed:true},success[1]],
+  [{desktop:'GNOME',mapped:true,failed:true},success[1]],
+  [success[0],{desktop:'KDE',mapped:true,failed:true}],
+  [success[0],{desktop:'KDE',mapped:'true',failed:false}]
+ ]){
+  assert.throws(()=>verifyNativeDesktopResults(missingOrBad),
+   /AUTO_X11_NATIVE_GUI_NOT_VERIFIED/);
+ }
 });
