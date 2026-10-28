@@ -340,3 +340,24 @@ seccomp continua operando com lista de negações, e
 `osSandboxVerified=false` permanece obrigatório. Nenhum mod real ou
 aplicativo principal passa a ser acessível. Essa implementação requer
 validação do GitHub Actions antes de qualquer declaração de aprovação.
+
+### Dupla leitura posicional dos ZIPs sintéticos
+
+O leitor de descritor único e o comparador de pacotes agora exigem **duas
+leituras completas independentes** do mesmo FD regular de tamanho limitado,
+utilizando `os.pread` (sem alterar a posição compartilhada do arquivo).
+Em cada leitura, a identidade `st_dev/st_ino/st_size/st_mtime_ns/st_ctime_ns`
+é conferida; os dois conteúdos capturados devem ser exatamente iguais.
+Divergência causa recusa integral antes da análise ZIP, sem divulgar bytes,
+hashes, caminhos ou metadados particulares.
+
+O teste `test_two_positional_snapshots_reject_changed_bytes_with_identical_fstat`
+simula uma mudança temporária no retorno de `pread` com os metadados do
+arquivo inalterados e exige recusa, preservando os bytes da fixture em disco.
+
+**Limites:** duas leituras iguais não impedem todas as condições de corrida
+nem garantem imutabilidade depois da captura; um adversário pode realizar
+alterações idênticas nos dois períodos ou atuar fora deles. Isso tampouco
+autentica a origem do FD, habilita mods pessoais ou estabelece sandbox
+completa. As negativas de segurança, inclusive `osSandboxVerified=false`,
+continuam obrigatórias.
