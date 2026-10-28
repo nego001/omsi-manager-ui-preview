@@ -10,6 +10,10 @@ import stat
 import zipfile
 
 from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
+from controlled_reference_hints import (
+    empty_counts, inspect_fixture_references, FixtureReferenceLimitExceeded,
+    MAX_REFERENCES_ALL
+)
 
 MAX_ARCHIVE_BYTES = 2_000_000
 MAX_EXPANDED_BYTES = 4_000_000
@@ -41,6 +45,11 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     seen: set[str] = set()
     file_names: set[str] = set()
     suffix_counts = {suffix: 0 for suffix in SUFFIXES}
+    # Source text is retained only in this function, after ZIP entry budgets
+    # and before its aggregate response. Never returned, persisted or logged.
+    fixture_sources = []
+    references = empty_counts()
+    reference_sources = {"inspected": 0, "notInspected": 0}
     definition_hints = {
         suffix: {
             "declaredFiles": 0, "markerObserved": 0, "noMarker": 0,
@@ -125,6 +134,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                             sample.extend(chunk)
                 if per_file != info.file_size:
                     refuse()
+                if ext in ("bus", "cfg"):
+                    fixture_sources.append((info.filename.lower(), ext,
+                                            bytes(sample) if sample is not None else None))
                 if ext in definition_hints:
                     result = (inspect_fixture_text(ext, bytes(sample))
                               if sample is not None else "not-inspected")
@@ -135,6 +147,23 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                         "not-inspected": "notInspected"
                     }[result]
                     definition_hints[ext][column] += 1
+            # Cross-check ONLY against archive-internal file names already
+            # accepted by the gate, never the user's game installation.
+            vetted = frozenset(file_names)
+            for source, suffix, content in fixture_sources:
+                hints = (inspect_fixture_references(suffix, content, source, vetted)
+                         if content is not None else None)
+                if hints is None:
+                    reference_sources["notInspected"] += 1
+                    continue
+                reference_sources["inspected"] += 1
+                for kind, counts in hints.items():
+                    for key, count in counts.items():
+                        references[kind][key] += count
+                if sum(v["declared"] for v in references.values()) > MAX_REFERENCES_ALL:
+                    refuse()
+    except FixtureReferenceLimitExceeded:
+        refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
             EOFError, OSError, NotImplementedError, OverflowError,
             MemoryError):
@@ -149,6 +178,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "declaredSuffixesAreContentProof": False,
         "definitionFixtureHints": definition_hints,
         "definitionSyntaxVerified": False,
+        "fixtureReferenceCounts": references,
+        "fixtureReferenceSources": reference_sources,
+        "fixtureReferencesVerified": False,
         "archiveOriginVerified": False,
         "gameRecognized": False,
         "compatibilityVerified": False,

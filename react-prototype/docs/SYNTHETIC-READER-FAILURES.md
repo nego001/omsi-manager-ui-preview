@@ -76,3 +76,25 @@ ao suporte completo às codificações usadas por mods reais do OMSI.
 Um marcador sintático NÃO comprova gramática completa, validade de
 referências, instalação, origem, compatibilidade ou reconhecimento
 do simulador. Nenhum texto, nome de arquivo ou caminho é devolvido.
+
+### Referências entre arquivos apenas dentro de fixtures
+
+O laboratório `controlled_reference_hints.py` observa um subconjunto
+artificial de diretivas `[model]`, `[mesh]`, `[texture]` e `[sound]`
+em linhas seguidas de um único nome relativo. Conta declarações
+existentes no ZIP de teste, ausentes do próprio ZIP, referências
+com caminhos perigosos e referências de formato não suportado.
+A resolução é somente relativa ao diretório declarado da fonte
+dentro do mesmo ZIP, comparada contra o índice central previamente
+validado. Não procura arquivos na instalação dos jogos ou em outros mods.
+
+Cada fonte suporta no máximo 64 referências declaradas e a soma
+do pacote no máximo 256. Estouro dos limites recusa integralmente
+a análise do ZIP fictício; arquivos de texto grandes, inválidos
+ou em codificações não suportadas são contados como não inspecionados.
+Nenhum nome, caminho, referência ou conteúdo sai do processo.
+
+As contagens são PISTAS ARTIFICIAIS: NÃO validam gramática completa
+de OMSI, modelos O3D, texturas, som, SII, dependências externas ou
+compatibilidade. `fixtureReferencesVerified` é sempre false, e
+operações reais de instalação, remoção e reparo não são permitidas.

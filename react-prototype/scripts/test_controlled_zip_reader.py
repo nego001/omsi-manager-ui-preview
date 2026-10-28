@@ -128,6 +128,72 @@ class ControlledZipReaderTests(unittest.TestCase):
         self.assertEqual(report["definitionFixtureHints"]["sii"]["noMarker"], 1)
         self.assertFalse(report["definitionSyntaxVerified"])
 
+    def test_reference_hints_count_present_missing_and_unsafe_without_paths(self):
+        import json
+        report = examine_controlled_zip_bytes(bundle([
+            ("Vehicles/Example/demo.bus",
+             b"[model]\nmodel\\model.cfg\n"
+             b"[sound]\nsound.cfg\n"
+             b"[model]\n../../secret.cfg\n"
+             b"[model]\nexternal.cfg\n"),
+            ("Vehicles/Example/model/model.cfg",
+             b"[mesh]\nbody.o3d\n"
+             b"[texture]\nbody.dds\n"
+             b"[texture]\nmissing.png\n"
+             b"[mesh]\nhttp://elsewhere.invalid/model.o3d\n"),
+            ("Vehicles/Example/sound.cfg", b"[sound]\nengine.cfg\n"),
+            ("Vehicles/Example/model/body.o3d", b"fake-model"),
+            ("Vehicles/Example/model/body.dds", b"fake-texture"),
+        ]))
+        kinds = report["fixtureReferenceCounts"]
+        self.assertEqual(kinds["model"], {
+            "declared": 3, "presentInFixture": 1, "absentFromFixture": 1,
+            "unsafePath": 1, "unsupportedHint": 0
+        })
+        self.assertEqual(kinds["sound"], {
+            "declared": 2, "presentInFixture": 1, "absentFromFixture": 1,
+            "unsafePath": 0, "unsupportedHint": 0
+        })
+        self.assertEqual(kinds["mesh"], {
+            "declared": 2, "presentInFixture": 1, "absentFromFixture": 0,
+            "unsafePath": 1, "unsupportedHint": 0
+        })
+        self.assertEqual(kinds["texture"], {
+            "declared": 2, "presentInFixture": 1, "absentFromFixture": 1,
+            "unsafePath": 0, "unsupportedHint": 0
+        })
+        self.assertEqual(report["fixtureReferenceSources"], {"inspected": 3, "notInspected": 0})
+        self.assertFalse(report["fixtureReferencesVerified"])
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["installationEnabled"])
+        serialized = json.dumps(report)
+        for private in ("Example", "demo.bus", "secret.cfg", "elsewhere",
+                        "model.cfg", "body.o3d", "engine.cfg"):
+            self.assertNotIn(private, serialized)
+
+    def test_reference_resolution_is_relative_and_never_uses_external_files(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("A/bus.bus", b"[model]\nshared.cfg\n"),
+            ("B/shared.cfg", b"[mesh]\nremote.o3d\n"),
+        ]))
+        self.assertEqual(report["fixtureReferenceCounts"]["model"]["absentFromFixture"], 1)
+        self.assertEqual(report["fixtureReferenceCounts"]["model"]["presentInFixture"], 0)
+        self.assertFalse(report["fixtureReferencesVerified"])
+
+    def test_reference_payload_oversize_does_not_count_as_verified(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("A/bus.bus", b"[model]\nmodel.cfg\n" + b"x" * 17_000),
+            ("A/model.cfg", b"[mesh]\nbody.o3d\n"),
+        ]))
+        self.assertEqual(report["fixtureReferenceSources"]["notInspected"], 1)
+        self.assertEqual(report["fixtureReferenceSources"]["inspected"], 1)
+        self.assertEqual(report["fixtureReferenceCounts"]["model"]["declared"], 0)
+
+    def test_more_than_64_reference_hints_refuses_entire_fixture(self):
+        text = (b"[model]\nmissing.cfg\n" * 65)
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(bundle([("A/many.bus", text)]))
+
     def test_deflated_directory_metadata_is_rejected(self):
         mem = io.BytesIO()
         with zipfile.ZipFile(mem, "w") as zf:
