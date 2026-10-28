@@ -38,6 +38,12 @@ jobs:
         run: node --test scripts/desktop-layout-contract.test.mjs
       - name: Controlled real ZIP byte fixture contracts (in-memory CI only)
         run: python3 -m unittest discover -s scripts -p 'test_controlled_*.py' -v
+      - name: Emit CI-only disposable ZIP FD evidence for per-package UI contract
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          python3 -I -S -B scripts/emit_controlled_ci_fd_evidence.py > test-results/ci-disposable-fd-evidence.json
+          test -s test-results/ci-disposable-fd-evidence.json
       - name: Native auto-launcher manual desktop contracts (no GUI)
         run: node --test scripts/manual-auto-launch-contract.test.mjs
       - name: Isolated temporary recovery / process restart fixture
