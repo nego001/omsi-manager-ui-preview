@@ -467,3 +467,28 @@ hospedado, não comprova a causa única nem certifica que outro host passaria.
 Xvfb com etiquetas de sessão **não equivale** a testar os compositores
 GNOME Shell/KWin reais. A homologação X11 estrita continua pendente e
 `--no-sandbox` permanece proibido.
+
+### Evidência de proprietário da janela X11 no laboratório
+
+A varredura em Xvfb nunca deve aceitar uma janela apenas porque seu título
+contém `OMSI Manager`. Após `xwininfo` encontrar exatamente uma janela
+candidata, `auto-real-x11-smoke.mjs` consulta a propriedade
+`_NET_WM_PID` via `xprop -id <id> _NET_WM_PID`. O contrato
+`verifyNativeWindowOwner` aceita apenas uma linha da propriedade
+`CARDINAL` com PID inteiro positivo idêntico ao PID do Electron que
+a própria CI iniciou. A mesma checagem vale para o lançador `Auto` e para
+a sondagem independente do Electron direto. Resultados de ambas as etiquetas
+GNOME e KDE também precisam confirmar `nativeProcess=true`,
+`windowOwned=true` e `mapped=true`.
+
+O conjunto de testes rejeita ausência da propriedade, PID diferente,
+respostas duplicadas, valores inválidos e prova incompleta de qualquer
+ambiente. A CI continua reprovando se uma janela real não aparecer, mesmo
+que outra evidência esteja disponível.
+
+**Limitação essencial:** propriedades X11 são oferecidas pelo cliente e
+podem ser falsificadas por programas não confiáveis conectados ao mesmo
+servidor X. A identidade de PID é uma checagem adicional no **Xvfb isolado
+do laboratório**, não autenticação forte do proprietário, sandbox completa
+nem homologação de KDE Plasma ou GNOME Shell reais. Não foi adicionado
+`--no-sandbox`, permissão de instalação ou acesso aos mods de usuário.
