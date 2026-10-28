@@ -361,3 +361,24 @@ alterações idênticas nos dois períodos ou atuar fora deles. Isso tampouco
 autentica a origem do FD, habilita mods pessoais ou estabelece sandbox
 completa. As negativas de segurança, inclusive `osSandboxVerified=false`,
 continuam obrigatórias.
+
+### Revalidação ao término da comparação de ZIPs fictícios
+
+A verificação individual `read_checked_fixture_fd_bytes` faz duas leituras
+posicionais do mesmo arquivo de laboratório e compara os bytes e os metadados.
+O comparador de **2 a 4 ZIPs inventados** acrescenta uma segunda barreira:
+depois de calcular as relações entre os pacotes em memória, lê novamente cada
+descritor original com as mesmas proteções e exige que o conteúdo seja
+**idêntico** ao capturado antes da comparação. Se qualquer FD mudou, **todo**
+o resultado é recusado; nenhuma relação por nome vira dependência verificada.
+
+O teste `test_group_rechecks_all_fds_after_comparison_and_rejects_late_change`
+simula a mudança do primeiro ZIP apenas na revalidação final, sem alterar
+o arquivo real do laboratório nem mudar os metadados do FD, e exige recusa
+com mensagem fixa. A validação precisa permanecer verde no GitHub Actions.
+
+**Limites:** esse procedimento apenas amplia a janela na qual alterações
+inesperadas são detectáveis. Leituras repetidas não criam um snapshot atômico,
+não autenticam a origem dos ZIPs e não garantem que terceiros não modifiquem
+bytes após a última verificação. `osSandboxVerified=false`, leitura de mods
+pessoais desabilitada e operações de instalação/reparo bloqueadas permanecem.
