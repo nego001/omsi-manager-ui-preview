@@ -19,6 +19,7 @@ from controlled_ci_file_reader import (
 from controlled_fixture_group import (
     MAX_PACKAGES, MAX_COMBINED_INPUT_BYTES, examine_fixture_group,
 )
+from controlled_ci_linux_hardening import enforce_no_new_privileges
 from controlled_zip_reader import ControlledZipRefused
 
 
@@ -83,6 +84,9 @@ def _main():
     resource.setrlimit(resource.RLIMIT_CPU, (4, 4))
     resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024,
                                              256 * 1024 * 1024))
+    # Explicitly fail closed if kernel hardening cannot be enabled.
+    # No-new-privs does not provide OS-level sandbox isolation.
+    enforce_no_new_privileges()
     print(json.dumps(inspect_open_fixture_group_fds(fds),
                      sort_keys=True, separators=(",", ":")))
 
