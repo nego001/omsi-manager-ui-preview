@@ -3,6 +3,7 @@ import {FileSearch,LockKeyhole} from 'lucide-react';
 import examples from './fixture-cross-package-examples.json';
 import {buildFixtureTriage} from './fixture-diagnostic-guidance';
 import {buildFixtureCoverage} from './fixture-evidence-coverage';
+import {projectFixtureSlots} from './fixture-per-package-report';
 
 // Static, CI-checked outputs from fixed Python in-memory ZIP fixtures.
 // Never reads an actual mod or treats the selected catalog favorites as ZIPs.
@@ -18,7 +19,10 @@ const kinds=[
 
 export default function FixtureCrossPackageLab(){
  const [selected,setSelected]=useState(examples[0].id);
+ const [slot,setSlot]=useState(1);
  const example:Example=examples.find(item=>item.id===selected)??examples[0];
+ const projection=projectFixtureSlots(example);
+ const current=projection.reports.find(item=>item.slot===slot)??projection.reports[0];
  const triage=buildFixtureTriage(example);
  const coverage=buildFixtureCoverage(example);
  if(!examples.every(item=>item.fixtureCount>=2&&item.fixtureCount<=4))
@@ -31,7 +35,7 @@ export default function FixtureCrossPackageLab(){
     Nenhum ZIP é aberto nesta tela. Os seus favoritos não participam da demonstração.</p>
    <label>Escolha o cenário fictício
     <select aria-label="Cenário de referências entre ZIPs" value={selected}
-     onChange={event=>setSelected(event.target.value)}>
+     onChange={event=>{setSelected(event.target.value);setSlot(1)}}>
      {examples.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
     </select>
    </label>
@@ -44,6 +48,30 @@ export default function FixtureCrossPackageLab(){
       <dd data-key={item.id}>{example[item.id]}</dd></div>)}
     </dl>
    </div>
+   <section className="fixture-per-package" role="region" aria-label="Relatório individual de pacote fictício">
+    <h3>Detalhes de cada pacote do cenário</h3>
+    <p>Visão de um pacote por vez, baseada em contagens conferidas pelo leitor
+     Python na CI. Pacotes reais e favoritos não participam desta análise.</p>
+    <label>Pacote a detalhar
+     <select aria-label="Escolher pacote fictício" value={String(current.slot)}
+      onChange={event=>setSlot(Number(event.target.value))}>
+      {projection.reports.map(item=><option key={item.slot} value={String(item.slot)}>
+       Pacote fictício {item.slot}</option>)}
+     </select>
+    </label>
+    <div className="fixture-per-package-status" role="status">
+     <strong data-package-status={current.status}>Pacote fictício {current.slot} · {current.title}</strong>
+     <p>{current.description}</p>
+    </div>
+    <dl>
+     <div><dt>Fontes inspecionadas (somente no teste)</dt><dd data-slot-count="inspected">{current.inspectedSources}</dd></div>
+     <div><dt>Fontes não inspecionadas</dt><dd data-slot-count="uninspected">{current.notInspectedSources}</dd></div>
+     {kinds.map(item=><div key={item.id}><dt>{item.title}</dt>
+      <dd data-slot-count={item.id}>{current.counts[item.id]}</dd></div>)}
+    </dl>
+    <small>Origem exclusiva: ZIPs de demonstração em memória, conferidos na CI.
+     Nenhum formato, dependência, compatibilidade ou instalação real foi verificado.</small>
+   </section>
    <section className="fixture-coverage" role="region" aria-label="Cobertura das evidências fictícias">
     <h3>O que foi observado e o que ainda falta?</h3>
     <p>Os testes Python conferiram a estrutura ZIP e o CRC das amostras inventadas.

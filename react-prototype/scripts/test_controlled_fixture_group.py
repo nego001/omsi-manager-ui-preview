@@ -235,6 +235,27 @@ class FixtureGroupTests(unittest.TestCase):
                     ):
                         categories[item] += counts[source_key]
             self.assertEqual(report["fixtureCount"], entry["fixtureCount"])
+            self.assertEqual(len(report["slots"]), len(entry["slots"]))
+            self.assertEqual(entry["fixtureCount"], len(entry["slots"]))
+            for slot_report, static_slot in zip(report["slots"], entry["slots"]):
+                self.assertEqual(slot_report["fixtureSlot"], static_slot["slot"])
+                self.assertEqual(slot_report["inspectedDefinitionSources"],
+                                 static_slot["inspectedSources"])
+                self.assertEqual(slot_report["notInspectedDefinitionSources"],
+                                 static_slot["notInspectedSources"])
+                for field, python_key in (
+                    ("declared", "declared"),
+                    ("withinOwn", "insideOwnFixture"),
+                    ("otherCandidate", "candidateInOtherFixture"),
+                    ("ambiguous", "ambiguousAcrossFixtures"),
+                    ("unresolved", "notFoundInProvidedFixtures"),
+                    ("unsafe", "unsafePath"),
+                    ("unsupported", "unsupportedHint"),
+                ):
+                    actual = sum(kind[python_key] for kind in slot_report["hints"].values())
+                    self.assertEqual(actual, static_slot[field],
+                                     f"{entry['id']} slot {static_slot['slot']} field {field}")
+
             self.assertEqual(sum(s["inspectedDefinitionSources"] for s in report["slots"]),
                              entry["inspectedSources"])
             self.assertEqual(sum(s["notInspectedDefinitionSources"] for s in report["slots"]),

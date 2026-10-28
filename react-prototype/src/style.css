@@ -868,3 +868,19 @@
 .fixture-coverage li span{color:#cfdae9}
 .fixture-coverage .fixture-coverage-disclaimer{border-top:1px solid #4a586d;padding-top:10px}
 @media(max-width:540px){.fixture-coverage{padding:11px}}
+
+/* Per-package fixture-only view, no names, files, active mods or write access. */
+.fixture-per-package{background:#202b39;border:1px solid #52647b;border-radius:10px;padding:15px;margin:14px 0;min-width:0}
+.fixture-per-package h3{font-size:14px;margin:0 0 8px}
+.fixture-per-package p,.fixture-per-package small{font-size:12px;line-height:1.65;color:#d8e1ed}
+.fixture-per-package label{display:grid;gap:7px;font-size:12px;max-width:430px}
+.fixture-per-package select{min-width:0;max-width:100%;border:1px solid #61718b;border-radius:8px;padding:10px;background:#283449;color:inherit}
+.fixture-per-package-status{margin:14px 0;padding:12px;border:1px solid #4e5e76;border-radius:9px}
+.fixture-per-package-status strong{font-size:13px}
+.fixture-per-package-status p{margin:6px 0 0}
+.fixture-per-package dl{margin:10px 0}
+.fixture-per-package dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-top:1px solid #44566a;padding:8px 0}
+.fixture-per-package dt{font-size:12px;color:#d8e1ed}
+.fixture-per-package dd{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;margin:0}
+.fixture-per-package>small{display:block;margin-top:10px}
+@media(max-width:540px){.fixture-per-package{padding:11px}}

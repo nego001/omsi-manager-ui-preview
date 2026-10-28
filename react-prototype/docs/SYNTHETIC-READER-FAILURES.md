@@ -199,3 +199,19 @@ ambiguidades, caminhos recusados, extensões não suportadas e
 lacunas causadas pelo limite de leitura. A verificação de arquivos
 reais, compatibilidade e autorização de instalar permanecem
 sempre `false`. Sem IPC, upload, extração ou acesso a jogos.
+
+### Relatório individual por pacote ZIP fictício na Biblioteca
+
+Os cinco cenários demonstrativos agora contêm também contagens
+por posição de ZIP (`slots`) com 2 ou 3 pacotes. A UI permite
+alternar entre eles e apresenta as fontes textuais inspecionadas,
+não inspecionadas, correspondências internas, candidatos,
+ambiguidades, ausências e caminhos recusados daquele ZIP de teste.
+
+O contrato Python confere **cada contagem por pacote**, além
+das somas consolidadas, contra arquivos ZIP temporários em memória.
+`fixture-per-package-report.ts` falha se algum slot faltar, repetir
+numeração ou divergir dos totais consolidados. Toda saída permanece
+anônima, sem nomes, paths ou dados binários, e o resultado nunca
+representa arquivos reais, dependências verificadas ou permissão
+de instalação. O seletor não abre ZIPs nem consulta favoritos.
