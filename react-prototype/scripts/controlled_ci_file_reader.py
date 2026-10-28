@@ -20,7 +20,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from controlled_ci_linux_hardening import enforce_no_new_privileges
 from controlled_ci_syscall_guard import (enforce_disposable_worker_syscall_guard,
                                           prime_ci_fixture_parser_runtime)
-from controlled_ci_fd_inventory import verify_exact_inherited_ci_fixture_fds
+from controlled_ci_fd_inventory import (CiFdInventoryRefused,
+                                        verify_exact_inherited_ci_fixture_fds)
 from controlled_zip_reader import MAX_ARCHIVE_BYTES, examine_controlled_zip_bytes
 
 CHUNK = 16_384
@@ -123,6 +124,13 @@ if __name__ == "__main__":
         # Test-only, fixed-category diagnostic; never print exception text,
         # ZIP contents, host paths or process environment values.
         if os.environ.get("CI_FD_LAB_DIAGNOSTIC") == "1":
+            if isinstance(error, CiFdInventoryRefused):
+                code = error.phase if error.phase in {
+                    "GENERAL", "ARGUMENTS", "PROC_ENTRY", "PROC_STAT",
+                    "EXTRA", "FD_TYPE", "MISSING", "PROC_FAILURE"
+                } else "OTHER"
+                print("CI_FD_LAB_INVENTORY_" + code, file=sys.stderr)
+                sys.exit(2)
             labels = {"PermissionError", "FileNotFoundError", "LookupError",
                       "RuntimeError", "OSError", "ValueError", "ImportError",
                       "ModuleNotFoundError", "ControlledZipRefused",
