@@ -117,7 +117,7 @@ test('evidência física descartável atravessa Python FD → relatório individ
  const {readFileSync}=await import('node:fs');
  const {fileURLToPath}=await import('node:url');
  const evidencePath=fileURLToPath(new URL(
-  '../test-results/ci-disposable-fd-evidence.json',import.meta.url));
+  '../scripts/ci-disposable-fd-evidence.json',import.meta.url));
  const stdout=readFileSync(evidencePath,'utf8');
  expect(stdout.length).toBeLessThan(30000);
  expect(stdout).not.toContain('Vehicles/');
