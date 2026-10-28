@@ -106,3 +106,40 @@ test('recusa números adulterados, slots ausentes e campos capazes de vazar path
    .toThrow('CI_FD_EVIDENCE_REFUSED');
  }
 });
+
+// E2E on Linux GitHub CI only: Python creates ZIPs on a disposable filesystem,
+// opens them as read-only file descriptors, a separate worker reads ZIP bytes,
+// and this test independently validates and projects the anonymous counts.
+// The desktop application still cannot access user ZIPs or this worker.
+test('evidência física descartável atravessa Python FD → relatório individual',async()=>{
+ test.skip(process.platform!=='linux'||process.env.GITHUB_ACTIONS!=='true',
+  'Somente na CI Linux com ZIPs inventados');
+ const {execFile}=await import('node:child_process');
+ const {promisify}=await import('node:util');
+ const {fileURLToPath}=await import('node:url');
+ const {resolve}=await import('node:path');
+ const run=promisify(execFile);
+ const pythonScript=fileURLToPath(new URL(
+  '../scripts/emit_controlled_ci_fd_evidence.py',import.meta.url));
+ const {stdout,stderr}=await run('python3',['-I','-S','-B',pythonScript],{
+  cwd:'/',env:{CI:'true',GITHUB_ACTIONS:'true',PYTHONIOENCODING:'utf-8'},
+  timeout:20000,maxBuffer:32768
+ });
+ expect(stderr).toBe('');
+ expect(stdout).not.toContain('Vehicles/');
+ expect(stdout).not.toContain('missing.dds');
+ expect(stdout).not.toContain('ci-fd-evidence-');
+ const parsed=JSON.parse(stdout);
+ const evidence=projectCiFdFixtureEvidence(parsed);
+ expect(evidence.fixtureCount).toBe(3);
+ expect(evidence.reports).toHaveLength(3);
+ expect(evidence.reports[0].counts).toMatchObject({
+  ambiguous:1,otherCandidate:1,unresolved:1,
+  withinOwn:0,unsafe:0,unsupported:0
+ });
+ expect(evidence.reports[0].status).toBe('needs-human-review');
+ expect(evidence.reports.every(x=>!x.canInstall&&!x.checkedRealFiles)).toBe(true);
+ expect(evidence.filesFromUserInspected).toBe(false);
+ expect(evidence.osSandboxVerified).toBe(false);
+ expect(evidence.canInstall).toBe(false);
+});
