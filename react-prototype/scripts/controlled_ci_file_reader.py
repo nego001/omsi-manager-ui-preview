@@ -16,6 +16,7 @@ import sys
 # -I/-S avoid site/user paths. The only local package path is our fixed script
 # directory, not the working directory, HOME or supplied input.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from controlled_ci_linux_hardening import enforce_no_new_privileges
 from controlled_zip_reader import MAX_ARCHIVE_BYTES, examine_controlled_zip_bytes
 
 CHUNK = 16_384
@@ -96,6 +97,9 @@ def _main():
     resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
     resource.setrlimit(resource.RLIMIT_CPU, (3, 3))
     resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+    # Explicitly fail closed if kernel hardening cannot be enabled.
+    # No-new-privs does not provide OS-level sandbox isolation.
+    enforce_no_new_privileges()
     print(json.dumps(inspect_open_read_only_fixture_fd(fd),
                      sort_keys=True, separators=(",", ":")))
 
