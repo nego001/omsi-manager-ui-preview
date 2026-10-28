@@ -16,6 +16,9 @@ import subprocess
 import sys
 import tempfile
 
+# -I omits the script directory, so import exclusively from this fixed,
+# reviewed CI scripts folder. Never import from HOME, cwd or ZIP contents.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_controlled_zip_reader import bundle
 from controlled_ci_group_fd_reader import MAX_PACKAGES
 
