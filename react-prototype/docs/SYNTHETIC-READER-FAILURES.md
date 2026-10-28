@@ -315,8 +315,12 @@ O módulo `controlled_ci_fd_inventory.py` exige que os únicos descritores
 abertos com número a partir de 3 no worker sejam os ZIPs fictícios
 fornecidos pela CI por `pass_fds`, com uma única exceção estrita: até um
 FD mantido pelo próprio interpretador para o script `__file__` em execução.
-Essa exceção exige identidade dispositivo/inode exata e modo somente leitura;
-qualquer outro arquivo extra permanece proibido. Antes da ativação do filtro seccomp, o
+Essa exceção exige identidade dispositivo/inode exata e modo somente leitura.
+O Python no runner também pode manter um descritor regular de biblioteca
+sob `/usr/lib/` ou `/usr/local/lib/`; no máximo um descritor desse tipo,
+se for somente leitura, é **fechado** antes da análise sob seccomp, sem ser
+lido ou repassado. Descritores de arquivos externos e sockets não declarados
+continuam causando recusa integral. Antes da ativação do filtro seccomp, o
 worker inspeciona `/proc/self/fd`, consulta metadados com `fstat` e
 `F_GETFL`, e recusa descritores extras, arquivos não regulares,
 hardlinks e acessos de escrita. A leitura de `/proc/self/fd` cria um
