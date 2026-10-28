@@ -115,9 +115,13 @@ jobs:
           retention-days: 14
 
   native_auto_x11:
-    name: Native Auto X11 real-window check (strict sandbox)
+    name: Native Auto X11 real-window check (${{ matrix.runner }}, strict sandbox)
     needs: build
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-22.04]
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     defaults:
@@ -151,14 +155,18 @@ jobs:
           CI: 'true'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends x11-utils
+          sudo apt-get install -y --no-install-recommends x11-utils x11-apps
           # Probe host prerequisites without changing the Electron sandbox.
           node --check scripts/auto-real-x11-smoke.mjs
           node scripts/auto-x11-host-capabilities.mjs
           # The real auto-launch must still create a mapped X11 window.
           xvfb-run -a node scripts/auto-real-x11-smoke.mjs
-      # Known SIGTRAP on CI sandbox. This MUST remain a failing job until
-      # a genuine fix exists. No --no-sandbox or weakened security is allowed.
+      # Compare two supported hosted Ubuntu images without changing any
+      # sandbox, AppArmor, kernel or privilege policy. The same CI-built
+      # unsigned Linux artifact and identical X11 proof are required for both.
+      # Any failed matrix image MUST keep the workflow red: a successful
+      # ubuntu-22.04 run cannot waive a failure on ubuntu-24.04.
+      # No --no-sandbox or weakened security is allowed.
 
   arch_portable_audit:
     name: Arch Linux x64 container / ELF runtime audit (no GUI)
