@@ -24,11 +24,14 @@ export function verifyMappedWindow(details){
 export function verifyNativeCommandLine(command,backend){
  if(!Buffer.isBuffer(command)||!['x11','wayland'].includes(backend)||
   command.length===0||command.length>65536)throw Error('NATIVE_AUTO_PROCESS_NOT_VERIFIED');
- const args=command.toString('utf8').split('\0').filter(Boolean);
- if(!args[0]?.endsWith('/OMSI-Manager-Preview')||
-  !args.includes('--ozone-platform='+backend)||
-  args.includes('--no-sandbox')||args.includes('--disable-web-security')||
-  args.includes('--disable-features=VizDisplayCompositor'))
+ // Accept exactly the two arguments the isolated CI worker launched.
+ // Any extra Chromium switch, including an unfamiliar sandbox bypass,
+ // invalidates the observation. Do not silently discard empty arguments.
+ const args=command.toString('utf8').split('\0');
+ if(args.at(-1)==='')args.pop();
+ if(args.length!==2||
+  !args[0]?.endsWith('/OMSI-Manager-Preview')||
+  args[1]!=='--ozone-platform='+backend)
   throw Error('NATIVE_AUTO_PROCESS_NOT_VERIFIED');
  return true;
 }
