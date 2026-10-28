@@ -1,0 +1,100 @@
+"""CI ONLY: read an already-open regular fixture ZIP FD, without writing.
+
+This is deliberately not a production sandbox. No path arguments, game
+directories, extraction, IPC from Electron, or arbitrary file selection.
+The CI tests create and open a disposable ZIP with O_NOFOLLOW | O_RDONLY.
+"""
+from __future__ import annotations
+
+import fcntl
+import json
+import os
+import resource
+import stat
+import sys
+
+# -I/-S avoid site/user paths. The only local package path is our fixed script
+# directory, not the working directory, HOME or supplied input.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from controlled_zip_reader import MAX_ARCHIVE_BYTES, examine_controlled_zip_bytes
+
+CHUNK = 16_384
+
+class ControlledCiFdRefused(ValueError):
+    """Never include a user-provided filename or path in the error."""
+
+def refuse():
+    raise ControlledCiFdRefused("CONTROLLED_CI_FD_REFUSED")
+
+def _identity(stat_result):
+    return (stat_result.st_dev, stat_result.st_ino, stat_result.st_size,
+            stat_result.st_mtime_ns, stat_result.st_ctime_ns)
+
+def inspect_open_read_only_fixture_fd(fd: int) -> dict:
+    """Inspect only an already-open Linux regular-file descriptor.
+
+    No open(path), no writes and no file extraction. A caller MUST create the
+    fixture and open it separately; no gate here authenticates arbitrary mods.
+    """
+    if type(fd) is not int or not 3 <= fd < 64:
+        refuse()
+    try:
+        before = os.fstat(fd)
+        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        if (flags & os.O_ACCMODE) != os.O_RDONLY:
+            refuse()
+        if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
+                not 0 < before.st_size <= MAX_ARCHIVE_BYTES):
+            refuse()
+        collected = bytearray()
+        offset = 0
+        while offset < before.st_size:
+            part = os.pread(fd, min(CHUNK, before.st_size - offset), offset)
+            if not part:
+                refuse()
+            collected.extend(part)
+            offset += len(part)
+            if offset > MAX_ARCHIVE_BYTES:
+                refuse()
+        after = os.fstat(fd)
+        if _identity(before) != _identity(after):
+            refuse()
+        # The existing ZIP gate does not extract or execute entries.
+        report = examine_controlled_zip_bytes(bytes(collected))
+        return {
+            "inputSource": "ci-created-open-readonly-file-descriptor",
+            "inputRegularFile": True,
+            "inputIdentityStableDuringRead": True,
+            "zipReport": report,
+            "osSandboxVerified": False,
+            "realUserModsInspected": False,
+            "installationEnabled": False,
+            "writesPerformed": False,
+        }
+    except (OSError, OverflowError, MemoryError):
+        refuse()
+
+def _main():
+    if len(sys.argv) != 3 or sys.argv[1] != "--fixture-fd":
+        refuse()
+    try:
+        fd = int(sys.argv[2], 10)
+    except ValueError:
+        refuse()
+    # Set conservative worker limits; these are resource controls, not
+    # OS isolation. The caller also imposes a wall-clock timeout.
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_FSIZE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_CPU, (3, 3))
+    resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+    print(json.dumps(inspect_open_read_only_fixture_fd(fd),
+                     sort_keys=True, separators=(",", ":")))
+
+if __name__ == "__main__":
+    try:
+        _main()
+    except Exception:
+        # Do NOT print exception repr, stack trace, file name, input bytes,
+        # token, fd contents or host paths to CI logs.
+        print("CONTROLLED_CI_FD_REFUSED", file=sys.stderr)
+        sys.exit(2)

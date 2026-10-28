@@ -215,3 +215,29 @@ numeração ou divergir dos totais consolidados. Toda saída permanece
 anônima, sem nomes, paths ou dados binários, e o resultado nunca
 representa arquivos reais, dependências verificadas ou permissão
 de instalação. O seletor não abre ZIPs nem consulta favoritos.
+
+### Leitura de um arquivo ZIP real no disco descartável da CI (sem mods de usuários)
+
+Foi criado o experimento Linux `controlled_ci_file_reader.py`. A suíte
+`test_controlled_ci_file_reader.py` grava um ZIP fictício real em uma pasta
+temporária exclusiva, abre-o com `O_RDONLY|O_NOFOLLOW|O_CLOEXEC|O_NONBLOCK`,
+passa **somente o descritor já aberto** a um processo Python novo e recebe
+uma resposta de contagens sem nomes. O processo recusa descritores graváveis,
+pipes, hardlinks, tamanhos acima do limite e arquivos ZIP corrompidos.
+O leitor confirma que o descritor aponta para arquivo regular com identidade
+estável antes/depois de `pread`; não extrai nem escreve o conteúdo.
+Testes adicionais verificam que symlink não pode ser aberto, que não foram
+criados arquivos na pasta de teste e que dados da fixture não chegam à saída.
+
+Há limites de CPU/memória/fsize no processo e timeout no orquestrador de teste.
+**Importante:** isso NÃO constitui isolamento de sistema operacional validado
+(o próprio relatório devolve `osSandboxVerified=false`). O processo de teste
+não está ligado ao Electron, IPC, leitor de mods de usuários ou pastas de jogos.
+É uma prova testável de leitura de bytes de arquivo local descartável,
+não uma aprovação de entrada não confiável, autenticidade, detecção de malware,
+compatibilidade ou operações de instalação, remoção e reparo.
+
+A função `projectFixtureSlots` agora padroniza defeitos de contagem ou
+cobertura de slots como `FIXTURE_SLOTS_INVALID` sem aceitar a entrada;
+erros de programação desconhecidos continuam propagados. Isso corrige
+o teste Playwright de contratos que esperava um erro específico.

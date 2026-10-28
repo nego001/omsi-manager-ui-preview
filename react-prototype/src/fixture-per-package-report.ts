@@ -28,7 +28,17 @@ export function projectFixtureSlots(example:PerFixtureScenario):PerFixtureProjec
  const reports=example.slots.map((slot,i)=>{
   if(!slot||!Number.isSafeInteger(slot.slot)||slot.slot!==i+1)
    throw Error('FIXTURE_SLOTS_INVALID');
-  const scope=buildFixtureCoverage({...slot,fixtureCount:example.fixtureCount});
+  let scope;
+  try{
+   scope=buildFixtureCoverage({...slot,fixtureCount:example.fixtureCount});
+  }catch(error){
+   // All user-supplied slot defects share one stable fail-closed code.
+   // Do not suppress unrelated programming faults or silently accept data.
+   if(error instanceof Error&&
+      ['FIXTURE_TRIAGE_INVALID','FIXTURE_COVERAGE_INVALID'].includes(error.message))
+    throw Error('FIXTURE_SLOTS_INVALID');
+   throw error;
+  }
   const status:PerFixtureStatus=
    slot.unsafe>0?'fixture-path-refused':
    slot.notInspectedSources>0?'inspection-incomplete':
