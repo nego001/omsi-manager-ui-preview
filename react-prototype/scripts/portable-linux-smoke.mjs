@@ -49,6 +49,19 @@ assert.ok(['advertised','unknown'].includes(reported.portalFileChooserInterface)
 assert.equal(reported.portalFileChooserInterface==='unknown',reported.portalFileChooserVersion===null);
 assert.equal(reported.hyprlandCompatibilityVerified,false);
 assert.equal(reported.waylandSocket,'not-configured');
+// The actual distributed helper must expose only bounded OS-policy hints,
+// never claim that unshare/Chromium sandbox succeeded or change host config.
+const userns=reported.electronUserNamespacePrerequisites;
+assert.ok(userns&&typeof userns==='object');
+assert.ok(['enabled','disabled','unknown','unavailable'].includes(userns.apparmorUsernsRestriction));
+assert.ok(['enabled','disabled','unknown','unavailable'].includes(userns.unprivilegedUsernsSwitch));
+assert.ok(['positive','zero','unknown','unavailable'].includes(userns.usernsCapacity));
+assert.ok(['restriction-indicated','no-obvious-restriction','undetermined']
+ .includes(userns.userNamespacePolicyHint));
+assert.equal(userns.userNamespaceCreationVerified,false);
+assert.equal(userns.electronSandboxVerified,false);
+assert.equal(userns.hostSecurityPolicyChanged,false);
+assert.ok(!diagnostic.stdout.includes('/proc/sys/'),'no kernel paths in report');
 assert.ok(!diagnostic.stdout.includes(temp),'diagnostic must not expose temp paths');
 const xdg=join(temp,'isolated-xdg');
 const entry=join(xdg,'applications','org.omsi_manager.Preview.desktop');
