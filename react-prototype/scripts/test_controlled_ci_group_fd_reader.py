@@ -84,7 +84,7 @@ class ControlledCiGroupFdReaderTests(unittest.TestCase):
     def test_group_rechecks_all_fds_after_comparison_and_rejects_late_change(self):
         # The already-validated first ZIP may change while other ZIPs are
         # compared. Simulate the race without altering a real filesystem file.
-        first = bundle([("A/original.bus", b"[model]\\nmodel.cfg\\n")])
+        first = bundle([("A/original.bus", b"[model]\nmodel.cfg\n")])
         second = bundle([("A/model.cfg", b"made-up cfg")])
         with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
             paths = (Path(root) / "first.zip", Path(root) / "second.zip")
