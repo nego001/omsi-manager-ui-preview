@@ -74,7 +74,25 @@ def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...], worker_sour
                 if stat.S_ISDIR(status.st_mode):
                     refuse("EXTRA_DIRECTORY")
                 if stat.S_ISREG(status.st_mode):
-                    refuse("EXTRA_REGULAR")
+                    # No raw path is emitted, even in CI-only diagnostic mode.
+                    # Categories are fixed and are not proof of trusted origin.
+                    try:
+                        target = os.readlink("/proc/self/fd/" + str(fd))
+                    except OSError:
+                        target = ""
+                    if target.startswith("/memfd:") or target.startswith("memfd:"):
+                        refuse("EXTRA_REGULAR_MEMFD")
+                    if target == os.path.realpath(sys.executable):
+                        refuse("EXTRA_REGULAR_INTERPRETER")
+                    if target.startswith(os.path.dirname(os.path.abspath(worker_source)) + "/"):
+                        refuse("EXTRA_REGULAR_WORKER_TREE")
+                    if target.startswith("/usr/lib/") or target.startswith("/usr/local/lib/"):
+                        refuse("EXTRA_REGULAR_SYSTEM_LIB")
+                    if target.startswith("/home/runner/work/"):
+                        refuse("EXTRA_REGULAR_WORKSPACE")
+                    if target.startswith("/tmp/"):
+                        refuse("EXTRA_REGULAR_TEMPORARY")
+                    refuse("EXTRA_REGULAR_UNKNOWN")
                 if stat.S_ISSOCK(status.st_mode):
                     refuse("EXTRA_SOCKET")
                 if stat.S_ISFIFO(status.st_mode):
