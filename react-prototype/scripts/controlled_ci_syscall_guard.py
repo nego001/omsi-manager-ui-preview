@@ -30,7 +30,8 @@ SECCOMP_RET_ALLOW = 0x7FFF0000
 _DENIED = SECCOMP_RET_ERRNO | errno.EPERM
 
 # Stable Linux x86_64 syscall numbers. New file opens, new network sockets
-# and exec are forbidden. The worker can still read its already-open ZIP FD.
+# execution and filesystem metadata mutations are forbidden. The worker can
+# still read its already-open ZIP FD. The numbers are Linux x86_64 only.
 # This is a bounded denylist, NOT a comprehensive syscall allowlist.
 _BLOCKED_SYSCALLS = (
     2,    # open
@@ -44,6 +45,8 @@ _BLOCKED_SYSCALLS = (
     49,   # bind
     50,   # listen
     53,   # socketpair
+    76,   # truncate
+    77,   # ftruncate
     56,   # clone
     57,   # fork
     58,   # vfork
@@ -52,19 +55,44 @@ _BLOCKED_SYSCALLS = (
     83,   # mkdir
     84,   # rmdir
     85,   # creat
+    86,   # link
     87,   # unlink
+    88,   # symlink
+    90,   # chmod
+    91,   # fchmod
+    92,   # chown
+    93,   # fchown
+    94,   # lchown
     101,  # ptrace
+    132,  # utime
+    133,  # mknod
+    155,  # pivot_root
+    165,  # mount
+    166,  # umount2
+    235,  # utimes
     257,  # openat
     258,  # mkdirat
+    259,  # mknodat
+    260,  # fchownat
+    261,  # futimesat
     263,  # unlinkat
     264,  # renameat
+    265,  # linkat
+    266,  # symlinkat
+    268,  # fchmodat
+    272,  # unshare
+    280,  # utimensat
     288,  # accept4
     299,  # recvmmsg
+    303,  # name_to_handle_at
+    304,  # open_by_handle_at
     307,  # sendmmsg
+    308,  # setns
     316,  # renameat2
     322,  # execveat
     435,  # clone3
     437,  # openat2
+    452,  # fchmodat2
 )
 assert len(_BLOCKED_SYSCALLS) == len(set(_BLOCKED_SYSCALLS))
 
