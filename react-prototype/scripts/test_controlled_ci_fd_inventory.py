@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from pathlib import Path
 import subprocess
 import sys
@@ -86,6 +87,27 @@ class CiInheritedFdInventoryTests(unittest.TestCase):
             finally:
                 for fd in fds:
                     os.close(fd)
+
+
+    def test_single_worker_refuses_inherited_socket_even_when_seccomp_blocks_creation(self):
+        # An already-open socket could evade a rule that merely blocks socket().
+        # Reject the unexpected inherited socket before ZIP parsing instead.
+        with tempfile.TemporaryDirectory(prefix="ci-fd-inventory-") as folder:
+            path = Path(folder) / "invented.zip"
+            path.write_bytes(bundle([("A/demo.bus", b"[model]\\nmodel.cfg\\n")]))
+            fd = open_fixture(path)
+            local, remote = socket.socketpair()
+            try:
+                result = run_worker(
+                    SINGLE, ["--fixture-fd", str(fd)],
+                    (fd, local.fileno()))
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr.strip(), "CONTROLLED_CI_FD_REFUSED")
+            finally:
+                local.close()
+                remote.close()
+                os.close(fd)
 
 
 if __name__ == "__main__":
