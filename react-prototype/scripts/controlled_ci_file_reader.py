@@ -30,11 +30,12 @@ def _identity(stat_result):
     return (stat_result.st_dev, stat_result.st_ino, stat_result.st_size,
             stat_result.st_mtime_ns, stat_result.st_ctime_ns)
 
-def inspect_open_read_only_fixture_fd(fd: int) -> dict:
-    """Inspect only an already-open Linux regular-file descriptor.
+def read_checked_fixture_fd_bytes(fd: int) -> bytes:
+    """CI fixture only: copy bytes from an existing read-only regular-file FD.
 
-    No open(path), no writes and no file extraction. A caller MUST create the
-    fixture and open it separately; no gate here authenticates arbitrary mods.
+    The result is UNTRUSTED until a separate bounded format parser accepts it.
+    No path is opened here, but FD provenance and a full OS sandbox are NOT
+    authenticated; this function must never be exposed to app IPC.
     """
     if type(fd) is not int or not 3 <= fd < 64:
         refuse()
@@ -59,20 +60,28 @@ def inspect_open_read_only_fixture_fd(fd: int) -> dict:
         after = os.fstat(fd)
         if _identity(before) != _identity(after):
             refuse()
-        # The existing ZIP gate does not extract or execute entries.
-        report = examine_controlled_zip_bytes(bytes(collected))
-        return {
-            "inputSource": "ci-created-open-readonly-file-descriptor",
-            "inputRegularFile": True,
-            "inputIdentityStableDuringRead": True,
-            "zipReport": report,
-            "osSandboxVerified": False,
-            "realUserModsInspected": False,
-            "installationEnabled": False,
-            "writesPerformed": False,
-        }
+        return bytes(collected)
     except (OSError, OverflowError, MemoryError):
         refuse()
+
+
+def inspect_open_read_only_fixture_fd(fd: int) -> dict:
+    """Inspect an inherited CI fixture FD through the bounded ZIP reader.
+
+    This is not a production sandbox, a user-mod scanner or an assurance
+    against concurrent ABA/TOCTOU replacement.
+    """
+    report = examine_controlled_zip_bytes(read_checked_fixture_fd_bytes(fd))
+    return {
+        "inputSource": "ci-created-open-readonly-file-descriptor",
+        "inputRegularFile": True,
+        "inputIdentityStableDuringRead": True,
+        "zipReport": report,
+        "osSandboxVerified": False,
+        "realUserModsInspected": False,
+        "installationEnabled": False,
+        "writesPerformed": False,
+    }
 
 def _main():
     if len(sys.argv) != 3 or sys.argv[1] != "--fixture-fd":
