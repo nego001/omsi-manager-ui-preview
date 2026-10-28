@@ -45,9 +45,10 @@ test('converte evidência de arquivos fictícios em relatórios individuais anô
   'needs-human-review','no-known-references','no-known-references'
  ]);
  expect(projection.reports[0].counts).toMatchObject({
-  declared:3,ambiguous:1,otherCandidate:1,unresolved:1,
+  ambiguous:1,otherCandidate:1,unresolved:1,
   withinOwn:0,unsafe:0,unsupported:0
  });
+ expect(Object.values(projection.reports[0].counts).reduce((a,b)=>a+b,0)).toBe(3);
  expect(projection.filesFromUserInspected).toBe(false);
  expect(projection.osSandboxVerified).toBe(false);
  expect(projection.canInstall).toBe(false);
