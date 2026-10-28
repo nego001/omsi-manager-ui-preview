@@ -523,3 +523,34 @@ kernel, pacote ou política do runner. O controle **não** valida o sandbox,
 as janelas do OMSI Manager nem os compositores reais GNOME ou KDE.
 Para homologação do aplicativo, continuam obrigatórias as verificações
 independentes de PID, linha de comando, mapeamento e os dois perfis.
+
+### Matriz X11 com sandbox estrito em dois runners Ubuntu
+
+As runs anteriores (`40767726896`, `40767719800`) demonstraram que
+uma janela descartável do `xmessage` foi mapeada no Xvfb do runner. Nos
+mesmos jobs, **Auto e Electron empacotado diretamente** terminaram com
+`SIGTRAP` sob etiquetas GNOME e KDE, sem janela mapeada. Isso distingue
+a capacidade básica do servidor X11 da falha de inicialização protegida
+do Electron, mas **não prova** que AppArmor é a causa única.
+
+O job `native_auto_x11` agora executa uma **matriz independente**
+`ubuntu-24.04` / `ubuntu-22.04` com `fail-fast: false`, utilizando
+o **mesmo artefato Linux criado pelo job build** (checksum SHA-256
+verificado antes da extração). Ambos exigem o controle `xmessage`,
+a prova do executável nativo, PID/linha de comando, mapeamento real
+e os testes GNOME/KDE sob sandbox Chromium/Electron intacto.
+
+- Se ambos falharem com `SIGTRAP`, ainda não haverá homologação;
+  os dados ajudam a verificar se o problema se reproduz em dois hosts.
+- Se apenas um passar, o job do outro **permanece vermelho**. A aprovação
+  parcial não pode validar a aplicação em todos os ambientes.
+- Se o artefato compilado na imagem Ubuntu 24.04 não for compatível com
+  a glibc/bibliotecas do Ubuntu 22.04, isso é um problema de
+  compatibilidade de pacote/ABI, **não evidência de que o sandbox falhou**.
+  É necessário interpretar categoria de erro e resultados do Electron direto.
+
+**Nenhuma política de sistema foi afrouxada:** não há `--no-sandbox`,
+`--disable-setuid-sandbox`, modificação do AppArmor, `sysctl` de
+user namespaces, execução do Electron como root ou supressão do
+resultado falho. Os resultados Xvfb não substituem testes reais de
+GNOME Shell/KWin nem autorizam acesso a mods ou instalações.
