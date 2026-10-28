@@ -98,7 +98,7 @@ def _main():
     prime_ci_fixture_parser_runtime()
     # No other inherited handles, including otherwise unread extra files.
     # This is an inventory check, not file-origin authentication.
-    verify_exact_inherited_ci_fixture_fds(fds)
+    verify_exact_inherited_ci_fixture_fds(fds, __file__)
     enforce_disposable_worker_syscall_guard()
     print(json.dumps(inspect_open_fixture_group_fds(fds),
                      sort_keys=True, separators=(",", ":")))
