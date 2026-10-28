@@ -476,7 +476,15 @@ candidata, `auto-real-x11-smoke.mjs` consulta a propriedade
 `_NET_WM_PID` via `xprop -id <id> _NET_WM_PID`. O contrato
 `verifyNativeWindowOwner` aceita apenas uma linha da propriedade
 `CARDINAL` com PID inteiro positivo idêntico ao PID do Electron que
-a própria CI iniciou. A mesma checagem vale para o lançador `Auto` e para
+a própria CI iniciou. A verificação de linha de comando via `/proc/<pid>/cmdline` também exige
+exatamente dois argumentos: executável `OMSI-Manager-Preview` e uma única
+opção `--ozone-platform=x11`. Quaisquer opções adicionais, inclusive
+`--no-sandbox`, `--disable-setuid-sandbox`,
+`--disable-seccomp-filter-sandbox` ou `--no-zygote`, invalidam o teste,
+sem tentar executá-las. Isso verifica a observação do lançamento de CI,
+não o estado interno de todas as camadas do sandbox Chromium.
+
+A mesma checagem vale para o lançador `Auto` e para
 a sondagem independente do Electron direto. Resultados de ambas as etiquetas
 GNOME e KDE também precisam confirmar `nativeProcess=true`,
 `windowOwned=true` e `mapped=true`.
