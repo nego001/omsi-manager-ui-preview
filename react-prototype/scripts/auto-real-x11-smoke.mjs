@@ -1,7 +1,6 @@
 // CI: genuinely execute OMSI-Manager-Auto without flags under isolated Xvfb.
 // Confirm both the forwarded X11 backend and an actual mapped Electron window.
 // This is NOT a real GNOME/KWin compositor or native chooser certification.
-import assert from 'node:assert/strict';
 import {spawn,execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {readFile,mkdtemp,mkdir,rm,access} from 'node:fs/promises';
@@ -9,8 +8,8 @@ import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
-import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine}
- from './auto-real-x11-contract.mjs';
+import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
+ verifyNativeDesktopResults} from './auto-real-x11-contract.mjs';
 const execAsync=promisify(execFile);
 if(process.platform!=='linux'||process.getuid?.()===0||!process.env.DISPLAY||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
@@ -87,6 +86,7 @@ await mkdir(join(root,'config'),{mode:0o700});
 await mkdir(join(root,'cache'),{mode:0o700});
 await mkdir(join(root,'data'),{mode:0o700});
 await mkdir(join(root,'runtime'),{mode:0o700});
+const outcomes=[];
 try{
  for(const desktop of ['GNOME','KDE']){
   let child;
@@ -96,6 +96,7 @@ try{
   const observed={nativeProcess:false,windowFound:false,mapped:false};
   const startupHints=new Set();
   let checkpoint='startup';
+  let found=false;
   try{
    child=spawn(binary,[],{
     cwd:dirname(binary),detached:true,stdio:['ignore','ignore','pipe'],shell:false,
@@ -122,7 +123,6 @@ try{
    });
    child.once('error',()=>{failed=true;startupHints.add('spawn-error');});
    child.once('exit',(code,signal)=>{failed=true;exitCode=code;exitSignal=signal;});
-   let found=false;
    for(let i=0;i<70;i++){
     if(failed||child.exitCode!==null)break;
     try{
@@ -164,9 +164,9 @@ try{
       JSON.stringify({desktop,probeUnavailable:true}));
     }
    }
-   assert.equal(found,true,'AUTO_X11_NATIVE_GUI_NOT_VERIFIED');
-   assert.equal(failed,false,'AUTO_X11_NATIVE_PROCESS_EXITED');
-   console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
+   outcomes.push({desktop,mapped:found,failed});
+   if(found&&!failed)
+    console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
   }finally{
    if(child?.pid&&child.exitCode===null){
     try{process.kill(-child.pid,'SIGTERM');}catch{}
@@ -178,3 +178,6 @@ try{
 }finally{
  await rm(root,{recursive:true,force:true});
 }
+// Do not stop after a GNOME failure: collect independent KDE evidence too.
+// A failing profile keeps this CI job red, regardless of direct Electron probe.
+verifyNativeDesktopResults(outcomes);
