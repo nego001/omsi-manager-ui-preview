@@ -7,8 +7,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
-from controlled_ci_file_reader import ControlledCiFdRefused, inspect_open_read_only_fixture_fd
+from controlled_ci_file_reader import (
+    ControlledCiFdRefused, inspect_open_read_only_fixture_fd,
+    read_checked_fixture_fd_bytes,
+)
 from controlled_zip_reader import MAX_ARCHIVE_BYTES
 from test_controlled_zip_reader import bundle
 
@@ -183,6 +187,35 @@ class ControlledCiFileReaderTests(unittest.TestCase):
             finally:
                 os.close(fd)
             self.assertEqual(path.read_bytes(), data)
+
+    def test_two_positional_snapshots_reject_changed_bytes_with_identical_fstat(self):
+        # Simulate a transient read-time content swap without changing the
+        # actual file or its inode/mtime. The second pass MUST detect it.
+        with tempfile.TemporaryDirectory(prefix="ci-zip-fd-") as root:
+            path = Path(root) / "invented.zip"
+            payload = bundle([("A/fixture.bus", b"[model]\\nmodel.cfg\\n")])
+            path.write_bytes(payload)
+            fd = open_fixture(path)
+            real_pread = os.pread
+            calls = [0]
+            def transient_content_swap(target_fd, count, offset):
+                chunk = real_pread(target_fd, count, offset)
+                calls[0] += 1
+                if calls[0] >= 2 and chunk:
+                    return bytes((chunk[0] ^ 1,)) + chunk[1:]
+                return chunk
+            try:
+                self.assertEqual(read_checked_fixture_fd_bytes(fd), payload)
+                with patch("controlled_ci_file_reader.os.pread",
+                           side_effect=transient_content_swap):
+                    with self.assertRaisesRegex(
+                        ControlledCiFdRefused, "^CONTROLLED_CI_FD_REFUSED$"
+                    ):
+                        read_checked_fixture_fd_bytes(fd)
+                self.assertGreaterEqual(calls[0], 2)
+            finally:
+                os.close(fd)
+            self.assertEqual(path.read_bytes(), payload)
 
     def test_worker_requires_an_inherited_fd_and_never_accepts_a_path(self):
         bad = subprocess.run(
