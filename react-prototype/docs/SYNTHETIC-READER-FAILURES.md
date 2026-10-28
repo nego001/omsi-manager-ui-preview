@@ -312,8 +312,11 @@ Portabilidade além de Linux x86_64 é recusada, não simulada.
 ### Inventário estrito de descritores herdados no laboratório
 
 O módulo `controlled_ci_fd_inventory.py` exige que os únicos descritores
-abertos com número a partir de 3 no worker sejam exatamente os ZIPs fictícios
-fornecidos pela CI por `pass_fds`. Antes da ativação do filtro seccomp, o
+abertos com número a partir de 3 no worker sejam os ZIPs fictícios
+fornecidos pela CI por `pass_fds`, com uma única exceção estrita: até um
+FD mantido pelo próprio interpretador para o script `__file__` em execução.
+Essa exceção exige identidade dispositivo/inode exata e modo somente leitura;
+qualquer outro arquivo extra permanece proibido. Antes da ativação do filtro seccomp, o
 worker inspeciona `/proc/self/fd`, consulta metadados com `fstat` e
 `F_GETFL`, e recusa descritores extras, arquivos não regulares,
 hardlinks e acessos de escrita. A leitura de `/proc/self/fd` cria um
