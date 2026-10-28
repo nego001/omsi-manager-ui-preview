@@ -32,8 +32,8 @@ class ControlledCiGroupFdReaderTests(unittest.TestCase):
     def test_multiple_real_disposable_zips_produce_anonymous_slot_evidence(self):
         payloads = [
             bundle([("Vehicles/Demo/private-123.bus",
-                     b"[model]\\nmodel.cfg\\n[mesh]\\nbody.o3d\\n"
-                     b"[texture]\\nmissing.dds\\n")]),
+                     b"[model]\nmodel.cfg\n[mesh]\nbody.o3d\n"
+                     b"[texture]\nmissing.dds\n")]),
             bundle([("Vehicles/Demo/model.cfg", b"fake fixture"),
                     ("Vehicles/Demo/body.o3d", b"fake geometry")]),
             bundle([("Vehicles/Demo/model.cfg", b"another invented fixture")]),
