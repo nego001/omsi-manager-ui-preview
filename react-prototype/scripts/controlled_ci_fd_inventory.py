@@ -15,11 +15,13 @@ import sys
 
 
 class CiFdInventoryRefused(ValueError):
-    pass
+    def __init__(self, phase: str):
+        super().__init__("CI_FD_INVENTORY_REFUSED")
+        self.phase = phase  # fixed codes only; never FD numbers or paths
 
 
-def refuse():
-    raise CiFdInventoryRefused("CI_FD_INVENTORY_REFUSED")
+def refuse(phase="GENERAL"):
+    raise CiFdInventoryRefused(phase)
 
 
 def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...]) -> None:
@@ -33,12 +35,12 @@ def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...]) -> None:
             or not 1 <= len(expected) <= 4
             or any(type(fd) is not int or fd < 3 or fd >= 64 for fd in expected)
             or len(set(expected)) != len(expected)):
-        refuse()
+        refuse("ARGUMENTS")
     try:
         present = set()
         for name in os.listdir("/proc/self/fd"):
             if not name.isascii() or not name.isdecimal():
-                refuse()
+                refuse("PROC_ENTRY")
             fd = int(name, 10)
             if fd <= 2:
                 continue
@@ -48,15 +50,17 @@ def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...]) -> None:
                 if error.errno == errno.EBADF:
                     # The procfs listing's own descriptor is already closed.
                     continue
-                refuse()
+                refuse("PROC_STAT")
             present.add(fd)
             if fd not in expected:
-                refuse()
+                refuse("EXTRA")
             flags = fcntl.fcntl(fd, fcntl.F_GETFL)
             if (not stat.S_ISREG(status.st_mode) or status.st_nlink != 1
                     or (flags & os.O_ACCMODE) != os.O_RDONLY):
-                refuse()
+                refuse("FD_TYPE")
         if present != set(expected):
-            refuse()
+            refuse("MISSING")
+    except CiFdInventoryRefused:
+        raise
     except (OSError, OverflowError, MemoryError, ValueError):
-        refuse()
+        refuse("PROC_FAILURE")
