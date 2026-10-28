@@ -105,8 +105,8 @@ def prime_ci_fixture_parser_runtime() -> None:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("A/invented.bus",
-                             b"[model]\\nmodel.cfg\\n[mesh]\\npart.o3d\\n")
-            archive.writestr("A/model.cfg", b"[mesh]\\npart.o3d\\n")
+                             b"[model]\nmodel.cfg\n[mesh]\npart.o3d\n")
+            archive.writestr("A/model.cfg", b"[mesh]\npart.o3d\n")
             archive.writestr("A/part.o3d", b"ci-fixture-only")
         inspected = examine_controlled_zip_bytes(buffer.getvalue())
         if (inspected["fileCount"] != 3 or
