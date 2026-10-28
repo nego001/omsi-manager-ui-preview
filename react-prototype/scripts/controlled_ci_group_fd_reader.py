@@ -59,6 +59,13 @@ def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
             if sum(map(len, payloads)) > MAX_COMBINED_INPUT_BYTES:
                 refuse()
         report = examine_fixture_group(tuple(payloads))
+        # Recheck every original FD *after* cross-package parsing. The
+        # individual reader already takes two independent positional reads;
+        # this final pass can also catch changes made between packages.
+        # This is bounded race detection, never a claim of immutable input.
+        for fd, original in zip(fds, payloads):
+            if read_checked_fixture_fd_bytes(fd) != original:
+                refuse()
     except (ControlledCiFdRefused, ControlledZipRefused, OSError,
             OverflowError, MemoryError):
         refuse()
