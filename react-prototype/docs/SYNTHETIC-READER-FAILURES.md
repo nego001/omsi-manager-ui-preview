@@ -283,3 +283,28 @@ obrigatório. Nada foi conectado ao Electron, ao instalador ou a mods reais.
 
 A validação precisa ocorrer no GitHub Actions Linux antes de declarar a
 etapa aprovada. O X11 Auto e a homologação física permanecem pendentes.
+
+### Defesa por syscalls seccomp no laboratório Linux x86_64
+
+Nos subprocessos Python de CI, `controlled_ci_syscall_guard.py` instala
+um filtro kernel seccomp-BPF **somente em Linux x86_64**, após a verificação
+`no_new_privs`, antes de ler ZIPs fictícios pelos descritores herdados.
+O filtro exige arquitetura x86_64 correta, recusa a ABI x32 e bloqueia com
+`EPERM` algumas famílias de syscalls: `open/openat/openat2/creat`,
+`socket/connect/bind/listen/accept`, envio/recepção de mensagens por socket,
+`execve/execveat`, `fork/clone`, alterações básicas de nomes de caminhos
+e `ptrace`. Qualquer falha ao instalar o filtro interrompe o worker,
+sem erro detalhado, caminho ou conteúdo dos arquivos.
+
+O teste `test_controlled_ci_syscall_guard.py` verifica em outro processo
+que `os.open('/dev/null')` e a criação de socket falham com `EPERM`,
+enquanto um descritor já existente pode ser consultado normalmente.
+Os testes do leitor precisam continuar aprovados *sob* o filtro ativo.
+Nenhum byte de ZIP é descompactado para o disco.
+
+**Limitações cruciais:** o filtro é uma lista de syscalls proibidas,
+**não** uma lista de todas as syscalls permitidas e não isola sozinho
+processos, kernel, memória, descritores herdados ou rede preexistente.
+`osSandboxVerified=false` continua obrigatório. Não é homologação de
+mods não confiáveis de usuários, nem habilitação de leitura no Electron.
+Portabilidade além de Linux x86_64 é recusada, não simulada.
