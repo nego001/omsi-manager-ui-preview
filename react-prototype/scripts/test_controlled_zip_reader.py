@@ -84,6 +84,50 @@ class ControlledZipReaderTests(unittest.TestCase):
         self.assertFalse(report["compatibilityVerified"])
         self.assertFalse(report["declaredSuffixesAreContentProof"])
 
+    def test_definition_hints_are_aggregate_only_and_not_game_recognition(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("Vehicles/private_bus.bus", b"[friendlyname]\nFictitious\n[model]\nmodel.cfg\n"),
+            ("models/example.cfg", b"[mesh]\nplaceholder.o3d\n"),
+            ("def/truck.sii", b"SiiNunit\n{\nvehicle : demo.truck\n}\n"),
+            ("def/fake.sii", b"SiiNunit\n{\nvehicle : demo.truck\n"),
+            ("vehicles/binary.bus", b"\xff\x00\xfe"),
+            ("vehicle/unrelated.bus", b"hello"),
+            ("models/too-large.cfg", b"[mesh]\n" + b"x" * 17_000),
+        ]))
+        hints = report["definitionFixtureHints"]
+        self.assertEqual(hints["bus"], {
+            "declaredFiles": 3, "markerObserved": 1, "noMarker": 1,
+            "textUnavailable": 1, "notInspected": 0
+        })
+        self.assertEqual(hints["cfg"], {
+            "declaredFiles": 2, "markerObserved": 1, "noMarker": 0,
+            "textUnavailable": 0, "notInspected": 1
+        })
+        self.assertEqual(hints["sii"], {
+            "declaredFiles": 2, "markerObserved": 1, "noMarker": 1,
+            "textUnavailable": 0, "notInspected": 0
+        })
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["definitionSyntaxVerified"])
+        self.assertFalse(report["compatibilityVerified"])
+        self.assertFalse(report["installationEnabled"])
+        import json
+        out = json.dumps(report)
+        for secret in ("private_bus", "Fictitious", "demo.truck",
+                       "placeholder.o3d", "too-large.cfg", "hello"):
+            self.assertNotIn(secret, out)
+
+    def test_control_bytes_and_no_utf8_never_create_valid_markers(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("Vehicles/ctrl.bus", b"[friendlyname]\x00"),
+            ("models/invalid.cfg", b"\xff[mesh]"),
+            ("def/nothing.sii", b"vehicle : demo.truck\n{\n}\n"),
+        ]))
+        self.assertEqual(report["definitionFixtureHints"]["bus"]["textUnavailable"], 1)
+        self.assertEqual(report["definitionFixtureHints"]["cfg"]["textUnavailable"], 1)
+        self.assertEqual(report["definitionFixtureHints"]["sii"]["noMarker"], 1)
+        self.assertFalse(report["definitionSyntaxVerified"])
+
     def test_deflated_directory_metadata_is_rejected(self):
         mem = io.BytesIO()
         with zipfile.ZipFile(mem, "w") as zf:

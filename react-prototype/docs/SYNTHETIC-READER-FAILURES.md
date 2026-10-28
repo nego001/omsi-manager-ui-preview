@@ -60,3 +60,19 @@ Na execução 40573648625, o lançador nativo produziu SIGTRAP e indicação
 de problema com sandbox antes de criar a janela. Não foi desabilitado
 o sandbox nem transformado em sucesso o teste correspondente.
 O funcionamento X11 do lançador Auto permanece sem certificação nesse runner.
+
+### Marcadores textuais de definições, ainda somente em memória
+
+O componente `controlled_definition_hints.py` avalia apenas bytes de
+fixtures ZIP dentro dos limites existentes. Para `.bus`/`.cfg`, procura
+linhas isoladas `[diretiva]`; para `.sii`, observa o token `SiiNunit`,
+delimitadores de bloco balanceados em linhas próprias e uma declaração
+com `:`. As saídas são apenas contagens de arquivos com marcador,
+sem marcador, texto não decodificável ou maior que o limite de inspeção.
+
+Limites adicionais: até 16 KiB e 256 linhas por arquivo textual.
+Apenas UTF-8 estrito é aceito neste laboratório, e isso NÃO equivale
+ao suporte completo às codificações usadas por mods reais do OMSI.
+Um marcador sintático NÃO comprova gramática completa, validade de
+referências, instalação, origem, compatibilidade ou reconhecimento
+do simulador. Nenhum texto, nome de arquivo ou caminho é devolvido.

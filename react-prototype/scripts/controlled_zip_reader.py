@@ -9,6 +9,8 @@ import re
 import stat
 import zipfile
 
+from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
+
 MAX_ARCHIVE_BYTES = 2_000_000
 MAX_EXPANDED_BYTES = 4_000_000
 MAX_ENTRIES = 128
@@ -39,6 +41,12 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     seen: set[str] = set()
     file_names: set[str] = set()
     suffix_counts = {suffix: 0 for suffix in SUFFIXES}
+    definition_hints = {
+        suffix: {
+            "declaredFiles": 0, "markerObserved": 0, "noMarker": 0,
+            "textUnavailable": 0, "notInspected": 0
+        } for suffix in ("bus", "cfg", "sii")
+    }
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
             infos = zf.infolist()
@@ -88,6 +96,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 last = parts[-1].lower()
                 extension = last.rsplit(".", 1)[-1] if "." in last else ""
                 suffix_counts[extension if extension in suffix_counts else "other"] += 1
+                if extension in definition_hints:
+                    definition_hints[extension]["declaredFiles"] += 1
                 files += 1
             for name in seen:
                 parts = name.split("/")
@@ -99,6 +109,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 if info.is_dir():
                     continue
                 per_file = 0
+                ext = info.filename.rsplit(".", 1)[-1].lower()
+                small_definition = ext in SUPPORTED and info.file_size <= TEXT_LIMIT
+                sample = bytearray() if small_definition else None
                 with zf.open(info) as source:
                     while True:
                         chunk = source.read(CHUNK)
@@ -108,8 +121,20 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                         actual += len(chunk)
                         if per_file > info.file_size or actual > MAX_EXPANDED_BYTES:
                             refuse()
+                        if sample is not None:
+                            sample.extend(chunk)
                 if per_file != info.file_size:
                     refuse()
+                if ext in definition_hints:
+                    result = (inspect_fixture_text(ext, bytes(sample))
+                              if sample is not None else "not-inspected")
+                    column = {
+                        "marker-observed": "markerObserved",
+                        "no-marker": "noMarker",
+                        "text-unavailable": "textUnavailable",
+                        "not-inspected": "notInspected"
+                    }[result]
+                    definition_hints[ext][column] += 1
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
             EOFError, OSError, NotImplementedError, OverflowError,
             MemoryError):
@@ -122,6 +147,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "zipHeadersAndCrcRead": True,
         "declaredSuffixCounts": suffix_counts,
         "declaredSuffixesAreContentProof": False,
+        "definitionFixtureHints": definition_hints,
+        "definitionSyntaxVerified": False,
         "archiveOriginVerified": False,
         "gameRecognized": False,
         "compatibilityVerified": False,
