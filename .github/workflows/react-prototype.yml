@@ -69,14 +69,6 @@ jobs:
         run: xvfb-run -a npm run test:portable:linux
       - name: Native auto X11 GUI contract (synthetic read-only)
         run: node --test scripts/auto-real-x11-contract.test.mjs
-      - name: Run real OMSI-Manager-Auto on GNOME/KDE X11 labels in Xvfb
-        timeout-minutes: 3
-        env:
-          CI: 'true'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends x11-utils
-          xvfb-run -a node scripts/auto-real-x11-smoke.mjs
       - name: Install Weston for a real headless Wayland socket
         run: |
           sudo apt-get update -qq
@@ -114,6 +106,48 @@ jobs:
             react-prototype/test-results/**/error-context.md
           if-no-files-found: warn
           retention-days: 14
+
+  native_auto_x11:
+    name: Native Auto X11 real-window check (strict sandbox)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: react-prototype/release
+      - name: Verify and unpack exact CI-built Linux preview
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256
+          tar -tzf OMSI-Manager-Preview-Linux-x64.tar.gz > listing.txt
+          if grep -vE '^OMSI-Manager-Preview-linux-x64(/|$)' listing.txt; then
+            echo 'Unexpected Linux archive entry' >&2
+            exit 1
+          fi
+          tar -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
+          test -x OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto
+          rm listing.txt
+      - name: Run real OMSI-Manager-Auto on GNOME/KDE X11 labels in Xvfb
+        timeout-minutes: 3
+        env:
+          CI: 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends x11-utils
+          xvfb-run -a node scripts/auto-real-x11-smoke.mjs
+      # Known SIGTRAP on CI sandbox. This MUST remain a failing job until
+      # a genuine fix exists. No --no-sandbox or weakened security is allowed.
 
   arch_portable_audit:
     name: Arch Linux x64 container / ELF runtime audit (no GUI)

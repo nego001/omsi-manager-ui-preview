@@ -98,3 +98,15 @@ As contagens são PISTAS ARTIFICIAIS: NÃO validam gramática completa
 de OMSI, modelos O3D, texturas, som, SII, dependências externas ou
 compatibilidade. `fixtureReferencesVerified` é sempre false, e
 operações reais de instalação, remoção e reparo não são permitidas.
+
+### CI: teste X11 estrito separado do leitor e da empacotagem
+
+O teste do executável ELF `OMSI-Manager-Auto` no Xvfb agora é um job
+independente, `native_auto_x11`, que baixa o **mesmo artefato Linux**
+criado e validado pelo job `build`. A auditoria SHA256 é exigida antes
+do teste gráfico. O job continua obrigatório e falha se a janela não
+for confirmada ou o Electron encerrar por SIGTRAP; não há bypass do
+sandbox. Essa separação impede que um defeito conhecido no lançador
+cancele a criação do artefato Linux e as auditorias independentes do
+leitor, Arch Linux e par Windows/Linux. Uma CI com falha no X11 **não**
+pode ser divulgada como totalmente aprovada.
