@@ -127,7 +127,9 @@ if __name__ == "__main__":
             if isinstance(error, CiFdInventoryRefused):
                 code = error.phase if error.phase in {
                     "GENERAL", "ARGUMENTS", "PROC_ENTRY", "PROC_STAT",
-                    "EXTRA", "FD_TYPE", "MISSING", "PROC_FAILURE"
+                    "EXTRA", "EXTRA_DIRECTORY", "EXTRA_REGULAR",
+                    "EXTRA_SOCKET", "EXTRA_PIPE", "EXTRA_OTHER",
+                    "FD_TYPE", "MISSING", "PROC_FAILURE"
                 } else "OTHER"
                 print("CI_FD_LAB_INVENTORY_" + code, file=sys.stderr)
                 sys.exit(2)
