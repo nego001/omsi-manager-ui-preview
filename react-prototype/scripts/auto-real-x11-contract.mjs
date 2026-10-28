@@ -32,3 +32,15 @@ export function verifyNativeCommandLine(command,backend){
   throw Error('NATIVE_AUTO_PROCESS_NOT_VERIFIED');
  return true;
 }
+
+export function verifyNativeDesktopResults(results){
+ // A successful GNOME X11 probe cannot silently stand in for KDE.
+ // Both are profile labels in the CI-owned Xvfb, not real compositors.
+ if(!Array.isArray(results)||results.length!==2||
+   results[0]?.desktop!=='GNOME'||results[1]?.desktop!=='KDE'||
+   results.some(value=>value===null||typeof value!=='object'||
+    typeof value.mapped!=='boolean'||typeof value.failed!=='boolean'||
+    !value.mapped||value.failed))
+  throw Error('AUTO_X11_NATIVE_GUI_NOT_VERIFIED');
+ return true;
+}
