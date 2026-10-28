@@ -1,5 +1,12 @@
 import {test,expect} from '@playwright/test';
-import examples from '../src/fixture-cross-package-examples.json';
+import {readFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+// Node runs this test directly; do not rely on Vite's JSON import transform.
+const examples: Array<{
+ id:string;label:string;fixtureCount:number;declared:number;withinOwn:number;
+ otherCandidate:number;unresolved:number;unsafe:number;unsupported:number;
+}>=JSON.parse(readFileSync(fileURLToPath(
+ new URL('../src/fixture-cross-package-examples.json',import.meta.url)),'utf8'));
 
 test('exemplos estáticos sempre são contagens coerentes e não possuem capacidades reais',()=>{
  expect(examples.map(x=>x.id)).toEqual(['matched','absent','unsafe']);
