@@ -53,20 +53,29 @@ def read_checked_fixture_fd_bytes(fd: int) -> bytes:
         if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1 or
                 not 0 < before.st_size <= MAX_ARCHIVE_BYTES):
             refuse()
-        collected = bytearray()
-        offset = 0
-        while offset < before.st_size:
-            part = os.pread(fd, min(CHUNK, before.st_size - offset), offset)
-            if not part:
+        # Two bounded positional snapshots detect unexpected byte changes
+        # even when an attacker restores size/mtime around individual reads.
+        # This is detection, not a filesystem snapshot or TOCTOU proof.
+        snapshots = []
+        for _ in range(2):
+            collected = bytearray()
+            offset = 0
+            while offset < before.st_size:
+                part = os.pread(fd, min(CHUNK, before.st_size - offset), offset)
+                if not part:
+                    refuse()
+                collected.extend(part)
+                offset += len(part)
+                if offset > MAX_ARCHIVE_BYTES:
+                    refuse()
+            snapshot = bytes(collected)
+            observed = os.fstat(fd)
+            if _identity(before) != _identity(observed):
                 refuse()
-            collected.extend(part)
-            offset += len(part)
-            if offset > MAX_ARCHIVE_BYTES:
-                refuse()
-        after = os.fstat(fd)
-        if _identity(before) != _identity(after):
+            snapshots.append(snapshot)
+        if snapshots[0] != snapshots[1]:
             refuse()
-        return bytes(collected)
+        return snapshots[0]
     except (OSError, OverflowError, MemoryError):
         refuse()
 
