@@ -1,7 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
- verifyNativeWindowOwner,verifyNativeDesktopResults} from './auto-real-x11-contract.mjs';
+ verifyNativeWindowOwner,verifyNativeDesktopResults,
+ findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
+ from './auto-real-x11-contract.mjs';
 test('accepts one mapped OMSI window and rejects unrelated or ambiguous titles',()=>{
  const example='     0x200007 "OMSI Manager · Prévia segura": ("app" "App")  1440x900+0+0';
  assert.equal(findPreviewWindow('xwininfo tree\n'+example),'0x200007');
@@ -80,4 +82,28 @@ test('X11 window ownership requires one exact xprop PID matching the launched pr
   ['_NET_WM_PID(CARDINAL) = 12345; spoofed\n',12345]
  ])assert.throws(()=>verifyNativeWindowOwner(raw,pid),
   /X11_WINDOW_OWNER_NOT_VERIFIED/);
+});
+
+test('plain CI X11 control is separate from the OMSI Electron window',()=>{
+ const line='    0x2600001 "OMSI CI X11 Display Control": ("xmessage" "Xmessage") 250x90+0+0';
+ const tree='xwininfo tree\n'+line;
+ assert.equal(findCiX11DisplayControlWindow(tree),'0x2600001');
+ assert.throws(()=>findPreviewWindow(tree),/X11_WINDOW_NOT_VERIFIED/);
+ assert.equal(verifyCiX11DisplayControlMapped(
+  'Map State: IsViewable\nWidth: 250\nHeight: 90'),true);
+ for(const bad of [
+  '',
+  '0x2600001 "OMSI Manager": 250x90+0+0',
+  tree+'\n'+line,
+  '0x2600001 "OMSI CI X11 Display Control - spoof": 250x90+0+0',
+  '0x2600001 "OMSI CI X11 Display Control" without colon'
+ ])assert.throws(()=>findCiX11DisplayControlWindow(bad),
+  /X11_DISPLAY_CONTROL_NOT_VERIFIED/);
+ for(const bad of [
+  '',
+  'Map State: IsUnMapped\nWidth: 250\nHeight: 90',
+  'Map State: IsViewable\nWidth: 0\nHeight: 90',
+  'Map State: IsViewable\nWidth: 250\nHeight: 5'
+ ])assert.throws(()=>verifyCiX11DisplayControlMapped(bad),
+  /X11_DISPLAY_CONTROL_NOT_VERIFIED/);
 });
