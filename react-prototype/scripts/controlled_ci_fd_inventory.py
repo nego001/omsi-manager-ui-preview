@@ -46,6 +46,7 @@ def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...], worker_sour
             refuse("SOURCE_TYPE")
         script_identity = (script_info.st_dev, script_info.st_ino)
         script_fds = 0
+        closed_runtime_library_fds = 0
         present = set()
         for name in os.listdir("/proc/self/fd"):
             if not name.isascii() or not name.isdecimal():
@@ -87,7 +88,17 @@ def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...], worker_sour
                     if target.startswith(os.path.dirname(os.path.abspath(worker_source)) + "/"):
                         refuse("EXTRA_REGULAR_WORKER_TREE")
                     if target.startswith("/usr/lib/") or target.startswith("/usr/local/lib/"):
-                        refuse("EXTRA_REGULAR_SYSTEM_LIB")
+                        # Python may retain one read-only fd for its standard
+                        # library/extension import. Close that fd, do not read
+                        # it or allow it into the restricted ZIP-processing
+                        # phase. Never do this for a fixture or arbitrary path.
+                        if (closed_runtime_library_fds != 0
+                                or (fcntl.fcntl(fd, fcntl.F_GETFL) & os.O_ACCMODE)
+                                    != os.O_RDONLY):
+                            refuse("EXTRA_REGULAR_SYSTEM_LIB")
+                        os.close(fd)
+                        closed_runtime_library_fds += 1
+                        continue
                     if target.startswith("/home/runner/work/"):
                         refuse("EXTRA_REGULAR_WORKSPACE")
                     if target.startswith("/tmp/"):
