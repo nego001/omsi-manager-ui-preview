@@ -840,3 +840,15 @@
 .cross-fixture-results dt{font-size:12px;color:#dce5f3}
 .cross-fixture-results dd{font-size:13px;font-variant-numeric:tabular-nums;font-weight:700;margin:0}
 @media(max-width:540px){.cross-fixture-lab{padding:12px}.cross-fixture-results{padding:10px}}
+
+/* Transparent guidance from static synthetic ZIP fixture counts only. */
+.fixture-triage{border:1px solid #4c5d73;border-radius:10px;padding:15px;margin:14px 0;background:#202b39}
+.fixture-triage h3{font-size:14px;margin:0 0 8px}
+.fixture-triage p{font-size:12px;line-height:1.7;margin:7px 0;color:#d8e1ee}
+.fixture-triage ol{padding-left:23px;margin:12px 0;display:grid;gap:12px}
+.fixture-triage li{font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.fixture-triage li strong,.fixture-triage li span,.fixture-triage li small{display:block}
+.fixture-triage li span{color:#d2ddeb}
+.fixture-triage li small{color:#d9bc92;margin-top:4px}
+.fixture-triage .fixture-triage-origin{border-top:1px solid #48566b;padding-top:10px;margin-top:13px;font-size:11px}
+@media(max-width:540px){.fixture-triage{padding:11px}}

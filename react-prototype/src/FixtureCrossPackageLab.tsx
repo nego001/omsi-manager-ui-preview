@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {FileSearch,LockKeyhole} from 'lucide-react';
 import examples from './fixture-cross-package-examples.json';
+import {buildFixtureTriage} from './fixture-diagnostic-guidance';
 
 // Static, CI-checked outputs from fixed Python in-memory ZIP fixtures.
 // Never reads an actual mod or treats the selected catalog favorites as ZIPs.
@@ -17,9 +18,8 @@ const kinds=[
 export default function FixtureCrossPackageLab(){
  const [selected,setSelected]=useState(examples[0].id);
  const example:Example=examples.find(item=>item.id===selected)??examples[0];
- const classified=kinds.reduce((acc,item)=>acc+example[item.id],0);
- if(classified!==example.declared||
-    !examples.every(item=>item.fixtureCount>=2&&item.fixtureCount<=4))
+ const triage=buildFixtureTriage(example);
+ if(!examples.every(item=>item.fixtureCount>=2&&item.fixtureCount<=4))
   throw Error('FIXTURE_EXAMPLE_REPORT_INVALID');
  return <section className="cross-fixture-lab" role="region"
   aria-label="Comparação demonstrativa entre ZIPs" data-demo-only="true">
@@ -42,6 +42,19 @@ export default function FixtureCrossPackageLab(){
       <dd data-key={item.id}>{example[item.id]}</dd></div>)}
     </dl>
    </div>
+   <section className="fixture-triage" role="region" aria-label="Orientações do cenário fictício">
+    <h3>Triagem demonstrativa · sem verificação real</h3>
+    <p data-triage-summary={triage.state}>{triage.summary}</p>
+    {triage.items.length>0&&<ol>
+     {triage.items.map(step=><li key={step.category} data-diagnostic-kind={step.category}>
+      <strong>{step.count} · {step.title}</strong>
+      <span>{step.explanation}</span>
+      <small>Verificação pendente: {step.nextCheck}</small>
+     </li>)}
+    </ol>}
+    <p className="fixture-triage-origin">Origem: exemplos ZIP gerados na CI Python,
+     reproduzidos por contagens estáticas. Nenhum mod do usuário foi analisado.</p>
+   </section>
    <p className="synthetic-gate-warning"><LockKeyhole size={15} aria-hidden="true"/>
     Se dois ZIPs declaram o mesmo destino, o resultado é ambíguo e não escolhe
     um deles. Nenhuma referência candidata significa mod instalado ou dependência

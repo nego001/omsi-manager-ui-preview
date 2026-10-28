@@ -163,3 +163,22 @@ Os resultados continuam apenas agregados, sem caminhos, bytes,
 instalações reais ou promessa de ordem de carregamento. Nenhuma
 referência é validada semanticamente e todas as operações reais
 permanecem indisponíveis.
+
+### Biblioteca: triagem explicativa com origem e lacunas de evidência
+
+O componente `fixture-diagnostic-guidance.ts` transforma somente as
+contagens estáticas já confrontadas com o leitor Python em orientações
+para os quatro cenários fictícios. A ordem de exibição é: caminho
+recusado pelo contrato, ambiguidade, referência ausente, marcador
+não suportado, candidato único e correspondência interna.
+
+Cada orientação explicita por que o dado merece atenção e qual
+verificação real ainda falta. A UI identifica a origem como CI de
+ZIPs inventados, não como diagnóstico do catálogo ou instalação.
+Contagens inválidas falham fechadas, o resultado é imutável e
+`inspectedRealFiles`, `dependenciesVerified`, `compatibilityVerified`
+e `canInstall` ficam permanentemente `false`.
+
+**Não há sentença de malware, compatibilidade ou conflito real:**
+um caminho recusado é apenas uma restrição sintética, e uma
+correspondência nominal não prova que o destino seja utilizável.
