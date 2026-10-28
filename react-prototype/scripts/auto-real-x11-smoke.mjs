@@ -9,7 +9,9 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
- verifyNativeWindowOwner,verifyNativeDesktopResults} from './auto-real-x11-contract.mjs';
+ verifyNativeWindowOwner,verifyNativeDesktopResults,
+ findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
+ from './auto-real-x11-contract.mjs';
 const execAsync=promisify(execFile);
 if(process.platform!=='linux'||process.getuid?.()===0||!process.env.DISPLAY||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
@@ -91,9 +93,58 @@ async function probeDirectPackagedElectron(desktop,root){
    exitSignal:null,hints:[...hints].sort()};
 }
 
+// Baseline: establish that this SAME Xvfb display can map a benign native
+// X11 dialog. No Electron/Chromium process or sandbox switches are involved.
+// Never mistake success here for Electron sandbox or GNOME/KWin approval.
+async function probePlainX11Display(root){
+ const controlRoot=join(root,'display-control');
+ await mkdir(controlRoot,{mode:0o700});
+ let child,ended=false,mapped=false;
+ try{
+  child=spawn('xmessage',[
+   '-title','OMSI CI X11 Display Control',
+   '-buttons','OK:0','Synthetic CI X11 baseline'
+  ],{
+   cwd:controlRoot,detached:true,shell:false,
+   stdio:['ignore','ignore','ignore'],
+   env:{...process.env,HOME:controlRoot}
+  });
+  child.once('error',()=>{ended=true;});
+  child.once('exit',()=>{ended=true;});
+  for(let i=0;i<25;i++){
+   if(ended||child.exitCode!==null)break;
+   try{
+    const {stdout}=await execAsync('xwininfo',['-root','-tree'],
+     {encoding:'utf8',timeout:2000,maxBuffer:65536});
+    const id=findCiX11DisplayControlWindow(stdout);
+    const detail=await execAsync('xwininfo',['-id',id],
+     {encoding:'utf8',timeout:2000,maxBuffer:16384});
+    verifyCiX11DisplayControlMapped(detail.stdout);
+    mapped=true;
+    break;
+   }catch{
+    // Only a CI-owned display control is inspected; no raw output is logged.
+   }
+   await sleep(120);
+  }
+ }finally{
+  if(child?.pid&&!ended){
+   try{process.kill(-child.pid,'SIGTERM');}catch{}
+   await sleep(100);
+   try{process.kill(-child.pid,'SIGKILL');}catch{}
+  }
+ }
+ console.log('AUTO_X11_DISPLAY_BASELINE',JSON.stringify({
+  client:'xmessage',mapped,provesXvfbWindowOnly:true,
+  provesElectronSandbox:false,provesRealDesktop:false
+ }));
+ if(!mapped)throw Error('AUTO_X11_DISPLAY_BASELINE_NOT_VERIFIED');
+}
+
 const root=await mkdtemp(join(tmpdir(),'omsi-x11-native-auto-'));
 const outcomes=[];
 try{
+ await probePlainX11Display(root);
  for(const desktop of ['GNOME','KDE']){
   // GNOME and KDE use independent disposable roots under this CI-only
   // directory. This is a profile-state separation, not an OS sandbox.
