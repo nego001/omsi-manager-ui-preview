@@ -11,6 +11,7 @@ import os
 import re
 import resource
 import sys
+import zlib  # Preload before seccomp prevents lazy module file openings.
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from controlled_ci_file_reader import (
@@ -20,6 +21,7 @@ from controlled_fixture_group import (
     MAX_PACKAGES, MAX_COMBINED_INPUT_BYTES, examine_fixture_group,
 )
 from controlled_ci_linux_hardening import enforce_no_new_privileges
+from controlled_ci_syscall_guard import enforce_disposable_worker_syscall_guard
 from controlled_zip_reader import ControlledZipRefused
 
 
@@ -87,6 +89,9 @@ def _main():
     # Explicitly fail closed if kernel hardening cannot be enabled.
     # No-new-privs does not provide OS-level sandbox isolation.
     enforce_no_new_privileges()
+    # Additional kernel guard denies new opens/socket/exec in this child only.
+    # It does NOT establish a comprehensive operating-system sandbox.
+    enforce_disposable_worker_syscall_guard()
     print(json.dumps(inspect_open_fixture_group_fds(fds),
                      sort_keys=True, separators=(",", ":")))
 
