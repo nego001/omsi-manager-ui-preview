@@ -111,7 +111,18 @@ def _main():
 if __name__ == "__main__":
     try:
         _main()
-    except Exception:
+    except Exception as error:
+        # Test-only, fixed-category diagnostic; never print exception text,
+        # ZIP contents, host paths or process environment values.
+        if os.environ.get("CI_FD_LAB_DIAGNOSTIC") == "1":
+            labels = {"PermissionError", "FileNotFoundError", "LookupError",
+                      "RuntimeError", "OSError", "ValueError", "ImportError",
+                      "ModuleNotFoundError", "ControlledZipRefused",
+                      "ControlledCiFdRefused", "MemoryError"}
+            name = type(error).__name__
+            print("CI_FD_LAB_ERROR_" + (name if name in labels else "OTHER"),
+                  file=sys.stderr)
+            sys.exit(2)
         # Do NOT print exception repr, stack trace, file name, input bytes,
         # token, fd contents or host paths to CI logs.
         print("CONTROLLED_CI_FD_REFUSED", file=sys.stderr)
