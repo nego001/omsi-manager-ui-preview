@@ -182,3 +182,20 @@ e `canInstall` ficam permanentemente `false`.
 **Não há sentença de malware, compatibilidade ou conflito real:**
 um caminho recusado é apenas uma restrição sintética, e uma
 correspondência nominal não prova que o destino seja utilizável.
+
+### Cobertura de evidências e textos que não puderam ser lidos
+
+O laboratório da Biblioteca agora exibe as quantidades de fontes
+de definição inspecionadas e não inspecionadas, confrontadas em
+CI com o leitor Python. O novo quinto cenário inclui um `.bus`
+fictício acima do limite textual de 16 KiB. Nesse caso, nenhuma
+referência é contada, mas a UI **não** apresenta o zero como prova
+de que o mod não possua dependências.
+
+`fixture-evidence-coverage.ts` gera um plano de verificação
+não executável que distingue checagens de ZIP feitas apenas nas
+fixtures da CI, referências nominais, candidatos externos,
+ambiguidades, caminhos recusados, extensões não suportadas e
+lacunas causadas pelo limite de leitura. A verificação de arquivos
+reais, compatibilidade e autorização de instalar permanecem
+sempre `false`. Sem IPC, upload, extração ou acesso a jogos.

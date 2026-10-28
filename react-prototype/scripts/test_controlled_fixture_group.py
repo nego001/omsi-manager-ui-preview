@@ -199,6 +199,10 @@ class FixtureGroupTests(unittest.TestCase):
                 bundle([("Vehicles/shared.cfg", b"candidate a")]),
                 bundle([("Vehicles/shared.cfg", b"candidate b")]),
             ),
+            "uninspected": (
+                bundle([("A/test.bus", b"[model]\nmissing.cfg\n" + b"x" * 17_000)]),
+                bundle([("A/other.dds", b"fake image")]),
+            ),
             "unsafe": (
                 bundle([
                     ("Vehicles/demo.bus",
@@ -210,7 +214,7 @@ class FixtureGroupTests(unittest.TestCase):
             ),
         }
         self.assertEqual([e["id"] for e in examples],
-                         ["matched", "absent", "ambiguous", "unsafe"])
+                         ["matched", "absent", "ambiguous", "unsafe", "uninspected"])
         self.assertEqual(set(cases), {e["id"] for e in examples})
         for entry in examples:
             report = examine_fixture_group(cases[entry["id"]])
@@ -231,6 +235,10 @@ class FixtureGroupTests(unittest.TestCase):
                     ):
                         categories[item] += counts[source_key]
             self.assertEqual(report["fixtureCount"], entry["fixtureCount"])
+            self.assertEqual(sum(s["inspectedDefinitionSources"] for s in report["slots"]),
+                             entry["inspectedSources"])
+            self.assertEqual(sum(s["notInspectedDefinitionSources"] for s in report["slots"]),
+                             entry["notInspectedSources"])
             for item, actual in categories.items():
                 self.assertEqual(actual, entry[item],
                                  f"UI fixture {entry['id']} mismatch: {item}")

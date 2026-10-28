@@ -9,7 +9,9 @@
     "unresolved": 0,
     "unsafe": 0,
     "unsupported": 0,
-    "ambiguous": 0
+    "ambiguous": 0,
+    "inspectedSources": 3,
+    "notInspectedSources": 0
   },
   {
     "id": "absent",
@@ -21,7 +23,9 @@
     "unresolved": 2,
     "unsafe": 0,
     "unsupported": 0,
-    "ambiguous": 0
+    "ambiguous": 0,
+    "inspectedSources": 2,
+    "notInspectedSources": 0
   },
   {
     "id": "ambiguous",
@@ -33,7 +37,9 @@
     "ambiguous": 1,
     "unresolved": 0,
     "unsafe": 0,
-    "unsupported": 0
+    "unsupported": 0,
+    "inspectedSources": 3,
+    "notInspectedSources": 0
   },
   {
     "id": "unsafe",
@@ -45,6 +51,22 @@
     "unresolved": 0,
     "unsafe": 2,
     "unsupported": 1,
-    "ambiguous": 0
+    "ambiguous": 0,
+    "inspectedSources": 2,
+    "notInspectedSources": 0
+  },
+  {
+    "id": "uninspected",
+    "label": "Texto fora do limite de inspeção",
+    "fixtureCount": 2,
+    "declared": 0,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "unsafe": 0,
+    "unsupported": 0,
+    "inspectedSources": 0,
+    "notInspectedSources": 1
   }
 ]

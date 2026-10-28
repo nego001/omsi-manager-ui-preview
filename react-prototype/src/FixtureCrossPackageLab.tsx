@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {FileSearch,LockKeyhole} from 'lucide-react';
 import examples from './fixture-cross-package-examples.json';
 import {buildFixtureTriage} from './fixture-diagnostic-guidance';
+import {buildFixtureCoverage} from './fixture-evidence-coverage';
 
 // Static, CI-checked outputs from fixed Python in-memory ZIP fixtures.
 // Never reads an actual mod or treats the selected catalog favorites as ZIPs.
@@ -19,6 +20,7 @@ export default function FixtureCrossPackageLab(){
  const [selected,setSelected]=useState(examples[0].id);
  const example:Example=examples.find(item=>item.id===selected)??examples[0];
  const triage=buildFixtureTriage(example);
+ const coverage=buildFixtureCoverage(example);
  if(!examples.every(item=>item.fixtureCount>=2&&item.fixtureCount<=4))
   throw Error('FIXTURE_EXAMPLE_REPORT_INVALID');
  return <section className="cross-fixture-lab" role="region"
@@ -42,6 +44,28 @@ export default function FixtureCrossPackageLab(){
       <dd data-key={item.id}>{example[item.id]}</dd></div>)}
     </dl>
    </div>
+   <section className="fixture-coverage" role="region" aria-label="Cobertura das evidências fictícias">
+    <h3>O que foi observado e o que ainda falta?</h3>
+    <p>Os testes Python conferiram a estrutura ZIP e o CRC das amostras inventadas.
+     A correspondência de arquivos é apenas por nome, não por conteúdo válido.</p>
+    <dl>
+     <div><dt>Fontes de definição inspecionadas no exemplo</dt><dd data-coverage="inspected">{coverage.inspectedSources}</dd></div>
+     <div><dt>Fontes não inspecionadas</dt><dd data-coverage="notInspected">{coverage.notInspectedSources}</dd></div>
+     <div><dt>Correspondências nominais no ZIP de origem</dt><dd data-coverage="nominalMatches">{coverage.nominalMatches}</dd></div>
+     <div><dt>Possíveis fornecedores em outros ZIPs</dt><dd data-coverage="candidates">{coverage.candidateReferences}</dd></div>
+    </dl>
+    {coverage.unknownReferencesPossible&&<p role="status">A análise está incompleta:
+     arquivos de definição não inspecionados podem conter referências desconhecidas.
+     Zero referências encontradas não significa ausência de dependências.</p>}
+    <h4>Plano de verificação, não executável</h4>
+    <ol>{coverage.actions.map(step=><li key={step.id} data-evidence-step={step.id}>
+     <strong>{step.status==='ci-fixture-checked'?'Observado apenas na CI':
+      step.status==='fixture-blocked'?'Recusado pelo teste':'Precisa de evidências'} · {step.text}</strong>
+     <span>{step.reason}</span>
+    </li>)}</ol>
+    <p className="fixture-coverage-disclaimer">Nenhum arquivo real inspecionado.
+     Compatibilidade e dependências reais não verificadas. Instalação bloqueada.</p>
+   </section>
    <section className="fixture-triage" role="region" aria-label="Orientações do cenário fictício">
     <h3>Triagem demonstrativa · sem verificação real</h3>
     <p data-triage-summary={triage.state}>{triage.summary}</p>
