@@ -253,3 +253,15 @@ Um teste confirma que a leitura por `pread` não modifica o offset
 compartilhado do descritor herdado nem os bytes do ZIP descartável.
 Esses testes não representam um sandbox de produção nem permitem
 usar um ZIP real de usuário no aplicativo.
+
+### Comparação de 2 a 4 ZIPs físicos descartáveis, com descritores somente leitura (28/10/2026)
+
+O laboratório Linux passou a incluir `controlled_ci_group_fd_reader.py`, que aceita **somente 2 a 4 descritores já abertos**, sem parâmetros de pathname. Os testes criam os ZIPs fictícios numa pasta temporária exclusiva, abrem os arquivos com `O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK` e passam exclusivamente os FDs ao processo `python -I -S -B` com recursos e tempo limitados. Arquivos regulares repetidos, descritores graváveis, arquivos corrompidos ou acima do orçamento, dados fora dos limites e grupos inválidos são recusados integralmente.
+
+A leitura compartilha o mesmo controle de FD do experimento individual. Os bytes passam pelo `examine_fixture_group` existente, que primeiro verifica cada ZIP e suas entradas antes de calcular as contagens de referências por pacote. A saída devolve só contadores, slots 1–4 e garantias **negativas**: nenhum mod do usuário, nenhuma escrita, nenhuma instalação, nenhum reconhecimento de jogo ou certificação da sandbox. Não devolve nomes, conteúdos ou caminhos.
+
+O módulo `src/fixture-ci-fd-evidence.ts` define uma ponte de projeção para os relatórios individuais. Rejeita campos inesperados, IDs de slot repetidos/incorretos, contagens incoerentes e qualquer alegação positiva de autorização, sandbox ou leitura de mods reais. Reutiliza `projectFixtureSlots` e preserva a origem `ci-disposable-zip-files`. Ainda é **um contrato de laboratório**, sem conexão ao Electron, à Biblioteca em execução ou ao seletor de mods.
+
+**Limites importantes:** estabilidade de `fstat` antes/depois não demonstra invariância contínua contra ABA/TOCTOU. Os FDs provêm dos testes descartáveis, mas o leitor não autentica a origem de um FD arbitrário. As restrições de recurso não substituem isolamento completo de sistema operacional. O ZIP físico é real como arquivo de teste, mas o mod, as referências e as dependências são inteiramente inventados.
+
+**Critério de aprovação:** a CI precisa aprovar os novos testes Linux e o contrato TypeScript. A compilação Windows, a integridade dos pacotes e o bloqueio de instalação devem permanecer intactos. O lançamento X11 automático continua uma pendência independente, sem `--no-sandbox`.
