@@ -57,20 +57,20 @@ test('X11 CI only passes when GNOME and KDE EACH map with no process failure',()
 });
 
 test('X11 window ownership requires one exact xprop PID matching the launched process',()=>{
- assert.equal(verifyNativeWindowOwner('_NET_WM_PID(CARDINAL) = 12345\\n',12345),true);
+ assert.equal(verifyNativeWindowOwner('_NET_WM_PID(CARDINAL) = 12345\n',12345),true);
  for(const [raw,pid] of [
   ['',12345],
-  ['_NET_WM_PID: not found.\\n',12345],
-  ['_NET_WM_PID(CARDINAL) = 22222\\n',12345],
-  ['_NET_WM_PID(CARDINAL) = 12345\\n_NET_WM_PID(CARDINAL) = 12345\\n',12345],
-  ['_NET_WM_PID(CARDINAL) = 0\\n',0],
-  ['_NET_WM_PID(CARDINAL) = -1\\n',-1],
-  ['_NET_WM_PID(CARDINAL) = 12345\\n',12345.2],
-  ['_NET_WM_PID(CARDINAL) = 12345\\n',0],
-  ['_NET_WM_PID(CARDINAL) = 12345\\n',2147483648],
-  ['_NET_WM_PID(CARDINAL) = 12345\\n',null],
-  ['_NET_WM_PID(CARDINAL) = 12345\\n',12346],
-  ['_NET_WM_PID(CARDINAL) = 12345; spoofed\\n',12345]
+  ['_NET_WM_PID: not found.\n',12345],
+  ['_NET_WM_PID(CARDINAL) = 22222\n',12345],
+  ['_NET_WM_PID(CARDINAL) = 12345\n_NET_WM_PID(CARDINAL) = 12345\n',12345],
+  ['_NET_WM_PID(CARDINAL) = 0\n',0],
+  ['_NET_WM_PID(CARDINAL) = -1\n',-1],
+  ['_NET_WM_PID(CARDINAL) = 12345\n',12345.2],
+  ['_NET_WM_PID(CARDINAL) = 12345\n',0],
+  ['_NET_WM_PID(CARDINAL) = 12345\n',2147483648],
+  ['_NET_WM_PID(CARDINAL) = 12345\n',null],
+  ['_NET_WM_PID(CARDINAL) = 12345\n',12346],
+  ['_NET_WM_PID(CARDINAL) = 12345; spoofed\n',12345]
  ])assert.throws(()=>verifyNativeWindowOwner(raw,pid),
   /X11_WINDOW_OWNER_NOT_VERIFIED/);
 });
