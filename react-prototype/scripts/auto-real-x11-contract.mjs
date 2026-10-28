@@ -1,6 +1,30 @@
 // Parse X11's read-only window metadata, not screenshots or game folders.
 // xwininfo is run only within CI's own isolated Xvfb display.
 const id=/^0x[0-9a-f]{1,16}$/i;
+// Isolated display-only control, never an Electron sandbox test.
+// A plain xmessage dialog proves the CI Xvfb server can map X11 windows.
+export function findCiX11DisplayControlWindow(tree){
+ if(typeof tree!=='string'||tree.length>65536)
+  throw Error('X11_DISPLAY_CONTROL_NOT_VERIFIED');
+ const matches=[];
+ for(const line of tree.split(/\r?\n/)){
+  const hit=line.match(/\b(0x[0-9a-f]{1,16})\s+"OMSI CI X11 Display Control"\s*:/i);
+  if(hit&&id.test(hit[1]))matches.push(hit[1]);
+ }
+ if(matches.length!==1)throw Error('X11_DISPLAY_CONTROL_NOT_VERIFIED');
+ return matches[0];
+}
+export function verifyCiX11DisplayControlMapped(details){
+ if(typeof details!=='string'||details.length>16384||
+    !/\bMap State:\s*IsViewable\b/.test(details))
+  throw Error('X11_DISPLAY_CONTROL_NOT_VERIFIED');
+ const width=details.match(/\bWidth:\s*(\d{1,5})\b/);
+ const height=details.match(/\bHeight:\s*(\d{1,5})\b/);
+ if(!width||!height||Number(width[1])<10||Number(height[1])<10)
+  throw Error('X11_DISPLAY_CONTROL_NOT_VERIFIED');
+ return true;
+}
+
 export function findPreviewWindow(tree){
  if(typeof tree!=='string'||tree.length>65536)throw Error('X11_WINDOW_NOT_VERIFIED');
  const matches=[];
