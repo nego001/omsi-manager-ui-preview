@@ -103,7 +103,7 @@ test('Biblioteca mostra cinco cenários, incluindo lacunas sem instalação',asy
  await expect(count('withinOwn')).toHaveText('1');
  await chooser.selectOption('absent');
  await expect(advice.locator('[data-diagnostic-kind="unresolved"]')).toHaveCount(1);
- await expect(advice).toContainText('pode haver dependência fora da amostra');
+ await expect(advice).toContainText('Pode haver dependência fora da amostra');
  await expect(count('otherCandidate')).toHaveText('0');
  await expect(count('unresolved')).toHaveText('2');
  await chooser.selectOption('ambiguous');
