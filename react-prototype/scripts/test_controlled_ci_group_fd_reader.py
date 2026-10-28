@@ -85,7 +85,7 @@ class ControlledCiGroupFdReaderTests(unittest.TestCase):
         # Check BOTH endpoints of the final validation sweep: a change to
         # the first or last package must invalidate the entire result.
         # Synthetic interception does not modify file contents or metadata.
-        first = bundle([("A/original.bus", b"[model]\\nmodel.cfg\\n")])
+        first = bundle([("A/original.bus", b"[model]\nmodel.cfg\n")])
         second = bundle([("A/model.cfg", b"made-up cfg")])
         with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
             paths = (Path(root) / "first.zip", Path(root) / "second.zip")
