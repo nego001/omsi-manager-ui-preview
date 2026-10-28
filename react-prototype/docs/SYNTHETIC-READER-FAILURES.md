@@ -382,3 +382,29 @@ inesperadas são detectáveis. Leituras repetidas não criam um snapshot atômic
 não autenticam a origem dos ZIPs e não garantem que terceiros não modifiquem
 bytes após a última verificação. `osSandboxVerified=false`, leitura de mods
 pessoais desabilitada e operações de instalação/reparo bloqueadas permanecem.
+
+### Bloqueio de alterações de metadados no worker seccomp
+
+O processo Python de análise de ZIPs **inventados** da CI Linux x86_64
+agora recusa syscalls de alteração de permissões/proprietário
+(`chmod/fchmod/fchmodat/fchmodat2`, `chown/fchown/lchown/fchownat`),
+datas (`utime/utimes/futimesat/utimensat`), tamanho de arquivos
+(`truncate/ftruncate`), criação de hardlinks/symlinks/nós especiais,
+e operações administrativas de montagem/namespaces. As restrições são
+instaladas **depois** do aquecimento de componentes Python e do inventário
+de descritores, mas **antes** da leitura de qualquer ZIP de laboratório.
+
+Um teste separado em `test_controlled_ci_syscall_guard.py` exige que o
+kernel retorne `EPERM` ao tentar `chmod`, `utime`, `truncate`,
+`link`, `symlink` e `fchmod` em um arquivo descartável criado
+exclusivamente pelo teste. Confere depois que os bytes, permissões, data
+de modificação e inexistência de novo link continuam iguais. Não acessa
+nenhum arquivo pessoal, pasta de jogo ou mod real.
+
+**Não é sandbox completa:** o filtro continua sendo uma lista limitada de
+syscalls proibidas e ainda não constitui uma política de allowlist ou
+autenticação de origem. Nem protege contra todas as corridas entre
+verificações. O campo `osSandboxVerified=false` permanece obrigatório;
+operações de instalação, reparo, remoção e IPC de arquivos continuam
+inexistentes no protótipo. Essa etapa só deve ser considerada aprovada
+depois que a CI confirmar os testes sob o kernel do runner.
