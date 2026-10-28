@@ -129,6 +129,10 @@ if __name__ == "__main__":
                     "GENERAL", "ARGUMENTS", "PROC_ENTRY", "PROC_STAT",
                     "EXTRA", "EXTRA_DIRECTORY", "EXTRA_REGULAR",
                     "EXTRA_SOCKET", "EXTRA_PIPE", "EXTRA_OTHER",
+                    "EXTRA_REGULAR_MEMFD", "EXTRA_REGULAR_INTERPRETER",
+                    "EXTRA_REGULAR_WORKER_TREE", "EXTRA_REGULAR_SYSTEM_LIB",
+                    "EXTRA_REGULAR_WORKSPACE", "EXTRA_REGULAR_TEMPORARY",
+                    "EXTRA_REGULAR_UNKNOWN",
                     "FD_TYPE", "MISSING", "PROC_FAILURE"
                 } else "OTHER"
                 print("CI_FD_LAB_INVENTORY_" + code, file=sys.stderr)
