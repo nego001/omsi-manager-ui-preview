@@ -152,6 +152,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends x11-utils
+          # Probe host prerequisites without changing the Electron sandbox.
+          node --check scripts/auto-real-x11-smoke.mjs
+          node scripts/auto-x11-host-capabilities.mjs
+          # The real auto-launch must still create a mapped X11 window.
           xvfb-run -a node scripts/auto-real-x11-smoke.mjs
       # Known SIGTRAP on CI sandbox. This MUST remain a failing job until
       # a genuine fix exists. No --no-sandbox or weakened security is allowed.
