@@ -241,3 +241,15 @@ A função `projectFixtureSlots` agora padroniza defeitos de contagem ou
 cobertura de slots como `FIXTURE_SLOTS_INVALID` sem aceitar a entrada;
 erros de programação desconhecidos continuam propagados. Isso corrige
 o teste Playwright de contratos que esperava um erro específico.
+
+
+### Testes adicionais de recusa do descritor Linux
+
+A suíte do trabalhador da CI agora testa também o processo filho com um
+arquivo aberto para escrita, com hardlink e com descritor de diretório,
+além de rejeitar um número de descritor não herdado. Os casos devem
+terminar com uma mensagem fixa, sem nomes, conteúdos ou caminhos.
+Um teste confirma que a leitura por `pread` não modifica o offset
+compartilhado do descritor herdado nem os bytes do ZIP descartável.
+Esses testes não representam um sandbox de produção nem permitem
+usar um ZIP real de usuário no aplicativo.

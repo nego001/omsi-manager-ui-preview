@@ -126,6 +126,60 @@ class ControlledCiFileReaderTests(unittest.TestCase):
             self.assertEqual(bad.stderr.strip(), "CONTROLLED_CI_FD_REFUSED")
             self.assertNotIn("private_secret", bad.stderr)
 
+    def test_worker_rejects_inherited_writable_hardlinked_and_directory_fds(self):
+        with tempfile.TemporaryDirectory(prefix="ci-zip-fd-") as root:
+            path = Path(root) / "fixture.zip"
+            path.write_bytes(bundle([("A/model.cfg", b"[mesh]\npart.o3d\n")]))
+            writable = os.open(path, os.O_RDWR | os.O_CLOEXEC)
+            try:
+                result = invoke(writable)
+                self.assertEqual((result.returncode, result.stdout, result.stderr.strip()),
+                                 (2, "", "CONTROLLED_CI_FD_REFUSED"))
+            finally:
+                os.close(writable)
+            link = Path(root) / "hardlink.zip"
+            os.link(path, link)
+            fd = open_fixture(path)
+            try:
+                result = invoke(fd)
+                self.assertEqual((result.returncode, result.stdout, result.stderr.strip()),
+                                 (2, "", "CONTROLLED_CI_FD_REFUSED"))
+            finally:
+                os.close(fd)
+            os.unlink(link)
+            directory_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+            try:
+                result = invoke(directory_fd)
+                self.assertEqual((result.returncode, result.stdout, result.stderr.strip()),
+                                 (2, "", "CONTROLLED_CI_FD_REFUSED"))
+            finally:
+                os.close(directory_fd)
+
+    def test_worker_rejects_uninherited_numeric_fd_without_disclosing_host(self):
+        result = subprocess.run(
+            [sys.executable, "-I", "-S", "-B", WORKER, "--fixture-fd", "9"],
+            cwd="/", env={"PYTHONIOENCODING": "utf-8"},
+            capture_output=True, text=True, timeout=8, check=False
+        )
+        self.assertEqual((result.returncode, result.stdout, result.stderr.strip()),
+                         (2, "", "CONTROLLED_CI_FD_REFUSED"))
+
+    def test_pread_does_not_modify_the_shared_file_offset(self):
+        with tempfile.TemporaryDirectory(prefix="ci-zip-fd-") as root:
+            path = Path(root) / "offset.zip"
+            data = bundle([("A/demo.bus", b"[model]\nmodel.cfg\n")])
+            path.write_bytes(data)
+            fd = open_fixture(path)
+            try:
+                os.lseek(fd, 7, os.SEEK_SET)
+                result = invoke(fd)
+                self.assertEqual(result.returncode, 0, result.stderr[:100])
+                self.assertEqual(os.lseek(fd, 0, os.SEEK_CUR), 7)
+                self.assertFalse(json.loads(result.stdout)["writesPerformed"])
+            finally:
+                os.close(fd)
+            self.assertEqual(path.read_bytes(), data)
+
     def test_worker_requires_an_inherited_fd_and_never_accepts_a_path(self):
         bad = subprocess.run(
             [sys.executable, "-I", "-S", "-B", WORKER, "--fixture-fd",
