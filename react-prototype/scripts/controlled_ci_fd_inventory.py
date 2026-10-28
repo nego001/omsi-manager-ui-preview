@@ -53,7 +53,15 @@ def verify_exact_inherited_ci_fixture_fds(expected: tuple[int, ...]) -> None:
                 refuse("PROC_STAT")
             present.add(fd)
             if fd not in expected:
-                refuse("EXTRA")
+                if stat.S_ISDIR(status.st_mode):
+                    refuse("EXTRA_DIRECTORY")
+                if stat.S_ISREG(status.st_mode):
+                    refuse("EXTRA_REGULAR")
+                if stat.S_ISSOCK(status.st_mode):
+                    refuse("EXTRA_SOCKET")
+                if stat.S_ISFIFO(status.st_mode):
+                    refuse("EXTRA_PIPE")
+                refuse("EXTRA_OTHER")
             flags = fcntl.fcntl(fd, fcntl.F_GETFL)
             if (not stat.S_ISREG(status.st_mode) or status.st_nlink != 1
                     or (flags & os.O_ACCMODE) != os.O_RDONLY):
