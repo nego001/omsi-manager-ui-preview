@@ -500,3 +500,26 @@ servidor X. A identidade de PID é uma checagem adicional no **Xvfb isolado
 do laboratório**, não autenticação forte do proprietário, sandbox completa
 nem homologação de KDE Plasma ou GNOME Shell reais. Não foi adicionado
 `--no-sandbox`, permissão de instalação ou acesso aos mods de usuário.
+
+### Controle gráfico X11 independente do Electron
+
+Antes dos testes nativos do `OMSI-Manager-Auto`, a mesma sessão isolada
+`Xvfb` abre uma janela **sintética** do utilitário `xmessage`
+(`OMSI CI X11 Display Control`). O teste exige exatamente uma janela
+identificável via `xwininfo -root -tree`, estado `IsViewable` e tamanho
+positivo. O diálogo usa um `HOME` descartável, não recebe arquivos nem
+acessa o jogo e é encerrado antes de iniciar os lançadores Electron.
+
+O log publica somente um resumo fixo
+`AUTO_X11_DISPLAY_BASELINE` com `mapped` booleano. Caso o controle não
+abra, o teste **reprova** por `AUTO_X11_DISPLAY_BASELINE_NOT_VERIFIED`;
+a verificação não é substituída por um sucesso presumido.
+
+**Interpretação:** `mapped=true` mostra apenas que o Xvfb instalado no
+runner consegue apresentar *alguma* janela X11, sem exigir Electron.
+Um controle positivo junto de `SIGTRAP` no Electron ajuda a isolar o
+problema na pilha Electron/Chromium/sandbox, mas não prova se é AppArmor,
+kernel, pacote ou política do runner. O controle **não** valida o sandbox,
+as janelas do OMSI Manager nem os compositores reais GNOME ou KDE.
+Para homologação do aplicativo, continuam obrigatórias as verificações
+independentes de PID, linha de comando, mapeamento e os dois perfis.
