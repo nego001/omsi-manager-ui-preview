@@ -1,5 +1,6 @@
 import {useEffect,useMemo,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
+import {matchesCatalogSearch} from './catalog-search';
 import {analyzeModRelations} from './relation-analysis';
 import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
@@ -133,7 +134,7 @@ export default function App(){
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
- const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&(`${m.title} ${m.category} ${games[m.game].title}`.toLowerCase().includes(search.toLowerCase()))),[catalogMods,selectedGame,category,search]);
+ const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&matchesCatalogSearch(m,games[m.game].title,search)),[catalogMods,selectedGame,category,search]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
  const activeBatch=useMemo(()=>batchSelected.filter(id=>
   favorites.includes(id)&&catalogMods.some(m=>m.id===id)),[batchSelected,favorites,catalogMods]);
@@ -149,12 +150,12 @@ export default function App(){
   return counts;
  },{blocking:0,attention:0}),[favoriteMods,declaredStatuses]);
  const libraryMods=useMemo(()=>{
-  const query=librarySearch.trim().toLocaleLowerCase('pt-BR');
+  // Search never changes the underlying favorites or declared status.
   const list=favoriteMods.filter(m=>
    (libraryGame==='all'||m.game===libraryGame)&&
    (libraryCategory==='Todos'||m.category===libraryCategory)&&
    (libraryDeclaredStatus==='all'||declaredStatuses.get(m.id)?.kind===libraryDeclaredStatus)&&
-   (!query||(`${m.title} ${m.category} ${games[m.game].title}`).toLocaleLowerCase('pt-BR').includes(query))
+   matchesCatalogSearch(m,games[m.game].title,librarySearch)
   );
   if(librarySort==='title')return [...list].sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));
   if(librarySort==='game'){
@@ -230,7 +231,7 @@ export default function App(){
    <p className="nav-caption">EXPLORAR</p><nav aria-label="Navegação principal">{nav.map(({id,label,icon:Icon})=><button key={id} className={'nav-link '+(screen===id?'active':'')} aria-label={label} aria-current={screen===id?'page':undefined} onClick={()=>goto(id)} title={label}><Icon size={19}/><span>{label}</span></button>)}</nav>
    <div className="sidebar-bottom"><div className="safety-status"><ShieldCheck size={17}/><span>Modo seguro ativo</span></div><small>Sem leitura de conteúdo ou alterações nos jogos</small></div>
   </aside>
-  <div className="workspace"><header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" aria-label="Alternar menu" onClick={()=>setSidebar(v=>!v)}><Menu size={20}/></button><div className="breadcrumb">OMSI Manager <ChevronRight size={13}/> <strong>{title}</strong></div></div><div className="top-actions"><label className="search"><Search size={17}/><input placeholder={screen==='library'?'Buscar favoritos...':'Buscar mods...'} aria-label={screen==='library'?'Buscar favoritos':'Buscar mods'} value={screen==='library'?librarySearch:search} onChange={e=>screen==='library'?setLibrarySearch(e.target.value.slice(0,100)):setSearch(e.target.value)} onFocus={()=>screen!=='catalog'&&screen!=='library'&&goto('catalog')}/></label><span className="mode-indicator"><LockKeyhole size={13}/> Protótipo</span></div></header>
+  <div className="workspace"><header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" aria-label="Alternar menu" onClick={()=>setSidebar(v=>!v)}><Menu size={20}/></button><div className="breadcrumb">OMSI Manager <ChevronRight size={13}/> <strong>{title}</strong></div></div><div className="top-actions"><label className="search"><Search size={17}/><input placeholder={screen==='library'?'Buscar favoritos...':'Buscar mods...'} aria-label={screen==='library'?'Buscar favoritos':'Buscar mods'} value={screen==='library'?librarySearch:search} onChange={e=>screen==='library'?setLibrarySearch(e.target.value.slice(0,100)):setSearch(e.target.value.slice(0,100))} onFocus={()=>screen!=='catalog'&&screen!=='library'&&goto('catalog')}/></label><span className="mode-indicator"><LockKeyhole size={13}/> Protótipo</span></div></header>
    <main id="conteudo-principal" tabIndex={-1} className="content">
     {screen==='home'&&<><section className="hero hero-spotlight" aria-label="Destaque de simuladores" style={{'--spotlight':games[featuredGame].color} as React.CSSProperties}>
      <div className="hero-copy">

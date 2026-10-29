@@ -166,3 +166,17 @@ A análise conjunta passou a exibir, sob demanda, os **oito módulos que precisa
 A Biblioteca ganhou um laboratório opt-in com seis exemplos predeterminados: pacote fictício de estrutura regular, travessia de caminho, link, colisão de nomes, razão de expansão excessiva e formato malformado. O componente usa **o mesmo simulador de índice sintético já testado**, sem arquivar, extrair, enumerar arquivos do usuário nem invocar IPC. No exemplo regular, apenas o índice fictício é criado; o resultado segue **incompleto**, porque não há relatórios de especialistas. Nos demais, o gate fictício recusa o pacote antes de divulgar índice algum.
 
 O laboratório não interpreta favoritos nem relaciona seus resultados com os mods do catálogo: é uma ferramenta didática e de regressão de segurança. As interfaces e os testes confirmam `realPackageRead: false`, `compatibilityVerified: false` e `operationsEnabled: false`. O digest declarado é fictício e nunca implica hash real verificado.
+
+### Pesquisa acessível de metadados no Catálogo e na Biblioteca
+
+A pesquisa do catálogo demonstrativo e dos favoritos agora tolera
+acentuação, caixa, espaços extras e termos fora da ordem (por exemplo,
+`onibus urbano`, `OMSI mapas serra` e `caminhoes rodoviario`).
+O filtro considera apenas **título, categoria e jogo declarados**
+no JSON; não examina arquivos, caminhos, conteúdo de mods ou logs.
+Ele continua combinável com os filtros de jogo, categoria e alertas.
+Limpar a busca não apaga favoritos e nenhum resultado de pesquisa
+comprova compatibilidade ou habilita instalação.
+
+Os testes Playwright exercitam o uso real do filtro e comprovam que as
+ações de instalar/remover nos Detalhes continuam bloqueadas.
