@@ -1,6 +1,7 @@
-"""CI-only header guard for a verified, unsigned Linux portable TAR archive.
+"""CI-only structure and ELF-magic guard for an unsigned Linux portable TAR.
 
-Pre-extraction sanity checks, NOT authentication of the SHA256 manifest,
+Pre-extraction checks (headers + four ELF bytes per required binary), NOT
+authentication of the SHA256 manifest,
 an operating-system sandbox, or a general-purpose archive extractor.
 Only fixed artifact basename in the current CI directory is supported.
 """
@@ -30,10 +31,11 @@ def refuse():
 
 
 def validate_tar_members(archive):
-    """Inspect headers only. Never extract, follow links, or return names."""
+    """Inspect structure and fixed ELF prefixes. Never extract or return names."""
     seen = set()
     directories = set()
     regular_files = set()
+    required_members = {}
     total = 0
     members = 0
     for entry in archive:
@@ -72,8 +74,10 @@ def validate_tar_members(archive):
         regular_files.add(canonical)
         # A directory can be searchable (-x) in the shell, so checking
         # filenames or test -x AFTER unpacking is not sufficient.
-        if canonical in REQUIRED and not (entry.mode & 0o111):
-            refuse()
+        if canonical in REQUIRED:
+            if not (entry.mode & 0o111) or entry.size < 4:
+                refuse()
+            required_members[canonical] = entry
         if entry.size < 0 or entry.size > MAX_FILE_BYTES:
             refuse()
         total += entry.size
@@ -90,11 +94,23 @@ def validate_tar_members(archive):
         for depth in range(1, len(parts)):
             if "/".join(parts[:depth]) in regular_files:
                 refuse()
-    return {"verified": True, "scope": "ci-unsigned-archive-headers-only"}
+    # Fixed ELF signature only: this does not authenticate the binary,
+    # validate its architecture, dependencies or embedded code.
+    for filename in REQUIRED:
+        member = required_members[filename]
+        stream = archive.extractfile(member)
+        if stream is None:
+            refuse()
+        try:
+            if stream.read(4) != b"\x7fELF":
+                refuse()
+        finally:
+            stream.close()
+    return {"verified": True, "scope": "ci-unsigned-archive-structure-elf-magic"}
 
 
 def validate_fixture_stream(stream):
-    """For synthetic in-memory unit tests only; never read mod paths."""
+    """Accept supplied synthetic stream, or fixed CI package. No mod paths."""
     try:
         with tarfile.open(fileobj=stream, mode="r:gz") as archive:
             return validate_tar_members(archive)
@@ -114,7 +130,7 @@ def main(argv):
         refuse()
     with path.open("rb") as stream:
         validate_fixture_stream(stream)
-    print("PASS_CI_LINUX_ARCHIVE_HEADERS_VERIFIED")
+    print("PASS_CI_LINUX_ARCHIVE_STRUCTURE_ELF_MAGIC_VERIFIED")
 
 
 if __name__ == "__main__":

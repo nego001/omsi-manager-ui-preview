@@ -676,3 +676,18 @@ diretórios com nomes dos executáveis, conflitos entre arquivo-pai e
 arquivo-filho e a aceitação de estruturas válidas. O laboratório continua
 sem extrair mods, sem autenticar binários nem certificar o sandbox do
 Electron.
+
+### Assinatura ELF mínima dos executáveis obrigatórios da CI
+
+O validador do TAR mantém a inspeção dos cabeçalhos e agora lê **apenas
+quatro bytes** de cada um dos dois arquivos regulares obrigatórios:
+`OMSI-Manager-Preview` e `OMSI-Manager-Auto`. Ambos devem ter o
+prefixo `7F 45 4C 46` (ELF), além de bit de execução e tamanho
+declarado de ao menos quatro bytes. Scripts, arquivos comuns,
+cabeçalhos truncados ou diretórios com esses nomes são recusados
+antes da extração. Os novos testes usam TARs exclusivamente sintéticos.
+
+Essa assinatura **não** prova autenticidade, arquitetura, integridade
+do executável, ausência de malware, compatibilidade nem sandbox;
+o SHA-256 e os outros testes permanecem separados. Nenhum arquivo de
+mod é carregado, e a validação nunca devolve conteúdo extraído.

@@ -25,8 +25,8 @@ def archive_bytes(entries):
 def valid_entries():
     return [
         (ROOT + "/", tarfile.DIRTYPE, b"", 0o755, ""),
-        (ROOT + "/OMSI-Manager-Preview", tarfile.REGTYPE, b"mock-elf", 0o755, ""),
-        (ROOT + "/OMSI-Manager-Auto", tarfile.REGTYPE, b"mock-launcher", 0o755, ""),
+        (ROOT + "/OMSI-Manager-Preview", tarfile.REGTYPE, b"\x7fELFmock-elf", 0o755, ""),
+        (ROOT + "/OMSI-Manager-Auto", tarfile.REGTYPE, b"\x7fELFmock-launcher", 0o755, ""),
     ]
 
 
@@ -41,7 +41,7 @@ class CiLinuxArchiveGuardTests(unittest.TestCase):
         report = validate_fixture_stream(io.BytesIO(archive_bytes(valid_entries())))
         self.assertEqual(report, {
             "verified": True,
-            "scope": "ci-unsigned-archive-headers-only"
+            "scope": "ci-unsigned-archive-structure-elf-magic"
         })
         self.assertNotIn("OMSI-Manager-Preview", str(report))
 
@@ -78,6 +78,15 @@ class CiLinuxArchiveGuardTests(unittest.TestCase):
                 bad = valid_entries()
                 bad[1] = (bad[1][0], bad[1][1], bad[1][2], bad_mode, "")
                 self.assert_refused(bad)
+
+    def test_rejects_executable_name_without_elf_magic(self):
+        for index in (1, 2):
+            for body in (b"#!/bin/sh", b"MZexecut", b"\x7fEL", b""):
+                with self.subTest(executable_index=index, sample=repr(body)):
+                    bad = valid_entries()
+                    name, kind, _, mode, link = bad[index]
+                    bad[index] = (name, kind, body, mode, link)
+                    self.assert_refused(bad)
 
     def test_rejects_missing_required_binaries(self):
         self.assert_refused(valid_entries()[:2])
