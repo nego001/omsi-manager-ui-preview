@@ -604,3 +604,24 @@ usuários são cobertas por testes de regressão que nunca publicam os
 dados brutos. Nenhuma aplicação de jogo ou mod real é inspecionada,
 e o job Ubuntu 24.04 continua reprovando até conseguir mapear a
 janela nativa sob o sandbox original.
+
+### Revalidação de identidade do FD no leitor de grupos ZIP
+
+O laboratório `controlled_ci_group_fd_reader.py` mantém uma
+identidade observada para cada descritor descartável fornecido pela CI:
+dispositivo, inode, tamanho e timestamps de modificação/alteração.
+As identidades são conferidas depois da primeira leitura, antes da
+última leitura e depois dela. Isso impede que uma troca artificial de
+FD com `dup2` passe despercebida **apenas** por manter bytes ZIP idênticos.
+
+Dois testes novos simulam a substituição de arquivo descartável por
+outro inode com exatamente o mesmo conteúdo, tanto durante a primeira
+leitura quanto entre a análise cruzada dos pacotes e a verificação final.
+O resultado esperado em ambos é recusa fechada
+`CONTROLLED_CI_GROUP_FD_REFUSED`, sem emitir caminhos, nomes nem bytes.
+
+A proteção melhora a detecção de uma categoria específica de
+concorrência, mas **não elimina todas as possibilidades ABA/TOCTOU**,
+não autentica a origem dos descritores e não constitui sandbox de
+produção. O laboratório não aceita caminhos de mods, não usa IPC do
+Electron, não instala, remove nem escreve arquivos do jogo.
