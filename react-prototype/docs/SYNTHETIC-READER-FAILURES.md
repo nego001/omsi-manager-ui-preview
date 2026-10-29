@@ -659,3 +659,20 @@ mesmo commit, não um extrator genérico, scanner de mods ou prova
 de autenticação do artefato. A validação/extracão não forma snapshot
 atômico e não elimina todos os ataques de concorrência. Nenhum mod
 real é inspecionado nem instalado.
+
+### Identidade e tipo dos executáveis no TAR da CI
+
+O validador exige agora que a raiz do pacote seja explicitamente um
+**diretório** e que `OMSI-Manager-Preview` e `OMSI-Manager-Auto`
+sejam **arquivos regulares com ao menos um bit de execução**. Um
+diretório no lugar de um executável é recusado mesmo se um comando
+shell como `test -x` o considerasse acessível. Também são recusados
+arquivos regulares que ocupem o lugar de diretórios ancestrais de outras
+entradas, independentemente da ordem dos cabeçalhos no TAR.
+
+Testes com arquivos TAR inteiramente inventados verificam raiz ausente,
+raiz substituída por arquivo, executáveis sem permissão de execução,
+diretórios com nomes dos executáveis, conflitos entre arquivo-pai e
+arquivo-filho e a aceitação de estruturas válidas. O laboratório continua
+sem extrair mods, sem autenticar binários nem certificar o sandbox do
+Electron.

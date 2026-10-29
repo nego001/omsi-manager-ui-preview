@@ -32,6 +32,8 @@ def refuse():
 def validate_tar_members(archive):
     """Inspect headers only. Never extract, follow links, or return names."""
     seen = set()
+    directories = set()
+    regular_files = set()
     total = 0
     members = 0
     for entry in archive:
@@ -65,14 +67,29 @@ def validate_tar_members(archive):
         if entry.isdir():
             if entry.size != 0:
                 refuse()
+            directories.add(canonical)
             continue
+        regular_files.add(canonical)
+        # A directory can be searchable (-x) in the shell, so checking
+        # filenames or test -x AFTER unpacking is not sufficient.
+        if canonical in REQUIRED and not (entry.mode & 0o111):
+            refuse()
         if entry.size < 0 or entry.size > MAX_FILE_BYTES:
             refuse()
         total += entry.size
         if total > MAX_UNPACKED_BYTES:
             refuse()
-    if members < 3 or not REQUIRED.issubset(seen):
+    if (members < 3 or ROOT not in directories
+            or not REQUIRED.issubset(regular_files)):
         refuse()
+    # Reject a regular file as an ancestor of another entry even when
+    # both names are otherwise safe. No such structure can be a genuine
+    # portable app tree; tar extraction behavior need not be consulted.
+    for name in seen:
+        parts = name.split("/")
+        for depth in range(1, len(parts)):
+            if "/".join(parts[:depth]) in regular_files:
+                refuse()
     return {"verified": True, "scope": "ci-unsigned-archive-headers-only"}
 
 

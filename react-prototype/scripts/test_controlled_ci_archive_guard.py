@@ -93,6 +93,44 @@ class CiLinuxArchiveGuardTests(unittest.TestCase):
             with self.assertRaises(CiArchiveRefused):
                 validate_tar_members(Synthetic())
 
+    def test_rejects_root_missing_or_root_regular_file(self):
+        no_root = valid_entries()[1:] + [
+            (ROOT + "/resources/extra.bin", tarfile.REGTYPE, b"fake", 0o644, "")
+        ]
+        self.assert_refused(no_root)
+        bad = valid_entries()
+        bad[0] = (ROOT, tarfile.REGTYPE, b"not a directory", 0o755, "")
+        self.assert_refused(bad)
+
+    def test_rejects_executable_paths_that_are_directories(self):
+        for index in (1, 2):
+            with self.subTest(executable_index=index):
+                bad = valid_entries()
+                name, _, _, mode, _ = bad[index]
+                bad[index] = (name + "/", tarfile.DIRTYPE, b"", mode, "")
+                self.assert_refused(bad)
+
+    def test_rejects_required_regular_files_without_execute_permission(self):
+        for index in (1, 2):
+            for mode in (0o644, 0o600, 0o400, 0):
+                with self.subTest(executable_index=index, mode=mode):
+                    bad = valid_entries()
+                    name, kind, body, _, link = bad[index]
+                    bad[index] = (name, kind, body, mode, link)
+                    self.assert_refused(bad)
+
+    def test_rejects_regular_file_as_parent_directory_in_any_order(self):
+        ancestor = (ROOT + "/resources", tarfile.REGTYPE, b"parent-file", 0o644, "")
+        child = (ROOT + "/resources/child", tarfile.REGTYPE, b"child", 0o644, "")
+        self.assert_refused(valid_entries() + [ancestor, child])
+        self.assert_refused(valid_entries() + [child, ancestor])
+        # A directory ancestor is legitimate and has no conflict.
+        good = valid_entries() + [
+            (ROOT + "/resources/", tarfile.DIRTYPE, b"", 0o755, ""),
+            child,
+        ]
+        self.assertTrue(validate_fixture_stream(io.BytesIO(archive_bytes(good)))["verified"])
+
     def test_rejects_corrupted_archive_data(self):
         with self.assertRaises(CiArchiveRefused):
             validate_fixture_stream(io.BytesIO(b"not a gzip archive"))
