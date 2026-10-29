@@ -609,7 +609,11 @@ janela nativa sob o sandbox original.
 
 O laboratório `controlled_ci_group_fd_reader.py` mantém uma
 identidade observada para cada descritor descartável fornecido pela CI:
-dispositivo, inode, tamanho e timestamps de modificação/alteração.
+dispositivo, inode, tamanho, timestamps de modificação/alteração, modo
+do arquivo, número de links físicos e modo de acesso do descritor
+(`fcntl(F_GETFL)`). Além da identidade, exige arquivo regular,
+exatamente um link e **descritor aberto somente para leitura** em cada
+observação; não basta um FD apontar para o mesmo inode.
 As identidades são conferidas depois da primeira leitura, antes da
 última leitura e depois dela. Uma varredura final de **todos os descritores**
 verifica também se um FD já validado foi substituído enquanto o último
@@ -620,8 +624,12 @@ Três testes simulam a substituição de arquivo descartável por
 outro inode com exatamente o mesmo conteúdo: durante a primeira leitura,
 entre a análise cruzada dos pacotes e a verificação final, e quando o
 último descritor é relido depois de um anterior já ter sido validado.
-O resultado esperado em ambos é recusa fechada
-`CONTROLLED_CI_GROUP_FD_REFUSED`, sem emitir caminhos, nomes nem bytes.
+Um quarto teste troca, durante a releitura final, um descritor
+somente leitura por outro **com acesso de escrita ao mesmo inode**.
+A checagem de `fstat` sozinha não distinguiria esses dois
+descritores, mas `F_GETFL` detecta a diferença. Todos os casos exigem
+recusa fechada `CONTROLLED_CI_GROUP_FD_REFUSED`, sem emitir caminhos,
+nomes nem bytes.
 
 A proteção melhora a detecção de uma categoria específica de
 concorrência, mas **não elimina todas as possibilidades ABA/TOCTOU**,
