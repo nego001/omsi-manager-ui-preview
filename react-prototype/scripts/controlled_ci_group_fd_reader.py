@@ -82,6 +82,13 @@ def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
                 refuse()
             if _fd_identity(os.fstat(fd)) != identity:
                 refuse()
+        # A later FD reread could race with an EARLIER slot already
+        # checked above. Make a group-wide last identity sweep so a
+        # same-byte replacement of that earlier slot is also rejected.
+        # This is an observation, not an atomic snapshot/ABA guarantee.
+        for fd, identity in zip(fds, original_identities):
+            if _fd_identity(os.fstat(fd)) != identity:
+                refuse()
     except (ControlledCiFdRefused, ControlledZipRefused, OSError,
             OverflowError, MemoryError):
         refuse()
