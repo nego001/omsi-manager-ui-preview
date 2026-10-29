@@ -195,6 +195,47 @@ class ControlledCiGroupFdReaderTests(unittest.TestCase):
             self.assertEqual(tuple(p.read_bytes() for p in paths), payloads)
             self.assertEqual(duplicate.read_bytes(), payloads[0])
 
+    def test_group_rejects_last_slot_race_on_previously_checked_fd(self):
+        # The second-to-last validation used to be final for fd0. If fd0
+        # were replaced while the last FD was being checked, a per-slot
+        # validation alone could incorrectly return success.
+        from controlled_ci_group_fd_reader import read_checked_fixture_fd_bytes
+        payloads = (
+            bundle([("A/fixture.bus", b"same-byte race case")]),
+            bundle([("B/fixture.cfg", b"other harmless fixture")]),
+        )
+        with tempfile.TemporaryDirectory(prefix="ci-fd-final-sweep-") as root:
+            sources = tuple(Path(root) / f"source-{i}.zip" for i in range(2))
+            replacement_path = Path(root) / "different-inode-identical.zip"
+            for path, data in zip(sources, payloads):
+                path.write_bytes(data)
+            replacement_path.write_bytes(payloads[0])
+            fds = tuple(open_fixture(path) for path in sources)
+            replacement = open_fixture(replacement_path)
+            try:
+                calls = []
+                def race_during_last_read(fd):
+                    data = read_checked_fixture_fd_bytes(fd)
+                    calls.append(fd)
+                    if len(calls) == 4:
+                        self.assertEqual(fd, fds[1])
+                        os.dup2(replacement, fds[0])
+                    return data
+                with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
+                           side_effect=race_during_last_read):
+                    with self.assertRaisesRegex(
+                        ControlledCiGroupFdRefused,
+                        "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                    ):
+                        inspect_open_fixture_group_fds(fds)
+                self.assertEqual(calls, [fds[0], fds[1], fds[0], fds[1]])
+            finally:
+                os.close(replacement)
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(tuple(path.read_bytes() for path in sources), payloads)
+            self.assertEqual(replacement_path.read_bytes(), payloads[0])
+
     def test_invalid_fds_and_duplicate_file_identity_fail_closed(self):
         with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
             p1 = Path(root) / "one.zip"
