@@ -20,3 +20,20 @@ export function categorizeApparmorProfile(value){
  if(/\(complain\)$/.test(profile))return 'confined-complain';
  return 'unknown';
 }
+
+export function categorizeUnshareFailure(error){
+ // Do not return raw stderr, error messages, command paths or identifiers.
+ // A permission-denied result does not prove AppArmor caused the denial.
+ if(!error||typeof error!=='object')return 'other-failure';
+ if(error.code==='ENOENT')return 'tool-unavailable';
+ if(error.killed===true||error.code==='ETIMEDOUT'||error.signal==='SIGTERM')
+  return 'timeout';
+ if(error.code==='EPERM'||error.code==='EACCES')
+  return 'permission-denied';
+ const stderr=typeof error.stderr==='string'?error.stderr.slice(0,2048):'';
+ if(/\b(?:Operation not permitted|Permission denied)\b/i.test(stderr))
+  return 'permission-denied';
+ if(/\b(?:Function not implemented|Invalid argument|not supported)\b/i.test(stderr))
+  return 'unsupported';
+ return 'other-failure';
+}
