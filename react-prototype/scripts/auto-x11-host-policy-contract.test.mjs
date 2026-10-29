@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {categorizeApparmorModule,categorizeApparmorProfile}
- from './auto-x11-host-policy-contract.mjs';
+import {categorizeApparmorModule,categorizeApparmorProfile,
+ categorizeUnshareFailure} from './auto-x11-host-policy-contract.mjs';
 
 test('AppArmor module capability is reduced to fixed categories',()=>{
  for(const [raw,category] of [
@@ -29,5 +29,33 @@ test('AppArmor current profile never reveals filenames, locations or names',()=>
   assert.ok(!observed.includes('hidden'));
   assert.ok(!observed.includes('secret'));
   assert.ok(!observed.includes('/'));
+ }
+});
+
+test('unshare failures are classified without leaking raw OS stderr',()=>{
+ const fixtures=[
+  [{code:'EPERM'},'permission-denied'],
+  [{code:'EACCES'},'permission-denied'],
+  [{code:1,stderr:'unshare: unshare failed: Operation not permitted\n'},'permission-denied'],
+  [{code:1,stderr:'unshare: Permission denied for /home/private/user\n'},'permission-denied'],
+  [{code:'ENOENT',message:'path to /home/private/unshare'},'tool-unavailable'],
+  [{code:'ETIMEDOUT',stderr:'private data'},'timeout'],
+  [{killed:true,stderr:'private data'},'timeout'],
+  [{signal:'SIGTERM',stderr:'private data'},'timeout'],
+  [{code:1,stderr:'unshare: Function not implemented'},'unsupported'],
+  [{code:1,stderr:'unshare: Invalid argument'},'unsupported'],
+  [{code:1,stderr:'user namespaces not supported'},'unsupported'],
+  [{code:1,stderr:'mount: private /home/user'},'other-failure'],
+  [{code:1,stderr:'x'.repeat(5000)+' Operation not permitted'},'other-failure'],
+  [{code:1,stderr:'Operation not permitted',killed:true},'timeout'],
+  [null,'other-failure'],['private path','other-failure'],[new Error('private path'),'other-failure']
+ ];
+ const categories=new Set(['permission-denied','tool-unavailable','timeout','unsupported','other-failure']);
+ for(const [error,expected] of fixtures){
+  const category=categorizeUnshareFailure(error);
+  assert.equal(category,expected);
+  assert.ok(categories.has(category));
+  assert.ok(!category.includes('/'));
+  assert.ok(!category.includes('private'));
  }
 });
