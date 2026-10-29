@@ -611,12 +611,15 @@ O laboratório `controlled_ci_group_fd_reader.py` mantém uma
 identidade observada para cada descritor descartável fornecido pela CI:
 dispositivo, inode, tamanho e timestamps de modificação/alteração.
 As identidades são conferidas depois da primeira leitura, antes da
-última leitura e depois dela. Isso impede que uma troca artificial de
+última leitura e depois dela. Uma varredura final de **todos os descritores**
+verifica também se um FD já validado foi substituído enquanto o último
+descritor do grupo era relido. Isso impede que uma troca artificial de
 FD com `dup2` passe despercebida **apenas** por manter bytes ZIP idênticos.
 
-Dois testes novos simulam a substituição de arquivo descartável por
-outro inode com exatamente o mesmo conteúdo, tanto durante a primeira
-leitura quanto entre a análise cruzada dos pacotes e a verificação final.
+Três testes simulam a substituição de arquivo descartável por
+outro inode com exatamente o mesmo conteúdo: durante a primeira leitura,
+entre a análise cruzada dos pacotes e a verificação final, e quando o
+último descritor é relido depois de um anterior já ter sido validado.
 O resultado esperado em ambos é recusa fechada
 `CONTROLLED_CI_GROUP_FD_REFUSED`, sem emitir caminhos, nomes nem bytes.
 
