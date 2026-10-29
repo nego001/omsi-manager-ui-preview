@@ -554,3 +554,33 @@ e os testes GNOME/KDE sob sandbox Chromium/Electron intacto.
 user namespaces, execução do Electron como root ou supressão do
 resultado falho. Os resultados Xvfb não substituem testes reais de
 GNOME Shell/KWin nem autorizam acesso a mods ou instalações.
+
+### Categoria AppArmor sem vazamento de perfis
+
+Após duas execuções reproduzirem a distinção, a matriz Ubuntu 22.04 mapeou
+as janelas GNOME e KDE no Xvfb, enquanto Ubuntu 24.04 terminou com
+`SIGTRAP` tanto no lançador automático quanto no Electron direto.
+Ambos os hosts mapearam a janela independente `xmessage`. No Ubuntu
+22.04, a sonda indicou `apparmorUsernsRestriction=disabled` e
+`unshareUserNamespace=allowed`; no Ubuntu 24.04, indicou
+`apparmorUsernsRestriction=enabled` e
+`unshareUserNamespace=blocked-or-unavailable`. A correlação é forte,
+mas não comprova a causa exclusiva.
+
+A sonda de host **somente CI** agora lê passivamente duas fontes fixas
+adicionais, `/sys/module/apparmor/parameters/enabled` e
+`/proc/self/attr/current`, para publicar apenas as categorias
+`enabled/disabled/unknown/unavailable` e
+`unconfined/confined-enforce/confined-complain/unknown/unavailable`,
+respectivamente. O texto original do perfil pode conter nomes de
+usuário/caminhos, e **nunca** é registrado. O campo
+`profileIsElectronProof=false` informa que a configuração do processo
+Node da CI não confirma o confinamento de um subprocesso Electron.
+`policyChanged=false` informa que a sonda não alterou o host.
+
+Os testes sintéticos de classificação rodam no job `build` e em
+cada entrada da matriz X11, incluindo entradas malformadas e
+nomes de perfis de aparência privada. Nenhum teste altera o AppArmor,
+cria perfis, executa Electron como root ou desativa sandbox.
+As observações continuam descritivas, não uma homologação de
+GNOME Shell/KWin físicos nem instrução para afrouxar o sistema.
