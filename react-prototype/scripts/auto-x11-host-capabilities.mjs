@@ -4,6 +4,8 @@
 import {readFile} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
+import {categorizeApparmorModule,categorizeApparmorProfile}
+ from './auto-x11-host-policy-contract.mjs';
 
 const run=promisify(execFile);
 if(process.platform!=='linux'||process.getuid?.()===0||
@@ -15,6 +17,19 @@ async function readSwitch(path){
   const value=(await readFile(path,'utf8')).trim();
   return value==='0'?'disabled':value==='1'?'enabled':'unknown';
  }catch{return 'unavailable';}
+}
+// Fixed, read-only kernel/LSM files. Raw content and profile names are
+// discarded before logging. This is Node's own confinement, not Electron's.
+async function apparmorLsmHints(){
+ async function category(path,parse){
+  try{return parse(await readFile(path,'utf8'));}catch{return 'unavailable';}
+ }
+ const [moduleState,hostProcessProfile]=await Promise.all([
+  category('/sys/module/apparmor/parameters/enabled',categorizeApparmorModule),
+  category('/proc/self/attr/current',categorizeApparmorProfile)
+ ]);
+ return {moduleState,hostProcessProfile,
+  profileIsElectronProof:false,policyChanged:false};
 }
 async function namespaceCapacity(){
  try{
@@ -48,6 +63,7 @@ console.log('AUTO_X11_HOST_CAPABILITY_CATEGORIES',JSON.stringify({
  unprivilegedUsernsSwitch:await readSwitch('/proc/sys/kernel/unprivileged_userns_clone'),
  usernsCapacity:await namespaceCapacity(),
  apparmorUsernsRestriction:await readSwitch('/proc/sys/kernel/apparmor_restrict_unprivileged_userns'),
+ apparmorLsm:await apparmorLsmHints(),
  currentProcess:await currentSecurityState(),
  unshareUserNamespace:await unprivilegedUserNamespace(),
  evidenceOnly:true,provesElectronSandbox:false,provesX11Window:false
