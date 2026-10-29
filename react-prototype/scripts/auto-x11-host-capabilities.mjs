@@ -4,7 +4,7 @@
 import {readFile} from 'node:fs/promises';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {categorizeApparmorModule,categorizeApparmorProfile}
+import {categorizeApparmorModule,categorizeApparmorProfile,categorizeUnshareFailure}
  from './auto-x11-host-policy-contract.mjs';
 
 const run=promisify(execFile);
@@ -56,15 +56,20 @@ async function unprivilegedUserNamespace(){
    encoding:'utf8',timeout:2500,maxBuffer:2048,
    env:{PATH:'/usr/bin:/bin',LANG:'C'},cwd:'/'
   });
-  return 'allowed';
- }catch{return 'blocked-or-unavailable';}
+  return {state:'allowed',failureCategory:'none'};
+ }catch(error){
+  return {state:'blocked-or-unavailable',
+   failureCategory:categorizeUnshareFailure(error)};
+ }
 }
+const unshare=await unprivilegedUserNamespace();
 console.log('AUTO_X11_HOST_CAPABILITY_CATEGORIES',JSON.stringify({
  unprivilegedUsernsSwitch:await readSwitch('/proc/sys/kernel/unprivileged_userns_clone'),
  usernsCapacity:await namespaceCapacity(),
  apparmorUsernsRestriction:await readSwitch('/proc/sys/kernel/apparmor_restrict_unprivileged_userns'),
  apparmorLsm:await apparmorLsmHints(),
  currentProcess:await currentSecurityState(),
- unshareUserNamespace:await unprivilegedUserNamespace(),
+ unshareUserNamespace:unshare.state,
+ unshareFailureCategory:unshare.failureCategory,
  evidenceOnly:true,provesElectronSandbox:false,provesX11Window:false
 }));
