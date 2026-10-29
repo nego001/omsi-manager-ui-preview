@@ -636,3 +636,26 @@ concorrência, mas **não elimina todas as possibilidades ABA/TOCTOU**,
 não autentica a origem dos descritores e não constitui sandbox de
 produção. O laboratório não aceita caminhos de mods, não usa IPC do
 Electron, não instala, remove nem escreve arquivos do jogo.
+
+### Validação de cabeçalhos TAR antes de extrair o portátil Linux
+
+Os jobs X11 do Ubuntu 22.04/24.04 e a auditoria Arch Linux validam o
+SHA-256 do TAR recebido, executam a rotina de cabeçalhos
+`controlled_ci_archive_guard.py` e **só então** permitem a extração.
+O controle recusa paths absolutos, componentes `.`/`..`, separadores
+Windows, entradas fora do diretório raiz esperado, nomes repetidos,
+symlinks, hard links, arquivos especiais, atributos setuid/setgid,
+cabeçalhos sparse/xattr e pacotes que ultrapassem os limites de
+quantidade ou tamanho. Também exige os dois executáveis Linux.
+
+A verificação é somente leitura e não extrai conteúdo. A extração
+posterior usa `tar --no-same-owner --no-same-permissions`, evitando
+restauração desnecessária de propriedade e permissões de arquivos.
+Testes unitários utilizam TARs inventados em memória e nunca retornam
+nomes ou conteúdo de entradas a partir do validador.
+
+**Limites:** este é um laboratório CI para o artefato produzido no
+mesmo commit, não um extrator genérico, scanner de mods ou prova
+de autenticação do artefato. A validação/extracão não forma snapshot
+atômico e não elimina todos os ataques de concorrência. Nenhum mod
+real é inspecionado nem instalado.
