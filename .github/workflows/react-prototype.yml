@@ -34,6 +34,8 @@ jobs:
         run: node --test scripts/linux-session-diagnostics.test.cjs
       - name: AppArmor host-capability classification contracts (synthetic only)
         run: node --test scripts/auto-x11-host-policy-contract.test.mjs
+      - name: Native ELF sandbox preflight parser contracts (synthetic only)
+        run: node --test scripts/native-sandbox-preflight-contract.test.mjs
       - name: GNOME KDE Hyprland manual picker contracts (no GUI)
         run: npm run test:manual:contract
       - name: Safe desktop geometry contract
@@ -146,6 +148,10 @@ jobs:
           python3 -I -S -B ../scripts/controlled_ci_archive_guard.py
           tar --no-same-owner --no-same-permissions -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
           test -x OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto
+      - name: Native ELF sandbox policy preflight (no Electron or policy edits)
+        run: |
+          node --test scripts/native-sandbox-preflight-contract.test.mjs
+          node scripts/native-sandbox-preflight-ci.mjs
       - name: Run real OMSI-Manager-Auto on GNOME/KDE X11 labels in Xvfb
         timeout-minutes: 3
         env:

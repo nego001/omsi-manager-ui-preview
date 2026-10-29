@@ -314,3 +314,20 @@ O aplicativo roda com diretórios HOME/XDG temporários e é encerrado.
 comprova acesso ao seletor gráfico real, entrada física de mouse nem
 funcionamento do executável no Hyprland. Os pilotos manuais reais
 continuam obrigatórios para essa homologação.
+
+### Homologação de pré-diagnóstico do ELF real na matriz Ubuntu
+
+A matriz X11 Ubuntu 22.04/24.04 executa agora a opção
+`OMSI-Manager-Auto --diagnose-sandbox` **sobre o mesmo ELF portátil que
+será usado no teste gráfico**, antes de abrir o Electron. Um contrato
+restritivo exige os nove campos e categorias esperados, verifica que o
+resumo de políticas coincide com as categorias e recusa mensagens extras,
+valores privados ou alegações de sandbox verificado. O comando não usa
+`sudo`, não executa Electron e não tenta mudar AppArmor, namespaces ou
+políticas do kernel. O job gráfico continua vermelho se não houver janela
+mapeada, independentemente do resultado informativo desse diagnóstico.
+
+Os testes do parser usam apenas textos sintéticos, incluindo entradas
+malformadas e falsas alegações de sucesso. O relatório limitado a
+categorias é diagnóstico do **host da CI**, não homologação de GNOME,
+KDE ou Hyprland reais e não comprova isolamento do aplicativo.
