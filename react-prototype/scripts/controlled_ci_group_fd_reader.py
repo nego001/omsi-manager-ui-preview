@@ -6,10 +6,12 @@ the tests' exclusive temporary directory and are opened read-only by them.
 """
 from __future__ import annotations
 
+import fcntl
 import json
 import os
 import re
 import resource
+import stat
 import sys
 import zlib  # Preload before seccomp prevents lazy module file openings.
 
@@ -35,10 +37,19 @@ def refuse():
     raise ControlledCiGroupFdRefused("CONTROLLED_CI_GROUP_FD_REFUSED")
 
 
-def _fd_identity(st):
-    """Bounded CI observation only; not immutable file or origin proof."""
+def _fd_identity(fd):
+    """Observe identity, link/mode and readonly access, without file paths.
+
+    These checks are not atomic or file-origin authentication. Reject a
+    post-read dup2() to a writable description of the SAME file/inode.
+    """
+    st = os.fstat(fd)
+    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    if (not stat.S_ISREG(st.st_mode) or st.st_nlink != 1
+            or (flags & os.O_ACCMODE) != os.O_RDONLY):
+        refuse()
     return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns,
-            st.st_ctime_ns)
+            st.st_ctime_ns, st.st_mode, st.st_nlink, flags & os.O_ACCMODE)
 
 
 def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
@@ -57,7 +68,7 @@ def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
     original_identities = []
     try:
         for fd in fds:
-            identity = _fd_identity(os.fstat(fd))
+            identity = _fd_identity(fd)
             if identity[:2] in identities:
                 refuse()
             identities.add(identity[:2])
@@ -65,7 +76,7 @@ def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
             payloads.append(read_checked_fixture_fd_bytes(fd))
             # The per-file reader checks identity while reading; pin the
             # group-wide identity against replacing the FD after that call.
-            if _fd_identity(os.fstat(fd)) != identity:
+            if _fd_identity(fd) != identity:
                 refuse()
             if sum(map(len, payloads)) > MAX_COMBINED_INPUT_BYTES:
                 refuse()
@@ -76,18 +87,18 @@ def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
         # These checks cover substitution before/during/after each reread,
         # but do not establish a general ABA/TOCTOU guarantee.
         for fd, original, identity in zip(fds, payloads, original_identities):
-            if _fd_identity(os.fstat(fd)) != identity:
+            if _fd_identity(fd) != identity:
                 refuse()
             if read_checked_fixture_fd_bytes(fd) != original:
                 refuse()
-            if _fd_identity(os.fstat(fd)) != identity:
+            if _fd_identity(fd) != identity:
                 refuse()
         # A later FD reread could race with an EARLIER slot already
         # checked above. Make a group-wide last identity sweep so a
         # same-byte replacement of that earlier slot is also rejected.
         # This is an observation, not an atomic snapshot/ABA guarantee.
         for fd, identity in zip(fds, original_identities):
-            if _fd_identity(os.fstat(fd)) != identity:
+            if _fd_identity(fd) != identity:
                 refuse()
     except (ControlledCiFdRefused, ControlledZipRefused, OSError,
             OverflowError, MemoryError):
