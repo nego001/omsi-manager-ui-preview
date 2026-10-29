@@ -35,6 +35,12 @@ def refuse():
     raise ControlledCiGroupFdRefused("CONTROLLED_CI_GROUP_FD_REFUSED")
 
 
+def _fd_identity(st):
+    """Bounded CI observation only; not immutable file or origin proof."""
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns,
+            st.st_ctime_ns)
+
+
 def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
     """Return only anonymous, count-based cross-ZIP evidence from CI files.
 
@@ -48,23 +54,33 @@ def inspect_open_fixture_group_fds(fds: tuple[int, ...]) -> dict:
         refuse()
     payloads = []
     identities = set()
+    original_identities = []
     try:
         for fd in fds:
-            st = os.fstat(fd)
-            identity = (st.st_dev, st.st_ino)
-            if identity in identities:
+            identity = _fd_identity(os.fstat(fd))
+            if identity[:2] in identities:
                 refuse()
-            identities.add(identity)
+            identities.add(identity[:2])
+            original_identities.append(identity)
             payloads.append(read_checked_fixture_fd_bytes(fd))
+            # The per-file reader checks identity while reading; pin the
+            # group-wide identity against replacing the FD after that call.
+            if _fd_identity(os.fstat(fd)) != identity:
+                refuse()
             if sum(map(len, payloads)) > MAX_COMBINED_INPUT_BYTES:
                 refuse()
         report = examine_fixture_group(tuple(payloads))
-        # Recheck every original FD *after* cross-package parsing. The
-        # individual reader already takes two independent positional reads;
-        # this final pass can also catch changes made between packages.
-        # This is bounded race detection, never a claim of immutable input.
-        for fd, original in zip(fds, payloads):
+        # Recheck every original FD *after* cross-package parsing. Equality
+        # of bytes alone is insufficient: dup2() could replace the numbered
+        # descriptor with a different inode holding IDENTICAL ZIP bytes.
+        # These checks cover substitution before/during/after each reread,
+        # but do not establish a general ABA/TOCTOU guarantee.
+        for fd, original, identity in zip(fds, payloads, original_identities):
+            if _fd_identity(os.fstat(fd)) != identity:
+                refuse()
             if read_checked_fixture_fd_bytes(fd) != original:
+                refuse()
+            if _fd_identity(os.fstat(fd)) != identity:
                 refuse()
     except (ControlledCiFdRefused, ControlledZipRefused, OSError,
             OverflowError, MemoryError):
