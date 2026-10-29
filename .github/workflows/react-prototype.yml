@@ -32,6 +32,8 @@ jobs:
         run: node --test scripts/linux-desktop-integration.test.cjs
       - name: Wayland session and portal diagnostics (isolated Unix sockets)
         run: node --test scripts/linux-session-diagnostics.test.cjs
+      - name: AppArmor host-capability classification contracts (synthetic only)
+        run: node --test scripts/auto-x11-host-policy-contract.test.mjs
       - name: GNOME KDE Hyprland manual picker contracts (no GUI)
         run: npm run test:manual:contract
       - name: Safe desktop geometry contract
@@ -158,6 +160,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends x11-utils x11-apps
           # Probe host prerequisites without changing the Electron sandbox.
           node --check scripts/auto-real-x11-smoke.mjs
+          node --test scripts/auto-x11-host-policy-contract.test.mjs
           node scripts/auto-x11-host-capabilities.mjs
           # The real auto-launch must still create a mapped X11 window.
           xvfb-run -a node scripts/auto-real-x11-smoke.mjs
