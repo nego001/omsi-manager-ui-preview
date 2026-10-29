@@ -51,6 +51,46 @@ test('GNOME KDE Hyprland select X11 Wayland or automatic fallback',async(t)=>{
   assert.equal(result.stdout.trim(),'--ozone-platform='+expected);
  }
 });
+test('native sandbox preflight is explicit, read-only and never executes Electron',async(t)=>{
+ if(process.getuid?.()===0){t.skip('launcher deliberately rejects root');return;}
+ const f=await fixture();
+ // The --diagnose-sandbox mode must work without any app executable.
+ await fs.rm(f.target);
+ const output=f.run({XDG_CURRENT_DESKTOP:'GNOME'},['--diagnose-sandbox']);
+ assert.equal(output.status,0,output.stderr);
+ assert.equal(output.stderr,'');
+ const lines=output.stdout.trim().split('\n');
+ assert.equal(lines[0],'OMSI_MANAGER_SANDBOX_PREFLIGHT_V1');
+ assert.equal(lines.length,10);
+ const expected={
+  apparmorUsernsRestriction:/^(enabled|disabled|unknown|unavailable)$/,
+  unprivilegedUsernsSwitch:/^(enabled|disabled|unknown|unavailable)$/,
+  usernsCapacity:/^(positive|zero|unknown|unavailable)$/,
+  userNamespacePolicyHint:/^(restriction-indicated|no-obvious-restriction|undetermined)$/,
+  userNamespaceCreationVerified:/^false$/,
+  electronSandboxVerified:/^false$/,
+  hostSecurityPolicyChanged:/^false$/,
+  securityBypassApplied:/^false$/,
+  nextAction:/^review-read-only-diagnostic-with-system-administrator$/
+ };
+ const results=Object.fromEntries(lines.slice(1).map(line=>{
+  const index=line.indexOf('=');
+  assert.ok(index>0);
+  return [line.slice(0,index),line.slice(index+1)];
+ }));
+ assert.deepEqual(Object.keys(results).sort(),Object.keys(expected).sort());
+ for(const [key,pattern] of Object.entries(expected))
+  assert.match(results[key],pattern,key);
+ assert.ok(!output.stdout.includes('/proc/'));
+ assert.ok(!output.stdout.includes(f.root));
+ const blocked=f.run({},['--diagnose-sandbox','--no-sandbox']);
+ assert.equal(blocked.status,3);
+ assert.equal(blocked.stdout,'');
+ const injected=f.run({},['--no-sandbox']);
+ assert.equal(injected.status,3);
+ assert.equal(injected.stdout,'');
+});
+
 test('refuses option injection and symlinked packaged target',async(t)=>{
  if(process.getuid?.()===0){t.skip('launcher deliberately rejects root');return;}
  const f=await fixture();

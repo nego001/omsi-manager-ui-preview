@@ -43,14 +43,64 @@ static const char *backend_from(enum desktop d) {
     return "x11";
   return "auto"; // Safe fallback to Electron 38 native display detection.
 }
+// Explicit, user-invoked, read-only preflight. These three kernel switches
+// are fixed paths; no arbitrary input, subprocess, privileged operation or
+// raw kernel text is included in the report. This cannot certify sandboxing.
+static const char *fixed_proc_category(const char *filename,int capacity) {
+  FILE *fp=fopen(filename,"r");
+  if(!fp) return "unavailable";
+  unsigned char data[48];
+  size_t n=fread(data,1,sizeof(data),fp);
+  fclose(fp);
+  if(n==0 || n>=sizeof(data)) return "unknown";
+  while(n && (data[n-1]=='\n' || data[n-1]=='\r')) n--;
+  if(!capacity) {
+    if(n==1 && data[0]=='0') return "disabled";
+    if(n==1 && data[0]=='1') return "enabled";
+    return "unknown";
+  }
+  if(n==0 || n>18) return "unknown";
+  int positive=0;
+  for(size_t i=0;i<n;i++) {
+    if(data[i]<'0' || data[i]>'9') return "unknown";
+    if(data[i]!='0') positive=1;
+  }
+  return positive ? "positive" : "zero";
+}
+static int diagnose_sandbox(void) {
+  const char *apparmor=fixed_proc_category(
+    "/proc/sys/kernel/apparmor_restrict_unprivileged_userns",0);
+  const char *unprivileged=fixed_proc_category(
+    "/proc/sys/kernel/unprivileged_userns_clone",0);
+  const char *capacity=fixed_proc_category(
+    "/proc/sys/user/max_user_namespaces",1);
+  const int restricted=!strcmp(apparmor,"enabled") ||
+    !strcmp(unprivileged,"disabled") || !strcmp(capacity,"zero");
+  const int clear=!strcmp(apparmor,"disabled") &&
+    !strcmp(unprivileged,"enabled") && !strcmp(capacity,"positive");
+  puts("OMSI_MANAGER_SANDBOX_PREFLIGHT_V1");
+  printf("apparmorUsernsRestriction=%s\n",apparmor);
+  printf("unprivilegedUsernsSwitch=%s\n",unprivileged);
+  printf("usernsCapacity=%s\n",capacity);
+  printf("userNamespacePolicyHint=%s\n",
+    restricted?"restriction-indicated":clear?"no-obvious-restriction":"undetermined");
+  puts("userNamespaceCreationVerified=false");
+  puts("electronSandboxVerified=false");
+  puts("hostSecurityPolicyChanged=false");
+  puts("securityBypassApplied=false");
+  puts("nextAction=review-read-only-diagnostic-with-system-administrator");
+  return 0;
+}
+
 static int refuse(const char *reason) {
   fprintf(stderr,"OMSI Manager Auto: %s\n",reason);
   return 3;
 }
 int main(int argc,char **argv) {
-  (void)argv;
-  if(argc!=1) return refuse("no command-line options accepted");
+  const int diagnostic=(argc==2 && !strcmp(argv[1],"--diagnose-sandbox"));
+  if(argc!=1 && !diagnostic) return refuse("option not permitted");
   if(getuid()==0 || geteuid()==0) return refuse("do not launch as root");
+  if(diagnostic) return diagnose_sandbox();
   enum desktop d=desktop_from(getenv("XDG_CURRENT_DESKTOP"));
   const char *backend=backend_from(d);
   char self[PATH_MAX];

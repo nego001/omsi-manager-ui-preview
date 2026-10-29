@@ -183,7 +183,25 @@ O pacote portátil Linux x64 contém agora **`OMSI-Manager-Auto`**, um binário 
 ./OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto
 ```
 
-Ele identifica a família de desktop por `XDG_CURRENT_DESKTOP` e a sessão por `XDG_SESSION_TYPE`. Se houver sinais suficientes, seleciona o backend gráfico `wayland` ou `x11`; se forem conflitantes ou insuficientes, usa o modo `auto` do Electron 38. O lançador nunca executa shell nem aceita flags arbitrárias, recusa root e não desliga o sandbox.
+Ele identifica a família de desktop por `XDG_CURRENT_DESKTOP` e a sessão por `XDG_SESSION_TYPE`. Se houver sinais suficientes, seleciona o backend gráfico `wayland` ou `x11`; se forem conflitantes ou insuficientes, usa o modo `auto` do Electron 38. O lançador não executa shell e não aceita flags arbitrárias: a única opção diagnóstica permitida é `--diagnose-sandbox`, que não inicia o Electron. Ele recusa root e não desliga o sandbox.
+
+### Diagnóstico nativo de sandbox quando a janela não abre
+
+Se o Electron não conseguir iniciar, execute manualmente, **sem sudo**:
+
+~~~bash
+./OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto --diagnose-sandbox
+~~~
+
+O binário nativo consulta **somente três controles fixos do kernel**,
+não abre o Electron e não exige Node.js. O resultado limitado a categorias
+pode indicar \`restriction-indicated\`, \`no-obvious-restriction\` ou
+\`undetermined\`. Mesmo o segundo estado **não prova** que o sandbox
+funcionará; o comando não tenta criar namespaces, não acessa mods ou
+pastas do jogo, não altera o AppArmor/sysctl e não concede permissões.
+Use o resultado como evidência a discutir com o administrador do sistema.
+O prévio \`SIGTRAP\` observado no runner Ubuntu 24.04 não é corrigido
+por esse comando, e nenhuma opção \`--no-sandbox\` é permitida.
 
 **Portátil, não monolítico:** `OMSI-Manager-Auto` deve ficar na pasta extraída ao lado de `OMSI-Manager-Preview`, `resources/` e das demais bibliotecas Electron. Não é necessário instalar Node.js ou GCC para utilizar o programa. A compilação C acontece somente no job de empacotamento.
 

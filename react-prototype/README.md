@@ -371,3 +371,7 @@ no fim da leitura e, separadamente, contra o pathname reaberto. O nonce
 marcador por outro de bytes idênticos. A troca é explicitamente ignorada
 se o Windows bloquear o rename. Não há proteção absoluta contra ABA nem
 habilitação de escrita ou recuperação.
+
+### Diagnóstico nativo opcional de sandbox no Linux
+
+O ELF portátil `OMSI-Manager-Auto` aceita exclusivamente a opção de inspeção `--diagnose-sandbox` além da inicialização sem argumentos. O diagnóstico lê passivamente três indicadores fixos de *user namespaces* e emite apenas categorias (`restriction-indicated`, `no-obvious-restriction` ou `undetermined`), com flags explícitas de que o sandbox **não foi verificado** e a política do host **não foi alterada**. Não inicia Electron, não executa scripts, não acessa arquivos de mods, não necessita Node.js e não oferece bypass. Mesmo `no-obvious-restriction` não garante funcionamento. Comando e limitações em [LINUX_PREVIEW.md](LINUX_PREVIEW.md).
