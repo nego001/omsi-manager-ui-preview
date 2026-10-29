@@ -584,3 +584,23 @@ nomes de perfis de aparência privada. Nenhum teste altera o AppArmor,
 cria perfis, executa Electron como root ou desativa sandbox.
 As observações continuam descritivas, não uma homologação de
 GNOME Shell/KWin físicos nem instrução para afrouxar o sistema.
+
+### Resultado granular da tentativa CI de user namespace
+
+A sonda de host X11 preserva o campo histórico
+`unshareUserNamespace=allowed/blocked-or-unavailable`, mas informa
+adicionalmente `unshareFailureCategory`, uma categoria fixa:
+`none`, `permission-denied`, `tool-unavailable`, `timeout`,
+`unsupported` ou `other-failure`. Ela usa exclusivamente o resultado
+da execução de `unshare --user --map-root-user true` em ambiente de CI,
+sem root, sem montagem, sem editar configurações e sem divulgar o texto
+original de stderr nem nomes de arquivos.
+
+Quando o erro for `Operation not permitted` ou `Permission denied`,
+a categoria será `permission-denied`. Isso identifica uma rejeição de
+permissão, **não demonstra que o AppArmor é sua causa única**. Entradas
+ausentes, malformadas e respostas que contêm caminhos fictícios de
+usuários são cobertas por testes de regressão que nunca publicam os
+dados brutos. Nenhuma aplicação de jogo ou mod real é inspecionada,
+e o job Ubuntu 24.04 continua reprovando até conseguir mapear a
+janela nativa sob o sandbox original.
