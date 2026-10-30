@@ -98,6 +98,7 @@ export default function App(){
  const [libraryGame,setLibraryGame]=useState<GameId|'all'>('all');
  const [libraryCategory,setLibraryCategory]=useState<Category>('Todos');
  const [libraryDeclaredStatus,setLibraryDeclaredStatus]=useState<DeclaredStatusKind|'all'>('all');
+ const [libraryOnlySelected,setLibraryOnlySelected]=useState(false);
  const [librarySearch,setLibrarySearch]=useState('');
  const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'>('catalog');
  const [detailOrigin,setDetailOrigin]=useState<'home'|'catalog'|'library'>('catalog');
@@ -162,6 +163,7 @@ export default function App(){
    (libraryGame==='all'||m.game===libraryGame)&&
    (libraryCategory==='Todos'||m.category===libraryCategory)&&
    (libraryDeclaredStatus==='all'||declaredStatuses.get(m.id)?.kind===libraryDeclaredStatus)&&
+   (!libraryOnlySelected||activeBatch.includes(m.id))&&
    matchesCatalogSearch(m,games[m.game].title,librarySearch)
   );
   if(librarySort==='title')return [...list].sort((a,b)=>a.title.localeCompare(b.title,'pt-BR'));
@@ -170,7 +172,7 @@ export default function App(){
    return [...list].sort((a,b)=>order[a.game]-order[b.game]||a.title.localeCompare(b.title,'pt-BR'));
   }
   return list;
- },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,librarySearch,librarySort,declaredStatuses]);
+ },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,activeBatch,librarySearch,librarySort,declaredStatuses]);
  // A batch selection survives filtering; reveal selections outside the current view.
  const visibleLibraryIds=new Set(libraryMods.map(mod=>mod.id));
  const hiddenSelectedMods=favoriteMods.filter(mod=>activeBatch.includes(mod.id)&&!visibleLibraryIds.has(mod.id));
@@ -178,12 +180,12 @@ export default function App(){
  const visibleBatchCount=activeBatch.length-hiddenBatchCount;
  const activeLibraryControlCount=[
   libraryGame!=='all',libraryCategory!=='Todos',
-  libraryDeclaredStatus!=='all',librarySearch.trim().length>0,
+  libraryDeclaredStatus!=='all',libraryOnlySelected,librarySearch.trim().length>0,
   librarySort!=='catalog'
  ].filter(Boolean).length;
  function resetLibraryControls(){
   setLibraryGame('all');setLibraryCategory('Todos');
-  setLibraryDeclaredStatus('all');setLibrarySearch('');
+  setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');
   setLibrarySort('catalog');
  }
  function saveBatchToSession(){
@@ -217,7 +219,7 @@ export default function App(){
    setCatalogError('');
    setSelectedMod(next[0].id);
    setSelectedGame('all');setCategory('Todos');setSearch('');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySearch('');setLibrarySort('catalog');
+   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
@@ -237,7 +239,7 @@ export default function App(){
  function restoreDemo(){
   setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
-  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySearch('');setLibrarySort('catalog');
+  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
   // A removed favorite must not silently rejoin an earlier batch if favorited again.
@@ -302,12 +304,13 @@ export default function App(){
     {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>{filtered.length?modCards(filtered):<div className="empty">Nenhum mod corresponde aos filtros.</div>}</>}
     {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>Os favoritos ficam salvos localmente. Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p></div>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores na seleção</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
- {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option></select></label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryControls}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
+ {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryControls}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
  {favoriteMods.length>0&&activeLibraryControlCount>0&&<div className="library-active-filters" role="group" aria-label="Filtros ativos da biblioteca">
   <span>Filtros ativos:</span>
   {libraryGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo" onClick={()=>setLibraryGame('all')}>Jogo: {games[libraryGame].title} <span aria-hidden="true">×</span></button>}
   {libraryCategory!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria" onClick={()=>setLibraryCategory('Todos')}>Categoria: {libraryCategory} <span aria-hidden="true">×</span></button>}
   {libraryDeclaredStatus!=='all'&&<button type="button" aria-label="Remover filtro de alertas" onClick={()=>setLibraryDeclaredStatus('all')}>Alertas: {{blocking:'Bloqueios declarados',attention:'Avisos declarados','no-issues':'Sem alertas declarados'}[libraryDeclaredStatus]} <span aria-hidden="true">×</span></button>}
+  {libraryOnlySelected&&<button type="button" aria-label="Remover filtro de selecionados" onClick={()=>setLibraryOnlySelected(false)}>Seleção: só marcados <span aria-hidden="true">×</span></button>}
   {librarySearch.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa" onClick={()=>setLibrarySearch('')}>Busca: {librarySearch.trim()} <span aria-hidden="true">×</span></button>}
   {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={()=>setLibrarySort('catalog')}>Ordem: {librarySort==='title'?'Nome (A–Z)':'Jogo e nome'} <span aria-hidden="true">×</span></button>}
  </div>}
