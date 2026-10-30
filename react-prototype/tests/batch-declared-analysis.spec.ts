@@ -350,3 +350,74 @@ test('inspetor de selecionados ocultos funciona com busca vazia e título longo 
  await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
 });
+
+test('desfavoritar item selecionado fecha relatório e não o seleciona ao favoritar de novo',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await bus.check();
+ await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Serra do Vale',exact:true})});
+ await card.getByRole('button',{name:'Retirar dos favoritos'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('1 selecionado(s)');
+ await expect(bus).toBeChecked();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const catalogCard=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Serra do Vale',exact:true})});
+ await catalogCard.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(map).not.toBeChecked();
+ await expect(bus).toBeChecked();
+ await expect(page.getByText('2 favoritos exibidos')).toBeVisible();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toContainText('1 mod(s) selecionado(s)');
+});
+
+test('remover e readicionar favorito em Detalhes não recupera seleção antiga',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
+ await page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true}).click();
+ await page.getByRole('button',{name:'Remover dos favoritos'}).click();
+ await page.getByRole('button',{name:'Adicionar aos favoritos'}).click();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Analisar seleção'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+});
+
+test('desfavoritar item fora da seleção não fecha relatório de outros mods',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ const report=page.getByRole('region',{name:'Resultado da análise conjunta'});
+ await expect(report).toBeVisible();
+ const mapCard=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Serra do Vale',exact:true})});
+ await mapCard.getByRole('button',{name:'Retirar dos favoritos'}).click();
+ await expect(report).toBeVisible();
+ await expect(report).toContainText('1 mod(s) selecionado(s)');
+ await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).toBeChecked();
+});
