@@ -180,3 +180,16 @@ comprova compatibilidade ou habilita instalação.
 
 Os testes Playwright exercitam o uso real do filtro e comprovam que as
 ações de instalar/remover nos Detalhes continuam bloqueadas.
+
+### Limpeza consistente dos filtros da Biblioteca
+
+A Biblioteca demonstra agora um único botão **Limpar filtros** sempre que
+algum dos controles não estiver no padrão: jogo, categoria, alerta,
+pesquisa textual ou ordenação. O botão fica disponível tanto quando há
+favoritos visíveis como quando nenhum satisfaz os filtros e mostra a
+quantidade de ajustes ativos. Ele restaura apenas os filtros e a
+ordenação, **sem apagar favoritos, a seleção para análise conjunta ou
+metadados do catálogo**. O estado vazio não duplica a ação, evitando
+dois botões com o mesmo nome acessível. Há testes Playwright de múltiplos
+controles e layout em 390 pixels. A busca e os filtros continuam
+restritos a metadados demonstrativos, não leitura ou instalação de mods.

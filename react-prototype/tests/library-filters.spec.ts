@@ -72,3 +72,62 @@ test('filtros da biblioteca permanecem utilizáveis em 390 e 850 pixels',async({
   await expect(page.getByText('1 favorito exibido')).toBeVisible();
  }
 });
+
+test('limpar filtros aparece com resultados e restaura a coleção sem apagar favoritos',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await addFavorite(page,'Serra do Vale');
+ await addFavorite(page,'Caminhão Rodoviário');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const clear=page.getByRole('button',{name:'Limpar filtros da biblioteca'});
+ await expect(clear).toHaveCount(0);
+ const game=page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'});
+ const category=page.getByRole('combobox',{name:'Filtrar categoria na biblioteca'});
+ const alerts=page.getByRole('combobox',{name:'Filtrar alertas declarados'});
+ const sort=page.getByRole('combobox',{name:'Ordenar biblioteca'});
+ const search=page.getByRole('textbox',{name:'Buscar favoritos'});
+ await game.selectOption('omsi');
+ await category.selectOption('Mapas');
+ await search.fill('  SERRA ');
+ await sort.selectOption('title');
+ await expect(page.getByText('1 favorito exibido')).toBeVisible();
+ await expect(clear).toHaveText('Limpar filtros (4)');
+ await expect(page.getByRole('button',{name:'Serra do Vale',exact:true})).toBeVisible();
+ await clear.click();
+ await expect(clear).toHaveCount(0);
+ await expect(game).toHaveValue('all');
+ await expect(category).toHaveValue('Todos');
+ await expect(alerts).toHaveValue('all');
+ await expect(sort).toHaveValue('catalog');
+ await expect(search).toHaveValue('');
+ await expect(page.getByText('3 favoritos exibidos')).toBeVisible();
+ await expect(page.locator('.library-mod-status')).toHaveCount(3);
+ await expect(page.getByText('Arquivos dos mods não inspecionados. Status real desconhecido.')).toBeVisible();
+});
+
+test('limpar filtros ativo somente por ordenação ou alerta funciona no celular',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const sort=page.getByRole('combobox',{name:'Ordenar biblioteca'});
+ const alerts=page.getByRole('combobox',{name:'Filtrar alertas declarados'});
+ const clear=page.getByRole('button',{name:'Limpar filtros da biblioteca'});
+ await sort.selectOption('title');
+ await expect(clear).toHaveText('Limpar filtros (1)');
+ await alerts.selectOption('blocking');
+ await expect(clear).toHaveText('Limpar filtros (2)');
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ await expect(clear).toHaveCount(1);
+ await clear.click();
+ await expect(page.getByText('1 favorito exibido')).toBeVisible();
+ await expect(sort).toHaveValue('catalog');
+ await expect(alerts).toHaveValue('all');
+ await expect(clear).toHaveCount(0);
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+ expect(overflow).toBeLessThanOrEqual(3);
+});
