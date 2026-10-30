@@ -166,3 +166,13 @@ A ferramenta de análise conjunta da Biblioteca agora apresenta **Desmarcar exib
 - Um relatório de análise conjunta já exibido é fechado após a alteração da seleção, para evitar resultados desatualizados.
 - Playwright cobre grupos em simuladores diferentes, seleção parcialmente oculta, busca/categoria e viewport de 390 px.
 - Nenhuma análise real, compatibilidade confirmada ou operação de leitura/escrita nos jogos é ativada.
+
+
+## Inspetor local da seleção oculta
+
+Quando há favoritos marcados para análise conjunta, mas escondidos pelos filtros atuais, a Biblioteca oferece **Ver selecionados ocultos (N)**. O usuário pode expandir a lista pelo teclado e conferir **título, simulador, categoria e ID declarados no catálogo**. Cada item tem **Desmarcar** individual; o controle remove somente seu ID da análise conjunta e invalida um resultado anterior. Não retira o favorito, não modifica a pesquisa nem desmarca os demais.
+
+- Nenhuma inspeção de arquivo real, leitura de conteúdo de mod, descoberta de instalações ou alteração em jogos é acionada.
+- Não confundir os títulos listados com conteúdo detectado no PC: todos são metadados da demonstração ou JSON importado.
+- O inspetor se oculta quando não há mais selecionados fora dos filtros e funciona quando a pesquisa retorna zero cartões.
+- Playwright cobre abertura com Enter, remoção individual, preservação dos demais favoritos, títulos longos e viewport de 390 px.
