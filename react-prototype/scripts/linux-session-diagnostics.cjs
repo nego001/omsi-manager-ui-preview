@@ -121,6 +121,25 @@ function probeFileChooserVersion(run=spawnSync){
  }catch{return null;}
 }
 
+// Explain host hints without executing Electron, attempting namespace creation,
+// changing AppArmor or diagnosing a real user-specific launch failure.
+function classifyElectronStartupRisk(report){
+ const hint=report&&typeof report==='object'&&!Array.isArray(report)
+  ?report.userNamespacePolicyHint:null;
+ const category=hint==='restriction-indicated'?'host-policy-restriction-indicated'
+  :hint==='no-obvious-restriction'?'no-obvious-host-restriction':'undetermined';
+ return Object.freeze({
+  category,
+  nextAction:category==='host-policy-restriction-indicated'
+   ?'review-read-only-findings-with-system-administrator'
+   :'verify-native-window-with-strict-sandbox',
+  electronLaunchVerified:false,
+  apparmorCausalityProven:false,
+  securityBypassSuggested:false,
+  hostPolicyChanged:false
+ });
+}
+
 // Do not report raw XDG_CURRENT_DESKTOP values; they can contain private text.
 // Accept one recognized family only; conflicting tokens are never attributed
 // to a tested compositor. The environment alone is NOT a compatibility proof.
@@ -148,6 +167,7 @@ async function diagnose(env=process.env,{platform=process.platform,portalProbe=p
  const chooserVersion=Number.isInteger(reportedVersion)&&reportedVersion>=1&&reportedVersion<=999
   ?reportedVersion:null;
  const socketState=session==='wayland'?await inspect(env):'not-applicable';
+ const electronPrerequisites=await sandboxProbe();
  return {
   name:NAME,scope:'read-only',supported:true,
   session,desktopFamily:desktop,
@@ -161,7 +181,8 @@ async function diagnose(env=process.env,{platform=process.platform,portalProbe=p
   portalFileChooserVersion:chooserVersion,
   portalPickerVerified:false,
   hyprlandCompatibilityVerified:false,
-  electronUserNamespacePrerequisites:await sandboxProbe(),
+  electronUserNamespacePrerequisites:electronPrerequisites,
+  electronStartupRisk:classifyElectronStartupRisk(electronPrerequisites),
   note:'An advertised FileChooser interface is not proof that the graphical picker works in Hyprland, KDE or GNOME.'
  };
 }
@@ -171,4 +192,4 @@ async function main(argv=process.argv.slice(2)){
  process.stdout.write(JSON.stringify(info,null,2)+'\n');
 }
 if(require.main===module)main().catch(()=>{process.stderr.write('Linux session diagnostics unavailable\n');process.exitCode=3;});
-module.exports={diagnose,detectDesktop,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName,probeElectronUserNamespacePrerequisites};
+module.exports={diagnose,detectDesktop,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName,probeElectronUserNamespacePrerequisites,classifyElectronStartupRisk};

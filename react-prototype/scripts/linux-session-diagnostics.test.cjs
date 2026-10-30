@@ -6,7 +6,7 @@ const path=require('node:path');
 const os=require('node:os');
 const net=require('node:net');
 const {spawnSync}=require('node:child_process');
-const {diagnose,detectDesktop,inspectSocket,chooseSocket,parseFileChooserVersion,probeFileChooserVersion,probeElectronUserNamespacePrerequisites}=require('./linux-session-diagnostics.cjs');
+const {diagnose,detectDesktop,inspectSocket,chooseSocket,parseFileChooserVersion,probeFileChooserVersion,probeElectronUserNamespacePrerequisites,classifyElectronStartupRisk}=require('./linux-session-diagnostics.cjs');
 const roots=[];
 test.after(async()=>{for(const dir of roots)await fs.rm(dir,{recursive:true,force:true});});
 async function fixture(){
@@ -246,4 +246,56 @@ test('Linux session report includes only policy hints, never sandbox certificati
  assert.equal(data.electronUserNamespacePrerequisites.electronSandboxVerified,false);
  assert.equal(data.portalPickerVerified,false);
  assert.equal(data.hyprlandCompatibilityVerified,false);
+});
+
+test('startup risk distinguishes restrictive, permissive and unknown host hints without asserting a cause',()=>{
+ const cases=[
+  ['restriction-indicated','host-policy-restriction-indicated','review-read-only-findings-with-system-administrator'],
+  ['no-obvious-restriction','no-obvious-host-restriction','verify-native-window-with-strict-sandbox'],
+  ['undetermined','undetermined','verify-native-window-with-strict-sandbox'],
+  ['unexpected','undetermined','verify-native-window-with-strict-sandbox'],
+  [null,'undetermined','verify-native-window-with-strict-sandbox']
+ ];
+ for(const [hint,category,nextAction] of cases){
+  const result=classifyElectronStartupRisk({userNamespacePolicyHint:hint});
+  assert.equal(result.category,category);
+  assert.equal(result.nextAction,nextAction);
+  assert.equal(result.electronLaunchVerified,false);
+  assert.equal(result.apparmorCausalityProven,false);
+  assert.equal(result.securityBypassSuggested,false);
+  assert.equal(result.hostPolicyChanged,false);
+  assert.ok(Object.isFrozen(result));
+ }
+});
+test('risk classifier never echoes private paths or dangerous policy-bypass suggestions',()=>{
+ const secret='/home/private/user/.config/example?token=sensitive';
+ for(const input of [
+  secret,null,undefined,42,[],
+  {userNamespacePolicyHint:secret,stderr:secret},
+  {userNamespacePolicyHint:'restriction-indicated',privatePath:secret}
+ ]){
+  const out=JSON.stringify(classifyElectronStartupRisk(input));
+  assert.ok(!out.includes(secret));
+  assert.ok(!out.includes('/home/'));
+  assert.ok(!out.includes('--no-sandbox'));
+  assert.ok(!out.includes('disable-apparmor'));
+ }
+});
+test('Linux opt-in diagnosis includes only bounded host launch guidance, not a success claim',async()=>{
+ const result=await diagnose({
+  XDG_SESSION_TYPE:'x11',XDG_CURRENT_DESKTOP:'GNOME'
+ },{
+  platform:'linux',portalProbe:()=> 'not-running',
+  sandboxProbe:async()=>({
+   apparmorUsernsRestriction:'enabled',
+   unprivilegedUsernsSwitch:'enabled',usernsCapacity:'positive',
+   userNamespacePolicyHint:'restriction-indicated',
+   userNamespaceCreationVerified:false,electronSandboxVerified:false,
+   hostSecurityPolicyChanged:false
+  })
+ });
+ assert.equal(result.electronStartupRisk.category,'host-policy-restriction-indicated');
+ assert.equal(result.electronStartupRisk.apparmorCausalityProven,false);
+ assert.equal(result.electronStartupRisk.electronLaunchVerified,false);
+ assert.equal(result.portalPickerVerified,false);
 });

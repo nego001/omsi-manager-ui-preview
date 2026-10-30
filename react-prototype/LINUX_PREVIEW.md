@@ -331,3 +331,13 @@ Os testes do parser usam apenas textos sintéticos, incluindo entradas
 malformadas e falsas alegações de sucesso. O relatório limitado a
 categorias é diagnóstico do **host da CI**, não homologação de GNOME,
 KDE ou Hyprland reais e não comprova isolamento do aplicativo.
+
+## Mensagem de risco de inicialização com sandbox estrito (opcional)
+
+O comando **somente leitura** `node ./OMSI-Manager-Linux-Diagnostics.cjs` agora também apresenta `electronStartupRisk`, com dados limitados e sem comandos de correção automática:
+
+- `host-policy-restriction-indicated`: os indicadores públicos do kernel sugerem alguma restrição relevante. O próximo passo indicado é **revisar o diagnóstico com o administrador**, preservando o sandbox.
+- `no-obvious-host-restriction`: não foi detectada restrição óbvia nesses indicadores; isso **não comprova** que o Electron irá abrir.
+- `undetermined`: não há evidência suficiente; é necessário testar a abertura real com as proteções intactas.
+
+Em todas as categorias, `electronLaunchVerified` e `apparmorCausalityProven` continuam `false`. Não há `sudo`, execução de Electron, varredura de jogos, modificação do AppArmor ou recomendação de `--no-sandbox`. A CI tem testes sintéticos de classificação, privacidade e inexistência de certificação indevida.
