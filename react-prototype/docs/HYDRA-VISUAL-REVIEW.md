@@ -201,3 +201,9 @@ O teste X11 exige que o mesmo Electron empacotado abra uma janela mapeada com sa
 O resultado é **diagnóstico**, não prova da causa. A categoria `shared-electron-sandbox-startup-suspected` nunca afirma que AppArmor causou a falha, embora o Ubuntu 24.04 tenha registrado restrição de *user namespaces* e `SIGTRAP` tanto no launcher quanto no Electron direto. Campos privados, caminhos, nomes de perfil, argumentos e saídas brutas não são emitidos. Testes com entradas sintéticas verificam limites de privacidade.
 
 A CI continua **vermelha** se uma janela nativa não abrir. Nenhum controle do sistema, política AppArmor, privilégio ou sandbox foi enfraquecido, e nenhum `--no-sandbox` foi adicionado.
+
+## Trava automática contra regressão da matriz X11
+
+A CI executa `native-x11-workflow-admission.test.mjs` antes dos testes gráficos. O contrato lê o próprio workflow e recusa a retirada do Ubuntu 24.04 ou Ubuntu 22.04, a desativação de falhas obrigatórias, condições que ignorem o job, alteração de permissões de leitura, quebra da ordem SHA256 → validação segura → extração ou supressão do teste de janela real. Também recusa opções que desativem sandbox, alterações de política de kernel e AppArmor e retornos artificialmente bem-sucedidos.
+
+Esse teste é um **controle preventivo do texto do workflow**, não substitui a execução do Electron, não comprova compatibilidade e não pode tornar verde um Ubuntu 24.04 que falhe ao abrir janela. Regras de segurança da branch e revisão humana ainda são importantes; uma edição maliciosa que remova simultaneamente o contrato e a etapa de teste não pode ser impedida apenas pelo próprio workflow.

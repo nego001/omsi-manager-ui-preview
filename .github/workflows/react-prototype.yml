@@ -36,6 +36,8 @@ jobs:
         run: node --test scripts/auto-x11-host-policy-contract.test.mjs
       - name: Native ELF sandbox preflight parser contracts (synthetic only)
         run: node --test scripts/native-sandbox-preflight-contract.test.mjs
+      - name: Strict native X11 matrix admission guard
+        run: node --test scripts/native-x11-workflow-admission.test.mjs
       - name: GNOME KDE Hyprland manual picker contracts (no GUI)
         run: npm run test:manual:contract
       - name: Safe desktop geometry contract
