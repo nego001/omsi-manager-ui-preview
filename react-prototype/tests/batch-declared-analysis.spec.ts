@@ -470,3 +470,62 @@ test('relatório declarativo aparece só depois de Analisar seleção e some ap�
  await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
  await expect(page.getByRole('status',{name:'Seleção por simulador'})).toHaveCount(0);
 });
+
+
+test('filtro só selecionados mostra apenas marcados sem apagar favoritos ocultos',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale','Caminhão Rodoviário']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('checkbox',{name:'Selecionar Caminhão Rodoviário para análise conjunta'}).check();
+ const only=page.getByRole('checkbox',{name:'Mostrar apenas selecionados para análise'});
+ await only.check();
+ await expect(page.locator('.mod-card')).toHaveCount(2);
+ await expect(page.getByText('2 favoritos exibidos')).toBeVisible();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Remover filtro de selecionados'})).toBeVisible();
+ await page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'}).selectOption('omsi');
+ await expect(page.locator('.mod-card')).toHaveCount(1);
+ await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).toBeChecked();
+ await expect(page.locator('.library-batch-actions [role="status"]')).toContainText('2 selecionado(s) · 1 fora dos filtros atuais');
+ await page.getByRole('button',{name:'Remover filtro de selecionados'}).click();
+ await expect(only).not.toBeChecked();
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(3);
+ await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Caminhão Rodoviário para análise conjunta'})).toBeChecked();
+});
+
+test('filtro só selecionados sem seleção permite recuperar cartões em 390px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const only=page.getByRole('checkbox',{name:'Mostrar apenas selecionados para análise'});
+ await only.check();
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Limpar filtros da biblioteca'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Analisar seleção'})).toBeDisabled();
+ await only.uncheck();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await only.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
+ await page.getByRole('button',{name:'Desmarcar exibidos (1)'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(only).not.toBeChecked();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
