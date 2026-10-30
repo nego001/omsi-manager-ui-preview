@@ -11,6 +11,7 @@ export function assessApparmorAdminReview({apparmorRestriction,triage}={}){
   triage?.classification==='shared-electron-sandbox-startup-suspected'&&
   triage?.x11BaselineMapped===true&&triage?.autoMapped===false&&
   triage?.directMapped===false&&triage?.directControlUnavailable===false&&
+  triage?.nativeAutoWindowVerified===false&&
   triage?.autoSignal==='SIGTRAP'&&triage?.directSignal==='SIGTRAP';
  let status='insufficient-evidence';
  if(realWindow)status='native-window-observed-no-policy-change-indicated';
