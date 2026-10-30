@@ -219,6 +219,10 @@ Com seleção vazia, ou após desmarcar todos os selecionados, a lista mostra o 
 
 Cada resumo declarado da sessão possui **Excluir este resumo**, com rótulo acessível específico. Excluir um registro não apaga outros resumos, favoritos, seleção da Biblioteca ou configurações. **Limpar resumos da sessão** continua removendo todos apenas quando solicitado.
 
-O indicador da Biblioteca agora diz **Simuladores nos favoritos**, porque a contagem sempre se referiu a todos os favoritos, e não apenas à seleção de análise. No Histórico, o estado vazio distingue **atividades de instalação** de relatórios temporários baseados em metadados. Playwright cobre dois resumos distintos, exclusão seletiva, preservação de favoritos/seleção, limpeza até zero e tela de 390 px.
+O indicador da Biblioteca agora diz **Simuladores nos favoritos**, porque a contagem sempre se referiu a todos os favoritos, e não apenas à seleção de análise. No Histórico, o título estável **Sem atividades registradas** continua compatível com os testes de segurança existentes, enquanto o parágrafo e a seção de resumos declarativos esclarecem que nenhuma operação real foi realizada. Playwright cobre dois resumos distintos, exclusão seletiva, preservação de favoritos/seleção, limpeza até zero e tela de 390 px.
 
 Nada disso comprova compatibilidade, instalação ou leitura de mods reais.
+
+### Compatibilidade dos seletores de segurança no Histórico
+
+O texto do título acessível **Sem atividades registradas** foi preservado: 22 testes Playwright de segurança de fluxos sintéticos dependem desse identificador para garantir que nenhuma atividade real foi criada. A nova exclusão individual de resumos temporários funciona sem alterar esse contrato. As verificações específicas do Histórico também foram realinhadas ao título original; os testes completos da CI continuam necessários.

@@ -98,11 +98,11 @@ test('Resumo declarado pode ser consultado no Histórico apenas nesta sessão',a
  const region=page.getByRole('region',{name:'Análises declarativas desta sessão'});
  await expect(region).toContainText('Ônibus Urbano Clássico');
  await expect(region).toContainText('Instalação e compatibilidade não verificadas');
- await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  await page.reload();
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Histórico'}).click();
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
- await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
 });
 test('restaurar demonstração limpa seleção e histórico da fonte importada',async({page})=>{
  const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
@@ -561,7 +561,7 @@ test('Histórico remove um único resumo declarado sem alterar favoritos ou os d
  await expect(region).toContainText('Serra do Vale');
  await expect(region).toContainText('Instalação e compatibilidade não verificadas');
  await expect(region).not.toContainText('1 mod(s) declarados');
- await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(bus).toBeChecked();
  await expect(map).toBeChecked();
@@ -569,7 +569,7 @@ test('Histórico remove um único resumo declarado sem alterar favoritos ou os d
  await nav.getByRole('button',{name:'Histórico'}).click();
  await region.getByRole('button',{name:'Excluir resumo 2 desta sessão'}).click();
  await expect(region).toHaveCount(0);
- await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
