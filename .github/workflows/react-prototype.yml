@@ -84,6 +84,8 @@ jobs:
         run: node --test scripts/auto-real-x11-contract.test.mjs
       - name: Native X11 triage categories, privacy and strict-sandbox contracts
         run: node --test scripts/auto-x11-native-triage.test.mjs
+      - name: AppArmor administrator review classification (synthetic data only)
+        run: node --test scripts/ubuntu24-app-profile-review.test.mjs
       - name: Install Weston for a real headless Wayland socket
         run: |
           sudo apt-get update -qq
@@ -167,6 +169,7 @@ jobs:
           node --check scripts/auto-real-x11-smoke.mjs
           node --test scripts/auto-x11-host-policy-contract.test.mjs
           node --test scripts/auto-x11-native-triage.test.mjs
+          node --test scripts/ubuntu24-app-profile-review.test.mjs
           node scripts/auto-x11-host-capabilities.mjs
           # The real auto-launch must still create a mapped X11 window.
           xvfb-run -a node scripts/auto-real-x11-smoke.mjs

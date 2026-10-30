@@ -348,3 +348,9 @@ Em todas as categorias, `electronLaunchVerified` e `apparmorCausalityProven` con
 O binário nativo `OMSI-Manager-Auto` agora consulta apenas três indicadores fixos do kernel **antes** de executar o Electron. Se algum deles indicar restrição relevante de *user namespaces*, imprime um aviso curto em `stderr` para orientar o uso do diagnóstico somente leitura. A mensagem **não impede** a abertura do aplicativo e **não prova** que a política do host seja a causa de uma falha. Se os indicadores forem inconclusivos, o launcher não presume bloqueio.
 
 O aviso não contém nomes de usuário, caminhos de jogo, perfis do AppArmor nem saída bruta do sistema. Nenhum comando privilegiado, `--no-sandbox` ou alteração de política é executado. O launcher continua recusando argumentos extras e preservando a mesma configuração estrita do Electron. Um teste com ELF real e aplicativo fictício compara a mensagem ao próprio pré-diagnóstico, verifica a ausência de vazamentos e a recusa de argumentos proibidos.
+
+## Revisão administrativa por aplicativo (Ubuntu 24.04)
+
+O teste X11 agora cruza **a categoria somente leitura** de `apparmor_restrict_unprivileged_userns` com a triagem independente do launcher nativo e do Electron direto. O campo `AUTO_X11_APPARMOR_ADMIN_REVIEW` pode pedir revisão administrativa de um perfil **específico para o executável** quando a restrição estiver ativa, o Xvfb aceitar a janela de controle e ambos os Electron encerrarem com `SIGTRAP` e indícios de sandbox.
+
+Essa classificação **não prova causalidade**, não gera ou instala perfis e não autoriza alterar o host. Os testes de contrato rejeitam evidências parciais e entradas privadas. A documentação de encaminhamento encontra-se em `docs/UBUNTU24_APPARMOR_ADMIN_REVIEW.md`. A exigência de janela nativa e sandbox permanece intacta; a matriz continua vermelha enquanto o Ubuntu 24.04 não passar.

@@ -9,6 +9,7 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
+import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  verifyNativeWindowOwner,verifyNativeDesktopResults,
  findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
@@ -17,6 +18,14 @@ const execAsync=promisify(execFile);
 if(process.platform!=='linux'||process.getuid?.()===0||!process.env.DISPLAY||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
  throw Error('AUTO_X11_CI_REFUSED');
+
+async function readApparmorNamespacePolicyCategory(){
+ try{
+  // Read only an exact kernel switch; never log the raw value.
+  const value=(await readFile('/proc/sys/kernel/apparmor_restrict_unprivileged_userns','utf8')).trim();
+  return value==='1'?'enabled':value==='0'?'disabled':'unknown';
+ }catch{return 'unavailable';}
+}
 
 const binary=resolve('release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto');
 await access(binary,constants.X_OK);
@@ -232,11 +241,17 @@ try{
      console.error('AUTO_X11_DIRECT_SANDBOX_CONTROL',
       JSON.stringify({desktop,probeUnavailable:true}));
     }
-    console.error('AUTO_X11_NATIVE_TRIAGE',JSON.stringify(classifyNativeX11Startup({
+    const triage=classifyNativeX11Startup({
      desktop,baselineMapped:true,
      auto:{mapped:found,exited:failed,exitSignal,startupHints:[...startupHints]},
      direct
-    })));
+    });
+    console.error('AUTO_X11_NATIVE_TRIAGE',JSON.stringify(triage));
+    console.error('AUTO_X11_APPARMOR_ADMIN_REVIEW',JSON.stringify(
+     assessApparmorAdminReview({
+      apparmorRestriction:await readApparmorNamespacePolicyCategory(),triage
+     })
+    ));
    }
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess});
