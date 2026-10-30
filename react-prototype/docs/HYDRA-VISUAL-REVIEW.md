@@ -176,3 +176,13 @@ Quando há favoritos marcados para análise conjunta, mas escondidos pelos filtr
 - Não confundir os títulos listados com conteúdo detectado no PC: todos são metadados da demonstração ou JSON importado.
 - O inspetor se oculta quando não há mais selecionados fora dos filtros e funciona quando a pesquisa retorna zero cartões.
 - Playwright cobre abertura com Enter, remoção individual, preservação dos demais favoritos, títulos longos e viewport de 390 px.
+
+
+## Correção: desfavoritar um mod interrompe a análise conjunta antiga
+
+A interface usa agora uma única operação `toggleFavorite` nos cartões e em Detalhes. Ao **retirar dos favoritos** um mod marcado para análise conjunta, o aplicativo remove também seu ID da seleção e fecha qualquer relatório aberto. Se o usuário adicionar esse mesmo mod aos favoritos posteriormente, a seleção **não reaparece automaticamente**. A marcação exige uma nova ação explícita.
+
+- Remover um favorito **não selecionado** não fecha o relatório dos mods que continuam selecionados.
+- O histórico de resumos declarativos já salvos nesta sessão permanece como um registro anterior, não como diagnóstico atualizado.
+- Não há alteração em arquivos, instalação, compatibilidade, inspeção de pastas ou sandbox.
+- Três testes Playwright cobrem fluxo na Biblioteca, fluxo em Detalhes e preservação de relatório quando o favorito removido não fazia parte da seleção.
