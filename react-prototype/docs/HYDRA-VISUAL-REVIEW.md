@@ -207,3 +207,10 @@ A CI continua **vermelha** se uma janela nativa não abrir. Nenhum controle do s
 A CI executa `native-x11-workflow-admission.test.mjs` antes dos testes gráficos. O contrato lê o próprio workflow e recusa a retirada do Ubuntu 24.04 ou Ubuntu 22.04, a desativação de falhas obrigatórias, condições que ignorem o job, alteração de permissões de leitura, quebra da ordem SHA256 → validação segura → extração ou supressão do teste de janela real. Também recusa opções que desativem sandbox, alterações de política de kernel e AppArmor e retornos artificialmente bem-sucedidos.
 
 Esse teste é um **controle preventivo do texto do workflow**, não substitui a execução do Electron, não comprova compatibilidade e não pode tornar verde um Ubuntu 24.04 que falhe ao abrir janela. Regras de segurança da branch e revisão humana ainda são importantes; uma edição maliciosa que remova simultaneamente o contrato e a etapa de teste não pode ser impedida apenas pelo próprio workflow.
+
+
+## Filtro de selecionados na Biblioteca
+
+A Biblioteca oferece a caixa **Só selecionados** para mostrar apenas os favoritos marcados para análise conjunta. O filtro combina com simulador, categoria, alertas e pesquisa, sem desfavoritar ou desmarcar itens ocultos. O chip **Seleção: só marcados** remove somente esse filtro; **Limpar filtros** restaura a lista completa.
+
+Com seleção vazia, ou após desmarcar todos os selecionados, a lista mostra o estado vazio e preserva os controles para recuperar os cartões, inclusive em 390 px. Alterar apenas a visualização não invalida um relatório válido; mudar a seleção continua fechando relatórios desatualizados. Testes Playwright cobrem seleção mista, filtros combinados, contagem dos ocultos, resultado vazio e recuperação. Nenhum arquivo real de jogo ou mod é lido ou alterado.
