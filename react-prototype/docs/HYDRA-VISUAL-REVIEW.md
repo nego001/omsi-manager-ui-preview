@@ -155,3 +155,14 @@ A Biblioteca preserva seleções ao alternar jogo, categoria, alertas e pesquisa
 - Os filtros podem produzir uma lista vazia sem esconder o aviso nem o comando de correção.
 - O fluxo permanece apenas de metadados declarados. Nenhum pacote real é lido, instalado, reparado ou alterado, e nenhuma compatibilidade é comprovada.
 - Playwright cobre inclusão de ocultos no relatório, desmarcação seletiva, preservação de favoritos e janela de 390 px.
+
+ 
+## Refinamento: desmarcar somente a seleção visível
+
+A ferramenta de análise conjunta da Biblioteca agora apresenta **Desmarcar exibidos (N)** quando algum favorito da lista filtrada estiver selecionado. Assim, é possível reverter uma seleção em massa sem desmarcar favoritos anteriormente selecionados, mas ocultos pela pesquisa, categoria, jogo ou alertas.
+
+- O comando atua só sobre os IDs atualmente visíveis na Biblioteca; **não remove favoritos**.
+- A seleção oculta permanece ativa e segue sinalizada na interface; a contagem e a explicação não tratam os itens ocultos como inexistentes.
+- Um relatório de análise conjunta já exibido é fechado após a alteração da seleção, para evitar resultados desatualizados.
+- Playwright cobre grupos em simuladores diferentes, seleção parcialmente oculta, busca/categoria e viewport de 390 px.
+- Nenhuma análise real, compatibilidade confirmada ou operação de leitura/escrita nos jogos é ativada.
