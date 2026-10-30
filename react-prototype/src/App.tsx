@@ -138,8 +138,15 @@ export default function App(){
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
  const activeBatch=useMemo(()=>batchSelected.filter(id=>
   favorites.includes(id)&&catalogMods.some(m=>m.id===id)),[batchSelected,favorites,catalogMods]);
- const batchReport=useMemo(()=>activeBatch.length?
-  analyzeDeclaredBatch(catalogMods,activeBatch):null,[catalogMods,activeBatch]);
+ // Group counts are computed cheaply; dependency analysis is on demand.
+ const selectionByGame=useMemo(()=>{
+  const ids=new Set(activeBatch);
+  return (['omsi','ets2','ats'] as const)
+   .map(game=>({game,count:catalogMods.filter(m=>m.game===game&&ids.has(m.id)).length}))
+   .filter(group=>group.count>0);
+ },[catalogMods,activeBatch]);
+ const batchReport=useMemo(()=>batchOpen&&activeBatch.length?
+  analyzeDeclaredBatch(catalogMods,activeBatch):null,[catalogMods,activeBatch,batchOpen]);
  const batchReadiness=useMemo(()=>batchReport?
   prepareBatchReviewReadiness(batchReport):null,[batchReport]);
  const declaredStatuses=useMemo(()=>new Map(catalogMods.map(mod=>[mod.id,summarizeDeclaredStatus(catalogMods,mod.id)])),[catalogMods]);
@@ -308,6 +315,11 @@ export default function App(){
  {favoriteMods.length>0&&<section className="library-batch" aria-label="Análise conjunta declarativa">
  <div><h2>Analisar vários mods</h2><p>Escolha os favoritos nos cartões. A análise cruza dependências e conflitos do catálogo, separando OMSI 2, ETS2 e ATS. Nenhum pacote é aberto ou instalado.</p></div>
  <div className="library-batch-actions"><span role="status">{activeBatch.length} selecionado(s){hiddenBatchCount>0?` · ${hiddenBatchCount} fora dos filtros atuais`:''}</span><button className="btn secondary" disabled={libraryMods.length===0||libraryMods.every(m=>activeBatch.includes(m.id))} onClick={()=>{setBatchSelected(ids=>[...new Set([...ids,...libraryMods.map(m=>m.id)])]);setBatchOpen(false)}}>Marcar favoritos exibidos</button>{visibleBatchCount>0&&<button className="btn secondary" type="button" onClick={()=>{setBatchSelected(ids=>ids.filter(id=>!visibleLibraryIds.has(id)));setBatchOpen(false)}}>Desmarcar exibidos ({visibleBatchCount})</button>}{hiddenBatchCount>0&&<button className="btn secondary" type="button" onClick={()=>{setBatchSelected(ids=>ids.filter(id=>visibleLibraryIds.has(id)));setBatchOpen(false)}}>Desmarcar ocultos ({hiddenBatchCount})</button>}<button className="btn primary" disabled={activeBatch.length===0} onClick={()=>setBatchOpen(true)}>Analisar seleção</button><button className="btn secondary" disabled={activeBatch.length===0} onClick={()=>{setBatchSelected([]);setBatchOpen(false)}}>Limpar seleção</button></div>
+  {selectionByGame.length>0&&<div className="library-batch-selection-summary" role="status" aria-label="Seleção por simulador">
+   <strong>Seleção por simulador</strong>
+   {selectionByGame.map(({game,count})=><span key={game}>{games[game].title}: {count}</span>)}
+   <small>Somente favoritos marcados. Dependências teóricas não entram nesta contagem.</small>
+  </div>}
   {hiddenBatchCount>0&&<p className="library-batch-hidden-note" role="note">A análise conjunta também incluirá {hiddenBatchCount} {hiddenBatchCount===1?'favorito selecionado que não aparece':'favoritos selecionados que não aparecem'} nos filtros atuais. Desmarque os ocultos para analisar apenas o que está visível.</p>}
   {hiddenBatchCount>0&&<details className="library-batch-hidden-list">
    <summary>Ver selecionados ocultos ({hiddenBatchCount})</summary>

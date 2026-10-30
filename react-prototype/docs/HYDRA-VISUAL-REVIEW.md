@@ -186,3 +186,10 @@ A interface usa agora uma única operação `toggleFavorite` nos cartões e em D
 - O histórico de resumos declarativos já salvos nesta sessão permanece como um registro anterior, não como diagnóstico atualizado.
 - Não há alteração em arquivos, instalação, compatibilidade, inspeção de pastas ou sandbox.
 - Três testes Playwright cobrem fluxo na Biblioteca, fluxo em Detalhes e preservação de relatório quando o favorito removido não fazia parte da seleção.
+
+
+## Resumo por simulador e análise sob demanda
+
+A Biblioteca mostra **Seleção por simulador** quando há favoritos marcados para análise conjunta, separando OMSI 2, ETS2 e ATS mesmo que os filtros escondam itens selecionados. A contagem considera apenas favoritos selecionados e **não** dependências teóricas.
+
+O cálculo de dependências `analyzeDeclaredBatch` e as verificações cooperativas da interface só ocorrem após clicar **Analisar seleção**. Ao modificar a seleção, o relatório é fechado até novo pedido. Testes Playwright cobrem três simuladores, seleção oculta, viewport de 390 px, resultado sob demanda e cancelamento por desmarcação. Nada acessa, instala ou altera mods reais.

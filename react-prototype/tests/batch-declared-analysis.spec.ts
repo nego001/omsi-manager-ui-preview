@@ -421,3 +421,52 @@ test('desfavoritar item fora da seleção não fecha relatório de outros mods',
  await expect(report).toContainText('1 mod(s) selecionado(s)');
  await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).toBeChecked();
 });
+
+
+test('resumo por simulador mostra toda a seleção sem incluir dependências nem perder filtro',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Caminhão Rodoviário','Long Haul Classic']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const summary=page.getByRole('status',{name:'Seleção por simulador'});
+ await expect(summary).toHaveCount(0);
+ await page.getByRole('button',{name:'Marcar favoritos exibidos'}).click();
+ await expect(summary).toContainText('OMSI 2: 1');
+ await expect(summary).toContainText('Euro Truck Simulator 2: 1');
+ await expect(summary).toContainText('American Truck Simulator: 1');
+ await expect(summary).toContainText('Dependências teóricas não entram nesta contagem');
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'}).selectOption('omsi');
+ await expect(summary).toContainText('Euro Truck Simulator 2: 1');
+ await page.getByRole('button',{name:'Desmarcar exibidos (1)'}).click();
+ await expect(summary).not.toContainText('OMSI 2: 1');
+ await expect(summary).toContainText('American Truck Simulator: 1');
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'}).locator('.library-batch-game')).toHaveCount(2);
+ await page.getByRole('button',{name:'Limpar seleção'}).click();
+ await expect(summary).toHaveCount(0);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('relatório declarativo aparece só depois de Analisar seleção e some após alterar seleção',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await expect(page.getByRole('status',{name:'Seleção por simulador'})).toContainText('OMSI 2: 1');
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
+ await page.getByRole('button',{name:'Desmarcar exibidos (1)'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(page.getByRole('status',{name:'Seleção por simulador'})).toHaveCount(0);
+});
