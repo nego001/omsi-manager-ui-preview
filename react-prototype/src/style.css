@@ -920,3 +920,7 @@
 .library-selected-only input{width:17px;height:17px;accent-color:#9fc2f0;flex-shrink:0}
 .library-toolbar .library-selected-only:focus-within{outline:2px solid #a5c8fb;outline-offset:2px}
 @media(max-width:620px){.library-toolbar .library-selected-only{flex:1 1 100%;width:100%;min-width:0}}
+
+/* Each declared session report is removable without clearing unrelated records. */
+.session-batch-history .session-history-remove{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:10px 0 0;padding:8px 12px;max-width:100%;white-space:normal;text-align:center}
+.session-batch-history .session-history-remove:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}

@@ -214,3 +214,11 @@ Esse teste é um **controle preventivo do texto do workflow**, não substitui a 
 A Biblioteca oferece a caixa **Só selecionados** para mostrar apenas os favoritos marcados para análise conjunta. O filtro combina com simulador, categoria, alertas e pesquisa, sem desfavoritar ou desmarcar itens ocultos. O chip **Seleção: só marcados** remove somente esse filtro; **Limpar filtros** restaura a lista completa.
 
 Com seleção vazia, ou após desmarcar todos os selecionados, a lista mostra o estado vazio e preserva os controles para recuperar os cartões, inclusive em 390 px. Alterar apenas a visualização não invalida um relatório válido; mudar a seleção continua fechando relatórios desatualizados. Testes Playwright cobrem seleção mista, filtros combinados, contagem dos ocultos, resultado vazio e recuperação. Nenhum arquivo real de jogo ou mod é lido ou alterado.
+
+## Histórico temporário: exclusão de resumos individuais
+
+Cada resumo declarado da sessão possui **Excluir este resumo**, com rótulo acessível específico. Excluir um registro não apaga outros resumos, favoritos, seleção da Biblioteca ou configurações. **Limpar resumos da sessão** continua removendo todos apenas quando solicitado.
+
+O indicador da Biblioteca agora diz **Simuladores nos favoritos**, porque a contagem sempre se referiu a todos os favoritos, e não apenas à seleção de análise. No Histórico, o estado vazio distingue **atividades de instalação** de relatórios temporários baseados em metadados. Playwright cobre dois resumos distintos, exclusão seletiva, preservação de favoritos/seleção, limpeza até zero e tela de 390 px.
+
+Nada disso comprova compatibilidade, instalação ou leitura de mods reais.

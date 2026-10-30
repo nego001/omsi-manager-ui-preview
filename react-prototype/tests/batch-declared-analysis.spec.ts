@@ -98,11 +98,11 @@ test('Resumo declarado pode ser consultado no Histórico apenas nesta sessão',a
  const region=page.getByRole('region',{name:'Análises declarativas desta sessão'});
  await expect(region).toContainText('Ônibus Urbano Clássico');
  await expect(region).toContainText('Instalação e compatibilidade não verificadas');
- await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
  await page.reload();
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Histórico'}).click();
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
- await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
 });
 test('restaurar demonstração limpa seleção e histórico da fonte importada',async({page})=>{
  const payload=JSON.stringify({schemaVersion:1,mods:combined.map(({safe,...m})=>m)});
@@ -526,6 +526,50 @@ test('filtro só selecionados sem seleção permite recuperar cartões em 390px'
  await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
  await expect(only).not.toBeChecked();
  await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+
+test('Histórico remove um único resumo declarado sem alterar favoritos ou os demais',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await expect(page.getByLabel('Resumo da biblioteca')).toContainText('Simuladores nos favoritos');
+ await bus.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const region=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await expect(region.locator('li')).toHaveCount(2);
+ await expect(region.locator('li').first()).toContainText('2 mod(s) declarados');
+ await expect(region.locator('li').last()).toContainText('1 mod(s) declarados');
+ await region.getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
+ await expect(region.locator('li')).toHaveCount(1);
+ await expect(region).toContainText('2 mod(s) declarados');
+ await expect(region).toContainText('Serra do Vale');
+ await expect(region).toContainText('Instalação e compatibilidade não verificadas');
+ await expect(region).not.toContainText('1 mod(s) declarados');
+ await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(bus).toBeChecked();
+ await expect(map).toBeChecked();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await region.getByRole('button',{name:'Excluir resumo 2 desta sessão'}).click();
+ await expect(region).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Sem atividades de instalação registradas'})).toBeVisible();
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
