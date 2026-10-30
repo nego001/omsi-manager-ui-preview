@@ -166,7 +166,8 @@ export default function App(){
  },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,librarySearch,librarySort,declaredStatuses]);
  // A batch selection survives filtering; reveal selections outside the current view.
  const visibleLibraryIds=new Set(libraryMods.map(mod=>mod.id));
- const hiddenBatchCount=activeBatch.filter(id=>!visibleLibraryIds.has(id)).length;
+ const hiddenSelectedMods=favoriteMods.filter(mod=>activeBatch.includes(mod.id)&&!visibleLibraryIds.has(mod.id));
+ const hiddenBatchCount=hiddenSelectedMods.length;
  const visibleBatchCount=activeBatch.length-hiddenBatchCount;
  const activeLibraryControlCount=[
   libraryGame!=='all',libraryCategory!=='Todos',
@@ -300,6 +301,14 @@ export default function App(){
  <div><h2>Analisar vários mods</h2><p>Escolha os favoritos nos cartões. A análise cruza dependências e conflitos do catálogo, separando OMSI 2, ETS2 e ATS. Nenhum pacote é aberto ou instalado.</p></div>
  <div className="library-batch-actions"><span role="status">{activeBatch.length} selecionado(s){hiddenBatchCount>0?` · ${hiddenBatchCount} fora dos filtros atuais`:''}</span><button className="btn secondary" disabled={libraryMods.length===0||libraryMods.every(m=>activeBatch.includes(m.id))} onClick={()=>{setBatchSelected(ids=>[...new Set([...ids,...libraryMods.map(m=>m.id)])]);setBatchOpen(false)}}>Marcar favoritos exibidos</button>{visibleBatchCount>0&&<button className="btn secondary" type="button" onClick={()=>{setBatchSelected(ids=>ids.filter(id=>!visibleLibraryIds.has(id)));setBatchOpen(false)}}>Desmarcar exibidos ({visibleBatchCount})</button>}{hiddenBatchCount>0&&<button className="btn secondary" type="button" onClick={()=>{setBatchSelected(ids=>ids.filter(id=>visibleLibraryIds.has(id)));setBatchOpen(false)}}>Desmarcar ocultos ({hiddenBatchCount})</button>}<button className="btn primary" disabled={activeBatch.length===0} onClick={()=>setBatchOpen(true)}>Analisar seleção</button><button className="btn secondary" disabled={activeBatch.length===0} onClick={()=>{setBatchSelected([]);setBatchOpen(false)}}>Limpar seleção</button></div>
   {hiddenBatchCount>0&&<p className="library-batch-hidden-note" role="note">A análise conjunta também incluirá {hiddenBatchCount} {hiddenBatchCount===1?'favorito selecionado que não aparece':'favoritos selecionados que não aparecem'} nos filtros atuais. Desmarque os ocultos para analisar apenas o que está visível.</p>}
+  {hiddenBatchCount>0&&<details className="library-batch-hidden-list">
+   <summary>Ver selecionados ocultos ({hiddenBatchCount})</summary>
+   <p>Somente títulos e informações declaradas no catálogo. Nenhum arquivo de mod foi inspecionado.</p>
+   <ul>{hiddenSelectedMods.map(mod=><li key={mod.id}>
+    <div><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small></div>
+    <button type="button" className="btn secondary" aria-label={`Desmarcar ${mod.title} (${games[mod.game].title}, ID ${mod.id}) da análise conjunta`} onClick={()=>{setBatchSelected(ids=>ids.filter(id=>id!==mod.id));setBatchOpen(false)}}>Desmarcar</button>
+   </li>)}</ul>
+  </details>}
  {batchOpen&&batchReport&&<div className="library-batch-results" role="region" aria-label="Resultado da análise conjunta"><h3>Análise conjunta · apenas metadados declarados</h3>
  <p role="status">{batchReport.selectedCount} mod(s) selecionado(s) · {batchReport.blockers} bloqueio(s) lógico(s) · {batchReport.notices} aviso(s)</p>
  {batchReport.groups.map(group=><div key={group.game} className="library-batch-game"><h4>{games[group.game].title} · {group.requested} selecionado(s)</h4><p>Sequência teórica de dependências declaradas (não executável):</p><ol>{group.sequence.map(m=><li key={m.id}>{m.title} <small>v{m.version} (declarada) · {activeBatch.includes(m.id)?'selecionado':'dependência adicionada somente ao relatório'}</small></li>)}</ol></div>)}
