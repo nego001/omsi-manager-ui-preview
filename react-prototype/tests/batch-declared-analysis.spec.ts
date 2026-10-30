@@ -164,3 +164,58 @@ test('Biblioteca permite análise conjunta apenas sobre os favoritos marcados',a
  await nav.getByRole('button',{name:'Detalhes'}).click();
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
 });
+
+test('análise conjunta avisa quando a seleção inclui favoritos ocultos pelos filtros',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Caminhão Rodoviário']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const truck=page.getByRole('checkbox',{name:'Selecionar Caminhão Rodoviário para análise conjunta'});
+ await bus.check();
+ await truck.check();
+ const game=page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'});
+ await game.selectOption('omsi');
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('2 selecionado(s) · 1 fora dos filtros atuais');
+ await expect(page.getByRole('note').filter({hasText:'A análise conjunta também incluirá 1 favorito'})).toBeVisible();
+ const hidden=page.getByRole('button',{name:'Desmarcar ocultos (1)'});
+ await expect(hidden).toBeVisible();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'}).locator('.library-batch-game')).toHaveCount(2);
+ await hidden.click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('1 selecionado(s)');
+ await expect(hidden).toHaveCount(0);
+ await game.selectOption('all');
+ await expect(bus).toBeChecked();
+ await expect(truck).not.toBeChecked();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
+ await expect(page.getByRole('note').filter({hasText:'A análise conjunta também incluirá'})).toHaveCount(0);
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'}).locator('.library-batch-game')).toHaveCount(1);
+});
+
+test('seleção toda oculta pode ser limpa sem apagar favoritos em 390 px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Serra do Vale',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'}).check();
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('não existe');
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Desmarcar ocultos (1)'})).toBeVisible();
+ await page.getByRole('button',{name:'Desmarcar ocultos (1)'}).click();
+ await expect(page.getByRole('button',{name:'Analisar seleção'})).toBeDisabled();
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+ expect(overflow).toBeLessThanOrEqual(3);
+});
