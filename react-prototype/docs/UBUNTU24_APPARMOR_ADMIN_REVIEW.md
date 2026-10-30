@@ -37,3 +37,9 @@ O módulo `scripts/ubuntu24-app-profile-review.mjs` combina categorias de kernel
 - `insufficient-evidence`: nenhum parecer de política deve ser inferido.
 
 Todas as respostas incluem `apparmorCausalityProven:false`, `actualElectronSandboxCertified:false`, `profileLoaded:false` e `hostPolicyChanged:false`. Os testes sintéticos não substituem o ensaio real autorizado e não tornam a CI verde.
+
+## Endurecimento da integração CI
+
+O contrato de admissão `native-x11-workflow-admission.mjs` também exige o teste de classificação AppArmor no job de compilação e na matriz Ubuntu 22.04/24.04, antes de observar a janela. Mutações sintéticas verificam que não é possível retirar esse teste ou deslocá-lo para depois da coleta de evidências sem tornar a CI vermelha.
+
+O classificador recusa parâmetros malformados e combinações contraditórias de janela/sinal para impedir parecer positivo. Mesmo que todos os contratos passem, **a falha da janela nativa Ubuntu 24.04 permanece bloqueante**. Nenhum teste aplica perfil, altera a política do host ou certifica o sandbox Electron.

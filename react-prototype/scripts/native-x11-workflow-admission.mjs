@@ -9,6 +9,12 @@ export function validateNativeX11Workflow(source){
  let stop=lines.findIndex((line,i)=>i>start&&/^  [a-z][a-z0-9_]*:$/.test(line));
  if(stop<0)stop=lines.length;
  const job=lines.slice(start,stop).join('\n');
+ const buildStart=lines.indexOf('  build:');
+ if(buildStart<0||buildStart>=start)refusal();
+ const build=lines.slice(buildStart,start).filter(line=>!line.trimStart().startsWith('#')).join('\n');
+ // Require the exact synthetic contract in the upstream build and both X11 runners.
+ if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
+    !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
  const active=job.split('\n').filter(line=>!line.trimStart().startsWith('#')).join('\n');
  for(const expected of [
@@ -24,13 +30,17 @@ export function validateNativeX11Workflow(source){
   'node scripts/native-sandbox-preflight-ci.mjs',
   'node scripts/auto-x11-host-capabilities.mjs',
   'node --test scripts/auto-x11-native-triage.test.mjs',
+  'node --test scripts/ubuntu24-app-profile-review.test.mjs',
   'xvfb-run -a node scripts/auto-real-x11-smoke.mjs'
  ])if(!active.includes(expected))refusal();
  const hash=active.indexOf('sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256');
  const guard=active.indexOf('python3 -I -S -B ../scripts/controlled_ci_archive_guard.py');
  const extract=active.indexOf('tar --no-same-owner --no-same-permissions -xzf');
  const smoke=active.indexOf('xvfb-run -a node scripts/auto-real-x11-smoke.mjs');
- if(!(hash<guard&&guard<extract&&extract<smoke))refusal();
+ const policyReview=active.indexOf('node --test scripts/ubuntu24-app-profile-review.test.mjs');
+ const policyHints=active.indexOf('node scripts/auto-x11-host-capabilities.mjs');
+ if(!(hash<guard&&guard<extract&&extract<policyReview&&
+   policyReview<policyHints&&policyHints<smoke))refusal();
  for(const forbidden of [
   /\bcontinue-on-error\s*:/i,
   /^\s+if\s*:/m,
@@ -47,6 +57,7 @@ export function validateNativeX11Workflow(source){
   requiredRunners:['ubuntu-24.04','ubuntu-22.04'],
   shaBeforeArchiveExtraction:true,
   fullNativeX11ProofStillRequired:true,
+  apparmorReviewContractRequired:true,
   sandboxBypassAllowed:false,
   realWindowProven:false,
   hostPolicyChanged:false

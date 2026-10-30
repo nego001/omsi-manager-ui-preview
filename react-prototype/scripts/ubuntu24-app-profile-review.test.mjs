@@ -36,7 +36,7 @@ test('no obvious AppArmor switch restriction produces a separate investigation p
 });
 test('observed native window does not request AppArmor changes or certify a real desktop',()=>{
  const out=assess({apparmorRestriction:'enabled',triage:sample({
-  classification:'native-auto-window-mapped',autoMapped:true,nativeAutoWindowVerified:true
+  classification:'native-auto-window-mapped',autoMapped:true,autoSignal:'none',nativeAutoWindowVerified:true
  })});
  assert.equal(out.status,'native-window-observed-no-policy-change-indicated');
  assert.equal(out.administratorApprovalRequired,false);
@@ -58,5 +58,18 @@ test('unknown host data, malformed inputs and private-string injection fail clos
  assert.equal(output.status,'insufficient-evidence');
  assert.ok(!JSON.stringify(output).includes(injection));
  assert.equal(assess().status,'insufficient-evidence');
+ for(const invalid of [null,false,42,'host string'])
+  assert.equal(assess(invalid).status,'insufficient-evidence');
  assert.equal(assess({apparmorRestriction:'enabled',triage:null}).profileLoaded,false);
+});
+
+test('conflicting mapped-window signals cannot short-circuit a guarded review',()=>{
+ const inputs=[
+  {classification:'native-auto-window-mapped',autoMapped:true,nativeAutoWindowVerified:true,autoSignal:'SIGTRAP'},
+  {classification:'shared-electron-sandbox-startup-suspected',autoMapped:true,nativeAutoWindowVerified:true,autoSignal:'none'},
+  {classification:'native-auto-window-mapped',autoMapped:false,nativeAutoWindowVerified:true,autoSignal:'none'}
+ ];
+ for(const mutation of inputs)
+  assert.equal(assess({apparmorRestriction:'enabled',triage:sample(mutation)}).status,
+   'insufficient-evidence',JSON.stringify(mutation));
 });

@@ -9,6 +9,7 @@ test('the live workflow requires both Ubuntu images, SHA guard, X11 proof and st
  const result=verify(original);
  assert.deepEqual(result.requiredRunners,['ubuntu-24.04','ubuntu-22.04']);
  assert.equal(result.fullNativeX11ProofStillRequired,true);
+ assert.equal(result.apparmorReviewContractRequired,true);
  assert.equal(result.shaBeforeArchiveExtraction,true);
  assert.equal(result.sandboxBypassAllowed,false);
  assert.equal(result.realWindowProven,false);
@@ -24,7 +25,8 @@ test('fails closed on missing runner, bypassed failure, removed verification and
   ['python3 -I -S -B ../scripts/controlled_ci_archive_guard.py','echo archive-guard-skipped'],
   ['xvfb-run -a node scripts/auto-real-x11-smoke.mjs','echo real-window-check-skipped'],
   ['node scripts/native-sandbox-preflight-ci.mjs','echo preflight-skipped'],
-  ['node scripts/auto-x11-host-capabilities.mjs','echo host-diagnostics-skipped']
+  ['node scripts/auto-x11-host-capabilities.mjs','echo host-diagnostics-skipped'],
+  ['node --test scripts/ubuntu24-app-profile-review.test.mjs','echo policy-review-skipped']
  ];
  const start=original.indexOf('  native_auto_x11:');
  const end=original.indexOf('\n  arch_portable_audit:',start);
@@ -59,4 +61,16 @@ test('comments do not count as executable sandbox bypass and malformed inputs ar
  assert.equal(verify(original.replace('  native_auto_x11:','  native_auto_x11:\n    # Do not use --no-sandbox, ever.')).sandboxBypassAllowed,false);
  for(const invalid of [null,{},42,'',original+'\r\n',original.repeat(20)])
   assert.throws(()=>verify(invalid),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+});
+
+test('requires the policy review contract in build and rejects late or missing X11 review',()=>{
+ const buildStep='      - name: AppArmor administrator review classification (synthetic data only)\n        run: node --test scripts/ubuntu24-app-profile-review.test.mjs';
+ assert.ok(original.includes(buildStep));
+ assert.throws(()=>verify(original.replace(buildStep,'      - name: policy-review-removed\n        run: echo omitted')),
+  /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ const reviewLine='          node --test scripts/ubuntu24-app-profile-review.test.mjs';
+ const hostLine='          node scripts/auto-x11-host-capabilities.mjs';
+ assert.ok(original.includes(reviewLine+'\n'+hostLine));
+ assert.throws(()=>verify(original.replace(reviewLine+'\n'+hostLine,hostLine+'\n'+reviewLine)),
+  /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
 });

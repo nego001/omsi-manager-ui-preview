@@ -2,10 +2,13 @@
 // No profile generation/loading, filesystem writes, sysctl, privileged operation,
 // sandbox change, or verification claim. All outputs use fixed enums and flags.
 const allowedPolicy=new Set(['enabled','disabled','unknown','unavailable']);
-export function assessApparmorAdminReview({apparmorRestriction,triage}={}){
+export function assessApparmorAdminReview(input={}){
+ // Refuse malformed callers without throwing, leaking or making policy claims.
+ const {apparmorRestriction,triage}=input&&typeof input==='object'?input:{};
  const policy=allowedPolicy.has(apparmorRestriction)?apparmorRestriction:'unknown';
  const realWindow=triage?.schema==='AUTO_X11_NATIVE_TRIAGE_V1'&&
-  triage?.nativeAutoWindowVerified===true&&triage?.autoMapped===true&&
+  triage?.classification==='native-auto-window-mapped'&&
+  triage?.autoSignal==='none'&&triage?.nativeAutoWindowVerified===true&&triage?.autoMapped===true&&
   triage?.x11BaselineMapped===true;
  const suspected=triage?.schema==='AUTO_X11_NATIVE_TRIAGE_V1'&&
   triage?.classification==='shared-electron-sandbox-startup-suspected'&&
