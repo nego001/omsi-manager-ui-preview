@@ -278,3 +278,75 @@ test('desmarcar exibidos respeita categoria e busca sem perder seleção fora da
  await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).not.toBeChecked();
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
 });
+
+test('inspetor de selecionados ocultos permite desmarcar um item sem apagar favoritos',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale','Caminhão Rodoviário']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('button',{name:'Marcar favoritos exibidos'}).click();
+ await page.getByRole('combobox',{name:'Filtrar categoria na biblioteca'}).selectOption('Mapas');
+ const inspector=page.locator('details.library-batch-hidden-list');
+ await expect(inspector).toBeVisible();
+ await expect(inspector.locator('summary')).toHaveText('Ver selecionados ocultos (2)');
+ await inspector.locator('summary').focus();
+ await page.keyboard.press('Enter');
+ await expect(inspector).toHaveAttribute('open','');
+ await expect(inspector.locator('li')).toHaveCount(2);
+ await expect(inspector).toContainText('Ônibus Urbano Clássico');
+ await expect(inspector).toContainText('Caminhão Rodoviário');
+ await expect(inspector).toContainText('Nenhum arquivo de mod foi inspecionado');
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'}).locator('.library-batch-game')).toHaveCount(2);
+ await inspector.getByRole('button',{name:'Desmarcar Ônibus Urbano Clássico (OMSI 2, ID omsi-bus) da análise conjunta'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(inspector.locator('li')).toHaveCount(1);
+ await expect(inspector).toContainText('Caminhão Rodoviário');
+ await expect(inspector).not.toContainText('Ônibus Urbano Clássico');
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('2 selecionado(s) · 1 fora dos filtros atuais');
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Caminhão Rodoviário para análise conjunta'})).toBeChecked();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(3);
+ await expect(inspector).toHaveCount(0);
+});
+
+test('inspetor de selecionados ocultos funciona com busca vazia e título longo em 390 px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ const longTitle='Ônibus demonstrativo de nome muito comprido usado para testar cartões responsivos e acessibilidade';
+ const payload=JSON.stringify({schemaVersion:1,mods:[
+  {id:'longo-bus',title:longTitle,game:'omsi',category:'Ônibus',version:'1.0',size:'10 MB',description:'Somente dados sintéticos'},
+  {id:'mapa-curto',title:'Mapa de teste',game:'omsi',category:'Mapas',version:'1.0',size:'2 MB',description:'Somente dados sintéticos'}
+ ]});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'hidden-long-titles.json',mimeType:'application/json',buffer:Buffer.from(payload)
+ });
+ for(const title of [longTitle,'Mapa de teste']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('button',{name:'Marcar favoritos exibidos'}).click();
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('nenhum resultado');
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ const inspector=page.locator('details.library-batch-hidden-list');
+ await inspector.locator('summary').click();
+ await expect(inspector.locator('li')).toHaveCount(2);
+ await expect(inspector).toContainText(longTitle);
+ await inspector.getByRole('button',{name:`Desmarcar ${longTitle} (OMSI 2, ID longo-bus) da análise conjunta`}).click();
+ await expect(inspector.locator('li')).toHaveCount(1);
+ await expect(inspector).toContainText('Mapa de teste');
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
+});
