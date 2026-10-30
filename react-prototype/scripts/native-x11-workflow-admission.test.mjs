@@ -26,9 +26,14 @@ test('fails closed on missing runner, bypassed failure, removed verification and
   ['node scripts/native-sandbox-preflight-ci.mjs','echo preflight-skipped'],
   ['node scripts/auto-x11-host-capabilities.mjs','echo host-diagnostics-skipped']
  ];
+ const start=original.indexOf('  native_auto_x11:');
+ const end=original.indexOf('\n  arch_portable_audit:',start);
+ assert.ok(start>=0&&end>start,'native job boundaries');
+ const prefix=original.slice(0,start),job=original.slice(start,end),suffix=original.slice(end);
  for(const [from,to] of variants){
-  assert.ok(original.includes(from),from);
-  assert.throws(()=>verify(original.replace(from,to)),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+  assert.ok(job.includes(from),from);
+  const modified=prefix+job.replace(from,to)+suffix;
+  assert.throws(()=>verify(modified),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });
 test('rejects masking, conditional skipping, disabling AppArmor or Chromium sandbox',()=>{
