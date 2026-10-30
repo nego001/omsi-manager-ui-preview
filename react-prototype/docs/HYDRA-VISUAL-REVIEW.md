@@ -144,3 +144,14 @@ Em **Dependências e conflitos · simulação**, o usuário encontra um índice 
 O índice é derivado da mesma `relationAnalysis.issues` já usada na Biblioteca e no Relatório, sem leituras de arquivos, novas classificações ou execução de correções. Quando a versão hipotética do jogo muda, a lista se atualiza. Ao abrir outro mod (ou voltar da Biblioteca ao diagnóstico), a hipótese anterior é limpa, para a contagem declarativa inicial ser coerente com o atalho exibido no cartão.
 
 Playwright cobre orientação por teclado, contagem dinâmica, retorno Biblioteca/Detalhes e bloqueio contínuo de instalação/remoção. O smoke do Windows empacotado também exercita um item do índice. A identidade visual permanece; o roadmap do leitor cooperativo e da Oficina não é tratado como implementado.
+
+
+## Continuação: seleção de análise conjunta fora dos filtros atuais
+
+A Biblioteca preserva seleções ao alternar jogo, categoria, alertas e pesquisa. Essa persistência é intencional, mas a interface agora evidencia a diferença entre **selecionado para análise** e **visível nos filtros**.
+
+- Se houver itens selecionados fora dos filtros, a contagem mostra quantos estão ocultos e uma nota explica explicitamente que **Analisar seleção os incluirá**.
+- A ação **Desmarcar ocultos (N)** remove apenas essas seleções de sessão, mantém as seleções visíveis, não remove favoritos e fecha um relatório anterior que ficaria desatualizado.
+- Os filtros podem produzir uma lista vazia sem esconder o aviso nem o comando de correção.
+- O fluxo permanece apenas de metadados declarados. Nenhum pacote real é lido, instalado, reparado ou alterado, e nenhuma compatibilidade é comprovada.
+- Playwright cobre inclusão de ocultos no relatório, desmarcação seletiva, preservação de favoritos e janela de 390 px.
