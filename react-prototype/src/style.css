@@ -913,3 +913,10 @@
 .fixture-per-package dd{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;margin:0}
 .fixture-per-package>small{display:block;margin-top:10px}
 @media(max-width:540px){.fixture-per-package{padding:11px}}
+
+
+/* Library filter: keep checked state and recovery visible on narrow screens. */
+.library-toolbar .library-selected-only{flex:0 1 auto;display:flex;flex-direction:row;align-items:center;gap:9px;min-width:0;min-height:40px;padding:7px 11px;border:1px solid #59697b;border-radius:9px;background:#242d38;color:#e8f1fd;cursor:pointer;line-height:1.4}
+.library-selected-only input{width:17px;height:17px;accent-color:#9fc2f0;flex-shrink:0}
+.library-toolbar .library-selected-only:focus-within{outline:2px solid #a5c8fb;outline-offset:2px}
+@media(max-width:620px){.library-toolbar .library-selected-only{flex:1 1 100%;width:100%;min-width:0}}
