@@ -67,6 +67,23 @@ static const char *fixed_proc_category(const char *filename,int capacity) {
   }
   return positive ? "positive" : "zero";
 }
+// Non-fatal, privacy-safe hint before the actual Electron exec. A switch
+// indicates risk, not proof of a sandbox failure or AppArmor causality.
+// Never change permissions, attempt namespaces, or disable Electron sandbox.
+static void warn_sandbox_host_policy(void) {
+  const char *apparmor=fixed_proc_category(
+    "/proc/sys/kernel/apparmor_restrict_unprivileged_userns",0);
+  const char *userns=fixed_proc_category(
+    "/proc/sys/kernel/unprivileged_userns_clone",0);
+  const char *capacity=fixed_proc_category(
+    "/proc/sys/user/max_user_namespaces",1);
+  if(!strcmp(apparmor,"enabled") || !strcmp(userns,"disabled") ||
+     !strcmp(capacity,"zero"))
+    fputs("OMSI Manager Auto: host sandbox policy may restrict Electron startup; "
+          "review read-only diagnostics with your administrator. "
+          "No security setting was changed.\n",stderr);
+}
+
 static int diagnose_sandbox(void) {
   const char *apparmor=fixed_proc_category(
     "/proc/sys/kernel/apparmor_restrict_unprivileged_userns",0);
@@ -123,6 +140,8 @@ int main(int argc,char **argv) {
   length=snprintf(mode,sizeof(mode),"--ozone-platform=%s",backend);
   if(length<=0 || (size_t)length>=sizeof(mode)) return refuse("display mode invalid");
   char *const app_argv[]={target,mode,NULL};
+  // Advice is informational; proceed with exactly the same strict sandbox.
+  warn_sandbox_host_policy();
   execv(target,app_argv);
   return refuse("could not start application");
 }

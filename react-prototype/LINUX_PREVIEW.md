@@ -341,3 +341,10 @@ O comando **somente leitura** `node ./OMSI-Manager-Linux-Diagnostics.cjs` agora 
 - `undetermined`: não há evidência suficiente; é necessário testar a abertura real com as proteções intactas.
 
 Em todas as categorias, `electronLaunchVerified` e `apparmorCausalityProven` continuam `false`. Não há `sudo`, execução de Electron, varredura de jogos, modificação do AppArmor ou recomendação de `--no-sandbox`. A CI tem testes sintéticos de classificação, privacidade e inexistência de certificação indevida.
+
+
+## Aviso informativo no executável automático Linux
+
+O binário nativo `OMSI-Manager-Auto` agora consulta apenas três indicadores fixos do kernel **antes** de executar o Electron. Se algum deles indicar restrição relevante de *user namespaces*, imprime um aviso curto em `stderr` para orientar o uso do diagnóstico somente leitura. A mensagem **não impede** a abertura do aplicativo e **não prova** que a política do host seja a causa de uma falha. Se os indicadores forem inconclusivos, o launcher não presume bloqueio.
+
+O aviso não contém nomes de usuário, caminhos de jogo, perfis do AppArmor nem saída bruta do sistema. Nenhum comando privilegiado, `--no-sandbox` ou alteração de política é executado. O launcher continua recusando argumentos extras e preservando a mesma configuração estrita do Electron. Um teste com ELF real e aplicativo fictício compara a mensagem ao próprio pré-diagnóstico, verifica a ausência de vazamentos e a recusa de argumentos proibidos.
