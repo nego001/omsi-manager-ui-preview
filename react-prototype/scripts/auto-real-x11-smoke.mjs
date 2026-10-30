@@ -8,6 +8,7 @@ import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
+import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  verifyNativeWindowOwner,verifyNativeDesktopResults,
  findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
@@ -221,16 +222,21 @@ try{
      exitSignal:null
    }));
    if(!found){
-    // Distinguish an Auto-only launcher failure from a packaged Electron
-    // or hosted-kernel failure. Never supply --no-sandbox or other bypasses.
+    // No host policy changes or sandbox bypass; classify only fixed categories.
+    let direct={probeUnavailable:true};
     try{
-     const direct=await probeDirectPackagedElectron(desktop,desktopRoot);
+     direct=await probeDirectPackagedElectron(desktop,desktopRoot);
      console.error('AUTO_X11_DIRECT_SANDBOX_CONTROL',
       JSON.stringify({desktop,...direct}));
     }catch{
      console.error('AUTO_X11_DIRECT_SANDBOX_CONTROL',
       JSON.stringify({desktop,probeUnavailable:true}));
     }
+    console.error('AUTO_X11_NATIVE_TRIAGE',JSON.stringify(classifyNativeX11Startup({
+     desktop,baselineMapped:true,
+     auto:{mapped:found,exited:failed,exitSignal,startupHints:[...startupHints]},
+     direct
+    })));
    }
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess});

@@ -193,3 +193,11 @@ A interface usa agora uma única operação `toggleFavorite` nos cartões e em D
 A Biblioteca mostra **Seleção por simulador** quando há favoritos marcados para análise conjunta, separando OMSI 2, ETS2 e ATS mesmo que os filtros escondam itens selecionados. A contagem considera apenas favoritos selecionados e **não** dependências teóricas.
 
 O cálculo de dependências `analyzeDeclaredBatch` e as verificações cooperativas da interface só ocorrem após clicar **Analisar seleção**. Ao modificar a seleção, o relatório é fechado até novo pedido. Testes Playwright cobrem três simuladores, seleção oculta, viewport de 390 px, resultado sob demanda e cancelamento por desmarcação. Nada acessa, instala ou altera mods reais.
+
+## Classificação sanitizada da falha nativa X11 (CI)
+
+O teste X11 exige que o mesmo Electron empacotado abra uma janela mapeada com sandbox estrito. Quando essa prova falha, o smoke emite `AUTO_X11_NATIVE_TRIAGE` com um vocabulário limitado de categorias: controle X11 indisponível, launcher com janela verificada, saída após abertura, prova direta indisponível, suspeita específica do launcher, falha compartilhada com indícios de sandbox ou falha indeterminada.
+
+O resultado é **diagnóstico**, não prova da causa. A categoria `shared-electron-sandbox-startup-suspected` nunca afirma que AppArmor causou a falha, embora o Ubuntu 24.04 tenha registrado restrição de *user namespaces* e `SIGTRAP` tanto no launcher quanto no Electron direto. Campos privados, caminhos, nomes de perfil, argumentos e saídas brutas não são emitidos. Testes com entradas sintéticas verificam limites de privacidade.
+
+A CI continua **vermelha** se uma janela nativa não abrir. Nenhum controle do sistema, política AppArmor, privilégio ou sandbox foi enfraquecido, e nenhum `--no-sandbox` foi adicionado.

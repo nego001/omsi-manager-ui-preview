@@ -80,6 +80,8 @@ jobs:
         run: xvfb-run -a npm run test:portable:linux
       - name: Native auto X11 GUI contract (synthetic read-only)
         run: node --test scripts/auto-real-x11-contract.test.mjs
+      - name: Native X11 triage categories, privacy and strict-sandbox contracts
+        run: node --test scripts/auto-x11-native-triage.test.mjs
       - name: Install Weston for a real headless Wayland socket
         run: |
           sudo apt-get update -qq
@@ -162,6 +164,7 @@ jobs:
           # Probe host prerequisites without changing the Electron sandbox.
           node --check scripts/auto-real-x11-smoke.mjs
           node --test scripts/auto-x11-host-policy-contract.test.mjs
+          node --test scripts/auto-x11-native-triage.test.mjs
           node scripts/auto-x11-host-capabilities.mjs
           # The real auto-launch must still create a mapped X11 window.
           xvfb-run -a node scripts/auto-real-x11-smoke.mjs
