@@ -131,3 +131,74 @@ test('limpar filtros ativo somente por ordenação ou alerta funciona no celular
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('chips removem só o filtro escolhido sem alterar favoritos nem os demais controles',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await addFavorite(page,'Serra do Vale');
+ await addFavorite(page,'Caminhão Rodoviário');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const game=page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'});
+ const category=page.getByRole('combobox',{name:'Filtrar categoria na biblioteca'});
+ const alerts=page.getByRole('combobox',{name:'Filtrar alertas declarados'});
+ const sort=page.getByRole('combobox',{name:'Ordenar biblioteca'});
+ const search=page.getByRole('textbox',{name:'Buscar favoritos'});
+ await game.selectOption('omsi');
+ await category.selectOption('Mapas');
+ await alerts.selectOption('no-issues');
+ await sort.selectOption('title');
+ await search.fill('serra');
+ const chips=page.getByRole('group',{name:'Filtros ativos da biblioteca'});
+ await expect(chips.getByRole('button')).toHaveCount(5);
+ await expect(page.getByRole('button',{name:'Limpar filtros da biblioteca'})).toHaveText('Limpar filtros (5)');
+ await chips.getByRole('button',{name:'Remover filtro de categoria'}).click();
+ await expect(category).toHaveValue('Todos');
+ await expect(game).toHaveValue('omsi');
+ await expect(search).toHaveValue('serra');
+ await expect(chips.getByRole('button')).toHaveCount(4);
+ await chips.getByRole('button',{name:'Remover filtro de pesquisa'}).click();
+ await expect(search).toHaveValue('');
+ await expect(page.getByText('2 favoritos exibidos')).toBeVisible();
+ await chips.getByRole('button',{name:'Remover filtro de jogo'}).click();
+ await expect(game).toHaveValue('all');
+ await expect(page.getByText('3 favoritos exibidos')).toBeVisible();
+ await expect(alerts).toHaveValue('no-issues');
+ await expect(sort).toHaveValue('title');
+ await chips.getByRole('button',{name:'Remover filtro de alertas'}).click();
+ await expect(alerts).toHaveValue('all');
+ await chips.getByRole('button',{name:'Remover filtro de ordenação'}).click();
+ await expect(sort).toHaveValue('catalog');
+ await expect(chips).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Limpar filtros da biblioteca'})).toHaveCount(0);
+ await expect(page.locator('.library-mod-status')).toHaveCount(3);
+ await expect(page.getByText('Arquivos dos mods não inspecionados. Status real desconhecido.')).toBeVisible();
+});
+
+test('chips acessíveis no teclado sem overflow na biblioteca estreita e com busca vazia',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('busca inexistente de teste');
+ await page.getByRole('combobox',{name:'Ordenar biblioteca'}).selectOption('game');
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ const chips=page.getByRole('group',{name:'Filtros ativos da biblioteca'});
+ await expect(chips.getByRole('button')).toHaveCount(2);
+ const removeSearch=chips.getByRole('button',{name:'Remover filtro de pesquisa'});
+ await removeSearch.focus();
+ await page.keyboard.press('Enter');
+ await expect(page.getByText('1 favorito exibido')).toBeVisible();
+ await expect(page.getByRole('combobox',{name:'Ordenar biblioteca'})).toHaveValue('game');
+ const layout=await page.evaluate(()=>{
+  const viewport=document.documentElement.clientWidth;
+  const chips=[...document.querySelectorAll('.library-active-filters button')].map(el=>el.getBoundingClientRect());
+  return {overflow:Math.max(0,document.documentElement.scrollWidth-viewport),
+   allWithinViewport:chips.every(r=>r.left>=-3&&r.right<=viewport+3)};
+ });
+ expect(layout.overflow).toBeLessThanOrEqual(3);
+ expect(layout.allWithinViewport).toBe(true);
+});
