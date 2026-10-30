@@ -219,3 +219,62 @@ test('seleção toda oculta pode ser limpa sem apagar favoritos em 390 px',async
  const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('desmarcar exibidos preserva favoritos ocultos sem reaproveitar relatório anterior',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale','Caminhão Rodoviário']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('button',{name:'Marcar favoritos exibidos'}).click();
+ const game=page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'});
+ await game.selectOption('omsi');
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('3 selecionado(s) · 1 fora dos filtros atuais');
+ await expect(page.getByRole('button',{name:'Desmarcar exibidos (2)'})).toBeVisible();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'}).locator('.library-batch-game')).toHaveCount(2);
+ await page.getByRole('button',{name:'Desmarcar exibidos (2)'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toHaveCount(0);
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('1 selecionado(s) · 1 fora dos filtros atuais');
+ await expect(page.getByRole('button',{name:'Desmarcar exibidos (1)'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Desmarcar ocultos (1)'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Marcar favoritos exibidos'})).toBeEnabled();
+ await game.selectOption('all');
+ await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Caminhão Rodoviário para análise conjunta'})).toBeChecked();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(3);
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'}).locator('.library-batch-game')).toHaveCount(1);
+ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('desmarcar exibidos respeita categoria e busca sem perder seleção fora da lista',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ const category=page.getByRole('combobox',{name:'Filtrar categoria na biblioteca'});
+ await category.selectOption('Mapas');
+ await expect(page.getByRole('button',{name:'Desmarcar exibidos (1)'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Desmarcar ocultos (1)'})).toBeVisible();
+ await page.getByRole('button',{name:'Marcar favoritos exibidos'}).click();
+ await expect(page.getByRole('button',{name:'Desmarcar exibidos (1)'})).toBeVisible();
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('serra');
+ await page.getByRole('button',{name:'Desmarcar exibidos (1)'}).click();
+ await expect(page.locator('.library-batch-actions [role="status"]')).toHaveText('1 selecionado(s) · 1 fora dos filtros atuais');
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'})).toBeChecked();
+ await expect(page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'})).not.toBeChecked();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
+});
