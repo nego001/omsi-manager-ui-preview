@@ -943,3 +943,24 @@
 .session-history-header-actions .btn{min-height:36px;max-width:100%;white-space:normal}
 .session-history-header-actions .btn:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
 @media(max-width:540px){.session-history-header-actions{width:100%;justify-content:flex-start}}
+
+/* Compare only locally saved catalog snapshots. No game status is implied. */
+.session-comparison{border:1px solid #495871;background:#1d2532;border-radius:13px;padding:18px;margin:0 0 18px;min-width:0;overflow-wrap:anywhere}
+.session-comparison h2{font-size:17px;margin:0 0 8px}
+.session-comparison>p,.session-comparison-note{font-size:12px;line-height:1.6;color:#c9d5e6}
+.session-comparison-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.session-comparison-filters label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#e5eefa;min-width:0}
+.session-comparison-filters select{min-height:40px;max-width:100%;width:100%;border:1px solid #64758c;border-radius:9px;padding:7px 8px;background:#242f3e;color:#f1f5ff}
+.session-comparison-filters select:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+.session-comparison-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:9px;margin:12px 0}
+.session-comparison-stats>div{padding:11px;border:1px solid #465671;border-radius:9px;min-width:0}
+.session-comparison-stats small,.session-comparison-stats strong{display:block}
+.session-comparison-stats small{font-size:11px;color:#ccd9e7;line-height:1.5}
+.session-comparison-stats strong{font-size:17px;margin-top:5px}
+.session-comparison-diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}
+.session-comparison-diff>div{border:1px solid #465671;border-radius:9px;padding:11px;min-width:0}
+.session-comparison-diff h3{font-size:13px;margin:0 0 8px}
+.session-comparison-diff p,.session-comparison-diff li{font-size:12px;line-height:1.6}
+.session-comparison-diff ul{margin:6px 0;padding-left:19px}
+.session-comparison-note{display:block;margin-top:13px}
+@media(max-width:540px){.session-comparison-filters,.session-comparison-diff{grid-template-columns:minmax(0,1fr)}.session-comparison{padding:13px}}

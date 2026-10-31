@@ -250,3 +250,11 @@ A serialização é pura, valida contagens e limites e recusa entradas inválida
 Além da exportação individual, o Histórico oferece **Exportar todos JSON**, gerando um único `OMSI-Manager-Resumos-da-sessao.json`. O conteúdo versionado inclui no máximo 10 relatórios na ordem exibida, cada um com o contrato sanitizado da exportação individual e declarações explícitas de `installationVerified:false` e `compatibilityVerified:false`. Não reúne registros de instalação nem lê arquivos de jogo.
 
 A rotina é disparada exclusivamente por clique e rejeita coleção vazia, IDs duplicados, relatórios inconsistentes e arquivos acima de 128 KiB UTF-8. Ao excluir um resumo, ele deixa de integrar o próximo arquivo. A exportação usa um Blob temporário local, não envia requisições e não persiste a coleção na aplicação. Contratos e Playwright cobrem download real, ordem, remoção, limites e visual em 390 px.
+
+## Histórico: comparação de dois resumos declarados
+
+Com ao menos dois resumos temporários, o Histórico oferece uma comparação somente leitura. O usuário escolhe um **Resumo anterior** e outro **Resumo posterior** (por padrão, os dois últimos). A ferramenta compara os **IDs dos mods selecionados** e exibe os incluídos, retirados, mantidos e os números de bloqueios/avisos **declarados** em cada registro.
+
+Não infere atualizações de arquivos, instalações, compatibilidade real ou qualidade da seleção. Os títulos e indicadores são snapshots da sessão; a comparação não altera favoritos, filtros, relatórios, arquivos de jogos ou backups. Ao excluir um dos relatórios, a interface escolhe outro par válido quando possível, ou esconde a comparação quando resta menos de dois.
+
+O comparador independente valida IDs, contagens e duplicações, recusando registros inconsistentes. Playwright cobre alternância por IDs, alteração da seleção, exclusão, preservação dos favoritos e layout de 390 px.

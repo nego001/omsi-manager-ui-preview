@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {analyzeDeclaredBatch} from '../src/batch-declared-analysis';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
+import {compareDeclaredSessionReports} from '../src/session-report-compare';
 import {parseCatalogManifest} from '../src/catalog';
 import type {CatalogMod} from '../src/catalog';
 const mod=(id:string,game:'omsi'|'ets2'|'ats'='omsi',requires:string[]=[],conflictsWith:string[]=[]):CatalogMod=>({
@@ -802,6 +803,68 @@ test('Histórico exporta todos os resumos com download local sem inventar ativid
  expect(reduced.reports.map((r:{reportId:number})=>r.reportId)).toEqual([2]);
  await history.getByRole('button',{name:'Limpar resumos da sessão'}).click();
  await expect(page.getByRole('button',{name:'Exportar todos os resumos em JSON'})).toHaveCount(0);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('comparação declarativa detecta diferenças por IDs e rejeita registros inconsistentes',()=>{
+ const base={id:1,selectedIds:['a','b'],selectedTitles:['Mod A','Mod B'],
+  selectedCount:2,blockers:1,notices:2};
+ const next={id:2,selectedIds:['b','c'],selectedTitles:['Mod B','Mod C'],
+  selectedCount:2,blockers:0,notices:3};
+ const diff=compareDeclaredSessionReports(base,next);
+ expect(diff).toMatchObject({beforeId:1,afterId:2,unchangedCount:1,
+  added:[{id:'c',title:'Mod C'}],removed:[{id:'a',title:'Mod A'}],
+  blockersDelta:-1,noticesDelta:1,scope:'catalog-metadata-only',
+  compatibilityVerified:false,installationVerified:false});
+ expect(compareDeclaredSessionReports(next,base)).toMatchObject({
+  added:[{id:'a',title:'Mod A'}],removed:[{id:'c',title:'Mod C'}],
+  blockersDelta:1,noticesDelta:-1});
+ for(const invalid of [
+  {...base,id:2},{...next,selectedIds:['b','b']},
+  {...next,selectedTitles:['B']},{...next,blockers:-1},
+  {...next,selectedIds:['b','']},
+  {...next,selectedTitles:['Mod B','x'.repeat(301)]}
+ ])expect(()=>compareDeclaredSessionReports(base,invalid))
+  .toThrow(/SESSION_COMPARISON_(INVALID|SAME_REPORT)/);
+ expect(base.selectedIds).toEqual(['a','b']);
+});
+test('Histórico compara dois resumos sem modificar favoritos ou atividades reais',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({
+   has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await bus.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await bus.uncheck();
+ await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const comparison=page.getByRole('region',{name:'Comparar resumos declarados da sessão'});
+ await expect(comparison).toBeVisible();
+ await expect(comparison.getByRole('combobox',{name:'Resumo anterior para comparação'})).toHaveValue('1');
+ await expect(comparison.getByRole('combobox',{name:'Resumo posterior para comparação'})).toHaveValue('2');
+ await expect(comparison.getByRole('heading',{name:'Adicionados na seleção'})).toBeVisible();
+ await expect(comparison.getByRole('heading',{name:'Removidos da seleção'})).toBeVisible();
+ await expect(comparison.getByText('Serra do Vale')).toBeVisible();
+ await expect(comparison.getByText('Ônibus Urbano Clássico')).toBeVisible();
+ await expect(comparison.getByRole('group',{name:'Mudanças nos metadados'})).toContainText('Bloqueios declarados');
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await page.getByRole('region',{name:'Análises declarativas desta sessão'})
+  .getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
+ await expect(comparison).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
