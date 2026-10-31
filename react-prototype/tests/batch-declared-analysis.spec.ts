@@ -573,3 +573,52 @@ test('Histórico remove um único resumo declarado sem alterar favoritos ou os d
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('Histórico permite desfazer exclusão e preserva IDs de relatórios mesmo após remoção',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await bus.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const history=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await expect(history.locator('li')).toHaveCount(2);
+ await history.getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
+ await expect(history.locator('li')).toHaveCount(1);
+ await page.getByRole('button',{name:'Desfazer exclusão do último resumo'}).click();
+ await expect(history.locator('li')).toHaveCount(2);
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
+ await history.getByRole('button',{name:'Excluir resumo 2 desta sessão'}).click();
+ await expect(history.locator('li')).toHaveCount(1);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await map.uncheck();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(history.locator('li')).toHaveCount(2);
+ await expect(history.getByRole('button',{name:'Excluir resumo 3 desta sessão'})).toBeVisible();
+ await expect(history.getByRole('button',{name:'Excluir resumo 1 desta sessão'})).toBeVisible();
+ await expect(history.getByRole('button',{name:'Excluir resumo 2 desta sessão'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
+ await history.getByRole('button',{name:'Excluir resumo 3 desta sessão'}).click();
+ await page.getByRole('button',{name:'Desfazer exclusão do último resumo'}).click();
+ await expect(history.locator('li')).toHaveCount(2);
+ await history.getByRole('button',{name:'Limpar resumos da sessão'}).click();
+ await expect(history).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

@@ -226,3 +226,9 @@ Nada disso comprova compatibilidade, instalação ou leitura de mods reais.
 ### Compatibilidade dos seletores de segurança no Histórico
 
 O texto do título acessível **Sem atividades registradas** foi preservado: 22 testes Playwright de segurança de fluxos sintéticos dependem desse identificador para garantir que nenhuma atividade real foi criada. A nova exclusão individual de resumos temporários funciona sem alterar esse contrato. As verificações específicas do Histórico também foram realinhadas ao título original; os testes completos da CI continuam necessários.
+
+## Histórico: desfazer exclusão temporária
+
+O Histórico permite **Desfazer exclusão** de um resumo recém-removido, inclusive quando era o único registro da sessão. Restaurar não modifica favoritos, seleção de análise ou outros relatórios. Os IDs de relatórios são gerados por um contador monotônico da sessão e não são reutilizados quando o relatório mais recente foi excluído.
+
+A recuperação é de um único nível e expira após uma nova análise salva, nova exclusão, limpeza total, restauração da demonstração ou importação de outro catálogo. O comando **Limpar resumos da sessão** não gera undo, evitando recuperar relatórios apagados intencionalmente em conjunto. Playwright valida restaurar a ordem, IDs 1/2/3, reset explícito e largura de 390 px. Tudo continua em memória e sem tocar em mods reais.
