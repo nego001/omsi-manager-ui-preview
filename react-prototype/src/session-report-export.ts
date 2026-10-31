@@ -44,6 +44,6 @@ export function serializeDeclaredSessionReport(report:DeclaredSessionReport):str
   disclaimer:'Resumo apenas de dados declarados. Nenhum mod foi instalado, inspecionado ou validado por este relatório.'
  };
  const json=JSON.stringify(content,null,2)+'\n';
- if(json.length>65536)throw Error('DECLARED_SESSION_EXPORT_TOO_LARGE');
+ if(new TextEncoder().encode(json).byteLength>65536)throw Error('DECLARED_SESSION_EXPORT_TOO_LARGE');
  return json;
 }

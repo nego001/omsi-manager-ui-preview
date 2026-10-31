@@ -231,7 +231,8 @@ export default function App(){
    document.body.appendChild(link);
    try{link.click();}finally{link.remove();}
    // Give the browser time to acquire the Blob for the download.
-   window.setTimeout(()=>URL.revokeObjectURL(url!),10000);
+   const urlToRevoke=url;
+   window.setTimeout(()=>URL.revokeObjectURL(urlToRevoke),10000);
    url=null;
   }catch{
    if(url)URL.revokeObjectURL(url);
