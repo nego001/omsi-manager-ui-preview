@@ -821,12 +821,13 @@ test('comparação declarativa detecta diferenças por IDs e rejeita registros i
   added:[{id:'a',title:'Mod A'}],removed:[{id:'c',title:'Mod C'}],
   blockersDelta:1,noticesDelta:-1});
  for(const invalid of [
-  {...base,id:2},{...next,selectedIds:['b','b']},
+  {...base,id:0},{...next,selectedIds:['b','b']},
   {...next,selectedTitles:['B']},{...next,blockers:-1},
   {...next,selectedIds:['b','']},
   {...next,selectedTitles:['Mod B','x'.repeat(301)]}
  ])expect(()=>compareDeclaredSessionReports(base,invalid))
   .toThrow(/SESSION_COMPARISON_(INVALID|SAME_REPORT)/);
+ expect(()=>compareDeclaredSessionReports(base,{...base})).toThrow('SESSION_COMPARISON_SAME_REPORT');
  expect(base.selectedIds).toEqual(['a','b']);
 });
 test('Histórico compara dois resumos sem modificar favoritos ou atividades reais',async({page})=>{
@@ -858,6 +859,10 @@ test('Histórico compara dois resumos sem modificar favoritos ou atividades reai
  await expect(comparison.getByRole('heading',{name:'Removidos da seleção'})).toBeVisible();
  await expect(comparison.getByText('Serra do Vale')).toBeVisible();
  await expect(comparison.getByText('Ônibus Urbano Clássico')).toBeVisible();
+ await comparison.getByRole('button',{name:'Inverter ordem da comparação'}).click();
+ await expect(comparison.getByRole('combobox',{name:'Resumo anterior para comparação'})).toHaveValue('2');
+ await expect(comparison.getByRole('combobox',{name:'Resumo posterior para comparação'})).toHaveValue('1');
+ await expect(comparison.getByText('Serra do Vale')).toBeVisible();
  await expect(comparison.getByRole('group',{name:'Mudanças nos metadados'})).toContainText('Bloqueios declarados');
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  await page.getByRole('region',{name:'Análises declarativas desta sessão'})

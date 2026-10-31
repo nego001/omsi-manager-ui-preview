@@ -508,6 +508,7 @@ export default function App(){
    <label>Resumo anterior<select aria-label="Resumo anterior para comparação" value={reportComparison.beforeId} onChange={e=>setCompareBeforeId(Number(e.target.value))}>{batchHistory.filter(r=>r.id!==reportComparison.afterId).map(r=><option key={r.id} value={r.id}>Resumo {r.id} · {r.selectedCount} mod(s)</option>)}</select></label>
    <label>Resumo posterior<select aria-label="Resumo posterior para comparação" value={reportComparison.afterId} onChange={e=>setCompareAfterId(Number(e.target.value))}>{batchHistory.filter(r=>r.id!==reportComparison.beforeId).map(r=><option key={r.id} value={r.id}>Resumo {r.id} · {r.selectedCount} mod(s)</option>)}</select></label>
   </div>
+  <button className="btn secondary session-comparison-swap" type="button" onClick={()=>{setCompareBeforeId(reportComparison.afterId);setCompareAfterId(reportComparison.beforeId)}}>Inverter ordem da comparação</button>
   <div className="session-comparison-stats" role="group" aria-label="Mudanças nos metadados">
    <div><small>Entraram na seleção</small><strong>{reportComparison.added.length}</strong></div>
    <div><small>Saíram da seleção</small><strong>{reportComparison.removed.length}</strong></div>

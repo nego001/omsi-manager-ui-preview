@@ -258,3 +258,5 @@ Com ao menos dois resumos temporários, o Histórico oferece uma comparação so
 Não infere atualizações de arquivos, instalações, compatibilidade real ou qualidade da seleção. Os títulos e indicadores são snapshots da sessão; a comparação não altera favoritos, filtros, relatórios, arquivos de jogos ou backups. Ao excluir um dos relatórios, a interface escolhe outro par válido quando possível, ou esconde a comparação quando resta menos de dois.
 
 O comparador independente valida IDs, contagens e duplicações, recusando registros inconsistentes. Playwright cobre alternância por IDs, alteração da seleção, exclusão, preservação dos favoritos e layout de 390 px.
+
+O botão **Inverter ordem da comparação** permite observar inclusões e exclusões no sentido contrário mesmo quando há apenas dois relatórios. Os testes cobrem a inversão sem mexer nos snapshots.
