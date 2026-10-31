@@ -1,0 +1,332 @@
+name: React Prototype Validation
+on:
+  push:
+    branches: [feat/react-nine-screens-safe]
+  pull_request:
+    paths:
+      - 'react-prototype/**'
+      - '.github/workflows/react-prototype.yml'
+concurrency:
+  group: react-prototype-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm run test:security
+      - name: Portable build identity contract
+        run: node --test scripts/portable-build-manifest.test.mjs
+      - name: Optional XDG desktop shortcut tests (disposable HOME)
+        run: node --test scripts/linux-desktop-integration.test.cjs
+      - name: Wayland session and portal diagnostics (isolated Unix sockets)
+        run: node --test scripts/linux-session-diagnostics.test.cjs
+      - name: AppArmor host-capability classification contracts (synthetic only)
+        run: node --test scripts/auto-x11-host-policy-contract.test.mjs
+      - name: Native ELF sandbox preflight parser contracts (synthetic only)
+        run: node --test scripts/native-sandbox-preflight-contract.test.mjs
+      - name: Strict native X11 matrix admission guard
+        run: node --test scripts/native-x11-workflow-admission.test.mjs
+      - name: GNOME KDE Hyprland manual picker contracts (no GUI)
+        run: npm run test:manual:contract
+      - name: Safe desktop geometry contract
+        run: node --test scripts/desktop-layout-contract.test.mjs
+      - name: Controlled real ZIP byte fixture contracts (in-memory CI only)
+        run: python3 -m unittest discover -s scripts -p 'test_controlled_*.py' -v
+      - name: Emit CI-only disposable ZIP FD evidence for per-package UI contract
+        run: |
+          set -euo pipefail
+          # scripts/ is excluded from distributed Electron packages and
+          # is not Playwright's auto-cleaned test-results/ directory.
+          python3 -I -S -B scripts/emit_controlled_ci_fd_evidence.py > scripts/ci-disposable-fd-evidence.json
+          test -s scripts/ci-disposable-fd-evidence.json
+      - name: Native auto-launcher manual desktop contracts (no GUI)
+        run: node --test scripts/manual-auto-launch-contract.test.mjs
+      - name: Isolated temporary recovery / process restart fixture
+        run: npm run test:recovery:fixture
+      - name: Synthetic witness crash and incomplete-history tests
+        run: npm run test:witness
+      - name: Separate Linux principals and peer credentials (disposable hosted runner only)
+        if: runner.environment == 'github-hosted'
+        env:
+          OMSI_SYNTHETIC_HOSTED_RUNNER: ${{ runner.environment }}
+        run: |
+          sudo -n env \
+            OMSI_SYNTHETIC_HOSTED_RUNNER="$OMSI_SYNTHETIC_HOSTED_RUNNER" \
+            GITHUB_ACTIONS="$GITHUB_ACTIONS" \
+            RUNNER_TEMP="$RUNNER_TEMP" \
+            python3 native-lab/synthetic-linux-principal-lab.py orchestrate
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Electron desktop smoke test
+        run: xvfb-run -a npm run test:desktop
+      - name: Native folder inspection IPC E2E
+        run: xvfb-run -a npm run test:inspection:e2e
+      - name: Build Linux x64 unsigned portable preview
+        run: npm run package:linux
+      - name: Automatic Linux ELF launcher regression (synthetic process)
+        run: node --test scripts/linux-auto-launcher.test.cjs
+      - name: Test packaged Linux ELF GUI using synthetic game folder
+        timeout-minutes: 5
+        run: xvfb-run -a npm run test:portable:linux
+      - name: Native auto X11 GUI contract (synthetic read-only)
+        run: node --test scripts/auto-real-x11-contract.test.mjs
+      - name: Native X11 triage categories, privacy and strict-sandbox contracts
+        run: node --test scripts/auto-x11-native-triage.test.mjs
+      - name: AppArmor administrator review classification (synthetic data only)
+        run: node --test scripts/ubuntu24-app-profile-review.test.mjs
+      - name: Install Weston for a real headless Wayland socket
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends weston
+      - name: Native Wayland packaged GUI smoke in disposable Weston
+        timeout-minutes: 5
+        run: npm run test:wayland:headless
+      - name: Archive Linux portable preview and SHA256
+        run: |
+          test -x release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
+          tar -czf release/OMSI-Manager-Preview-Linux-x64.tar.gz -C release OMSI-Manager-Preview-linux-x64
+          cd release
+          sha256sum OMSI-Manager-Preview-Linux-x64.tar.gz > OMSI-Manager-Preview-Linux-x64.sha256
+      - name: Upload unsigned Linux portable preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: |
+            react-prototype/release/OMSI-Manager-Preview-Linux-x64.tar.gz
+            react-prototype/release/OMSI-Manager-Preview-Linux-x64.sha256
+          if-no-files-found: error
+          retention-days: 14
+      - name: Public UI screenshots and test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: react-prototype-visual-review
+          path: |
+            react-prototype/test-results/screenshots/
+            react-prototype/test-results/contrast-audit.json
+            react-prototype/test-results/gradient-sample.json
+            react-prototype/test-results/icon-contrast.json
+            react-prototype/test-results/card-layout-audit.json
+            react-prototype/test-results/offline-game-covers.png
+            react-prototype/test-results/**/error-context.md
+          if-no-files-found: warn
+          retention-days: 14
+
+  native_auto_x11:
+    name: Native Auto X11 real-window check (${{ matrix.runner }}, strict sandbox)
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-22.04]
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: react-prototype/release
+      - name: Verify and unpack exact CI-built Linux preview
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256
+          python3 -I -S -B ../scripts/controlled_ci_archive_guard.py
+          tar --no-same-owner --no-same-permissions -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
+          test -x OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto
+      - name: Native ELF sandbox policy preflight (no Electron or policy edits)
+        run: |
+          node --test scripts/native-sandbox-preflight-contract.test.mjs
+          node scripts/native-sandbox-preflight-ci.mjs
+      - name: Run real OMSI-Manager-Auto on GNOME/KDE X11 labels in Xvfb
+        timeout-minutes: 3
+        env:
+          CI: 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends x11-utils x11-apps
+          # Probe host prerequisites without changing the Electron sandbox.
+          node --check scripts/auto-real-x11-smoke.mjs
+          node --test scripts/auto-x11-host-policy-contract.test.mjs
+          node --test scripts/auto-x11-native-triage.test.mjs
+          node --test scripts/ubuntu24-app-profile-review.test.mjs
+          node scripts/auto-x11-host-capabilities.mjs
+          # The real auto-launch must still create a mapped X11 window.
+          xvfb-run -a node scripts/auto-real-x11-smoke.mjs
+      # Compare two supported hosted Ubuntu images without changing any
+      # sandbox, AppArmor, kernel or privilege policy. The same CI-built
+      # unsigned Linux artifact and identical X11 proof are required for both.
+      # Any failed matrix image MUST keep the workflow red: a successful
+      # ubuntu-22.04 run cannot waive a failure on ubuntu-24.04.
+      # No --no-sandbox or weakened security is allowed.
+
+  arch_portable_audit:
+    name: Arch Linux x64 container / ELF runtime audit (no GUI)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container:
+      image: archlinux:base
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Electron desktop runtime libraries inside disposable Arch container
+        shell: bash
+        run: |
+          set -euo pipefail
+          pacman -Syu --noconfirm --needed \
+            python binutils gtk3 nss alsa-lib libxss mesa libdrm libxkbcommon
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: arch-portable
+      - name: Verify checksum, archive paths and packaged ELF dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd arch-portable
+          sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256
+          python3 -I -S -B ../react-prototype/scripts/controlled_ci_archive_guard.py
+          tar --no-same-owner --no-same-permissions -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
+          OMSI_ARCH_AUDIT_SCOPE=CI_UNSIGNED_PACKAGE_ONLY \
+            bash ../react-prototype/scripts/arch-portable-dependency-audit.sh \
+            OMSI-Manager-Preview-linux-x64
+      # Not Hyprland certification: no compositor, GPU, picker or game folders.
+
+  windows_native_lab:
+    name: Windows standalone native directory lab (test-only)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Synthetic witness crash and incomplete-history tests
+        run: npm run test:witness
+      - name: Windows disposable local SID and NTFS DACL proof
+        if: runner.environment == 'github-hosted'
+        timeout-minutes: 4
+        shell: pwsh
+        env:
+          OMSI_SYNTHETIC_HOSTED_RUNNER: ${{ runner.environment }}
+        run: ./native-lab/synthetic-windows-principal-lab.ps1
+      - name: Compile standalone C# Win32 handle observer
+        shell: pwsh
+        run: dotnet publish native-lab/OmsiNativeDirectoryLab.csproj --configuration Release --runtime win-x64 --self-contained false --output native-lab/out
+      - name: Test real Win32 executable with disposable fixtures
+        shell: pwsh
+        run: |
+          $env:OMSI_NATIVE_LAB_EXE = (Resolve-Path native-lab/out/OmsiNativeDirectoryLab.exe).Path
+          node --test native-lab/native-executable.test.cjs
+      # No artifact upload: this experimental binary is not for distribution.
+
+  windows_portable:
+    name: Windows portable preview (not signed)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+      - run: npm run test:security
+      - name: Portable build identity contract
+        run: node --test scripts/portable-build-manifest.test.mjs
+      - name: Isolated temporary recovery / process restart fixture
+        run: npm run test:recovery:fixture
+      - run: npm run package:win
+      - name: Test packaged Windows executable (real GUI)
+        timeout-minutes: 5
+        run: npm run test:portable:windows
+      - name: Upload Windows runtime screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable-runtime-screenshots
+          path: react-prototype/test-results/screenshots/portable-windows/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Validate portable package and compress
+        shell: pwsh
+        run: |
+          $output = "release/OMSI-Manager-Preview-win32-x64"
+          if (!(Test-Path "$output/OMSI-Manager-Preview.exe")) {
+            throw "Portable executable not found."
+          }
+          if (!(Test-Path "$output/resources/app.asar")) {
+            throw "Embedded application archive not found."
+          }
+          Compress-Archive -Path "$output" -DestinationPath "release/OMSI-Manager-Preview-Windows-x64.zip" -Force
+          $zip = "release/OMSI-Manager-Preview-Windows-x64.zip"
+          $hash = (Get-FileHash -Path $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  OMSI-Manager-Preview-Windows-x64.zip" | Set-Content "release/OMSI-Manager-Preview-Windows-x64.sha256" -Encoding ascii
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Windows-x64-UNSIGNED
+          path: |
+            react-prototype/release/OMSI-Manager-Preview-Windows-x64.zip
+            react-prototype/release/OMSI-Manager-Preview-Windows-x64.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+
+  portable_pair_audit:
+    name: Windows + Linux archives / same-commit read-only provenance
+    needs: [build, windows_portable]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test synthetic archive-pair refusal contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_portable_pair_audit.py -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: pair-artifacts/linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Windows-x64-UNSIGNED
+          path: pair-artifacts/windows
+      - name: Verify both SHA256 sidecars and common source commit without extraction
+        env:
+          OMSI_PAIR_AUDIT_SCOPE: CI_UNSIGNED_PAIRS_ONLY
+        run: |
+          python3 react-prototype/scripts/portable_pair_audit.py \
+            pair-artifacts/linux pair-artifacts/windows
+      # Metadata parity is not a digital signature or a real KDE/GNOME test.
