@@ -5,7 +5,7 @@ import {analyzeModRelations} from './relation-analysis';
 import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from './session-report-export';
-import {compareDeclaredSessionReports} from './session-report-compare';
+import {compareDeclaredSessionReports,serializeDeclaredSessionComparison} from './session-report-compare';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -262,6 +262,14 @@ export default function App(){
     'OMSI-Manager-Resumos-da-sessao.json');
   }catch{setToast('Não foi possível exportar os resumos desta sessão.');}
  }
+ function exportSessionComparison(){
+  if(!compareBeforeReport||!compareAfterReport)return;
+  try{
+   const json=serializeDeclaredSessionComparison(compareBeforeReport,compareAfterReport);
+   downloadDeclaredJson(json,
+    `OMSI-Manager-Comparacao-${compareBeforeReport.id}-${compareAfterReport.id}.json`);
+  }catch{setToast('Não foi possível exportar esta comparação declarativa.');}
+ }
  function revisitSessionReport(record:SessionBatchRecord){
   // Metadata only. Reuse existing favorites, never re-add removed mods.
   const eligible=record.selectedIds.filter(id=>
@@ -508,7 +516,7 @@ export default function App(){
    <label>Resumo anterior<select aria-label="Resumo anterior para comparação" value={reportComparison.beforeId} onChange={e=>setCompareBeforeId(Number(e.target.value))}>{batchHistory.filter(r=>r.id!==reportComparison.afterId).map(r=><option key={r.id} value={r.id}>Resumo {r.id} · {r.selectedCount} mod(s)</option>)}</select></label>
    <label>Resumo posterior<select aria-label="Resumo posterior para comparação" value={reportComparison.afterId} onChange={e=>setCompareAfterId(Number(e.target.value))}>{batchHistory.filter(r=>r.id!==reportComparison.beforeId).map(r=><option key={r.id} value={r.id}>Resumo {r.id} · {r.selectedCount} mod(s)</option>)}</select></label>
   </div>
-  <button className="btn secondary session-comparison-swap" type="button" onClick={()=>{setCompareBeforeId(reportComparison.afterId);setCompareAfterId(reportComparison.beforeId)}}>Inverter ordem da comparação</button>
+  <div className="session-comparison-actions"><button className="btn secondary session-comparison-swap" type="button" onClick={()=>{setCompareBeforeId(reportComparison.afterId);setCompareAfterId(reportComparison.beforeId)}}>Inverter ordem da comparação</button><button className="btn secondary" type="button" aria-label="Exportar comparação em JSON" onClick={exportSessionComparison}>Exportar comparação JSON</button></div>
   <div className="session-comparison-stats" role="group" aria-label="Mudanças nos metadados">
    <div><small>Entraram na seleção</small><strong>{reportComparison.added.length}</strong></div>
    <div><small>Saíram da seleção</small><strong>{reportComparison.removed.length}</strong></div>

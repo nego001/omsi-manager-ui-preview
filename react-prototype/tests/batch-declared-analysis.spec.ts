@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {analyzeDeclaredBatch} from '../src/batch-declared-analysis';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
-import {compareDeclaredSessionReports} from '../src/session-report-compare';
+import {compareDeclaredSessionReports,serializeDeclaredSessionComparison} from '../src/session-report-compare';
 import {parseCatalogManifest} from '../src/catalog';
 import type {CatalogMod} from '../src/catalog';
 const mod=(id:string,game:'omsi'|'ets2'|'ats'='omsi',requires:string[]=[],conflictsWith:string[]=[]):CatalogMod=>({
@@ -870,6 +870,90 @@ test('Histórico compara dois resumos sem modificar favoritos ou atividades reai
  await expect(comparison).toHaveCount(0);
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('exportação da comparação usa somente snapshots declarados e respeita limites',()=>{
+ const before={id:1,selectedIds:['a','b'],selectedTitles:['Mod A','Mod B'],
+  selectedCount:2,blockers:2,notices:1};
+ const after={id:2,selectedIds:['b','c'],selectedTitles:['Mod B','Mod C'],
+  selectedCount:2,blockers:1,notices:3};
+ const result=JSON.parse(serializeDeclaredSessionComparison(before,after));
+ expect(result).toMatchObject({
+  schema:'omsi-manager-declared-comparison-v1',scope:'catalog-metadata-only',
+  beforeReportId:1,afterReportId:2,
+  addedSelectedMods:[{id:'c',title:'Mod C'}],
+  removedSelectedMods:[{id:'a',title:'Mod A'}],
+  unchangedSelectedCount:1,
+  declaredBlockers:{before:2,after:1,delta:-1},
+  declaredWarnings:{before:1,after:3,delta:2},
+  installationVerified:false,compatibilityVerified:false
+ });
+ expect(Object.keys(result)).not.toContain('filePath');
+ expect(result.disclaimer).toContain('Não atesta instalação');
+ expect(JSON.parse(serializeDeclaredSessionComparison(after,before))).toMatchObject({
+  beforeReportId:2,afterReportId:1,addedSelectedMods:[{id:'a',title:'Mod A'}],
+  declaredBlockers:{before:1,after:2,delta:1}
+ });
+ expect(()=>serializeDeclaredSessionComparison(before,{...before}))
+  .toThrow('SESSION_COMPARISON_SAME_REPORT');
+ expect(()=>serializeDeclaredSessionComparison({...before,selectedIds:['a','a']},after))
+  .toThrow('SESSION_COMPARISON_INVALID');
+ const largeBefore={id:3,selectedIds:Array.from({length:400},(_,i)=>'left-'+i),
+  selectedTitles:Array(400).fill('L'.repeat(290)),selectedCount:400,blockers:0,notices:0};
+ const largeAfter={id:4,selectedIds:Array.from({length:400},(_,i)=>'right-'+i),
+  selectedTitles:Array(400).fill('R'.repeat(290)),selectedCount:400,blockers:0,notices:0};
+ expect(()=>serializeDeclaredSessionComparison(largeBefore,largeAfter))
+  .toThrow('SESSION_COMPARISON_EXPORT_TOO_LARGE');
+});
+test('Histórico baixa comparação JSON local e preserva o sentido após inverter',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await bus.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await bus.uncheck();await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const comparison=page.getByRole('region',{name:'Comparar resumos declarados da sessão'});
+ const first=Promise.all([page.waitForEvent('download'),
+  comparison.getByRole('button',{name:'Exportar comparação em JSON'}).click()]);
+ const [download]=await first;
+ expect(download.suggestedFilename()).toBe('OMSI-Manager-Comparacao-1-2.json');
+ const read=async(d:typeof download)=>{
+  const stream=await d.createReadStream();const chunks:Buffer[]=[];
+  for await(const chunk of stream)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+ };
+ const exported=await read(download);
+ expect(exported).toMatchObject({beforeReportId:1,afterReportId:2,
+  addedSelectedMods:[{id:'omsi-map',title:'Serra do Vale'}],
+  removedSelectedMods:[{id:'omsi-bus',title:'Ônibus Urbano Clássico'}],
+  installationVerified:false,compatibilityVerified:false,scope:'catalog-metadata-only'});
+ await comparison.getByRole('button',{name:'Inverter ordem da comparação'}).click();
+ const [reverse]=await Promise.all([page.waitForEvent('download'),
+  comparison.getByRole('button',{name:'Exportar comparação em JSON'}).click()]);
+ expect(reverse.suggestedFilename()).toBe('OMSI-Manager-Comparacao-2-1.json');
+ const flipped=await read(reverse);
+ expect(flipped).toMatchObject({beforeReportId:2,afterReportId:1,
+  addedSelectedMods:[{id:'omsi-bus',title:'Ônibus Urbano Clássico'}],
+  removedSelectedMods:[{id:'omsi-map',title:'Serra do Vale'}],
+  installationVerified:false,compatibilityVerified:false});
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await page.getByRole('region',{name:'Análises declarativas desta sessão'})
+  .getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
+ await expect(page.getByRole('button',{name:'Exportar comparação em JSON'})).toHaveCount(0);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });

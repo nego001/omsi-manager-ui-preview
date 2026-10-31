@@ -964,3 +964,9 @@
 .session-comparison-diff ul{margin:6px 0;padding-left:19px}
 .session-comparison-note{display:block;margin-top:13px}
 @media(max-width:540px){.session-comparison-filters,.session-comparison-diff{grid-template-columns:minmax(0,1fr)}.session-comparison{padding:13px}}
+
+/* User-triggered export of catalog comparison only, never a game change. */
+.session-comparison-actions{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.session-comparison-actions .btn{min-height:36px;max-width:100%;white-space:normal}
+.session-comparison-actions .btn:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+@media(max-width:540px){.session-comparison-actions{align-items:stretch;flex-direction:column}.session-comparison-actions .btn{width:100%}}

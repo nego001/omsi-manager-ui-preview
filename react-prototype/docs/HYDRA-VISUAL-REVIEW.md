@@ -260,3 +260,9 @@ Não infere atualizações de arquivos, instalações, compatibilidade real ou q
 O comparador independente valida IDs, contagens e duplicações, recusando registros inconsistentes. Playwright cobre alternância por IDs, alteração da seleção, exclusão, preservação dos favoritos e layout de 390 px.
 
 O botão **Inverter ordem da comparação** permite observar inclusões e exclusões no sentido contrário mesmo quando há apenas dois relatórios. Os testes cobrem a inversão sem mexer nos snapshots.
+
+## Exportar comparação declarada em JSON
+
+Na seção de comparação, o botão **Exportar comparação JSON** baixa `OMSI-Manager-Comparacao-A-B.json` apenas por ação explícita. O arquivo versionado registra os IDs e títulos incluídos/retirados, quantidade de IDs preservados e contagens de bloqueios e avisos **declarados** antes/depois, respeitando o sentido selecionado ou invertido.
+
+O resultado inclui sempre `installationVerified:false` e `compatibilityVerified:false`, com aviso de que não reflete arquivos instalados nem alterações reais nos jogos. O serializador independente valida os dois snapshots, recusa IDs duplicados e relatórios iguais e limita o JSON a 64 KiB UTF-8. O download reaproveita o Blob local da exportação individual, sem rede ou IPC. Testes Playwright verificam downloads nos dois sentidos, ausência de atividade de instalação, exclusão de um relatório e largura de 390 px.

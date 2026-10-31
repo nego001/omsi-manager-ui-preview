@@ -57,3 +57,28 @@ export function compareDeclaredSessionReports(before:SessionComparisonInput,
   compatibilityVerified:false,installationVerified:false
  };
 }
+
+/** Export two compared catalog snapshots, never a mod installation/disk diff. */
+export function serializeDeclaredSessionComparison(before:SessionComparisonInput,
+ after:SessionComparisonInput):string{
+ const diff=compareDeclaredSessionReports(before,after);
+ const content={
+  schema:'omsi-manager-declared-comparison-v1',
+  source:'session-memory',
+  scope:diff.scope,
+  beforeReportId:diff.beforeId,
+  afterReportId:diff.afterId,
+  addedSelectedMods:diff.added,
+  removedSelectedMods:diff.removed,
+  unchangedSelectedCount:diff.unchangedCount,
+  declaredBlockers:{before:diff.blockersBefore,after:diff.blockersAfter,delta:diff.blockersDelta},
+  declaredWarnings:{before:diff.noticesBefore,after:diff.noticesAfter,delta:diff.noticesDelta},
+  installationVerified:false,
+  compatibilityVerified:false,
+  disclaimer:'Diferenças entre seleções de metadados declarados. Não atesta instalação, atualização, integridade ou compatibilidade real.'
+ };
+ const json=JSON.stringify(content,null,2)+'\n';
+ if(new TextEncoder().encode(json).byteLength>65536)
+  throw Error('SESSION_COMPARISON_EXPORT_TOO_LARGE');
+ return json;
+}
