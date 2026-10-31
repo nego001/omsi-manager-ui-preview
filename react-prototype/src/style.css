@@ -929,3 +929,7 @@
 .session-history-undo{border:1px solid #53637a;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 16px;margin-bottom:14px;color:#d8e5fb;font-size:13px;line-height:1.5}
 .session-history-undo .btn{min-height:36px;max-width:100%;white-space:normal}
 .session-history-undo .btn:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+
+/* Revisit only still-favorited metadata; no file access or installation. */
+.session-batch-history .session-history-reopen{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:10px 9px 0 0;padding:8px 12px;max-width:100%;white-space:normal;text-align:center}
+.session-batch-history .session-history-reopen:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}

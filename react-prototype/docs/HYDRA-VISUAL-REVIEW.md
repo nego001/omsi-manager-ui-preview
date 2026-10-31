@@ -232,3 +232,9 @@ O texto do título acessível **Sem atividades registradas** foi preservado: 22 
 O Histórico permite **Desfazer exclusão** de um resumo recém-removido, inclusive quando era o único registro da sessão. Restaurar não modifica favoritos, seleção de análise ou outros relatórios. Os IDs de relatórios são gerados por um contador monotônico da sessão e não são reutilizados quando o relatório mais recente foi excluído.
 
 A recuperação é de um único nível e expira após uma nova análise salva, nova exclusão, limpeza total, restauração da demonstração ou importação de outro catálogo. O comando **Limpar resumos da sessão** não gera undo, evitando recuperar relatórios apagados intencionalmente em conjunto. Playwright valida restaurar a ordem, IDs 1/2/3, reset explícito e largura de 390 px. Tudo continua em memória e sem tocar em mods reais.
+
+## Histórico: rever seleção declarada na Biblioteca
+
+Cada resumo temporário apresenta **Rever seleção**, que reabre a Biblioteca e a análise conjunta com os IDs de favoritos ainda existentes. O relatório agora conserva uma cópia desses IDs além dos títulos; não persiste ao recarregar e não depende de arquivos reais. Se algum favorito tiver sido removido, ele é ignorado sem ser recriado, e uma mensagem indica quantos ficaram indisponíveis. Se nenhum restar, a Biblioteca abre sem selecionar nada nem simular instalação.
+
+A navegação respeita os filtros atuais; a Biblioteca já informa quando uma seleção reaplicada fica fora dos filtros. A ação não modifica favoritos, não restaura arquivos excluídos, não executa downloads e não cria histórico de instalação. Há cobertura Playwright para seleção integral, remoção parcial/total de favoritos, preservação do resumo e largura de 390 px.

@@ -622,3 +622,52 @@ test('Histórico permite desfazer exclusão e preserva IDs de relatórios mesmo 
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('Histórico recupera seleção declarada sem recriar favoritos removidos nem instalar mods',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await bus.check();
+ await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await page.getByRole('button',{name:'Limpar seleção'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const history=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await history.getByRole('button',{name:'Rever seleção do resumo 1'}).click();
+ await expect(bus).toBeChecked();
+ await expect(map).toBeChecked();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
+ await page.getByRole('button',{name:'Limpar seleção'}).click();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const mapCard=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Serra do Vale',exact:true})});
+ await mapCard.getByRole('button',{name:'Retirar dos favoritos'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await history.getByRole('button',{name:'Rever seleção do resumo 1'}).click();
+ await expect(bus).toBeChecked();
+ await expect(map).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+ await expect(page.getByRole('status').filter({hasText:'1 indisponível(is)'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const busCard=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await busCard.getByRole('button',{name:'Retirar dos favoritos'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await history.getByRole('button',{name:'Rever seleção do resumo 1'}).click();
+ await expect(page.getByRole('button',{name:'Analisar seleção'})).toHaveCount(0);
+ await expect(page.getByText('Nenhum favorito deste resumo está disponível na biblioteca. Nenhum mod foi instalado.')).toBeVisible();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(history).toContainText('2 mod(s) declarados');
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
