@@ -51,3 +51,9 @@ A triagem agora exige também uma tentativa **não privilegiada e limitada a 2,5
 Com o indicador do AppArmor ativado, só se pede revisão administrativa de política específica quando **ambos** os caminhos Electron falham com `SIGTRAP`, a janela neutra X11 abre e a tentativa independente do namespace retorna `permission-denied`. Se o namespace for permitido, o diagnóstico muda para `investigate-startup-with-userns-probe-allowed`, sem recomendar intervenção AppArmor; se não houver evidência conclusiva, mantém `insufficient-evidence`.
 
 O novo resultado é uma **correlação mais restrita**, não prova causal, e não modifica a obrigação de teste X11 nem o sandbox. Testes sintéticos cobrem negativas, permissões, valores ausentes e entradas maliciosas.
+
+## Indicador independente do módulo AppArmor
+
+A emissão de `request-administrator-review-of-app-specific-userns-policy` exige agora quatro evidências, todas simultâneas: módulo AppArmor com `enabled` observado em `/sys/module/apparmor/parameters/enabled`, restrição de namespace do kernel ativa, negativa da tentativa não privilegiada de namespace e duas falhas independentes do Electron após a janela neutra X11 ter funcionado.
+
+Uma leitura ausente, desativada ou malformada do módulo deixa o resultado em `insufficient-evidence`; nunca é permitida uma recomendação baseada apenas no indicador do kernel. O teste registra exclusivamente uma categoria enumerada, não o conteúdo do arquivo nem caminhos privados. A CI ainda requer que a janela real do Electron seja comprovada com sandbox preservado.

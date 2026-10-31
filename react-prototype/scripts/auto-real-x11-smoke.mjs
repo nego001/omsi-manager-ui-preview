@@ -10,7 +10,7 @@ import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
-import {categorizeUnshareFailure} from './auto-x11-host-policy-contract.mjs';
+import {categorizeUnshareFailure,categorizeApparmorModule} from './auto-x11-host-policy-contract.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  verifyNativeWindowOwner,verifyNativeDesktopResults,
  findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
@@ -34,6 +34,13 @@ async function probeCiUserNamespaceCategory(){
   return category==='permission-denied'?'permission-denied':
    category==='tool-unavailable'?'unavailable':'unknown';
  }
+}
+async function readApparmorModuleCategory(){
+ try{
+  // This fixed sysfs file reveals only whether the LSM module is enabled.
+  const value=await readFile('/sys/module/apparmor/parameters/enabled','utf8');
+  return categorizeApparmorModule(value);
+ }catch{return 'unavailable';}
 }
 async function readApparmorNamespacePolicyCategory(){
  try{
@@ -266,6 +273,7 @@ try{
     console.error('AUTO_X11_APPARMOR_ADMIN_REVIEW',JSON.stringify(
      assessApparmorAdminReview({
       apparmorRestriction:await readApparmorNamespacePolicyCategory(),
+      apparmorModuleState:await readApparmorModuleCategory(),
       namespaceProbe:await probeCiUserNamespaceCategory(),triage
      })
     ));

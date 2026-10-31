@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {assessApparmorAdminReview as rawAssess} from './ubuntu24-app-profile-review.mjs';
 // Existing cases model the confirmed Ubuntu 24.04 permission-denied probe.
 const assess=input=>rawAssess(input&&typeof input==='object'?
- {namespaceProbe:'permission-denied',...input}:input);
+ {apparmorModuleState:'enabled',namespaceProbe:'permission-denied',...input}:input);
 const sample=(changes={})=>({
  schema:'AUTO_X11_NATIVE_TRIAGE_V1',
  classification:'shared-electron-sandbox-startup-suspected',
@@ -79,27 +79,42 @@ test('conflicting mapped-window signals cannot short-circuit a guarded review',(
 
 test('AppArmor switch without an independent permission-denied user namespace probe cannot request intervention',()=>{
  for(const probe of ['unknown','unavailable','injected /home/private/user','',null]){
-  const input={apparmorRestriction:'enabled',triage:sample(),namespaceProbe:probe};
+  const input={apparmorRestriction:'enabled',apparmorModuleState:'enabled',triage:sample(),namespaceProbe:probe};
   const out=rawAssess(input);
   assert.equal(out.status,'insufficient-evidence');
   assert.equal(out.administratorApprovalRequired,false);
   assert.equal(out.apparmorCausalityProven,false);
   assert.ok(!JSON.stringify(out).includes('/home/private/user'));
  }
- const missing=rawAssess({apparmorRestriction:'enabled',triage:sample()});
+ const missing=rawAssess({apparmorRestriction:'enabled',apparmorModuleState:'enabled',triage:sample()});
  assert.equal(missing.status,'insufficient-evidence');
  assert.equal(missing.userNamespaceProbe,'unknown');
 });
 test('user namespace permission allowed contradicts AppArmor-namespace-denial hypothesis',()=>{
- const out=rawAssess({apparmorRestriction:'enabled',namespaceProbe:'allowed',triage:sample()});
+ const out=rawAssess({apparmorRestriction:'enabled',apparmorModuleState:'enabled',namespaceProbe:'allowed',triage:sample()});
  assert.equal(out.status,'investigate-startup-with-userns-probe-allowed');
  assert.equal(out.administratorApprovalRequired,false);
  assert.equal(out.profileLoaded,false);
 });
 test('verified permission-denied category plus two failed Electron controls still requests human review only',()=>{
- const out=rawAssess({apparmorRestriction:'enabled',namespaceProbe:'permission-denied',triage:sample()});
+ const out=rawAssess({apparmorRestriction:'enabled',apparmorModuleState:'enabled',namespaceProbe:'permission-denied',triage:sample()});
  assert.equal(out.status,'request-administrator-review-of-app-specific-userns-policy');
  assert.equal(out.userNamespaceProbe,'permission-denied');
  assert.equal(out.apparmorCausalityProven,false);
  assert.equal(out.actualElectronSandboxCertified,false);
+});
+
+test('AppArmor module must be observed enabled before requesting administrator intervention',()=>{
+ for(const apparmorModuleState of ['disabled','unknown','unavailable',null,'Y /home/private',{}]){
+  const result=rawAssess({apparmorRestriction:'enabled',apparmorModuleState,
+   namespaceProbe:'permission-denied',triage:sample()});
+  assert.equal(result.status,'insufficient-evidence');
+  assert.equal(result.administratorApprovalRequired,false);
+  assert.equal(result.apparmorCausalityProven,false);
+  assert.ok(!JSON.stringify(result).includes('/home/private'));
+ }
+ const absent=rawAssess({apparmorRestriction:'enabled',
+  namespaceProbe:'permission-denied',triage:sample()});
+ assert.equal(absent.status,'insufficient-evidence');
+ assert.equal(absent.apparmorModuleState,'unknown');
 });
