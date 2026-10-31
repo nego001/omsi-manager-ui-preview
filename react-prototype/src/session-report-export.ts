@@ -47,3 +47,32 @@ export function serializeDeclaredSessionReport(report:DeclaredSessionReport):str
  if(new TextEncoder().encode(json).byteLength>65536)throw Error('DECLARED_SESSION_EXPORT_TOO_LARGE');
  return json;
 }
+
+/** Downloadable session snapshot, never an activity log or installation proof. */
+export function serializeDeclaredSessionArchive(reports:readonly DeclaredSessionReport[]):string{
+ if(!Array.isArray(reports)||reports.length<1||reports.length>10)
+  throw Error('DECLARED_SESSION_ARCHIVE_INVALID');
+ const seen=new Set<number>();
+ const items=reports.map(report=>{
+  const document=JSON.parse(serializeDeclaredSessionReport(report)) as {
+   reportId:number;installationVerified:boolean;compatibilityVerified:boolean
+  };
+  if(seen.has(document.reportId))throw Error('DECLARED_SESSION_ARCHIVE_DUPLICATE');
+  seen.add(document.reportId);
+  return document;
+ });
+ const result={
+  schema:'omsi-manager-declared-session-archive-v1',
+  scope:'catalog-metadata-only',
+  source:'session-memory',
+  reportCount:items.length,
+  reports:items,
+  installationVerified:false,
+  compatibilityVerified:false,
+  disclaimer:'Coleção de resumos declarados da sessão. Não atesta instalação, integridade nem compatibilidade real.'
+ };
+ const json=JSON.stringify(result,null,2)+'\n';
+ if(new TextEncoder().encode(json).byteLength>131072)
+  throw Error('DECLARED_SESSION_ARCHIVE_TOO_LARGE');
+ return json;
+}

@@ -4,7 +4,7 @@ import {matchesCatalogSearch} from './catalog-search';
 import {analyzeModRelations} from './relation-analysis';
 import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
-import {serializeDeclaredSessionReport} from './session-report-export';
+import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from './session-report-export';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -219,25 +219,36 @@ export default function App(){
    existing:[...existing,report].sort((a,b)=>b.id-a.id).slice(0,10));
   setLastRemovedReport(null);
  }
- function exportSessionReport(record:SessionBatchRecord){
+ function downloadDeclaredJson(json:string,filename:string){
+  // Only this user click may start a local browser download.
   let url:string|null=null;
   try{
-   const json=serializeDeclaredSessionReport(record);
    const blob=new Blob([json],{type:'application/json;charset=utf-8'});
    url=URL.createObjectURL(blob);
    const link=document.createElement('a');
-   link.href=url;
-   link.download=`OMSI-Manager-Resumo-${record.id}.json`;
+   link.href=url;link.download=filename;
    document.body.appendChild(link);
    try{link.click();}finally{link.remove();}
-   // Give the browser time to acquire the Blob for the download.
    const urlToRevoke=url;
+   // Keep the Blob available while the browser acquires the download.
    window.setTimeout(()=>URL.revokeObjectURL(urlToRevoke),10000);
    url=null;
   }catch{
    if(url)URL.revokeObjectURL(url);
-   setToast('Não foi possível exportar este resumo declarativo.');
+   throw Error('DECLARED_SESSION_DOWNLOAD_FAILED');
   }
+ }
+ function exportSessionReport(record:SessionBatchRecord){
+  try{
+   downloadDeclaredJson(serializeDeclaredSessionReport(record),
+    `OMSI-Manager-Resumo-${record.id}.json`);
+  }catch{setToast('Não foi possível exportar este resumo declarativo.');}
+ }
+ function exportSessionArchive(){
+  try{
+   downloadDeclaredJson(serializeDeclaredSessionArchive(batchHistory),
+    'OMSI-Manager-Resumos-da-sessao.json');
+  }catch{setToast('Não foi possível exportar os resumos desta sessão.');}
  }
  function revisitSessionReport(record:SessionBatchRecord){
   // Metadata only. Reuse existing favorites, never re-add removed mods.
@@ -476,7 +487,7 @@ export default function App(){
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
  {lastRemovedReport&&<div className="session-history-undo" role="status"><span>Resumo temporário excluído desta sessão.</span><button type="button" className="btn secondary" aria-label="Desfazer exclusão do último resumo" onClick={undoRemovedSessionReport}>Desfazer exclusão</button></div>}
- {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><button className="btn secondary" type="button" onClick={()=>{setBatchHistory([]);setLastRemovedReport(null)}}>Limpar resumos da sessão</button></div>
+ {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><div className="session-history-header-actions"><button className="btn secondary" type="button" aria-label="Exportar todos os resumos em JSON" onClick={exportSessionArchive}>Exportar todos JSON</button><button className="btn secondary" type="button" onClick={()=>{setBatchHistory([]);setLastRemovedReport(null)}}>Limpar resumos da sessão</button></div></div>
  <ol>{batchHistory.map(record=><li key={record.id}><strong>{record.selectedCount} mod(s) declarados · {record.blockers} bloqueio(s) · {record.notices} aviso(s)</strong><span>{record.games.map(id=>games[id].title).join(' · ')}</span><p>{record.selectedTitles.join(' · ')}</p><small>Somente metadados de catálogo. Instalação e compatibilidade não verificadas.</small><button type="button" className="btn secondary session-history-export" aria-label={`Exportar resumo ${record.id} em JSON`} onClick={()=>exportSessionReport(record)}>Exportar JSON</button><button type="button" className="btn secondary session-history-reopen" aria-label={`Rever seleção do resumo ${record.id}`} onClick={()=>revisitSessionReport(record)}>Rever seleção</button><button type="button" className="btn secondary session-history-remove" aria-label={`Excluir resumo ${record.id} desta sessão`} onClick={()=>removeSessionReport(record)}>Excluir este resumo</button></li>)}</ol></section>}
  <div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div><SyntheticDiagnosticPreview/></>}
     {screen==='settings'&&<><div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Preferências visuais salvas localmente neste dispositivo.</p></div><div className="settings-panel"><h3>Aparência</h3><label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label><label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label><div className="divider"/><h3>Plataforma</h3><div className="disabled-integration"><ShieldCheck size={18}/><div><strong>Sistema detectado automaticamente: {osLabel}</strong><small>{runtime?.platformSelection==='automatic'?'Aplicativo portátil com recursos específicos da plataforma, sem configuração manual.':'Somente prévia visual: a identificação nativa exige o aplicativo desktop.'} Instalação e remoção de mods permanecem bloqueadas.</small></div></div><div className="divider"/><h3>Integrações</h3><div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Integração somente leitura</strong><small>Inspeção manual de pastas na tela Jogos, sem instalação ou exclusão</small></div></div></div></>}

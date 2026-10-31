@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {analyzeDeclaredBatch} from '../src/batch-declared-analysis';
-import {serializeDeclaredSessionReport} from '../src/session-report-export';
+import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
 import {parseCatalogManifest} from '../src/catalog';
 import type {CatalogMod} from '../src/catalog';
 const mod=(id:string,game:'omsi'|'ets2'|'ats'='omsi',requires:string[]=[],conflictsWith:string[]=[]):CatalogMod=>({
@@ -720,6 +720,88 @@ test('Histórico exporta JSON sem relatar instalação e sem ler arquivos de jog
  expect(JSON.stringify(content)).not.toContain('filePath');
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'}).locator('li')).toHaveCount(1);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('arquivo de todos os resumos preserva ordem, metadados e rejeita duplicações',()=>{
+ const base={id:1,selectedIds:['omsi-bus'],selectedTitles:['Ônibus Urbano Clássico'],
+  selectedCount:1,games:['omsi'] as const,blockers:0,notices:1};
+ const archive=JSON.parse(serializeDeclaredSessionArchive([{...base,id:3},{...base,id:1}]));
+ expect(archive).toMatchObject({
+  schema:'omsi-manager-declared-session-archive-v1',scope:'catalog-metadata-only',
+  reportCount:2,installationVerified:false,compatibilityVerified:false
+ });
+ expect(archive.reports.map((r:{reportId:number})=>r.reportId)).toEqual([3,1]);
+ for(const report of archive.reports){
+  expect(report).toMatchObject({installationVerified:false,compatibilityVerified:false,
+   scope:'catalog-metadata-only',source:'catalog-declarations'});
+  expect(Object.keys(report)).not.toContain('filePath');
+ }
+ expect(()=>serializeDeclaredSessionArchive([])).toThrow('DECLARED_SESSION_ARCHIVE_INVALID');
+ expect(()=>serializeDeclaredSessionArchive([base,base])).toThrow('DECLARED_SESSION_ARCHIVE_DUPLICATE');
+ expect(()=>serializeDeclaredSessionArchive(Array.from({length:11},(_,i)=>({...base,id:i+1}))))
+  .toThrow('DECLARED_SESSION_ARCHIVE_INVALID');
+ expect(()=>serializeDeclaredSessionArchive([{...base,selectedCount:2}]))
+  .toThrow('DECLARED_SESSION_EXPORT_INVALID');
+ const tooLarge=Array.from({length:10},(_,i)=>({...base,id:i+1,selectedCount:90,
+  selectedIds:Array.from({length:90},(_,j)=>'omsi-'+j),
+  selectedTitles:Array(90).fill('Ô'.repeat(280))}));
+ expect(()=>serializeDeclaredSessionArchive(tooLarge))
+  .toThrow('DECLARED_SESSION_ARCHIVE_TOO_LARGE');
+});
+
+test('Histórico exporta todos os resumos com download local sem inventar atividade',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({
+   has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar todos os resumos em JSON'}).click()
+ ]);
+ expect(download.suggestedFilename()).toBe('OMSI-Manager-Resumos-da-sessao.json');
+ const stream=await download.createReadStream();
+ const chunks:Buffer[]=[];
+ for await(const chunk of stream)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));
+ const archive=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+ expect(archive).toMatchObject({
+  reportCount:2,source:'session-memory',scope:'catalog-metadata-only',
+  installationVerified:false,compatibilityVerified:false
+ });
+ expect(archive.reports.map((r:{reportId:number})=>r.reportId)).toEqual([2,1]);
+ expect(archive.reports.map((r:{selectedCount:number})=>r.selectedCount)).toEqual([2,1]);
+ expect(archive.reports.every((r:{installationVerified:boolean;compatibilityVerified:boolean})=>
+  !r.installationVerified&&!r.compatibilityVerified)).toBe(true);
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ const history=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await expect(history.locator('li')).toHaveCount(2);
+ await history.getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
+ const [reducedDownload]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar todos os resumos em JSON'}).click()
+ ]);
+ const reducedStream=await reducedDownload.createReadStream();
+ const reducedChunks:Buffer[]=[];
+ for await(const part of reducedStream)reducedChunks.push(Buffer.isBuffer(part)?part:Buffer.from(part));
+ const reduced=JSON.parse(Buffer.concat(reducedChunks).toString('utf8'));
+ expect(reduced.reportCount).toBe(1);
+ expect(reduced.reports.map((r:{reportId:number})=>r.reportId)).toEqual([2]);
+ await history.getByRole('button',{name:'Limpar resumos da sessão'}).click();
+ await expect(page.getByRole('button',{name:'Exportar todos os resumos em JSON'})).toHaveCount(0);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });

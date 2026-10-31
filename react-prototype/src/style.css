@@ -937,3 +937,9 @@
 /* User-requested JSON only; does not imply a mod operation. */
 .session-batch-history .session-history-export{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:10px 9px 0 0;padding:8px 12px;max-width:100%;white-space:normal;text-align:center}
 .session-batch-history .session-history-export:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+
+/* All-session export is an explicit browser download, not a game operation. */
+.session-history-header-actions{display:flex;align-items:center;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+.session-history-header-actions .btn{min-height:36px;max-width:100%;white-space:normal}
+.session-history-header-actions .btn:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+@media(max-width:540px){.session-history-header-actions{width:100%;justify-content:flex-start}}
