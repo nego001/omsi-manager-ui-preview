@@ -238,3 +238,9 @@ A recuperação é de um único nível e expira após uma nova análise salva, n
 Cada resumo temporário apresenta **Rever seleção**, que reabre a Biblioteca e a análise conjunta com os IDs de favoritos ainda existentes. O relatório agora conserva uma cópia desses IDs além dos títulos; não persiste ao recarregar e não depende de arquivos reais. Se algum favorito tiver sido removido, ele é ignorado sem ser recriado, e uma mensagem indica quantos ficaram indisponíveis. Se nenhum restar, a Biblioteca abre sem selecionar nada nem simular instalação.
 
 A navegação respeita os filtros atuais; a Biblioteca já informa quando uma seleção reaplicada fica fora dos filtros. A ação não modifica favoritos, não restaura arquivos excluídos, não executa downloads e não cria histórico de instalação. Há cobertura Playwright para seleção integral, remoção parcial/total de favoritos, preservação do resumo e largura de 390 px.
+
+## Histórico: exportação local de resumos JSON (somente metadados)
+
+O botão **Exportar JSON** gera um arquivo `OMSI-Manager-Resumo-N.json` exclusivamente por ação explícita do usuário. O conteúdo tem esquema versionado, títulos e IDs declarados, jogos, contagem de bloqueios/avisos declarados e os campos obrigatoriamente falsos `installationVerified` / `compatibilityVerified`. Não contém caminhos completos, conteúdo de mods, arquivos de jogos, tempos inventados nem alegações de instalação.
+
+A serialização é pura, valida contagens e limites e recusa entradas inválidas ou relatórios com mais de 64 KiB de JSON. O download usa apenas Blob local, sem chamadas de rede, integração nativa ou permissão de gravação em jogos. Testes cobrem o contrato do JSON, rejeição de dados inválidos, download real no Chromium, ausência de operações e largura de 390 px. O Histórico continua temporário em memória e o arquivo é responsabilidade de quem o exportar.

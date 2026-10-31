@@ -1,5 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {analyzeDeclaredBatch} from '../src/batch-declared-analysis';
+import {serializeDeclaredSessionReport} from '../src/session-report-export';
 import {parseCatalogManifest} from '../src/catalog';
 import type {CatalogMod} from '../src/catalog';
 const mod=(id:string,game:'omsi'|'ets2'|'ats'='omsi',requires:string[]=[],conflictsWith:string[]=[]):CatalogMod=>({
@@ -668,6 +669,57 @@ test('Histórico recupera seleção declarada sem recriar favoritos removidos ne
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(history).toContainText('2 mod(s) declarados');
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('exportação declarativa é JSON sanitizado, limitado e explicitamente não verificado',()=>{
+ const report={id:1,selectedIds:['omsi-bus'],selectedTitles:['Ônibus Urbano Clássico'],
+  selectedCount:1,games:['omsi'] as const,blockers:0,notices:1};
+ const data=JSON.parse(serializeDeclaredSessionReport(report));
+ expect(data).toMatchObject({
+  schema:'omsi-manager-declared-session-report-v1',
+  source:'catalog-declarations',scope:'catalog-metadata-only',
+  reportId:1,selectedMods:[{id:'omsi-bus',title:'Ônibus Urbano Clássico'}],
+  installationVerified:false,compatibilityVerified:false
+ });
+ expect(data.disclaimer).toContain('Nenhum mod foi instalado');
+ expect(Object.keys(data)).not.toContain('filePath');
+ for(const item of [
+  {...report,id:0},{...report,selectedCount:2},
+  {...report,selectedTitles:[]},{...report,selectedIds:['']},
+  {...report,games:['injected'] as any},{...report,blockers:-1},
+  {...report,selectedTitles:['x'.repeat(301)]}
+ ])expect(()=>serializeDeclaredSessionReport(item)).toThrow('DECLARED_SESSION_EXPORT_INVALID');
+});
+test('Histórico exporta JSON sem relatar instalação e sem ler arquivos de jogo',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar resumo 1 em JSON'}).click()
+ ]);
+ expect(download.suggestedFilename()).toBe('OMSI-Manager-Resumo-1.json');
+ const stream=await download.createReadStream();
+ const chunks:Buffer[]=[];
+ for await(const chunk of stream)chunks.push(Buffer.isBuffer(chunk)?chunk:Buffer.from(chunk));
+ const content=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+ expect(content).toMatchObject({
+  reportId:1,selectedCount:1,selectedMods:[{id:'omsi-bus',title:'Ônibus Urbano Clássico'}],
+  installationVerified:false,compatibilityVerified:false,scope:'catalog-metadata-only'
+ });
+ expect(JSON.stringify(content)).not.toContain('filePath');
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'}).locator('li')).toHaveCount(1);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });

@@ -4,6 +4,7 @@ import {matchesCatalogSearch} from './catalog-search';
 import {analyzeModRelations} from './relation-analysis';
 import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
+import {serializeDeclaredSessionReport} from './session-report-export';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -217,6 +218,25 @@ export default function App(){
   setBatchHistory(existing=>existing.some(item=>item.id===report.id)?
    existing:[...existing,report].sort((a,b)=>b.id-a.id).slice(0,10));
   setLastRemovedReport(null);
+ }
+ function exportSessionReport(record:SessionBatchRecord){
+  let url:string|null=null;
+  try{
+   const json=serializeDeclaredSessionReport(record);
+   const blob=new Blob([json],{type:'application/json;charset=utf-8'});
+   url=URL.createObjectURL(blob);
+   const link=document.createElement('a');
+   link.href=url;
+   link.download=`OMSI-Manager-Resumo-${record.id}.json`;
+   document.body.appendChild(link);
+   try{link.click();}finally{link.remove();}
+   // Give the browser time to acquire the Blob for the download.
+   window.setTimeout(()=>URL.revokeObjectURL(url!),10000);
+   url=null;
+  }catch{
+   if(url)URL.revokeObjectURL(url);
+   setToast('Não foi possível exportar este resumo declarativo.');
+  }
  }
  function revisitSessionReport(record:SessionBatchRecord){
   // Metadata only. Reuse existing favorites, never re-add removed mods.
@@ -456,7 +476,7 @@ export default function App(){
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
  {lastRemovedReport&&<div className="session-history-undo" role="status"><span>Resumo temporário excluído desta sessão.</span><button type="button" className="btn secondary" aria-label="Desfazer exclusão do último resumo" onClick={undoRemovedSessionReport}>Desfazer exclusão</button></div>}
  {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><button className="btn secondary" type="button" onClick={()=>{setBatchHistory([]);setLastRemovedReport(null)}}>Limpar resumos da sessão</button></div>
- <ol>{batchHistory.map(record=><li key={record.id}><strong>{record.selectedCount} mod(s) declarados · {record.blockers} bloqueio(s) · {record.notices} aviso(s)</strong><span>{record.games.map(id=>games[id].title).join(' · ')}</span><p>{record.selectedTitles.join(' · ')}</p><small>Somente metadados de catálogo. Instalação e compatibilidade não verificadas.</small><button type="button" className="btn secondary session-history-reopen" aria-label={`Rever seleção do resumo ${record.id}`} onClick={()=>revisitSessionReport(record)}>Rever seleção</button><button type="button" className="btn secondary session-history-remove" aria-label={`Excluir resumo ${record.id} desta sessão`} onClick={()=>removeSessionReport(record)}>Excluir este resumo</button></li>)}</ol></section>}
+ <ol>{batchHistory.map(record=><li key={record.id}><strong>{record.selectedCount} mod(s) declarados · {record.blockers} bloqueio(s) · {record.notices} aviso(s)</strong><span>{record.games.map(id=>games[id].title).join(' · ')}</span><p>{record.selectedTitles.join(' · ')}</p><small>Somente metadados de catálogo. Instalação e compatibilidade não verificadas.</small><button type="button" className="btn secondary session-history-export" aria-label={`Exportar resumo ${record.id} em JSON`} onClick={()=>exportSessionReport(record)}>Exportar JSON</button><button type="button" className="btn secondary session-history-reopen" aria-label={`Rever seleção do resumo ${record.id}`} onClick={()=>revisitSessionReport(record)}>Rever seleção</button><button type="button" className="btn secondary session-history-remove" aria-label={`Excluir resumo ${record.id} desta sessão`} onClick={()=>removeSessionReport(record)}>Excluir este resumo</button></li>)}</ol></section>}
  <div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div><SyntheticDiagnosticPreview/></>}
     {screen==='settings'&&<><div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Preferências visuais salvas localmente neste dispositivo.</p></div><div className="settings-panel"><h3>Aparência</h3><label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label><label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label><div className="divider"/><h3>Plataforma</h3><div className="disabled-integration"><ShieldCheck size={18}/><div><strong>Sistema detectado automaticamente: {osLabel}</strong><small>{runtime?.platformSelection==='automatic'?'Aplicativo portátil com recursos específicos da plataforma, sem configuração manual.':'Somente prévia visual: a identificação nativa exige o aplicativo desktop.'} Instalação e remoção de mods permanecem bloqueadas.</small></div></div><div className="divider"/><h3>Integrações</h3><div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Integração somente leitura</strong><small>Inspeção manual de pastas na tela Jogos, sem instalação ou exclusão</small></div></div></div></>}
     {screen==='security'&&<><div className="page-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>A inspeção local é manual e só conta entradas diretas de pastas conhecidas, sem ler conteúdo de arquivos.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}

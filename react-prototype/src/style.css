@@ -933,3 +933,7 @@
 /* Revisit only still-favorited metadata; no file access or installation. */
 .session-batch-history .session-history-reopen{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:10px 9px 0 0;padding:8px 12px;max-width:100%;white-space:normal;text-align:center}
 .session-batch-history .session-history-reopen:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+
+/* User-requested JSON only; does not imply a mod operation. */
+.session-batch-history .session-history-export{display:inline-flex;align-items:center;justify-content:center;min-height:36px;margin:10px 9px 0 0;padding:8px 12px;max-width:100%;white-space:normal;text-align:center}
+.session-batch-history .session-history-export:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
