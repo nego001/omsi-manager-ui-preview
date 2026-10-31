@@ -1,6 +1,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {assessApparmorAdminReview as assess} from './ubuntu24-app-profile-review.mjs';
+import {assessApparmorAdminReview as rawAssess} from './ubuntu24-app-profile-review.mjs';
+// Existing cases model the confirmed Ubuntu 24.04 permission-denied probe.
+const assess=input=>rawAssess(input&&typeof input==='object'?
+ {namespaceProbe:'permission-denied',...input}:input);
 const sample=(changes={})=>({
  schema:'AUTO_X11_NATIVE_TRIAGE_V1',
  classification:'shared-electron-sandbox-startup-suspected',
@@ -72,4 +75,31 @@ test('conflicting mapped-window signals cannot short-circuit a guarded review',(
  for(const mutation of inputs)
   assert.equal(assess({apparmorRestriction:'enabled',triage:sample(mutation)}).status,
    'insufficient-evidence',JSON.stringify(mutation));
+});
+
+test('AppArmor switch without an independent permission-denied user namespace probe cannot request intervention',()=>{
+ for(const probe of ['unknown','unavailable','injected /home/private/user','',null]){
+  const input={apparmorRestriction:'enabled',triage:sample(),namespaceProbe:probe};
+  const out=rawAssess(input);
+  assert.equal(out.status,'insufficient-evidence');
+  assert.equal(out.administratorApprovalRequired,false);
+  assert.equal(out.apparmorCausalityProven,false);
+  assert.ok(!JSON.stringify(out).includes('/home/private/user'));
+ }
+ const missing=rawAssess({apparmorRestriction:'enabled',triage:sample()});
+ assert.equal(missing.status,'insufficient-evidence');
+ assert.equal(missing.userNamespaceProbe,'unknown');
+});
+test('user namespace permission allowed contradicts AppArmor-namespace-denial hypothesis',()=>{
+ const out=rawAssess({apparmorRestriction:'enabled',namespaceProbe:'allowed',triage:sample()});
+ assert.equal(out.status,'investigate-startup-with-userns-probe-allowed');
+ assert.equal(out.administratorApprovalRequired,false);
+ assert.equal(out.profileLoaded,false);
+});
+test('verified permission-denied category plus two failed Electron controls still requests human review only',()=>{
+ const out=rawAssess({apparmorRestriction:'enabled',namespaceProbe:'permission-denied',triage:sample()});
+ assert.equal(out.status,'request-administrator-review-of-app-specific-userns-policy');
+ assert.equal(out.userNamespaceProbe,'permission-denied');
+ assert.equal(out.apparmorCausalityProven,false);
+ assert.equal(out.actualElectronSandboxCertified,false);
 });

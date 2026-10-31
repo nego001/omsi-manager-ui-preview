@@ -10,6 +10,7 @@ import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
+import {categorizeUnshareFailure} from './auto-x11-host-policy-contract.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  verifyNativeWindowOwner,verifyNativeDesktopResults,
  findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
@@ -19,6 +20,21 @@ if(process.platform!=='linux'||process.getuid?.()===0||!process.env.DISPLAY||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
  throw Error('AUTO_X11_CI_REFUSED');
 
+async function probeCiUserNamespaceCategory(){
+ // Non-root disposable user namespace check, same class as the existing host
+ // probe. It never writes policy, mounts filesystems or logs stderr.
+ try{
+  await execAsync('unshare',['--user','--map-root-user','true'],{
+   encoding:'utf8',timeout:2500,maxBuffer:2048,cwd:'/',
+   env:{PATH:'/usr/bin:/bin',LANG:'C'}
+  });
+  return 'allowed';
+ }catch(error){
+  const category=categorizeUnshareFailure(error);
+  return category==='permission-denied'?'permission-denied':
+   category==='tool-unavailable'?'unavailable':'unknown';
+ }
+}
 async function readApparmorNamespacePolicyCategory(){
  try{
   // Read only an exact kernel switch; never log the raw value.
@@ -249,7 +265,8 @@ try{
     console.error('AUTO_X11_NATIVE_TRIAGE',JSON.stringify(triage));
     console.error('AUTO_X11_APPARMOR_ADMIN_REVIEW',JSON.stringify(
      assessApparmorAdminReview({
-      apparmorRestriction:await readApparmorNamespacePolicyCategory(),triage
+      apparmorRestriction:await readApparmorNamespacePolicyCategory(),
+      namespaceProbe:await probeCiUserNamespaceCategory(),triage
      })
     ));
    }

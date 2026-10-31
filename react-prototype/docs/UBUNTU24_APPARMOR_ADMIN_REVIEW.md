@@ -43,3 +43,11 @@ Todas as respostas incluem `apparmorCausalityProven:false`, `actualElectronSandb
 O contrato de admissão `native-x11-workflow-admission.mjs` também exige o teste de classificação AppArmor no job de compilação e na matriz Ubuntu 22.04/24.04, antes de observar a janela. Mutações sintéticas verificam que não é possível retirar esse teste ou deslocá-lo para depois da coleta de evidências sem tornar a CI vermelha.
 
 O classificador recusa parâmetros malformados e combinações contraditórias de janela/sinal para impedir parecer positivo. Mesmo que todos os contratos passem, **a falha da janela nativa Ubuntu 24.04 permanece bloqueante**. Nenhum teste aplica perfil, altera a política do host ou certifica o sandbox Electron.
+
+## Comprovação independente da negativa do namespace
+
+A triagem agora exige também uma tentativa **não privilegiada e limitada a 2,5 segundos** de criar um namespace temporário, sem montagem, alteração de política ou acesso a jogos. O resultado bruto e o `stderr` são descartados; somente `permission-denied`, `allowed`, `unavailable` ou `unknown` são aceitos. Essa tentativa é realizada somente quando a prova X11 real falha; uma janela aprovada não depende dela.
+
+Com o indicador do AppArmor ativado, só se pede revisão administrativa de política específica quando **ambos** os caminhos Electron falham com `SIGTRAP`, a janela neutra X11 abre e a tentativa independente do namespace retorna `permission-denied`. Se o namespace for permitido, o diagnóstico muda para `investigate-startup-with-userns-probe-allowed`, sem recomendar intervenção AppArmor; se não houver evidência conclusiva, mantém `insufficient-evidence`.
+
+O novo resultado é uma **correlação mais restrita**, não prova causal, e não modifica a obrigação de teste X11 nem o sandbox. Testes sintéticos cobrem negativas, permissões, valores ausentes e entradas maliciosas.

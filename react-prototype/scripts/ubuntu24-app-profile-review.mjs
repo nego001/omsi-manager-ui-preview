@@ -4,8 +4,10 @@
 const allowedPolicy=new Set(['enabled','disabled','unknown','unavailable']);
 export function assessApparmorAdminReview(input={}){
  // Refuse malformed callers without throwing, leaking or making policy claims.
- const {apparmorRestriction,triage}=input&&typeof input==='object'?input:{};
+ const {apparmorRestriction,namespaceProbe,triage}=input&&typeof input==='object'?input:{};
  const policy=allowedPolicy.has(apparmorRestriction)?apparmorRestriction:'unknown';
+ const probe=namespaceProbe==='permission-denied'||namespaceProbe==='allowed'||
+  namespaceProbe==='unavailable'?namespaceProbe:'unknown';
  const realWindow=triage?.schema==='AUTO_X11_NATIVE_TRIAGE_V1'&&
   triage?.classification==='native-auto-window-mapped'&&
   triage?.autoSignal==='none'&&triage?.nativeAutoWindowVerified===true&&triage?.autoMapped===true&&
@@ -18,13 +20,15 @@ export function assessApparmorAdminReview(input={}){
   triage?.autoSignal==='SIGTRAP'&&triage?.directSignal==='SIGTRAP';
  let status='insufficient-evidence';
  if(realWindow)status='native-window-observed-no-policy-change-indicated';
- else if(suspected&&policy==='enabled')
+ else if(suspected&&policy==='enabled'&&probe==='permission-denied')
   status='request-administrator-review-of-app-specific-userns-policy';
+ else if(suspected&&policy==='enabled'&&probe==='allowed')
+  status='investigate-startup-with-userns-probe-allowed';
  else if(suspected&&policy==='disabled')
   status='investigate-startup-without-obvious-apparmor-namespace-restriction';
  return Object.freeze({
   schema:'AUTO_X11_APPARMOR_ADMIN_REVIEW_V1',
-  apparmorRestriction:policy,status,
+  apparmorRestriction:policy,userNamespaceProbe:probe,status,
   administratorApprovalRequired:status==='request-administrator-review-of-app-specific-userns-policy',
   apparmorCausalityProven:false,
   actualElectronSandboxCertified:false,
