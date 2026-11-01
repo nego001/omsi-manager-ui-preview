@@ -77,6 +77,12 @@ export function parseCatalogManifest(raw:string):CatalogMod[]{
   throw new Error('Catálogo deve ser um objeto JSON.');
  const document=input as Record<string,unknown>;
  if(document.schemaVersion!==1)throw new Error('Versão do catálogo incompatível (esperado schemaVersion: 1).');
+ // The top-level manifest is metadata-only too. Do not silently accept
+ // command, file path or installer metadata outside individual mod entries.
+ for(const key of Object.keys(document)){
+  if(key!=='schemaVersion'&&key!=='mods')
+   throw new Error(`Catálogo: campo não permitido na raiz: ${key.slice(0,60)}`);
+ }
  if(!Array.isArray(document.mods)||document.mods.length===0||document.mods.length>MAX_CATALOG_MODS)
   throw new Error('Catálogo precisa conter entre 1 e 200 mods.');
  const seen=new Set<string>();

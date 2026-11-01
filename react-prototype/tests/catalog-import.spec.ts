@@ -62,3 +62,60 @@ test('conteúdo de usuário aparece como texto e não como HTML executável',asy
  await expect(page.getByText('<script>window.hacked=true</script>')).toBeVisible();
  expect(await page.evaluate(()=>('hacked' in window))).toBe(false);
 });
+
+test('manifesto rejeita chaves extras na raiz e não perde o histórico após importação inválida',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const history=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await expect(history).toContainText('Ônibus Urbano Clássico');
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const good=JSON.parse(readFileSync(catalogPath,'utf8'));
+ for(const extra of ['command','modPath','installer','__proto__']){
+  const unsafe=JSON.parse(JSON.stringify(good));
+  Object.defineProperty(unsafe,extra,{value:'ignored-but-forbidden',enumerable:true});
+  await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(
+   file('root-extra.json',JSON.stringify(unsafe)));
+  await expect(page.getByRole('alert')).toContainText('campo não permitido na raiz');
+  await expect(page.getByText('7 resultados')).toBeVisible();
+ }
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(history.locator('li')).toHaveCount(1);
+ await expect(history).toContainText('Ônibus Urbano Clássico');
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(catalogPath);
+ await expect(page.getByText('Importado: catalog.example.json')).toBeVisible();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(history).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Exportar todos os resumos em JSON'})).toHaveCount(0);
+ await expect(page.getByRole('region',{name:'Comparar resumos declarados da sessão'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const imported=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus urbano OF-1721',exact:true})});
+ await imported.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Ônibus urbano OF-1721 para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(history.locator('li')).toHaveCount(1);
+ await expect(history).toContainText('Ônibus urbano OF-1721');
+ await expect(history).not.toContainText('Ônibus Urbano Clássico');
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(history).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

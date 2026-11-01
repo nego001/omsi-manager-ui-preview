@@ -272,3 +272,9 @@ O resultado inclui sempre `installationVerified:false` e `compatibilityVerified:
 A exportação individual agora recusa **IDs de mod duplicados dentro do mesmo resumo**, jogos declarados repetidos, itens sem ID ou título significativo e conjuntos acima do limite de 500 entradas. A exportação conjunta herda essas verificações e recusa o pacote inteiro se algum resumo for inconsistente. Isso evita contagens enganosas ou duplicatas em relatórios apresentados como snapshots únicos do catálogo; não representa uma análise de arquivos instalados.
 
 O fluxo Playwright de comparação com **três relatórios** também verifica escolha manual do par, remoção de um resumo ativo, recuperação por **Desfazer exclusão** e exportações posteriores com IDs consistentes. Favoritos e arquivos reais de jogos não são alterados pela comparação.
+
+## Validação estrita da raiz do catálogo e isolamento dos resumos por origem
+
+O importador aceita somente as duas chaves de raiz `schemaVersion` e `mods`. Campos extras como `command`, `modPath` e `installer` são **recusados**, em vez de silenciosamente ignorados, mantendo o mesmo escopo somente metadados aplicado aos elementos de mod. Isso não significa que os campos antes fossem executados: o risco tratado é de confusão de contrato e de dados supostamente aceitos.
+
+Um teste Playwright valida que um JSON inválido mantém catálogo, favoritos e relatórios existentes; uma importação **válida** limpa os resumos temporários, seleções e favoritos de outro catálogo. Restaurar a demonstração também limpa o histórico da fonte importada. Teste com largura de 390 px. Nenhum arquivo de OMSI, ETS2 ou ATS é lido ou escrito durante essa importação de metadados.
