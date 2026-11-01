@@ -1010,6 +1010,9 @@ test('Comparação mantém um par válido após selecionar e apagar relatórios 
  expect(first.suggestedFilename()).toBe('OMSI-Manager-Comparacao-1-2.json');
  await page.getByRole('button',{name:'Desfazer exclusão do último resumo'}).click();
  await expect(before).toHaveValue('1');
+ // Restoring a deleted report restores the explicitly selected comparison target.
+ await expect(after).toHaveValue('3');
+ await after.selectOption('2');
  await expect(after).toHaveValue('2');
  await after.selectOption('3');
  await expect(after).toHaveValue('3');
