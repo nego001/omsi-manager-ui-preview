@@ -690,7 +690,16 @@ test('exportação declarativa é JSON sanitizado, limitado e explicitamente nã
   {...report,id:0},{...report,selectedCount:2},
   {...report,selectedTitles:[]},{...report,selectedIds:['']},
   {...report,games:['injected'] as any},{...report,blockers:-1},
-  {...report,selectedTitles:['x'.repeat(301)]}
+  {...report,selectedTitles:['x'.repeat(301)]},
+  {...report,selectedCount:2,selectedIds:['omsi-bus','omsi-bus'],
+   selectedTitles:['Ônibus Urbano Clássico','Duplicado']},
+  {...report,games:['omsi','omsi'] as any},
+  {...report,selectedCount:2,selectedIds:['omsi-bus',' '],
+   selectedTitles:['Ônibus Urbano Clássico','Vazio']},
+  {...report,selectedCount:2,selectedIds:['omsi-bus','omsi-map'],
+   selectedTitles:['Ônibus Urbano Clássico','  ']},
+  {...report,selectedCount:501,selectedIds:Array(501).fill('omsi-bus'),
+   selectedTitles:Array(501).fill('Título')}
  ])expect(()=>serializeDeclaredSessionReport(item)).toThrow('DECLARED_SESSION_EXPORT_INVALID');
 });
 test('Histórico exporta JSON sem relatar instalação e sem ler arquivos de jogo',async({page})=>{
@@ -744,6 +753,9 @@ test('arquivo de todos os resumos preserva ordem, metadados e rejeita duplicaç�
  expect(()=>serializeDeclaredSessionArchive(Array.from({length:11},(_,i)=>({...base,id:i+1}))))
   .toThrow('DECLARED_SESSION_ARCHIVE_INVALID');
  expect(()=>serializeDeclaredSessionArchive([{...base,selectedCount:2}]))
+  .toThrow('DECLARED_SESSION_EXPORT_INVALID');
+ expect(()=>serializeDeclaredSessionArchive([{...base,selectedCount:2,
+  selectedIds:['omsi-bus','omsi-bus'],selectedTitles:['Primeiro','Duplicado']}]))
   .toThrow('DECLARED_SESSION_EXPORT_INVALID');
  const tooLarge=Array.from({length:10},(_,i)=>({...base,id:i+1,selectedCount:90,
   selectedIds:Array.from({length:90},(_,j)=>'omsi-'+j),
@@ -954,6 +966,62 @@ test('Histórico baixa comparação JSON local e preserva o sentido após invert
  await page.getByRole('region',{name:'Análises declarativas desta sessão'})
   .getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
  await expect(page.getByRole('button',{name:'Exportar comparação em JSON'})).toHaveCount(0);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('Comparação mantém um par válido após selecionar e apagar relatórios entre três snapshots',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ for(const title of ['Ônibus Urbano Clássico','Serra do Vale']){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const bus=page.getByRole('checkbox',{name:'Selecionar Ônibus Urbano Clássico para análise conjunta'});
+ const map=page.getByRole('checkbox',{name:'Selecionar Serra do Vale para análise conjunta'});
+ await bus.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await bus.uncheck();
+ await map.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await bus.check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const panel=page.getByRole('region',{name:'Comparar resumos declarados da sessão'});
+ const before=panel.getByRole('combobox',{name:'Resumo anterior para comparação'});
+ const after=panel.getByRole('combobox',{name:'Resumo posterior para comparação'});
+ const history=page.getByRole('region',{name:'Análises declarativas desta sessão'});
+ await expect(before).toHaveValue('2');
+ await expect(after).toHaveValue('3');
+ await before.selectOption('1');
+ await expect(before).toHaveValue('1');
+ await expect(after).toHaveValue('3');
+ await history.getByRole('button',{name:'Excluir resumo 3 desta sessão'}).click();
+ await expect(before).toHaveValue('1');
+ await expect(after).toHaveValue('2');
+ const [first]=await Promise.all([page.waitForEvent('download'),
+  panel.getByRole('button',{name:'Exportar comparação em JSON'}).click()]);
+ expect(first.suggestedFilename()).toBe('OMSI-Manager-Comparacao-1-2.json');
+ await page.getByRole('button',{name:'Desfazer exclusão do último resumo'}).click();
+ await expect(before).toHaveValue('1');
+ await expect(after).toHaveValue('2');
+ await after.selectOption('3');
+ await expect(after).toHaveValue('3');
+ await history.getByRole('button',{name:'Excluir resumo 1 desta sessão'}).click();
+ await expect(before).toHaveValue('2');
+ await expect(after).toHaveValue('3');
+ const [second]=await Promise.all([page.waitForEvent('download'),
+  panel.getByRole('button',{name:'Exportar comparação em JSON'}).click()]);
+ expect(second.suggestedFilename()).toBe('OMSI-Manager-Comparacao-2-3.json');
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });

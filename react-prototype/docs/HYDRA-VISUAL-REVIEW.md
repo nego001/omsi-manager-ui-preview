@@ -266,3 +266,9 @@ O botão **Inverter ordem da comparação** permite observar inclusões e exclus
 Na seção de comparação, o botão **Exportar comparação JSON** baixa `OMSI-Manager-Comparacao-A-B.json` apenas por ação explícita. O arquivo versionado registra os IDs e títulos incluídos/retirados, quantidade de IDs preservados e contagens de bloqueios e avisos **declarados** antes/depois, respeitando o sentido selecionado ou invertido.
 
 O resultado inclui sempre `installationVerified:false` e `compatibilityVerified:false`, com aviso de que não reflete arquivos instalados nem alterações reais nos jogos. O serializador independente valida os dois snapshots, recusa IDs duplicados e relatórios iguais e limita o JSON a 64 KiB UTF-8. O download reaproveita o Blob local da exportação individual, sem rede ou IPC. Testes Playwright verificam downloads nos dois sentidos, ausência de atividade de instalação, exclusão de um relatório e largura de 390 px.
+
+## Integridade adicional dos resumos e comparação após exclusão
+
+A exportação individual agora recusa **IDs de mod duplicados dentro do mesmo resumo**, jogos declarados repetidos, itens sem ID ou título significativo e conjuntos acima do limite de 500 entradas. A exportação conjunta herda essas verificações e recusa o pacote inteiro se algum resumo for inconsistente. Isso evita contagens enganosas ou duplicatas em relatórios apresentados como snapshots únicos do catálogo; não representa uma análise de arquivos instalados.
+
+O fluxo Playwright de comparação com **três relatórios** também verifica escolha manual do par, remoção de um resumo ativo, recuperação por **Desfazer exclusão** e exportações posteriores com IDs consistentes. Favoritos e arquivos reais de jogos não são alterados pela comparação.

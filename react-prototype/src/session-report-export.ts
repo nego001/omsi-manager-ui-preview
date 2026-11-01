@@ -11,20 +11,23 @@ export type DeclaredSessionReport={
 const validGame=new Set(['omsi','ets2','ats']);
 export function serializeDeclaredSessionReport(report:DeclaredSessionReport):string{
  if(!report||typeof report!=='object'||!Number.isSafeInteger(report.id)||report.id<1||
-  !Number.isSafeInteger(report.selectedCount)||report.selectedCount<1||
+  !Number.isSafeInteger(report.selectedCount)||report.selectedCount<1||report.selectedCount>500||
   !Array.isArray(report.selectedIds)||!Array.isArray(report.selectedTitles)||
   report.selectedIds.length!==report.selectedCount||
   report.selectedTitles.length!==report.selectedCount||
-  !Array.isArray(report.games)||report.games.length<1||
+  !Array.isArray(report.games)||report.games.length<1||report.games.length>3||
+  new Set(report.games).size!==report.games.length||
   !report.games.every(game=>validGame.has(game))||
   !Number.isSafeInteger(report.blockers)||report.blockers<0||
   !Number.isSafeInteger(report.notices)||report.notices<0)
   throw Error('DECLARED_SESSION_EXPORT_INVALID');
+ const seenIds=new Set<string>();
  const selected=report.selectedIds.map((id,i)=>{
   const title=report.selectedTitles[i];
-  if(typeof id!=='string'||id.length<1||id.length>240||
-   typeof title!=='string'||title.length<1||title.length>300)
+  if(typeof id!=='string'||!id.trim()||id.length>240||seenIds.has(id)||
+   typeof title!=='string'||!title.trim()||title.length>300)
    throw Error('DECLARED_SESSION_EXPORT_INVALID');
+  seenIds.add(id);
   return {id,title};
  });
  // Deliberately omit paths, filenames from the host, timestamps and source
