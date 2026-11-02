@@ -106,3 +106,56 @@ test('resumo separa alertas de todos os favoritos dos resultados filtrados',asyn
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+
+test('atalhos de alertas filtram e desfazem sem apagar favoritos nem alterar outros controles',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ const {sort}=await ready(page);
+ const group=page.getByRole('group',{name:'Atalhos de alertas declarados'});
+ const blockers=group.getByRole('button',{name:'Ver bloqueios declarados'});
+ const notices=group.getByRole('button',{name:'Ver avisos declarados'});
+ const alerts=page.getByRole('combobox',{name:'Filtrar alertas declarados'});
+ await expect(blockers).toHaveAttribute('aria-pressed','false');
+ await expect(notices).toHaveAttribute('aria-pressed','false');
+ await blockers.focus();
+ await page.keyboard.press('Enter');
+ await expect(alerts).toHaveValue('blocking');
+ await expect(blockers).toHaveAttribute('aria-pressed','true');
+ expect(await shown(page)).toEqual(['Zeta Bloqueio','Omega Bloqueio']);
+ await sort.selectOption('alerts');
+ expect(await shown(page)).toEqual(['Omega Bloqueio','Zeta Bloqueio']);
+ await notices.click();
+ await expect(alerts).toHaveValue('attention');
+ await expect(blockers).toHaveAttribute('aria-pressed','false');
+ await expect(notices).toHaveAttribute('aria-pressed','true');
+ expect(await shown(page)).toEqual(['Beta Aviso']);
+ await notices.click();
+ await expect(alerts).toHaveValue('all');
+ await expect(notices).toHaveAttribute('aria-pressed','false');
+ expect(await shown(page)).toEqual(priorities);
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('alfa');
+ await blockers.click();
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ await expect(page.getByRole('textbox',{name:'Buscar favoritos'})).toHaveValue('alfa');
+ await expect(page.getByText('4 favoritos',{exact:false}).first()).toBeVisible();
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(alerts).toHaveValue('all');
+ await expect(sort).toHaveValue('catalog');
+ expect(await shown(page)).toEqual(originals);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('atalhos de alertas sem ocorrências ficam inativos e não alegam compatibilidade',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const group=page.getByRole('group',{name:'Atalhos de alertas declarados'});
+ await expect(group.getByRole('button',{name:'Ver bloqueios declarados'})).toBeDisabled();
+ await expect(group.getByRole('button',{name:'Ver avisos declarados'})).toBeDisabled();
+ await expect(page.getByText('Ausência de alertas declarados não comprova compatibilidade nem instalação.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('combobox',{name:'Filtrar alertas declarados'})).toHaveValue('all');
+});
