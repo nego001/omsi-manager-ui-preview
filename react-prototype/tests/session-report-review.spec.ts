@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {resolve} from 'node:path';
 import {parseDeclaredSessionReview,MAX_SESSION_REVIEW_BYTES} from '../src/session-report-review';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
 
@@ -72,7 +73,18 @@ test('Histórico consulta exportação local sem criar favoritos nem atividades 
  await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
  await expect(section).toContainText('Arquivo consultado: 1 resumo(s) declarado(s)');
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ // Restore exists only after a real (metadata-only) catalog import.
+ await expect(page.getByRole('button',{name:'Restaurar demonstração'})).toHaveCount(0);
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(resolve('examples/catalog.example.json'));
+ await expect(page.getByText('Importado: catalog.example.json')).toBeVisible();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(section).not.toContainText('Arquivo consultado');
+ // The valid import cleared the previous review. Open a new one to test restore.
+ await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
+ await expect(section).toContainText('Arquivo consultado: 1 resumo(s) declarado(s)');
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await expect(page.getByText('Origem: Demonstração')).toBeVisible();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(section).not.toContainText('Arquivo consultado');
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
