@@ -193,3 +193,8 @@ metadados do catálogo**. O estado vazio não duplica a ação, evitando
 dois botões com o mesmo nome acessível. Há testes Playwright de múltiplos
 controles e layout em 390 pixels. A busca e os filtros continuam
 restritos a metadados demonstrativos, não leitura ou instalação de mods.
+
+
+### Continuidade de teclado na Biblioteca e Detalhes (protótipo)
+
+A navegação acionada por botão ou teclado desloca o foco para o conteúdo principal da nova tela, evitando perder o contexto quando o botão anterior é desmontado pelo React. O campo de pesquisa global é exceção explícita: ao entrar no Catálogo por foco, permanece ativo para permitir digitação sem precisar selecioná-lo novamente. Os controles de favorito continuam com ação contextual e recebem uma descrição acessível vinculada ao título do mod, sem alterar os IDs de dados, favoritos ou a instalação. No toque, o alvo de favorito tem pelo menos 44 por 44 pixels. O fluxo é verificado por teste Playwright de teclado; comportamento de leitor de tela físico não é certificado por essa automação. Instalação e remoção permanecem bloqueadas.
