@@ -1022,3 +1022,10 @@
 
 /* Touch-safe target for favorite toggles in catalog and library cards. */
 @media(pointer:coarse){.mod-bottom .icon-btn{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}}
+
+/* Navigate only within the currently visible source list of declared mods. */
+.detail-neighbors{display:flex;gap:12px;align-items:center;justify-content:flex-start;flex-wrap:wrap;min-width:0;margin:16px 0 18px;padding:12px;border:1px solid #414b58;border-radius:10px;background:#1f2731}
+.detail-neighbors span{font-size:12px;color:#d5dfec;text-align:center;font-variant-numeric:tabular-nums;line-height:1.5}
+.detail-neighbors .btn{min-height:42px}
+#detail-mod-title:focus{outline:2px solid #b7cdfc;outline-offset:4px;border-radius:4px}
+@media(max-width:540px){.detail-neighbors{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.detail-neighbors span{grid-column:1 / -1;grid-row:1}.detail-neighbors .btn{width:100%;padding:11px 7px}}
