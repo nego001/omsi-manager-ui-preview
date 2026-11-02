@@ -198,3 +198,10 @@ restritos a metadados demonstrativos, não leitura ou instalação de mods.
 ### Continuidade de teclado na Biblioteca e Detalhes (protótipo)
 
 A navegação acionada por botão ou teclado desloca o foco para o conteúdo principal da nova tela, evitando perder o contexto quando o botão anterior é desmontado pelo React. O campo de pesquisa global é exceção explícita: ao entrar no Catálogo por foco, permanece ativo para permitir digitação sem precisar selecioná-lo novamente. Os controles de favorito continuam com ação contextual e recebem uma descrição acessível vinculada ao título do mod, sem alterar os IDs de dados, favoritos ou a instalação. No toque, o alvo de favorito tem pelo menos 44 por 44 pixels. O fluxo é verificado por teste Playwright de teclado; comportamento de leitor de tela físico não é certificado por essa automação. Instalação e remoção permanecem bloqueadas.
+
+
+### Navegação contextual entre Detalhes sem atravessar filtros
+
+Detalhes agora pode avançar para o mod anterior ou seguinte **somente dentro da lista da origem**: Catálogo respeita jogo, categoria e pesquisa; Biblioteca respeita os favoritos e todos os filtros combinados; Início percorre somente os quatro cartões em destaque. A navegação exibe posição e origem, não muda os filtros e desloca o foco ao título do novo mod para teclado/leitores de tela. O botão de voltar retorna ao cartão de origem quando ele ainda está visível. Se o mod deixou de satisfazer os filtros (por exemplo, após remoção dos favoritos), o componente informa que ele está fora da lista e desabilita os atalhos; o retorno usa o conteúdo principal como foco seguro.
+
+Os testes usam fixtures exclusivamente demonstrativas, incluindo largura de 390 px, escopo de cada lista, remoção de favorito e persistência de filtros. Nenhuma ação inspeciona arquivos do mod, garante compatibilidade ou libera instalação/desinstalação.
