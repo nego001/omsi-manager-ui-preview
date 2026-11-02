@@ -90,13 +90,13 @@ test('resumo separa alertas de todos os favoritos dos resultados filtrados',asyn
  await expect(banner.locator('.library-visible-alerts')).toHaveCount(0);
  const alerts=page.getByRole('combobox',{name:'Filtrar alertas declarados'});
  await alerts.selectOption('blocking');
- await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 2 favoritos exibidos · 2 bloqueio(s) · 0 aviso(s).');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Na visualização filtrada: bloqueios 2 · avisos 0.');
  await sort.selectOption('alerts');
- await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 2 favoritos exibidos · 2 bloqueio(s) · 0 aviso(s).');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Na visualização filtrada: bloqueios 2 · avisos 0.');
  await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('omega');
- await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 1 favorito exibido · 1 bloqueio(s) · 0 aviso(s).');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Na visualização filtrada: bloqueios 1 · avisos 0.');
  await alerts.selectOption('attention');
- await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 0 favoritos exibidos · 0 bloqueio(s) · 0 aviso(s).');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Na visualização filtrada: bloqueios 0 · avisos 0.');
  await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
  await expect(banner).toContainText('2 com bloqueios');
  await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
