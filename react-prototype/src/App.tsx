@@ -363,6 +363,14 @@ export default function App(){
  const focusMainAfterNavigation=useRef(false);
  const focusCardAfterDetails=useRef<string|null>(null);
  const focusFirstLibraryCardAfterReset=useRef(false);
+ const focusLibraryChipIndexAfterRemoval=useRef<number|null>(null);
+ function removeLibraryFilterChip(event:React.MouseEvent<HTMLButtonElement>,reset:()=>void){
+  // A removed chip unmounts immediately; preserve the keyboard position.
+  const siblings=event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button');
+  focusLibraryChipIndexAfterRemoval.current=siblings?
+   Math.max(0,Array.from(siblings).indexOf(event.currentTarget)):0;
+  reset();
+ }
  function resetLibraryFiltersWithFocus(){
   focusFirstLibraryCardAfterReset.current=true;
   resetLibraryControls();
@@ -455,6 +463,17 @@ export default function App(){
   document.getElementById('mod-title-'+libraryMods[0].id)?.focus({preventScroll:true});
  },[screen,libraryMods]);
  useEffect(()=>{
+  if(focusLibraryChipIndexAfterRemoval.current===null||screen!=='library')return;
+  const priorIndex=focusLibraryChipIndexAfterRemoval.current;
+  focusLibraryChipIndexAfterRemoval.current=null;
+  const remaining=document.querySelectorAll<HTMLButtonElement>('.library-active-filters button');
+  const successor=remaining[Math.min(priorIndex,remaining.length-1)];
+  if(successor){successor.focus({preventScroll:true});return;}
+  const card=libraryMods[0]&&document.getElementById('mod-title-'+libraryMods[0].id);
+  if(card instanceof HTMLButtonElement){card.focus({preventScroll:true});return;}
+  document.querySelector<HTMLSelectElement>('.library-toolbar select')?.focus({preventScroll:true});
+ },[screen,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,librarySearch,librarySort,libraryMods]);
+ useEffect(()=>{
   if(screen!=='details'||!focusDetailsTitleAfterStep.current)return;
   focusDetailsTitleAfterStep.current=false;
   document.getElementById('detail-mod-title')?.focus({preventScroll:true});
@@ -516,12 +535,12 @@ export default function App(){
  {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game'|'alerts')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option><option value="alerts">Alertas declarados (bloqueios primeiro)</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryFiltersWithFocus}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
  {favoriteMods.length>0&&activeLibraryControlCount>0&&<div className="library-active-filters" role="group" aria-label="Filtros ativos da biblioteca">
   <span>Filtros ativos:</span>
-  {libraryGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo" onClick={()=>setLibraryGame('all')}>Jogo: {games[libraryGame].title} <span aria-hidden="true">×</span></button>}
-  {libraryCategory!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria" onClick={()=>setLibraryCategory('Todos')}>Categoria: {libraryCategory} <span aria-hidden="true">×</span></button>}
-  {libraryDeclaredStatus!=='all'&&<button type="button" aria-label="Remover filtro de alertas" onClick={()=>setLibraryDeclaredStatus('all')}>Alertas: {{blocking:'Bloqueios declarados',attention:'Avisos declarados','no-issues':'Sem alertas declarados'}[libraryDeclaredStatus]} <span aria-hidden="true">×</span></button>}
-  {libraryOnlySelected&&<button type="button" aria-label="Remover filtro de selecionados" onClick={()=>setLibraryOnlySelected(false)}>Seleção: só marcados <span aria-hidden="true">×</span></button>}
-  {librarySearch.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa" onClick={()=>setLibrarySearch('')}>Busca: {librarySearch.trim()} <span aria-hidden="true">×</span></button>}
-  {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={()=>setLibrarySort('catalog')}>Ordem: {librarySort==='title'?'Nome (A–Z)':librarySort==='game'?'Jogo e nome':'Alertas declarados'} <span aria-hidden="true">×</span></button>}
+  {libraryGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryGame('all'))}>Jogo: {games[libraryGame].title} <span aria-hidden="true">×</span></button>}
+  {libraryCategory!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryCategory('Todos'))}>Categoria: {libraryCategory} <span aria-hidden="true">×</span></button>}
+  {libraryDeclaredStatus!=='all'&&<button type="button" aria-label="Remover filtro de alertas" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryDeclaredStatus('all'))}>Alertas: {{blocking:'Bloqueios declarados',attention:'Avisos declarados','no-issues':'Sem alertas declarados'}[libraryDeclaredStatus]} <span aria-hidden="true">×</span></button>}
+  {libraryOnlySelected&&<button type="button" aria-label="Remover filtro de selecionados" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryOnlySelected(false))}>Seleção: só marcados <span aria-hidden="true">×</span></button>}
+  {librarySearch.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySearch(''))}>Busca: {librarySearch.trim()} <span aria-hidden="true">×</span></button>}
+  {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySort('catalog'))}>Ordem: {librarySort==='title'?'Nome (A–Z)':librarySort==='game'?'Jogo e nome':'Alertas declarados'} <span aria-hidden="true">×</span></button>}
  </div>}
  {favoriteMods.length>0&&<div className="library-declared-alerts" role="note"><AlertTriangle size={16}/><div className="library-alert-content"><span><strong>{libraryAlerts.blocking} com bloqueios</strong> · {libraryAlerts.attention} com avisos no catálogo entre todos os {favoriteMods.length} favoritos.{libraryMods.length!==favoriteMods.length&&<span className="library-visible-alerts">Na visualização filtrada: bloqueios {visibleLibraryAlerts.blocking} · avisos {visibleLibraryAlerts.attention}.</span>} Ausência de alertas declarados não comprova compatibilidade nem instalação.</span><div className="library-alert-actions" role="group" aria-label="Atalhos de alertas declarados"><button type="button" aria-pressed={libraryDeclaredStatus==='blocking'} disabled={libraryAlerts.blocking===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='blocking'?'all':'blocking')}>Ver bloqueios declarados</button><button type="button" aria-pressed={libraryDeclaredStatus==='attention'} disabled={libraryAlerts.attention===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='attention'?'all':'attention')}>Ver avisos declarados</button></div></div></div>}
  {favoriteMods.length>0&&<section className="library-batch" aria-label="Análise conjunta declarativa">
