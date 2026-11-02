@@ -110,6 +110,7 @@ export default function App(){
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
+ const focusDetailsTitleAfterStep=useRef(false);
  const [hypotheticalGameVersion,setHypotheticalGameVersion]=useState('');
  const [catalogMods,setCatalogMods]=useState<Mod[]>(mods);
  const [catalogSource,setCatalogSource]=useState('Demonstração');
@@ -203,6 +204,12 @@ export default function App(){
   return list;
  },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,activeBatch,librarySearch,librarySort,declaredStatuses]);
  // A batch selection survives filtering; reveal selections outside the current view.
+ const detailCandidates=detailOrigin==='library'?libraryMods:
+  detailOrigin==='home'?catalogMods.slice(0,4):filtered;
+ const detailPosition=detailCandidates.findIndex(mod=>mod.id===selectedMod);
+ const detailPrev=detailPosition>0?detailCandidates[detailPosition-1]:null;
+ const detailNext=detailPosition>=0&&detailPosition<detailCandidates.length-1?
+  detailCandidates[detailPosition+1]:null;
  const visibleLibraryIds=new Set(libraryMods.map(mod=>mod.id));
  const hiddenSelectedMods=favoriteMods.filter(mod=>activeBatch.includes(mod.id)&&!visibleLibraryIds.has(mod.id));
  const hiddenBatchCount=hiddenSelectedMods.length;
@@ -344,6 +351,13 @@ export default function App(){
   focusCardAfterDetails.current=selected.id;
   goto(detailOrigin);
  }
+ function stepDetails(nextId:string){
+  if(!detailCandidates.some(mod=>mod.id===nextId))return;
+  focusDetailsTitleAfterStep.current=true;
+  setSelectedMod(nextId);
+  setHypotheticalGameVersion('');
+  setDetailFocus('overview');
+ }
  function openDeclaredDiagnostic(id:string){setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
  async function importCatalogFile(event:React.ChangeEvent<HTMLInputElement>){
@@ -402,6 +416,11 @@ export default function App(){
   }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
+ useEffect(()=>{
+  if(screen!=='details'||!focusDetailsTitleAfterStep.current)return;
+  focusDetailsTitleAfterStep.current=false;
+  document.getElementById('detail-mod-title')?.focus({preventScroll:true});
+ },[screen,selectedMod]);
  useEffect(()=>{
   if(screen!=='details'||detailFocus!=='relations')return;
   const target=document.getElementById('relacoes-declaradas');
@@ -495,7 +514,11 @@ export default function App(){
  <SyntheticGateLab/>
  <FixtureCrossPackageLab/>
  </>}
-    {screen==='details'&&<><button className="back" onClick={returnFromDetails}><ArrowLeft size={17}/> {detailOrigin==='library'?'Voltar à biblioteca':detailOrigin==='home'?'Voltar ao início':'Voltar ao catálogo'}</button><div className="detail-layout"><div className="detail-art"><ModArtwork mod={selected}/><p className="detail-image-note">Arte ilustrativa do catálogo, não é uma imagem extraída deste mod.</p></div><div className="detail-copy"><span className="eyebrow">{games[selected.game].title} / {selected.category}</span><h1>{selected.title}</h1><p>{selected.description}</p><div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
+    {screen==='details'&&<><button className="back" onClick={returnFromDetails}><ArrowLeft size={17}/> {detailOrigin==='library'?'Voltar à biblioteca':detailOrigin==='home'?'Voltar ao início':'Voltar ao catálogo'}</button><div className="detail-layout"><div className="detail-art"><ModArtwork mod={selected}/><p className="detail-image-note">Arte ilustrativa do catálogo, não é uma imagem extraída deste mod.</p></div><div className="detail-copy"><span className="eyebrow">{games[selected.game].title} / {selected.category}</span><h1 id="detail-mod-title" tabIndex={-1}>{selected.title}</h1><p>{selected.description}</p><nav className="detail-neighbors" aria-label="Navegar pelos mods da lista atual">
+  <button type="button" className="btn secondary" disabled={!detailPrev} aria-label={detailPrev?`Mod anterior: ${detailPrev.title}`:'Sem mod anterior'} onClick={()=>detailPrev&&stepDetails(detailPrev.id)}>Anterior</button>
+  <span aria-live="polite">{detailPosition>=0?`${detailPosition+1} de ${detailCandidates.length}`:'Fora dos filtros atuais'} · {detailOrigin==='library'?'Biblioteca':detailOrigin==='home'?'Destaques':'Catálogo'}</span>
+  <button type="button" className="btn secondary" disabled={!detailNext} aria-label={detailNext?`Próximo mod: ${detailNext.title}`:'Sem próximo mod'} onClick={()=>detailNext&&stepDetails(detailNext.id)}>Próximo</button>
+ </nav><div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
  <section className="detail-checklist" aria-label="Etapas de verificação do mod">
   <div className="detail-checklist-heading"><div><span className="eyebrow">ESTADO DA ANÁLISE</span><h2>O que já sabemos sobre este mod</h2></div><span className="detail-checklist-mode"><LockKeyhole size={14}/> Somente leitura</span></div>
   <div className="detail-checklist-grid">
