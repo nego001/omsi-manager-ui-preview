@@ -12,7 +12,9 @@ const {requireGameId}=require('../electron/game-inspection.cjs');
 const invokeNative=promisify(execFile);
 const NATIVE_SCRIPT=join(__dirname,'temp-native-directory-enum.ps1');
 const MAX_STDOUT=4096;
-const TIMEOUT_MS=15000;
+// Test-only PowerShell startup can contend on hosted Windows runners.
+// Keep a strict finite timeout; this helper is excluded from packaged apps.
+const TIMEOUT_MS=30000;
 const NATIVE_KEYS=Object.freeze([
  'source','outcome','nativeDirectoryHandleUsed','nativeDirectoryEnumerationByHandle',
  'nativeFileIdChecked','targetIsSynthetic','entries','directories','files',
