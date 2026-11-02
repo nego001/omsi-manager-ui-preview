@@ -144,6 +144,9 @@ export default function App(){
  const [compareAfterId,setCompareAfterId]=useState<number|null>(null);
  const [lastRemovedReport,setLastRemovedReport]=useState<SessionBatchRecord|null>(null);
  const nextSessionReportId=useRef(1);
+ // Invalidate stale asynchronous File.text() completions after a new choice/reset.
+ const reviewReadGeneration=useRef(0);
+ const catalogReadGeneration=useRef(0);
  // Automatically choose the two most recent *distinct* stored reports.
  // Explicit selections remain stable while their reports exist.
  const compareAfterReport=batchHistory.find(r=>r.id===compareAfterId)??batchHistory[0];
@@ -303,9 +306,11 @@ export default function App(){
   const file=event.currentTarget.files?.[0];
   event.currentTarget.value='';
   if(!file)return;
+  const generation=++reviewReadGeneration.current;
   try{
    if(file.size>MAX_SESSION_REVIEW_BYTES)throw Error('SESSION_REVIEW_TOO_LARGE');
    const raw=await file.text();
+   if(generation!==reviewReadGeneration.current)return;
    let parsed:unknown;
    try{parsed=JSON.parse(raw);}catch{throw Error('SESSION_REVIEW_INVALID_JSON');}
    const schema=parsed!==null&&typeof parsed==='object'&&!Array.isArray(parsed)?
@@ -321,6 +326,7 @@ export default function App(){
    setReviewBeforeId(null);setReviewAfterId(null);
    setReviewError('');
   }catch(error){
+   if(generation!==reviewReadGeneration.current)return;
    const code=error instanceof Error?error.message:'SESSION_REVIEW_INVALID';
    setReviewError(code==='SESSION_REVIEW_TOO_LARGE'?
     'Arquivo excede o limite de 128 KiB.':
@@ -364,9 +370,13 @@ export default function App(){
   const file=event.currentTarget.files?.[0];
   event.currentTarget.value='';
   if(!file)return;
+  const generation=++catalogReadGeneration.current;
   try{
    if(file.size>MAX_CATALOG_BYTES)throw new Error('Arquivo excede 1 MB.');
-   const next=parseCatalogManifest(await file.text());
+   const raw=await file.text();
+   if(generation!==catalogReadGeneration.current)return;
+   const next=parseCatalogManifest(raw);
+   ++reviewReadGeneration.current;
    setCatalogMods(next);setHypotheticalGameVersion('');
    setCatalogSource('Importado: '+file.name.slice(0,85));
    setCatalogError('');
@@ -375,6 +385,7 @@ export default function App(){
    setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
+   if(generation!==catalogReadGeneration.current)return;
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
    setCatalogError(message.slice(0,240));
   }
@@ -390,6 +401,8 @@ export default function App(){
   }finally{setInspecting(null)}
  }
  function restoreDemo(){
+  ++catalogReadGeneration.current;
+  ++reviewReadGeneration.current;
   setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
@@ -610,7 +623,7 @@ export default function App(){
   {reviewedComparisonFile&&<section className="session-comparison-review" aria-label="Consulta de comparação JSON exportada">
    <div className="session-import-summary">
     <strong>Comparação JSON consultada: resumo {reviewedComparisonFile.beforeReportId} → resumo {reviewedComparisonFile.afterReportId}</strong>
-    <button type="button" className="btn secondary" onClick={()=>{setReviewedComparisonFile(null);setReviewError('')}}>Descartar comparação consultada</button>
+    <button type="button" className="btn secondary" onClick={()=>{++reviewReadGeneration.current;setReviewedComparisonFile(null);setReviewError('')}}>Descartar comparação consultada</button>
    </div>
    <p>Origem {reviewedComparisonFile.source==='external-json-unverified'?'comparação externa':'exportação de sessão'} não autenticada. Ordem cronológica não verificada. Não comprova instalação nem compatibilidade.</p>
    <div className="session-import-compare-stats" role="group" aria-label="Diferenças da comparação JSON">
@@ -627,7 +640,7 @@ export default function App(){
    <small>Arquivo tratado apenas como dados declarados. Nenhum histórico real, favorito, instalação ou mod foi alterado.</small>
   </section>}
   {reviewedFile&&<div className="session-import-results">
-   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('')}}>Descartar consulta</button></div>
+   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{++reviewReadGeneration.current;setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('')}}>Descartar consulta</button></div>
    <p>Origem externa não autenticada. Instalação e compatibilidade não verificadas. Estes dados não são atividades do sistema.</p>
    <ol>{reviewedFile.reports.map((record,index)=><li key={index}><strong>Resumo {record.reportId} · {record.selectedCount} mod(s) declarados</strong><span>{record.declaredGames.map(game=>games[game].title).join(' · ')} · {record.declaredBlockers} bloqueio(s) · {record.declaredWarnings} aviso(s)</span><ul>{record.selectedMods.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul></li>)}</ol>
    {reviewedComparison&&<section className="session-import-comparison" aria-label="Comparação de resumos do arquivo consultado">
