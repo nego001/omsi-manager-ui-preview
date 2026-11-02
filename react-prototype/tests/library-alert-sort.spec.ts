@@ -1,0 +1,81 @@
+import {test,expect,type Page} from '@playwright/test';
+
+// All records are fictitious catalog metadata: no file content or installations.
+const sample={
+ schemaVersion:1,
+ mods:[
+  {id:'clean',title:'Alfa Limpo',game:'omsi',category:'Ônibus',version:'1.0',description:'Sem relações declaradas.',size:'10 MB'},
+  {id:'notice',title:'Beta Aviso',game:'omsi',category:'Ônibus',version:'1.0',description:'Alerta apenas declarativo.',size:'20 MB',conflictsWith:['absent-other']},
+  {id:'block-z',title:'Zeta Bloqueio',game:'omsi',category:'Ônibus',version:'1.0',description:'Dependência não fornecida.',size:'30 MB',requires:['missing-z']},
+  {id:'block-o',title:'Omega Bloqueio',game:'omsi',category:'Ônibus',version:'1.0',description:'Dependência não fornecida.',size:'40 MB',requires:['missing-o']}
+ ]
+};
+const originals=['Alfa Limpo','Beta Aviso','Zeta Bloqueio','Omega Bloqueio'];
+const priorities=['Omega Bloqueio','Zeta Bloqueio','Beta Aviso','Alfa Limpo'];
+async function ready(page:Page){
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'metadata-only.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(sample))
+ });
+ await expect(page.getByText('Origem: Importado: metadata-only.json')).toBeVisible();
+ for(const title of originals){
+  const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+  await card.getByRole('button',{name:'Favoritar'}).click();
+ }
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByText('4 favoritos exibidos')).toBeVisible();
+ return {nav,sort:page.getByRole('combobox',{name:'Ordenar biblioteca'})};
+}
+const shown=(page:Page)=>page.locator('.mod-grid .mod-card .text-button').allTextContents();
+
+test('prioridade dos alertas é declarativa, estável e reversível com chips em 390 px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ const {sort}=await ready(page);
+ expect(await shown(page)).toEqual(originals);
+ await sort.selectOption('alerts');
+ expect(await shown(page)).toEqual(priorities);
+ await expect(page.locator('.mod-card .library-mod-status')).toHaveCount(4);
+ expect(await page.locator('.mod-card .library-mod-status').allTextContents()).toEqual([
+  'Bloqueios declarados · não verificado',
+  'Bloqueios declarados · não verificado',
+  'Avisos declarados · não verificado',
+  'Sem alertas declarados · não verificado'
+ ]);
+ const chips=page.getByRole('group',{name:'Filtros ativos da biblioteca'});
+ await expect(chips).toContainText('Ordem: Alertas declarados');
+ await expect(page.getByRole('button',{name:'Limpar filtros da biblioteca'})).toContainText('(1)');
+ await chips.getByRole('button',{name:'Remover filtro de ordenação'}).click();
+ await expect(sort).toHaveValue('catalog');
+ expect(await shown(page)).toEqual(originals);
+ await sort.selectOption('alerts');
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(sort).toHaveValue('catalog');
+ expect(await shown(page)).toEqual(originals);
+ await expect(page.getByText('4 favoritos exibidos')).toBeVisible();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('Detalhes percorre favoritos pela ordem de prioridade declarada, sem liberar instalação',async({page})=>{
+ const {sort}=await ready(page);
+ await sort.selectOption('alerts');
+ await page.getByRole('button',{name:'Omega Bloqueio',exact:true}).click();
+ const scope=page.getByRole('navigation',{name:'Navegar pelos mods da lista atual'});
+ await expect(scope).toContainText('1 de 4 · Biblioteca');
+ await scope.getByRole('button',{name:'Próximo mod: Zeta Bloqueio'}).click();
+ await expect(page.getByRole('heading',{name:'Zeta Bloqueio',exact:true})).toBeFocused();
+ await scope.getByRole('button',{name:'Próximo mod: Beta Aviso'}).click();
+ await expect(page.getByRole('heading',{name:'Beta Aviso',exact:true})).toBeFocused();
+ await scope.getByRole('button',{name:'Próximo mod: Alfa Limpo'}).click();
+ await expect(scope).toContainText('4 de 4 · Biblioteca');
+ await expect(scope.getByRole('button',{name:'Sem próximo mod'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Alfa Limpo',exact:true})).toBeFocused();
+ expect(await shown(page)).toEqual(priorities);
+ await expect(sort).toHaveValue('alerts');
+ await expect(page.getByText('Arquivos dos mods não inspecionados. Status real desconhecido.')).toBeVisible();
+});
