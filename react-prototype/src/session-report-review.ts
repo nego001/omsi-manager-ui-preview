@@ -106,3 +106,30 @@ export function compareReviewedDeclaredReports(before:ReviewedDeclaredReport,
  });
  return compareDeclaredSessionReports(asSnapshot(before),asSnapshot(after));
 }
+
+/** Save a comparison of externally supplied metadata without claiming provenance. */
+export function serializeReviewedDeclaredComparison(before:ReviewedDeclaredReport,
+ after:ReviewedDeclaredReport):string{
+ const diff=compareReviewedDeclaredReports(before,after);
+ const content={
+  schema:'omsi-manager-external-declared-comparison-v1',
+  source:'external-json-unverified',
+  scope:diff.scope,
+  beforeReportId:diff.beforeId,
+  afterReportId:diff.afterId,
+  addedSelectedMods:diff.added,
+  removedSelectedMods:diff.removed,
+  unchangedSelectedCount:diff.unchangedCount,
+  declaredBlockers:{before:diff.blockersBefore,after:diff.blockersAfter,delta:diff.blockersDelta},
+  declaredWarnings:{before:diff.noticesBefore,after:diff.noticesAfter,delta:diff.noticesDelta},
+  sourceAuthenticated:false,
+  chronologicalOrderVerified:false,
+  installationVerified:false,
+  compatibilityVerified:false,
+  disclaimer:'Comparação de metadados JSON externos não autenticados. Não atesta ordem cronológica, instalação, atualização ou compatibilidade.'
+ };
+ const json=JSON.stringify(content,null,2)+'\n';
+ if(new TextEncoder().encode(json).byteLength>65536)
+  throw Error('SESSION_REVIEW_COMPARISON_TOO_LARGE');
+ return json;
+}
