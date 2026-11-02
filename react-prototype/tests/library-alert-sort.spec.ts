@@ -79,3 +79,30 @@ test('Detalhes percorre favoritos pela ordem de prioridade declarada, sem libera
  await expect(sort).toHaveValue('alerts');
  await expect(page.getByText('Arquivos dos mods não inspecionados. Status real desconhecido.')).toBeVisible();
 });
+
+
+test('resumo separa alertas de todos os favoritos dos resultados filtrados',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ const {sort}=await ready(page);
+ const banner=page.locator('.library-declared-alerts');
+ await expect(banner).toContainText('2 com bloqueios');
+ await expect(banner).toContainText('1 com avisos no catálogo entre todos os 4 favoritos');
+ await expect(banner.locator('.library-visible-alerts')).toHaveCount(0);
+ const alerts=page.getByRole('combobox',{name:'Filtrar alertas declarados'});
+ await alerts.selectOption('blocking');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 2 favoritos exibidos · 2 bloqueio(s) · 0 aviso(s).');
+ await sort.selectOption('alerts');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 2 favoritos exibidos · 2 bloqueio(s) · 0 aviso(s).');
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('omega');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 1 favorito exibido · 1 bloqueio(s) · 0 aviso(s).');
+ await alerts.selectOption('attention');
+ await expect(banner.locator('.library-visible-alerts')).toHaveText('Após filtros: 0 favoritos exibidos · 0 bloqueio(s) · 0 aviso(s).');
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ await expect(banner).toContainText('2 com bloqueios');
+ await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
+ await expect(banner.locator('.library-visible-alerts')).toHaveCount(0);
+ await expect(page.getByText('4 favoritos exibidos')).toBeVisible();
+ await expect(sort).toHaveValue('catalog');
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
