@@ -226,3 +226,10 @@ A nova ordenação respeita jogo, categoria, estado, pesquisa e seleção visív
 A faixa de alertas da Biblioteca distingue explicitamente a contagem geral, referente a **todos os favoritos**, das contagens de bloqueios e avisos **entre os cartões visíveis** quando algum filtro elimina resultados. Os valores filtrados são calculados a partir da mesma lista usada na renderização dos cartões, portanto respeitam jogo, categoria, estado, pesquisa e seleção. A simples ordenação não muda as contagens. Quando os filtros deixam zero resultados, o resumo informa zero exibidos, sem apagar ou reclassificar favoritos. Quando todos os favoritos estão visíveis, a linha adicional desaparece para evitar números duplicados. A terminologia permanece "declarado": nenhum número comprova instalação, atualização ou compatibilidade real.
 
 Há teste Playwright com metadados fictícios, combinação de filtros, lista vazia, limpeza e largura de 390 pixels.
+
+
+### Atalhos para investigar alertas da Biblioteca
+
+A faixa de alertas agora oferece **Ver bloqueios declarados** e **Ver avisos declarados**. Cada botão modifica exclusivamente o filtro de alertas existente, preservando jogo, categoria, pesquisa, ordenação e seleção conjunta. Pressionar de novo o atalho ativo restaura `Todos os estados do catálogo`; escolher o outro alterna imediatamente o filtro. O atributo acessível `aria-pressed` acompanha o estado atual do filtro, inclusive quando o usuário usa o seletor convencional. Botões sem nenhuma ocorrência no total de favoritos ficam desabilitados. A visualização estreita dispõe os dois atalhos em linhas próprias e oferece alvo de toque de 44 pixels.
+
+Os atalhos usam exclusivamente a classificação de **relações declaradas no JSON**, não uma verificação real de mods, arquivos, ativação ou compatibilidade. Os testes Playwright cobrem teclado, alternância, limpeza, ausência de alertas, lista vazia por combinação de filtros e largura de 390 pixels. As ações de instalar e remover não mudam.
