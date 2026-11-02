@@ -6,7 +6,7 @@ import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from './session-report-export';
 import {compareDeclaredSessionReports,serializeDeclaredSessionComparison} from './session-report-compare';
-import {parseDeclaredSessionReview,compareReviewedDeclaredReports,MAX_SESSION_REVIEW_BYTES,type ReviewedDeclaredFile} from './session-report-review';
+import {parseDeclaredSessionReview,compareReviewedDeclaredReports,serializeReviewedDeclaredComparison,MAX_SESSION_REVIEW_BYTES,type ReviewedDeclaredFile} from './session-report-review';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -282,6 +282,14 @@ export default function App(){
     `OMSI-Manager-Comparacao-${compareBeforeReport.id}-${compareAfterReport.id}.json`);
   }catch{setToast('Não foi possível exportar esta comparação declarativa.');}
  }
+ function exportReviewedComparison(){
+  if(!reviewedBeforeReport||!reviewedAfterReport)return;
+  try{
+   const json=serializeReviewedDeclaredComparison(reviewedBeforeReport,reviewedAfterReport);
+   downloadDeclaredJson(json,
+    `OMSI-Manager-Comparacao-Externa-${reviewedBeforeReport.reportId}-${reviewedAfterReport.reportId}.json`);
+  }catch{setToast('Não foi possível exportar esta comparação externa de metadados.');}
+ }
  async function openDeclaredExport(event:React.ChangeEvent<HTMLInputElement>){
   const file=event.currentTarget.files?.[0];
   event.currentTarget.value='';
@@ -555,9 +563,12 @@ export default function App(){
       {reviewedFile.reports.filter(r=>r.reportId!==reviewedComparison.beforeId).map(r=><option key={r.reportId} value={r.reportId}>Resumo {r.reportId}</option>)}
      </select></label>
     </div>
-    <button type="button" className="btn secondary session-import-compare-swap" onClick={()=>{
-     setReviewBeforeId(reviewedComparison.afterId);setReviewAfterId(reviewedComparison.beforeId);
-    }}>Inverter comparação do arquivo</button>
+    <div className="session-import-compare-actions">
+     <button type="button" className="btn secondary session-import-compare-swap" onClick={()=>{
+      setReviewBeforeId(reviewedComparison.afterId);setReviewAfterId(reviewedComparison.beforeId);
+     }}>Inverter comparação do arquivo</button>
+     <button type="button" className="btn secondary" onClick={exportReviewedComparison}>Exportar comparação externa JSON</button>
+    </div>
     <div className="session-import-compare-stats" role="group" aria-label="Diferenças do arquivo consultado">
      <span>Entraram na seleção: <strong>{reviewedComparison.added.length}</strong></span>
      <span>Saíram da seleção: <strong>{reviewedComparison.removed.length}</strong></span>
