@@ -254,3 +254,10 @@ Dois testes Playwright verificam a ação por Enter a 390 px, foco resultante, i
 O botão **Limpar filtros** no topo da Biblioteca desaparece quando a coleção retorna ao estado padrão. Sem redirecionamento, usuários de teclado poderiam perder a posição de navegação. Tanto esse controle quanto o botão **Mostrar todos os favoritos** do estado vazio agora compartilham a mesma ação acessível: restauram jogo, categoria, alertas, ordenação, busca e opção "só selecionados", sem remover favoritos ou desfazer a seleção conjunta, e depois focam o título do primeiro cartão visível na ordem padrão. O efeito de foco é acionado somente após a lista voltar a existir e não tenta focar cartões enquanto a Biblioteca não está na tela.
 
 Dois testes Playwright verificam Enter no botão da barra em 390 px, ausência de rolagem horizontal, reset apenas da ordenação, continuidade dos favoritos e preservação da seleção. Não há leitura de arquivos reais nem alteração de instalação ou das restrições do Electron.
+
+
+### Remoção de chips de filtro com continuidade de foco
+
+A Biblioteca possui chips que desaparecem após a remoção de um filtro individual. A ação no teclado agora registra a posição do chip antes da atualização: o foco vai para o próximo chip ainda presente, ou para o anterior se o último da fila foi removido. Quando não restam chips ativos, o foco é devolvido ao título do primeiro favorito exibido; se a combinação ainda não mostrar nenhum cartão, usa o primeiro seletor da barra de filtros como alternativa. O fluxo usa os mesmos setters de filtro, sem apagar favoritos, seleção de análise ou relatórios declarativos.
+
+Dois testes Playwright verificam a navegação por Enter/Space, o foco sucessor/antecessor, o fim da fila, a continuidade da seleção conjunta e o layout a 390 px. O sandbox, as permissões e o escopo de metadados demonstrativos não mudam.
