@@ -1,6 +1,7 @@
 import {test,expect} from '@playwright/test';
 import {resolve} from 'node:path';
-import {parseDeclaredSessionReview,compareReviewedDeclaredReports,MAX_SESSION_REVIEW_BYTES} from '../src/session-report-review';
+import {readFileSync} from 'node:fs';
+import {parseDeclaredSessionReview,compareReviewedDeclaredReports,serializeReviewedDeclaredComparison,MAX_SESSION_REVIEW_BYTES} from '../src/session-report-review';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
 
 const base={id:1,selectedIds:['omsi-bus'],selectedTitles:['Ônibus Urbano Clássico'],
@@ -146,6 +147,67 @@ test('Histórico compara coleção JSON na largura de 390 px, sem criar atividad
  await expect(comparison).toHaveCount(0);
  await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
  await expect(comparison).toHaveCount(0);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('exportação de comparação externa preserva origem não autenticada e somente metadados',()=>{
+ const reports=parseDeclaredSessionReview(serializeDeclaredSessionArchive([base,next])).reports;
+ const original=JSON.stringify(reports);
+ const result=JSON.parse(serializeReviewedDeclaredComparison(reports[0],reports[1]));
+ expect(result).toMatchObject({
+  schema:'omsi-manager-external-declared-comparison-v1',
+  source:'external-json-unverified',scope:'catalog-metadata-only',
+  beforeReportId:1,afterReportId:2,
+  addedSelectedMods:[{id:'ets2-engine',title:'Pacote de som ETS2'}],
+  removedSelectedMods:[],unchangedSelectedCount:1,
+  declaredBlockers:{before:0,after:2,delta:2},
+  declaredWarnings:{before:1,after:0,delta:-1},
+  sourceAuthenticated:false,chronologicalOrderVerified:false,
+  installationVerified:false,compatibilityVerified:false
+ });
+ expect(Object.keys(result)).not.toContain('modPath');
+ expect(Object.keys(result)).not.toContain('installationState');
+ expect(()=>parseDeclaredSessionReview(JSON.stringify(result)))
+  .toThrow('SESSION_REVIEW_UNSUPPORTED_SCHEMA');
+ expect(()=>serializeReviewedDeclaredComparison(reports[0],reports[0]))
+  .toThrow('SESSION_COMPARISON_SAME_REPORT');
+ expect(JSON.stringify(reports)).toBe(original);
+});
+
+test('download da comparação externa é JSON com procedência distinta e não gera histórico',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const section=page.getByRole('region',{name:'Consulta de arquivos exportados'});
+ const input=section.getByLabel('Arquivo JSON de resumos exportados');
+ await input.setInputFiles(upload(serializeDeclaredSessionArchive([base,next])));
+ const comparison=section.getByRole('region',{name:'Comparação de resumos do arquivo consultado'});
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  comparison.getByRole('button',{name:'Exportar comparação externa JSON'}).click()
+ ]);
+ expect(download.suggestedFilename()).toBe('OMSI-Manager-Comparacao-Externa-1-2.json');
+ const json=JSON.parse(readFileSync(await download.path(),'utf8'));
+ expect(json).toMatchObject({
+  source:'external-json-unverified',beforeReportId:1,afterReportId:2,
+  sourceAuthenticated:false,chronologicalOrderVerified:false,
+  installationVerified:false,compatibilityVerified:false
+ });
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await comparison.getByRole('button',{name:'Inverter comparação do arquivo'}).click();
+ const [reversed]=await Promise.all([
+  page.waitForEvent('download'),
+  comparison.getByRole('button',{name:'Exportar comparação externa JSON'}).click()
+ ]);
+ expect(reversed.suggestedFilename()).toBe('OMSI-Manager-Comparacao-Externa-2-1.json');
+ const reverseJSON=JSON.parse(readFileSync(await reversed.path(),'utf8'));
+ expect(reverseJSON.removedSelectedMods).toEqual([{id:'ets2-engine',title:'Pacote de som ETS2'}]);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
