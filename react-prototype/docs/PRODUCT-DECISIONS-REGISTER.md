@@ -205,3 +205,10 @@ A navegação acionada por botão ou teclado desloca o foco para o conteúdo pri
 Detalhes agora pode avançar para o mod anterior ou seguinte **somente dentro da lista da origem**: Catálogo respeita jogo, categoria e pesquisa; Biblioteca respeita os favoritos e todos os filtros combinados; Início percorre somente os quatro cartões em destaque. A navegação exibe posição e origem, não muda os filtros e desloca o foco ao título do novo mod para teclado/leitores de tela. O botão de voltar retorna ao cartão de origem quando ele ainda está visível. Se o mod deixou de satisfazer os filtros (por exemplo, após remoção dos favoritos), o componente informa que ele está fora da lista e desabilita os atalhos; o retorno usa o conteúdo principal como foco seguro.
 
 Os testes usam fixtures exclusivamente demonstrativas, incluindo largura de 390 px, escopo de cada lista, remoção de favorito e persistência de filtros. Nenhuma ação inspeciona arquivos do mod, garante compatibilidade ou libera instalação/desinstalação.
+
+
+### Consistência de importações JSON assíncronas (interface)
+
+As consultas temporárias de JSON (resumos e comparações) e o catálogo demonstrativo usam leitura assíncrona de `File.text()`. A escolha de um novo arquivo invalida conclusões atrasadas de escolhas anteriores. Descartar uma consulta, restaurar a demonstração ou aceitar um novo catálogo impede que uma leitura anterior recrie dados já descartados, mesmo se o navegador devolver o conteúdo depois. A restauração também cancela a aplicação de importação de catálogo ainda pendente. Arquivos inválidos continuam sem substituir a última consulta válida, desde que a ação não tenha sido descartada. Essa proteção é local, não altera o formato dos exports, não persiste arquivos nem modifica jogos.
+
+Quatro cenários Playwright simulam leituras atrasadas: descartar consulta, escolher outra, aceitar catálogo e restaurar demonstração. O bloqueio da CI Ubuntu 24.04 continua independente desta correção.
