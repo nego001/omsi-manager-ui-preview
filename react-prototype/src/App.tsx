@@ -317,7 +317,7 @@ export default function App(){
    const code=error instanceof Error?error.message:'SESSION_REVIEW_INVALID';
    setReviewError(code==='SESSION_REVIEW_TOO_LARGE'?
     'Arquivo excede o limite de 128 KiB.':
-    'Arquivo incompatível ou adulterado. Apenas resumos JSON declarados e não verificados são aceitos.');
+    'Arquivo incompatível ou adulterado. Apenas resumos, coleções e comparações JSON declarativas são aceitos.');
   }
  }
  function revisitSessionReport(record:SessionBatchRecord){
