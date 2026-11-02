@@ -2,6 +2,7 @@
 // Never imports into session history, favorites, installation state, IPC or disk.
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive,
  type DeclaredSessionReport} from './session-report-export';
+import {compareDeclaredSessionReports,type SessionComparisonResult} from './session-report-compare';
 
 export const MAX_SESSION_REVIEW_BYTES=131072;
 export type ReviewedDeclaredReport={
@@ -90,4 +91,18 @@ export function parseDeclaredSessionReview(raw:string):ReviewedDeclaredFile{
   }));
  return {kind,reports:records,scope:'catalog-metadata-only',
   installationVerified:false,compatibilityVerified:false};
+}
+
+/** Compare untrusted, already validated exported metadata without merging it into history. */
+export function compareReviewedDeclaredReports(before:ReviewedDeclaredReport,
+ after:ReviewedDeclaredReport):SessionComparisonResult{
+ const asSnapshot=(record:ReviewedDeclaredReport)=>({
+  id:record.reportId,
+  selectedIds:record.selectedMods.map(mod=>mod.id),
+  selectedTitles:record.selectedMods.map(mod=>mod.title),
+  selectedCount:record.selectedCount,
+  blockers:record.declaredBlockers,
+  notices:record.declaredWarnings
+ });
+ return compareDeclaredSessionReports(asSnapshot(before),asSnapshot(after));
 }
