@@ -219,3 +219,10 @@ Quatro cenários Playwright simulam leituras atrasadas: descartar consulta, esco
 A Biblioteca oferece a ordenação opcional **Alertas declarados (bloqueios primeiro)**. Ela consulta os mesmos resultados de metadados já exibidos nos cartões, priorizando `blocking`, depois `attention` e, por último, `no-issues`. Empates são resolvidos pelo título e ID para manter a sequência determinística. Isso não verifica instalação, integridade ou compatibilidade e não transforma ausência de avisos declarados em aprovação técnica.
 
 A nova ordenação respeita jogo, categoria, estado, pesquisa e seleção visível, sem alterar favoritos, metadados, filtros ou relatórios. Os controles **Limpar filtros** e o chip de ordenação restauram a sequência padrão. Os atalhos Anterior/Próximo de Detalhes usam a mesma lista filtrada/ordenada. Testes com catálogo fictício exercitam prioridades, empates, limpeza, navegação e tela de 390 pixels; operações de instalação e remoção seguem bloqueadas.
+
+
+### Resumo coerente de alertas sob filtros
+
+A faixa de alertas da Biblioteca distingue explicitamente a contagem geral, referente a **todos os favoritos**, das contagens de bloqueios e avisos **entre os cartões visíveis** quando algum filtro elimina resultados. Os valores filtrados são calculados a partir da mesma lista usada na renderização dos cartões, portanto respeitam jogo, categoria, estado, pesquisa e seleção. A simples ordenação não muda as contagens. Quando os filtros deixam zero resultados, o resumo informa zero exibidos, sem apagar ou reclassificar favoritos. Quando todos os favoritos estão visíveis, a linha adicional desaparece para evitar números duplicados. A terminologia permanece "declarado": nenhum número comprova instalação, atualização ou compatibilidade real.
+
+Há teste Playwright com metadados fictícios, combinação de filtros, lista vazia, limpeza e largura de 390 pixels.
