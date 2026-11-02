@@ -235,3 +235,48 @@ test('foco acompanha navegação por teclado sem roubar a busca; favorito inform
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
  await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
 });
+
+
+test('voltar de Detalhes devolve foco ao mod e preserva a busca do catálogo',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const search=page.getByRole('textbox',{name:'Buscar mods'});
+ await search.fill('onibus');
+ const card=page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true});
+ await expect(card).toBeVisible();
+ await card.focus();
+ await page.keyboard.press('Enter');
+ await expect(page.getByRole('heading',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await expect(page.locator('#conteudo-principal')).toBeFocused();
+ const back=page.getByRole('button',{name:'Voltar ao catálogo'});
+ await back.focus();
+ await page.keyboard.press('Enter');
+ await expect(card).toBeFocused();
+ await expect(search).toHaveValue('onibus');
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('voltar de Detalhes à biblioteca devolve o foco ao favorito filtrado',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await addFavorite(page,'Caminhão Rodoviário');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const game=page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'});
+ await game.selectOption('omsi');
+ await expect(page.getByText('1 favorito exibido')).toBeVisible();
+ const card=page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true});
+ await card.focus();
+ await page.keyboard.press('Enter');
+ await expect(page.getByRole('heading',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(card).toBeFocused();
+ await expect(game).toHaveValue('omsi');
+ await expect(page.getByText('1 favorito exibido')).toBeVisible();
+ await expect(page.getByRole('button',{name:'Caminhão Rodoviário',exact:true})).toHaveCount(0);
+});
