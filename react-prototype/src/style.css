@@ -1006,3 +1006,8 @@
 .session-import-compare-diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
 .session-import-compare-diff ul{padding-left:19px;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
 @media(max-width:540px){.session-import-comparison{padding:12px}.session-import-compare-filters,.session-import-compare-stats,.session-import-compare-diff{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep comparison export reachable on narrow phones without horizontal scroll. */
+.session-import-compare-actions{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin:12px 0}
+.session-import-compare-actions .btn{min-height:38px;max-width:100%;white-space:normal}
+@media(max-width:540px){.session-import-compare-actions{flex-direction:column;align-items:stretch}.session-import-compare-actions .btn{width:100%}}
