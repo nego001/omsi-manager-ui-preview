@@ -240,3 +240,10 @@ Os atalhos usam exclusivamente a classificação de **relações declaradas no J
 Uma execução automatizada encontrou um conflito de texto na Biblioteca: a frase secundária "1 favorito exibido" duplicava o contador principal e tornava consultas estritas ambíguas para testes e seletores. O texto filtrado agora informa **somente as quantidades de bloqueios e avisos**; o contador primário continua sendo a fonte única para a quantidade de favoritos visíveis.
 
 Separadamente, um processo filho PowerShell do laboratório Windows **exclusivo de testes** atingiu o prazo fixo de 15 segundos numa CI com carga concorrente. O orçamento do helper foi ampliado para **30 segundos**, ainda com timeout e recusa segura. Não houve mudança nos limites de leitura de jogos reais, no renderer, no IPC distribuído, nas operações de instalação ou no sandbox. A causa precisa do atraso do runner não está definitivamente comprovada; a CI seguinte precisa confirmar o resultado.
+
+
+### Recuperar favoritos quando um filtro deixa a Biblioteca vazia
+
+Quando a Biblioteca tem favoritos, mas os controles combinados retornam zero cartões, o estado vazio oferece o botão **Mostrar todos os favoritos** no próprio contexto do resultado. O botão utiliza a função existente de limpeza de filtros, **sem remover favoritos nem desmarcar itens da análise conjunta**. O foco de teclado volta ao primeiro cartão agora visível para evitar perder a posição ao desmontar o estado vazio. O controle continua disponível em viewport estreita e recebe alvo de toque de no mínimo 44 px em dispositivo de ponteiro grosseiro. A seleção e a classificação de alertas declarados permanecem não verificadas contra arquivos de jogos reais.
+
+Dois testes Playwright verificam a ação por Enter a 390 px, foco resultante, integridade dos favoritos, estado dos filtros e preservação da seleção conjunta. Sem autorizar instalar, remover, inspecionar conteúdo de mods ou mudar a proteção sandbox.
