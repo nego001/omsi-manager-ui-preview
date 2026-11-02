@@ -247,3 +247,10 @@ Separadamente, um processo filho PowerShell do laboratório Windows **exclusivo 
 Quando a Biblioteca tem favoritos, mas os controles combinados retornam zero cartões, o estado vazio oferece o botão **Mostrar todos os favoritos** no próprio contexto do resultado. O botão utiliza a função existente de limpeza de filtros, **sem remover favoritos nem desmarcar itens da análise conjunta**. O foco de teclado volta ao primeiro cartão agora visível para evitar perder a posição ao desmontar o estado vazio. O controle continua disponível em viewport estreita e recebe alvo de toque de no mínimo 44 px em dispositivo de ponteiro grosseiro. A seleção e a classificação de alertas declarados permanecem não verificadas contra arquivos de jogos reais.
 
 Dois testes Playwright verificam a ação por Enter a 390 px, foco resultante, integridade dos favoritos, estado dos filtros e preservação da seleção conjunta. Sem autorizar instalar, remover, inspecionar conteúdo de mods ou mudar a proteção sandbox.
+
+
+### Foco após limpeza de filtros em qualquer estado
+
+O botão **Limpar filtros** no topo da Biblioteca desaparece quando a coleção retorna ao estado padrão. Sem redirecionamento, usuários de teclado poderiam perder a posição de navegação. Tanto esse controle quanto o botão **Mostrar todos os favoritos** do estado vazio agora compartilham a mesma ação acessível: restauram jogo, categoria, alertas, ordenação, busca e opção "só selecionados", sem remover favoritos ou desfazer a seleção conjunta, e depois focam o título do primeiro cartão visível na ordem padrão. O efeito de foco é acionado somente após a lista voltar a existir e não tenta focar cartões enquanto a Biblioteca não está na tela.
+
+Dois testes Playwright verificam Enter no botão da barra em 390 px, ausência de rolagem horizontal, reset apenas da ordenação, continuidade dos favoritos e preservação da seleção. Não há leitura de arquivos reais nem alteração de instalação ou das restrições do Electron.
