@@ -202,3 +202,36 @@ test('chips acessíveis no teclado sem overflow na biblioteca estreita e com bus
  expect(layout.overflow).toBeLessThanOrEqual(3);
  expect(layout.allWithinViewport).toBe(true);
 });
+
+
+test('foco acompanha navegação por teclado sem roubar a busca; favorito informa o mod',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ const search=page.getByRole('textbox',{name:'Buscar mods'});
+ await search.focus();
+ await expect(nav.getByRole('button',{name:'Catálogo de mods'})).toHaveAttribute('aria-current','page');
+ await expect(search).toBeFocused();
+ await search.fill('onibus');
+ await expect(search).toHaveValue('onibus');
+ const title=page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true});
+ await expect(title).toBeVisible();
+ const modId=await title.getAttribute('id');
+ expect(modId).toMatch(/^mod-title-/);
+ const card=page.locator('.mod-card').filter({has:title});
+ const favorite=card.getByRole('button',{name:'Favoritar'});
+ await expect(favorite).toHaveAttribute('aria-describedby',modId!);
+ await favorite.focus();
+ await page.keyboard.press('Enter');
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).focus();
+ await page.keyboard.press('Enter');
+ await expect(page.locator('#conteudo-principal')).toBeFocused();
+ await expect(page.getByRole('heading',{name:'Minha biblioteca'})).toBeVisible();
+ const libraryTitle=page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true});
+ await libraryTitle.focus();
+ await page.keyboard.press('Enter');
+ await expect(page.locator('#conteudo-principal')).toBeFocused();
+ await expect(page.getByRole('heading',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+});
