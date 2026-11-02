@@ -1029,3 +1029,6 @@
 .detail-neighbors .btn{min-height:42px}
 #detail-mod-title:focus{outline:2px solid #b7cdfc;outline-offset:4px;border-radius:4px}
 @media(max-width:540px){.detail-neighbors{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.detail-neighbors span{grid-column:1 / -1;grid-row:1}.detail-neighbors .btn{width:100%;padding:11px 7px}}
+
+/* Filtered counts remain visually distinct from the full favorite collection. */
+.library-visible-alerts{display:block;margin:6px 0;padding-left:9px;border-left:2px solid #8094ac;color:#e2eaf6;font-size:12px;line-height:1.5}
