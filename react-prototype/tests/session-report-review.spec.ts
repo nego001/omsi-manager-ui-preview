@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 import {resolve} from 'node:path';
-import {parseDeclaredSessionReview,MAX_SESSION_REVIEW_BYTES} from '../src/session-report-review';
+import {parseDeclaredSessionReview,compareReviewedDeclaredReports,MAX_SESSION_REVIEW_BYTES} from '../src/session-report-review';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
 
 const base={id:1,selectedIds:['omsi-bus'],selectedTitles:['Ônibus Urbano Clássico'],
@@ -87,6 +87,65 @@ test('Histórico consulta exportação local sem criar favoritos nem atividades 
  await expect(page.getByText('Origem: Demonstração')).toBeVisible();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(section).not.toContainText('Arquivo consultado');
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+const next={...base,id:2,
+ selectedIds:['omsi-bus','ets2-engine'],selectedTitles:['Ônibus Urbano Clássico','Pacote de som ETS2'],
+ selectedCount:2,games:['omsi','ets2'] as const,blockers:2,notices:0};
+
+test('comparação de JSON externo usa apenas IDs declarados sem modificar os resumos',()=>{
+ const parsed=parseDeclaredSessionReview(serializeDeclaredSessionArchive([base,next]));
+ const left=JSON.stringify(parsed);
+ const diff=compareReviewedDeclaredReports(parsed.reports[0],parsed.reports[1]);
+ expect(diff).toMatchObject({
+  beforeId:1,afterId:2,added:[{id:'ets2-engine',title:'Pacote de som ETS2'}],
+  removed:[],unchangedCount:1,
+  blockersBefore:0,blockersAfter:2,noticesBefore:1,noticesAfter:0,
+  scope:'catalog-metadata-only',installationVerified:false,compatibilityVerified:false
+ });
+ const reversed=compareReviewedDeclaredReports(parsed.reports[1],parsed.reports[0]);
+ expect(reversed.added).toEqual([]);
+ expect(reversed.removed).toEqual([{id:'ets2-engine',title:'Pacote de som ETS2'}]);
+ expect(()=>compareReviewedDeclaredReports(parsed.reports[0],parsed.reports[0]))
+  .toThrow('SESSION_COMPARISON_SAME_REPORT');
+ expect(JSON.stringify(parsed)).toBe(left);
+});
+
+test('Histórico compara coleção JSON na largura de 390 px, sem criar atividades ou favoritos',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const section=page.getByRole('region',{name:'Consulta de arquivos exportados'});
+ const input=section.getByLabel('Arquivo JSON de resumos exportados');
+ await input.setInputFiles(upload(serializeDeclaredSessionArchive([base,next])));
+ const comparison=section.getByRole('region',{name:'Comparação de resumos do arquivo consultado'});
+ await expect(comparison).toBeVisible();
+ await expect(comparison.getByRole('group',{name:'Diferenças do arquivo consultado'})).toContainText('Entraram na seleção: 1');
+ await expect(comparison).toContainText('Pacote de som ETS2');
+ await expect(comparison).toContainText('Bloqueios declarados: 0 → 2');
+ await expect(comparison.getByLabel('Resumo base do arquivo consultado')).toHaveValue('1');
+ await expect(comparison.getByLabel('Resumo comparado do arquivo consultado')).toHaveValue('2');
+ await comparison.getByRole('button',{name:'Inverter comparação do arquivo'}).click();
+ await expect(comparison.getByLabel('Resumo base do arquivo consultado')).toHaveValue('2');
+ await expect(comparison.getByLabel('Resumo comparado do arquivo consultado')).toHaveValue('1');
+ await expect(comparison.getByRole('group',{name:'Diferenças do arquivo consultado'})).toContainText('Saíram da seleção: 1');
+ await input.setInputFiles(upload(JSON.stringify({
+  ...JSON.parse(serializeDeclaredSessionReport(base)),installationVerified:true
+ })));
+ await expect(section.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
+ await expect(comparison).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await section.getByRole('button',{name:'Descartar consulta'}).click();
+ await expect(comparison).toHaveCount(0);
+ await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
+ await expect(comparison).toHaveCount(0);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
