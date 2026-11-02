@@ -989,3 +989,20 @@
 .session-import-results li>span{color:#cbd8ed}
 .session-import-results li>ul{padding-left:18px;overflow-wrap:anywhere}
 @media(max-width:540px){.session-import-review{padding:13px}.session-import-summary{align-items:flex-start;flex-direction:column}}
+
+/* Read-only comparison of reports from an untrusted external JSON archive. */
+.session-import-comparison{min-width:0;margin-top:18px;padding:15px;border:1px solid #52627d;border-radius:11px;background:#202b39;overflow-wrap:anywhere}
+.session-import-comparison h3{font-size:15px;margin:0 0 8px;color:#f2f7ff}
+.session-import-comparison h4{font-size:13px;color:#f2f7ff;margin:0 0 7px}
+.session-import-comparison p,.session-import-comparison small{color:#cdd9e8;font-size:12px;line-height:1.6}
+.session-import-compare-filters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.session-import-compare-filters label{display:grid;gap:6px;min-width:0;font-size:12px;font-weight:700}
+.session-import-compare-filters select{width:100%;min-width:0;max-width:100%;min-height:40px;border:1px solid #53647e;border-radius:8px;background:#222d3c;color:#f0f5ff;padding:8px}
+.session-import-compare-filters select:focus-visible,.session-import-compare-swap:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+.session-import-compare-swap{min-height:36px;max-width:100%;white-space:normal}
+.session-import-compare-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0;font-size:12px;line-height:1.5}
+.session-import-compare-stats span{min-width:0;padding:9px;background:#263447;border:1px solid #46536b;border-radius:8px}
+.session-import-compare-stats strong{font-variant-numeric:tabular-nums;color:#f2f7ff}
+.session-import-compare-diff{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+.session-import-compare-diff ul{padding-left:19px;font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+@media(max-width:540px){.session-import-comparison{padding:12px}.session-import-compare-filters,.session-import-compare-stats,.session-import-compare-diff{grid-template-columns:minmax(0,1fr)}}
