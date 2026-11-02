@@ -7,6 +7,7 @@ import {prepareBatchReviewReadiness} from './batch-review-readiness';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from './session-report-export';
 import {compareDeclaredSessionReports,serializeDeclaredSessionComparison} from './session-report-compare';
 import {parseDeclaredSessionReview,compareReviewedDeclaredReports,serializeReviewedDeclaredComparison,MAX_SESSION_REVIEW_BYTES,type ReviewedDeclaredFile} from './session-report-review';
+import {parseDeclaredComparisonReview,type ReviewedComparisonFile} from './session-comparison-review';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -127,6 +128,7 @@ export default function App(){
  const [batchOpen,setBatchOpen]=useState(false);
  const [batchHistory,setBatchHistory]=useState<SessionBatchRecord[]>([]);
  const [reviewedFile,setReviewedFile]=useState<ReviewedDeclaredFile|null>(null);
+ const [reviewedComparisonFile,setReviewedComparisonFile]=useState<ReviewedComparisonFile|null>(null);
  const [reviewError,setReviewError]=useState('');
  const [reviewBeforeId,setReviewBeforeId]=useState<number|null>(null);
  const [reviewAfterId,setReviewAfterId]=useState<number|null>(null);
@@ -296,8 +298,19 @@ export default function App(){
   if(!file)return;
   try{
    if(file.size>MAX_SESSION_REVIEW_BYTES)throw Error('SESSION_REVIEW_TOO_LARGE');
-   const reviewed=parseDeclaredSessionReview(await file.text());
-   setReviewedFile(reviewed);
+   const raw=await file.text();
+   let parsed:unknown;
+   try{parsed=JSON.parse(raw);}catch{throw Error('SESSION_REVIEW_INVALID_JSON');}
+   const schema=parsed!==null&&typeof parsed==='object'&&!Array.isArray(parsed)?
+    (parsed as Record<string,unknown>).schema:null;
+   if(schema==='omsi-manager-declared-comparison-v1'||
+      schema==='omsi-manager-external-declared-comparison-v1'){
+    setReviewedComparisonFile(parseDeclaredComparisonReview(raw));
+    setReviewedFile(null);
+   }else{
+    setReviewedFile(parseDeclaredSessionReview(raw));
+    setReviewedComparisonFile(null);
+   }
    setReviewBeforeId(null);setReviewAfterId(null);
    setReviewError('');
   }catch(error){
@@ -335,7 +348,7 @@ export default function App(){
    setCatalogError('');
    setSelectedMod(next[0].id);
    setSelectedGame('all');setCategory('Todos');setSearch('');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
@@ -355,7 +368,7 @@ export default function App(){
  function restoreDemo(){
   setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
-  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
   // A removed favorite must not silently rejoin an earlier batch if favorited again.
@@ -545,9 +558,28 @@ export default function App(){
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
  <section className="session-import-review" aria-label="Consulta de arquivos exportados">
   <h2>Consultar JSON exportado</h2>
-  <p>Abra um resumo ou coleção exportada anteriormente. Consulta local e temporária: não importa para o Histórico, não altera favoritos nem verifica instalações.</p>
+  <p>Abra um resumo, coleção ou comparação JSON exportada anteriormente. Consulta local e temporária: não importa para o Histórico, não altera favoritos nem verifica instalações.</p>
   <label className="session-import-picker">Arquivo JSON de resumos exportados<input type="file" aria-label="Arquivo JSON de resumos exportados" accept=".json,application/json" onChange={openDeclaredExport}/></label>
   {reviewError&&<p role="alert" className="session-import-error">{reviewError}</p>}
+  {reviewedComparisonFile&&<section className="session-comparison-review" aria-label="Consulta de comparação JSON exportada">
+   <div className="session-import-summary">
+    <strong>Comparação JSON consultada: resumo {reviewedComparisonFile.beforeReportId} → resumo {reviewedComparisonFile.afterReportId}</strong>
+    <button type="button" className="btn secondary" onClick={()=>{setReviewedComparisonFile(null);setReviewError('')}}>Descartar comparação consultada</button>
+   </div>
+   <p>Origem {reviewedComparisonFile.source==='external-json-unverified'?'comparação externa':'exportação de sessão'} não autenticada. Ordem cronológica não verificada. Não comprova instalação nem compatibilidade.</p>
+   <div className="session-import-compare-stats" role="group" aria-label="Diferenças da comparação JSON">
+    <span>Entraram na seleção: <strong>{reviewedComparisonFile.addedSelectedMods.length}</strong></span>
+    <span>Saíram da seleção: <strong>{reviewedComparisonFile.removedSelectedMods.length}</strong></span>
+    <span>Permaneceram: <strong>{reviewedComparisonFile.unchangedSelectedCount}</strong></span>
+    <span>Bloqueios declarados: <strong>{reviewedComparisonFile.declaredBlockers.before} → {reviewedComparisonFile.declaredBlockers.after}</strong></span>
+    <span>Avisos declarados: <strong>{reviewedComparisonFile.declaredWarnings.before} → {reviewedComparisonFile.declaredWarnings.after}</strong></span>
+   </div>
+   <div className="session-import-compare-diff">
+    <div><h3>Adicionados</h3>{reviewedComparisonFile.addedSelectedMods.length?<ul>{reviewedComparisonFile.addedSelectedMods.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul>:<p>Nenhum mod adicionado.</p>}</div>
+    <div><h3>Removidos</h3>{reviewedComparisonFile.removedSelectedMods.length?<ul>{reviewedComparisonFile.removedSelectedMods.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul>:<p>Nenhum mod removido.</p>}</div>
+   </div>
+   <small>Arquivo tratado apenas como dados declarados. Nenhum histórico real, favorito, instalação ou mod foi alterado.</small>
+  </section>}
   {reviewedFile&&<div className="session-import-results">
    <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('')}}>Descartar consulta</button></div>
    <p>Origem externa não autenticada. Instalação e compatibilidade não verificadas. Estes dados não são atividades do sistema.</p>
