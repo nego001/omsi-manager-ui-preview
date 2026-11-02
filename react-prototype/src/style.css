@@ -1041,3 +1041,7 @@
 .library-alert-actions button:disabled{opacity:.5;cursor:not-allowed}
 .library-alert-actions button:focus-visible{outline:2px solid #b3cdfa;outline-offset:2px}
 @media(max-width:480px){.library-alert-actions button{flex:1 1 100%;min-height:44px}}
+
+/* Restore filtered-empty library in reach without returning to the toolbar. */
+.library-empty-filter>.btn{margin-top:16px;white-space:normal}
+@media(pointer:coarse){.library-empty-filter>.btn{min-height:44px}}
