@@ -2,6 +2,8 @@ import {test,expect} from '@playwright/test';
 import {resolve} from 'node:path';
 import {readFileSync} from 'node:fs';
 import {parseDeclaredSessionReview,compareReviewedDeclaredReports,serializeReviewedDeclaredComparison,MAX_SESSION_REVIEW_BYTES} from '../src/session-report-review';
+import {parseDeclaredComparisonReview,MAX_COMPARISON_REVIEW_BYTES} from '../src/session-comparison-review';
+import {serializeDeclaredSessionComparison} from '../src/session-report-compare';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from '../src/session-report-export';
 
 const base={id:1,selectedIds:['omsi-bus'],selectedTitles:['Ônibus Urbano Clássico'],
@@ -208,6 +210,89 @@ test('download da comparação externa é JSON com procedência distinta e não 
  expect(reversed.suggestedFilename()).toBe('OMSI-Manager-Comparacao-Externa-2-1.json');
  const reverseJSON=JSON.parse(readFileSync(await reversed.path(),'utf8'));
  expect(reverseJSON.removedSelectedMods).toEqual([{id:'ets2-engine',title:'Pacote de som ETS2'}]);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('reabre somente formatos de comparação conhecidos com proveniência não autenticada',()=>{
+ const external=serializeReviewedDeclaredComparison(
+  parseDeclaredSessionReview(serializeDeclaredSessionArchive([base,next])).reports[0],
+  parseDeclaredSessionReview(serializeDeclaredSessionArchive([base,next])).reports[1]);
+ const a=parseDeclaredComparisonReview(external);
+ expect(a).toMatchObject({kind:'comparison',source:'external-json-unverified',
+  beforeReportId:1,afterReportId:2,unchangedSelectedCount:1,
+  addedSelectedMods:[{id:'ets2-engine',title:'Pacote de som ETS2'}],
+  sourceAuthenticated:false,chronologicalOrderVerified:false,
+  installationVerified:false,compatibilityVerified:false});
+ const b=parseDeclaredComparisonReview(serializeDeclaredSessionComparison(base,next));
+ expect(b).toMatchObject({kind:'comparison',source:'session-memory',
+  beforeReportId:1,afterReportId:2,sourceAuthenticated:false,
+  chronologicalOrderVerified:false,installationVerified:false});
+ expect(()=>parseDeclaredComparisonReview(serializeDeclaredSessionReport(base)))
+  .toThrow('COMPARISON_REVIEW_UNSUPPORTED_SCHEMA');
+});
+
+test('rejeita comparação JSON adulterada, contagens falsas, caminhos, IDs repetidos e limites',()=>{
+ const reports=parseDeclaredSessionReview(serializeDeclaredSessionArchive([base,next])).reports;
+ const valid=JSON.parse(serializeReviewedDeclaredComparison(reports[0],reports[1]));
+ const invalid=[
+  {...valid,installationVerified:true},
+  {...valid,compatibilityVerified:true},
+  {...valid,sourceAuthenticated:true},
+  {...valid,chronologicalOrderVerified:true},
+  {...valid,source:'session-memory'},
+  {...valid,filePath:'/private/game'},
+  {...valid,script:'install now'},
+  {...valid,disclaimer:'Instalação verificada'},
+  {...valid,unchangedSelectedCount:-1},
+  {...valid,unchangedSelectedCount:501},
+  {...valid,afterReportId:1},
+  {...valid,addedSelectedMods:[{...valid.addedSelectedMods[0],command:'install'}]},
+  {...valid,addedSelectedMods:[valid.addedSelectedMods[0],valid.addedSelectedMods[0]]},
+  {...valid,removedSelectedMods:[valid.addedSelectedMods[0]]},
+  {...valid,declaredBlockers:{...valid.declaredBlockers,delta:999}},
+  {...valid,declaredWarnings:{...valid.declaredWarnings,after:-1}}
+ ];
+ for(const item of invalid)
+  expect(()=>parseDeclaredComparisonReview(JSON.stringify(item)))
+   .toThrow('COMPARISON_REVIEW_INVALID');
+ expect(()=>parseDeclaredComparisonReview('['))
+  .toThrow('COMPARISON_REVIEW_INVALID_JSON');
+ expect(()=>parseDeclaredComparisonReview('x'.repeat(MAX_COMPARISON_REVIEW_BYTES+1)))
+  .toThrow('COMPARISON_REVIEW_TOO_LARGE');
+});
+
+test('Histórico consulta comparação JSON sem importar atividades e preserva consulta após erro em 390 px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ const section=page.getByRole('region',{name:'Consulta de arquivos exportados'});
+ const input=section.getByLabel('Arquivo JSON de resumos exportados');
+ const archive=parseDeclaredSessionReview(serializeDeclaredSessionArchive([base,next]));
+ await input.setInputFiles(upload(serializeReviewedDeclaredComparison(archive.reports[0],archive.reports[1])));
+ const comparison=section.getByRole('region',{name:'Consulta de comparação JSON exportada'});
+ await expect(comparison).toContainText('Comparação JSON consultada: resumo 1 → resumo 2');
+ await expect(comparison).toContainText('Origem comparação externa não autenticada');
+ await expect(comparison.getByRole('group',{name:'Diferenças da comparação JSON'})).toContainText('Entraram na seleção: 1');
+ await expect(comparison).toContainText('Pacote de som ETS2');
+ await input.setInputFiles(upload(JSON.stringify({
+  ...JSON.parse(serializeDeclaredSessionComparison(base,next)),installationVerified:true
+ })));
+ await expect(section.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
+ await expect(comparison).toBeVisible();
+ await input.setInputFiles(upload(serializeDeclaredSessionComparison(base,next)));
+ await expect(comparison).toContainText('Origem exportação de sessão não autenticada');
+ await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await comparison.getByRole('button',{name:'Descartar comparação consultada'}).click();
+ await expect(comparison).toHaveCount(0);
+ await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
+ await expect(section).toContainText('Arquivo consultado: 1 resumo(s) declarado(s)');
+ await expect(comparison).toHaveCount(0);
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
