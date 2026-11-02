@@ -278,3 +278,11 @@ O fluxo Playwright de comparação com **três relatórios** também verifica es
 O importador aceita somente as duas chaves de raiz `schemaVersion` e `mods`. Campos extras como `command`, `modPath` e `installer` são **recusados**, em vez de silenciosamente ignorados, mantendo o mesmo escopo somente metadados aplicado aos elementos de mod. Isso não significa que os campos antes fossem executados: o risco tratado é de confusão de contrato e de dados supostamente aceitos.
 
 Um teste Playwright valida que um JSON inválido mantém catálogo, favoritos e relatórios existentes; uma importação **válida** limpa os resumos temporários, seleções e favoritos de outro catálogo. Restaurar a demonstração também limpa o histórico da fonte importada. Teste com largura de 390 px. Nenhum arquivo de OMSI, ETS2 ou ATS é lido ou escrito durante essa importação de metadados.
+
+## Consultar arquivos JSON exportados sem importá-los para atividades
+
+O Histórico passou a incluir **Consultar JSON exportado**, visualização local e temporária de um relatório individual ou coleção `omsi-manager-declared-session-archive-v1`, gerados pelas funções anteriores. O arquivo não é misturado aos resumos vivos da sessão; não cria favoritos, verificações, instalações, históricos de operação nem arquivos dos jogos. A seção de atividades reais mantém explicitamente **Sem atividades registradas**.
+
+O parser independente `session-report-review.ts` aceita somente os esquemas versionados conhecidos, usa os serializadores já validados como contrato canônico e compara recursivamente todos os campos, rejeitando campos desconhecidos, contagens divergentes, IDs repetidos, alegações de instalação/compatibilidade verdadeiras, caminhos, scripts e cargas acima de **128 KiB UTF-8**. Chaves JSON podem aparecer em ordem diferente, mas dados sem contrato exato são recusados. JSON de comparação não é tratado como arquivo de resumo.
+
+Uma importação inválida mostra erro e preserva a última consulta válida; **Descartar consulta**, importação de novo catálogo válido e restauração da demonstração limpam a visualização. Testes Playwright de navegador cobrem arquivos válidos e adulterados, sessões de origem externa, ausência de favoritos/atividades e layout de 390 px. Nenhuma interação com sistema nativo ou rede é usada para consultar o JSON.

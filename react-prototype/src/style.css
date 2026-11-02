@@ -970,3 +970,22 @@
 .session-comparison-actions .btn{min-height:36px;max-width:100%;white-space:normal}
 .session-comparison-actions .btn:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
 @media(max-width:540px){.session-comparison-actions{align-items:stretch;flex-direction:column}.session-comparison-actions .btn{width:100%}}
+
+/* User-selected JSON is never merged into the current session or installation log. */
+.session-import-review{border:1px solid #51627a;background:#1d2532;border-radius:13px;padding:18px;margin:0 0 18px;min-width:0;overflow-wrap:anywhere}
+.session-import-review h2{font-size:17px;margin:0 0 8px}
+.session-import-review p{font-size:12px;line-height:1.6;color:#ccd9e7}
+.session-import-picker{display:flex;flex-direction:column;gap:9px;font-size:12px;font-weight:700;color:#e9f1fa;max-width:100%}
+.session-import-picker input{max-width:100%;width:100%;min-height:40px;padding:9px;border:1px solid #53647e;border-radius:9px;background:#222d3c;color:#f0f5ff}
+.session-import-picker input:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+.session-import-error{color:#ffb7b7!important;font-weight:700}
+.session-import-results{margin-top:16px;border-top:1px solid #46536b;padding-top:15px}
+.session-import-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.session-import-summary strong{font-size:13px}
+.session-import-summary .btn{min-height:36px}
+.session-import-results>ol{padding-left:24px;display:grid;gap:12px}
+.session-import-results>ol>li{font-size:12px;line-height:1.6;border-top:1px solid #46536b;padding-top:10px}
+.session-import-results li>strong,.session-import-results li>span{display:block}
+.session-import-results li>span{color:#cbd8ed}
+.session-import-results li>ul{padding-left:18px;overflow-wrap:anywhere}
+@media(max-width:540px){.session-import-review{padding:13px}.session-import-summary{align-items:flex-start;flex-direction:column}}

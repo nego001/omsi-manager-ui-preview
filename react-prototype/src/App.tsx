@@ -6,6 +6,7 @@ import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from './session-report-export';
 import {compareDeclaredSessionReports,serializeDeclaredSessionComparison} from './session-report-compare';
+import {parseDeclaredSessionReview,MAX_SESSION_REVIEW_BYTES,type ReviewedDeclaredFile} from './session-report-review';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -125,6 +126,8 @@ export default function App(){
  const [batchSelected,setBatchSelected]=useState<string[]>([]);
  const [batchOpen,setBatchOpen]=useState(false);
  const [batchHistory,setBatchHistory]=useState<SessionBatchRecord[]>([]);
+ const [reviewedFile,setReviewedFile]=useState<ReviewedDeclaredFile|null>(null);
+ const [reviewError,setReviewError]=useState('');
  const [compareBeforeId,setCompareBeforeId]=useState<number|null>(null);
  const [compareAfterId,setCompareAfterId]=useState<number|null>(null);
  const [lastRemovedReport,setLastRemovedReport]=useState<SessionBatchRecord|null>(null);
@@ -270,6 +273,22 @@ export default function App(){
     `OMSI-Manager-Comparacao-${compareBeforeReport.id}-${compareAfterReport.id}.json`);
   }catch{setToast('Não foi possível exportar esta comparação declarativa.');}
  }
+ async function openDeclaredExport(event:React.ChangeEvent<HTMLInputElement>){
+  const file=event.currentTarget.files?.[0];
+  event.currentTarget.value='';
+  if(!file)return;
+  try{
+   if(file.size>MAX_SESSION_REVIEW_BYTES)throw Error('SESSION_REVIEW_TOO_LARGE');
+   const reviewed=parseDeclaredSessionReview(await file.text());
+   setReviewedFile(reviewed);
+   setReviewError('');
+  }catch(error){
+   const code=error instanceof Error?error.message:'SESSION_REVIEW_INVALID';
+   setReviewError(code==='SESSION_REVIEW_TOO_LARGE'?
+    'Arquivo excede o limite de 128 KiB.':
+    'Arquivo incompatível ou adulterado. Apenas resumos JSON declarados e não verificados são aceitos.');
+  }
+ }
  function revisitSessionReport(record:SessionBatchRecord){
   // Metadata only. Reuse existing favorites, never re-add removed mods.
   const eligible=record.selectedIds.filter(id=>
@@ -298,7 +317,7 @@ export default function App(){
    setCatalogError('');
    setSelectedMod(next[0].id);
    setSelectedGame('all');setCategory('Todos');setSearch('');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
@@ -318,7 +337,7 @@ export default function App(){
  function restoreDemo(){
   setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
-  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
   // A removed favorite must not silently rejoin an earlier batch if favorited again.
@@ -506,6 +525,17 @@ export default function App(){
  </section></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
+ <section className="session-import-review" aria-label="Consulta de arquivos exportados">
+  <h2>Consultar JSON exportado</h2>
+  <p>Abra um resumo ou coleção exportada anteriormente. Consulta local e temporária: não importa para o Histórico, não altera favoritos nem verifica instalações.</p>
+  <label className="session-import-picker">Arquivo JSON de resumos exportados<input type="file" aria-label="Arquivo JSON de resumos exportados" accept=".json,application/json" onChange={openDeclaredExport}/></label>
+  {reviewError&&<p role="alert" className="session-import-error">{reviewError}</p>}
+  {reviewedFile&&<div className="session-import-results">
+   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{setReviewedFile(null);setReviewError('')}}>Descartar consulta</button></div>
+   <p>Origem externa não autenticada. Instalação e compatibilidade não verificadas. Estes dados não são atividades do sistema.</p>
+   <ol>{reviewedFile.reports.map((record,index)=><li key={index}><strong>Resumo {record.reportId} · {record.selectedCount} mod(s) declarados</strong><span>{record.declaredGames.map(game=>games[game].title).join(' · ')} · {record.declaredBlockers} bloqueio(s) · {record.declaredWarnings} aviso(s)</span><ul>{record.selectedMods.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul></li>)}</ol>
+  </div>}
+ </section>
  {lastRemovedReport&&<div className="session-history-undo" role="status"><span>Resumo temporário excluído desta sessão.</span><button type="button" className="btn secondary" aria-label="Desfazer exclusão do último resumo" onClick={undoRemovedSessionReport}>Desfazer exclusão</button></div>}
  {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><div className="session-history-header-actions"><button className="btn secondary" type="button" aria-label="Exportar todos os resumos em JSON" onClick={exportSessionArchive}>Exportar todos JSON</button><button className="btn secondary" type="button" onClick={()=>{setBatchHistory([]);setLastRemovedReport(null)}}>Limpar resumos da sessão</button></div></div>
  <ol>{batchHistory.map(record=><li key={record.id}><strong>{record.selectedCount} mod(s) declarados · {record.blockers} bloqueio(s) · {record.notices} aviso(s)</strong><span>{record.games.map(id=>games[id].title).join(' · ')}</span><p>{record.selectedTitles.join(' · ')}</p><small>Somente metadados de catálogo. Instalação e compatibilidade não verificadas.</small><button type="button" className="btn secondary session-history-export" aria-label={`Exportar resumo ${record.id} em JSON`} onClick={()=>exportSessionReport(record)}>Exportar JSON</button><button type="button" className="btn secondary session-history-reopen" aria-label={`Rever seleção do resumo ${record.id}`} onClick={()=>revisitSessionReport(record)}>Rever seleção</button><button type="button" className="btn secondary session-history-remove" aria-label={`Excluir resumo ${record.id} desta sessão`} onClick={()=>removeSessionReport(record)}>Excluir este resumo</button></li>)}</ol></section>}
