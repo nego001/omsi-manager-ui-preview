@@ -6,7 +6,7 @@ import {analyzeDeclaredBatch} from './batch-declared-analysis';
 import {prepareBatchReviewReadiness} from './batch-review-readiness';
 import {serializeDeclaredSessionReport,serializeDeclaredSessionArchive} from './session-report-export';
 import {compareDeclaredSessionReports,serializeDeclaredSessionComparison} from './session-report-compare';
-import {parseDeclaredSessionReview,MAX_SESSION_REVIEW_BYTES,type ReviewedDeclaredFile} from './session-report-review';
+import {parseDeclaredSessionReview,compareReviewedDeclaredReports,MAX_SESSION_REVIEW_BYTES,type ReviewedDeclaredFile} from './session-report-review';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
 import {consolidateDiagnostic} from './diagnostic-report';
@@ -128,6 +128,15 @@ export default function App(){
  const [batchHistory,setBatchHistory]=useState<SessionBatchRecord[]>([]);
  const [reviewedFile,setReviewedFile]=useState<ReviewedDeclaredFile|null>(null);
  const [reviewError,setReviewError]=useState('');
+ const [reviewBeforeId,setReviewBeforeId]=useState<number|null>(null);
+ const [reviewAfterId,setReviewAfterId]=useState<number|null>(null);
+ // Reviewed exports are never promoted to the session history.
+ const reviewedAfterReport=reviewedFile?.reports.find(r=>r.reportId===reviewAfterId)??reviewedFile?.reports[1];
+ const reviewedBeforeReport=reviewedFile?.reports.find(r=>r.reportId===reviewBeforeId&&r.reportId!==reviewedAfterReport?.reportId)??
+  reviewedFile?.reports.find(r=>r.reportId!==reviewedAfterReport?.reportId);
+ const reviewedComparison=useMemo(()=>reviewedBeforeReport&&reviewedAfterReport?
+  compareReviewedDeclaredReports(reviewedBeforeReport,reviewedAfterReport):null,
+  [reviewedBeforeReport,reviewedAfterReport]);
  const [compareBeforeId,setCompareBeforeId]=useState<number|null>(null);
  const [compareAfterId,setCompareAfterId]=useState<number|null>(null);
  const [lastRemovedReport,setLastRemovedReport]=useState<SessionBatchRecord|null>(null);
@@ -281,6 +290,7 @@ export default function App(){
    if(file.size>MAX_SESSION_REVIEW_BYTES)throw Error('SESSION_REVIEW_TOO_LARGE');
    const reviewed=parseDeclaredSessionReview(await file.text());
    setReviewedFile(reviewed);
+   setReviewBeforeId(null);setReviewAfterId(null);
    setReviewError('');
   }catch(error){
    const code=error instanceof Error?error.message:'SESSION_REVIEW_INVALID';
@@ -317,7 +327,7 @@ export default function App(){
    setCatalogError('');
    setSelectedMod(next[0].id);
    setSelectedGame('all');setCategory('Todos');setSearch('');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
@@ -337,7 +347,7 @@ export default function App(){
  function restoreDemo(){
   setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
-  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
   // A removed favorite must not silently rejoin an earlier batch if favorited again.
@@ -531,9 +541,36 @@ export default function App(){
   <label className="session-import-picker">Arquivo JSON de resumos exportados<input type="file" aria-label="Arquivo JSON de resumos exportados" accept=".json,application/json" onChange={openDeclaredExport}/></label>
   {reviewError&&<p role="alert" className="session-import-error">{reviewError}</p>}
   {reviewedFile&&<div className="session-import-results">
-   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{setReviewedFile(null);setReviewError('')}}>Descartar consulta</button></div>
+   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('')}}>Descartar consulta</button></div>
    <p>Origem externa não autenticada. Instalação e compatibilidade não verificadas. Estes dados não são atividades do sistema.</p>
    <ol>{reviewedFile.reports.map((record,index)=><li key={index}><strong>Resumo {record.reportId} · {record.selectedCount} mod(s) declarados</strong><span>{record.declaredGames.map(game=>games[game].title).join(' · ')} · {record.declaredBlockers} bloqueio(s) · {record.declaredWarnings} aviso(s)</span><ul>{record.selectedMods.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul></li>)}</ol>
+   {reviewedComparison&&<section className="session-import-comparison" aria-label="Comparação de resumos do arquivo consultado">
+    <h3>Comparar resumos do arquivo consultado</h3>
+    <p>Diferenças entre duas seleções declaradas neste arquivo externo. A ordem é escolhida manualmente e não comprova uma linha do tempo.</p>
+    <div className="session-import-compare-filters">
+     <label>Resumo base<select aria-label="Resumo base do arquivo consultado" value={reviewedComparison.beforeId} onChange={e=>setReviewBeforeId(Number(e.target.value))}>
+      {reviewedFile.reports.filter(r=>r.reportId!==reviewedComparison.afterId).map(r=><option key={r.reportId} value={r.reportId}>Resumo {r.reportId}</option>)}
+     </select></label>
+     <label>Resumo comparado<select aria-label="Resumo comparado do arquivo consultado" value={reviewedComparison.afterId} onChange={e=>setReviewAfterId(Number(e.target.value))}>
+      {reviewedFile.reports.filter(r=>r.reportId!==reviewedComparison.beforeId).map(r=><option key={r.reportId} value={r.reportId}>Resumo {r.reportId}</option>)}
+     </select></label>
+    </div>
+    <button type="button" className="btn secondary session-import-compare-swap" onClick={()=>{
+     setReviewBeforeId(reviewedComparison.afterId);setReviewAfterId(reviewedComparison.beforeId);
+    }}>Inverter comparação do arquivo</button>
+    <div className="session-import-compare-stats" role="group" aria-label="Diferenças do arquivo consultado">
+     <span>Entraram na seleção: <strong>{reviewedComparison.added.length}</strong></span>
+     <span>Saíram da seleção: <strong>{reviewedComparison.removed.length}</strong></span>
+     <span>Permaneceram: <strong>{reviewedComparison.unchangedCount}</strong></span>
+     <span>Bloqueios declarados: <strong>{reviewedComparison.blockersBefore} → {reviewedComparison.blockersAfter}</strong></span>
+     <span>Avisos declarados: <strong>{reviewedComparison.noticesBefore} → {reviewedComparison.noticesAfter}</strong></span>
+    </div>
+    <div className="session-import-compare-diff">
+     <div><h4>Adicionados</h4>{reviewedComparison.added.length?<ul>{reviewedComparison.added.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul>:<p>Nenhum mod adicionado.</p>}</div>
+     <div><h4>Removidos</h4>{reviewedComparison.removed.length?<ul>{reviewedComparison.removed.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul>:<p>Nenhum mod removido.</p>}</div>
+    </div>
+    <small>Origem externa não autenticada. Não altera favoritos, atividades, arquivos dos jogos nem prova instalação ou compatibilidade.</small>
+   </section>}
   </div>}
  </section>
  {lastRemovedReport&&<div className="session-history-undo" role="status"><span>Resumo temporário excluído desta sessão.</span><button type="button" className="btn secondary" aria-label="Desfazer exclusão do último resumo" onClick={undoRemovedSessionReport}>Desfazer exclusão</button></div>}
