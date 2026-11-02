@@ -233,3 +233,10 @@ Há teste Playwright com metadados fictícios, combinação de filtros, lista va
 A faixa de alertas agora oferece **Ver bloqueios declarados** e **Ver avisos declarados**. Cada botão modifica exclusivamente o filtro de alertas existente, preservando jogo, categoria, pesquisa, ordenação e seleção conjunta. Pressionar de novo o atalho ativo restaura `Todos os estados do catálogo`; escolher o outro alterna imediatamente o filtro. O atributo acessível `aria-pressed` acompanha o estado atual do filtro, inclusive quando o usuário usa o seletor convencional. Botões sem nenhuma ocorrência no total de favoritos ficam desabilitados. A visualização estreita dispõe os dois atalhos em linhas próprias e oferece alvo de toque de 44 pixels.
 
 Os atalhos usam exclusivamente a classificação de **relações declaradas no JSON**, não uma verificação real de mods, arquivos, ativação ou compatibilidade. Os testes Playwright cobrem teclado, alternância, limpeza, ausência de alertas, lista vazia por combinação de filtros e largura de 390 pixels. As ações de instalar e remover não mudam.
+
+
+### Correção de regressões na faixa de alertas e teste sintético Windows
+
+Uma execução automatizada encontrou um conflito de texto na Biblioteca: a frase secundária "1 favorito exibido" duplicava o contador principal e tornava consultas estritas ambíguas para testes e seletores. O texto filtrado agora informa **somente as quantidades de bloqueios e avisos**; o contador primário continua sendo a fonte única para a quantidade de favoritos visíveis.
+
+Separadamente, um processo filho PowerShell do laboratório Windows **exclusivo de testes** atingiu o prazo fixo de 15 segundos numa CI com carga concorrente. O orçamento do helper foi ampliado para **30 segundos**, ainda com timeout e recusa segura. Não houve mudança nos limites de leitura de jogos reais, no renderer, no IPC distribuído, nas operações de instalação ou no sandbox. A causa precisa do atraso do runner não está definitivamente comprovada; a CI seguinte precisa confirmar o resultado.
