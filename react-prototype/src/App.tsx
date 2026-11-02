@@ -362,6 +362,7 @@ export default function App(){
  }
  const focusMainAfterNavigation=useRef(false);
  const focusCardAfterDetails=useRef<string|null>(null);
+ const focusFirstLibraryCardAfterReset=useRef(false);
  function goto(id:Screen,preserveInputFocus=false){
   if(id!==screen&&!preserveInputFocus)focusMainAfterNavigation.current=true;
   setScreen(id);setToast('');
@@ -444,6 +445,11 @@ export default function App(){
   }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
+ useEffect(()=>{
+  if(!focusFirstLibraryCardAfterReset.current||screen!=='library'||libraryMods.length===0)return;
+  focusFirstLibraryCardAfterReset.current=false;
+  document.getElementById('mod-title-'+libraryMods[0].id)?.focus({preventScroll:true});
+ },[screen,libraryMods]);
  useEffect(()=>{
   if(screen!=='details'||!focusDetailsTitleAfterStep.current)return;
   focusDetailsTitleAfterStep.current=false;
@@ -538,7 +544,7 @@ export default function App(){
  {batchReadiness&&<details className="library-cooperative-review"><summary>O que o analisador cooperativo precisará verificar?</summary><p>Nenhum especialista executado. Esta é uma lista das verificações necessárias, não um diagnóstico dos arquivos.</p><ol aria-label="Verificações cooperativas pendentes">{batchReadiness.specialists.map(step=><li key={step.id}><strong>{step.label}</strong><span>{step.purpose}</span><small>Não executado · {step.phase==='gate'?'antes de qualquer leitura':'após aprovação do gate de segurança'}</small></li>)}</ol><p>Sem hash real, conteúdo lido, compatibilidade confirmada ou autorização para instalar.</p></details>}
  <p className="library-batch-disclaimer"><LockKeyhole size={15}/> Não verificado: arquivos reais, versões instaladas, integridade e funcionamento dos mods. Instalação e remoção continuam bloqueadas.</p><button className="btn secondary" type="button" onClick={saveBatchToSession}>Guardar resumo nesta sessão</button></div>}
  </section>}
- {favoriteMods.length===0?<div className="empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui, separados por jogo e categoria.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>:libraryMods.length?modCards(libraryMods):<div className="empty library-empty-filter"><Library size={28}/><h3>Nenhum favorito nesses filtros</h3><p>Seus favoritos continuam salvos. Ajuste os filtros ou use “Limpar filtros” acima para mostrar toda a coleção.</p></div>}
+ {favoriteMods.length===0?<div className="empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui, separados por jogo e categoria.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>:libraryMods.length?modCards(libraryMods):<div className="empty library-empty-filter"><Library size={28}/><h3>Nenhum favorito nesses filtros</h3><p>Seus favoritos continuam salvos. Ajuste os filtros ou mostre a coleção completa.</p><button type="button" className="btn secondary" onClick={()=>{focusFirstLibraryCardAfterReset.current=true;resetLibraryControls()}}>Mostrar todos os favoritos</button></div>}
  <SyntheticGateLab/>
  <FixtureCrossPackageLab/>
  </>}
