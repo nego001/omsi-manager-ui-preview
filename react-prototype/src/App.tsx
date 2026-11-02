@@ -333,11 +333,17 @@ export default function App(){
    'Nenhum favorito deste resumo está disponível na biblioteca. Nenhum mod foi instalado.');
  }
  const focusMainAfterNavigation=useRef(false);
+ const focusCardAfterDetails=useRef<string|null>(null);
  function goto(id:Screen,preserveInputFocus=false){
   if(id!==screen&&!preserveInputFocus)focusMainAfterNavigation.current=true;
   setScreen(id);setToast('');
  }
  function detail(id:string){setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
+ function returnFromDetails(){
+  // Restore the exact card when possible; filtered-out cards fall back to main.
+  focusCardAfterDetails.current=selected.id;
+  goto(detailOrigin);
+ }
  function openDeclaredDiagnostic(id:string){setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
  async function importCatalogFile(event:React.ChangeEvent<HTMLInputElement>){
@@ -388,6 +394,12 @@ export default function App(){
   focusMainAfterNavigation.current=false;
   // Keep keyboard/screen reader context in the new screen after prior buttons unmount.
   // Native search focus is exempt so it remains typeable when activating Catalog.
+  const cardId=focusCardAfterDetails.current;
+  focusCardAfterDetails.current=null;
+  if(cardId!==null){
+   const card=document.getElementById('mod-title-'+cardId);
+   if(card instanceof HTMLButtonElement){card.focus();return;}
+  }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
  useEffect(()=>{
@@ -483,7 +495,7 @@ export default function App(){
  <SyntheticGateLab/>
  <FixtureCrossPackageLab/>
  </>}
-    {screen==='details'&&<><button className="back" onClick={()=>goto(detailOrigin)}><ArrowLeft size={17}/> {detailOrigin==='library'?'Voltar à biblioteca':detailOrigin==='home'?'Voltar ao início':'Voltar ao catálogo'}</button><div className="detail-layout"><div className="detail-art"><ModArtwork mod={selected}/><p className="detail-image-note">Arte ilustrativa do catálogo, não é uma imagem extraída deste mod.</p></div><div className="detail-copy"><span className="eyebrow">{games[selected.game].title} / {selected.category}</span><h1>{selected.title}</h1><p>{selected.description}</p><div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
+    {screen==='details'&&<><button className="back" onClick={returnFromDetails}><ArrowLeft size={17}/> {detailOrigin==='library'?'Voltar à biblioteca':detailOrigin==='home'?'Voltar ao início':'Voltar ao catálogo'}</button><div className="detail-layout"><div className="detail-art"><ModArtwork mod={selected}/><p className="detail-image-note">Arte ilustrativa do catálogo, não é uma imagem extraída deste mod.</p></div><div className="detail-copy"><span className="eyebrow">{games[selected.game].title} / {selected.category}</span><h1>{selected.title}</h1><p>{selected.description}</p><div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
  <section className="detail-checklist" aria-label="Etapas de verificação do mod">
   <div className="detail-checklist-heading"><div><span className="eyebrow">ESTADO DA ANÁLISE</span><h2>O que já sabemos sobre este mod</h2></div><span className="detail-checklist-mode"><LockKeyhole size={14}/> Somente leitura</span></div>
   <div className="detail-checklist-grid">
