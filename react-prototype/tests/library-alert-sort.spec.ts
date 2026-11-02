@@ -137,7 +137,7 @@ test('atalhos de alertas filtram e desfazem sem apagar favoritos nem alterar out
  await blockers.click();
  await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
  await expect(page.getByRole('textbox',{name:'Buscar favoritos'})).toHaveValue('alfa');
- await expect(page.getByText('4 favoritos',{exact:false}).first()).toBeVisible();
+ await expect(page.locator('.library-declared-alerts')).toContainText('entre todos os 4 favoritos');
  await page.getByRole('button',{name:'Limpar filtros da biblioteca'}).click();
  await expect(alerts).toHaveValue('all');
  await expect(sort).toHaveValue('catalog');
