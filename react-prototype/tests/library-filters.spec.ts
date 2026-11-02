@@ -334,3 +334,52 @@ test('restaurar favoritos depois de filtro vazio preserva seleção conjunta',as
  await expect(page.getByRole('button',{name:'Analisar seleção'})).toBeEnabled();
  await expect(category).toHaveValue('Todos');
 });
+
+
+test('limpar filtros da barra devolve foco ao primeiro favorito pelo teclado',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await addFavorite(page,'Serra do Vale');
+ await addFavorite(page,'Caminhão Rodoviário');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const game=page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'});
+ const search=page.getByRole('textbox',{name:'Buscar favoritos'});
+ const clear=page.getByRole('button',{name:'Limpar filtros da biblioteca'});
+ await game.selectOption('omsi');
+ await search.fill('serra');
+ await expect(page.getByText('1 favorito exibido',{exact:true})).toBeVisible();
+ await clear.focus();
+ await page.keyboard.press('Enter');
+ await expect(clear).toHaveCount(0);
+ await expect(game).toHaveValue('all');
+ await expect(search).toHaveValue('');
+ await expect(page.getByText('3 favoritos exibidos',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeFocused();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('limpar só ordenação mantém favoritos e seleção conjunta, restaurando foco',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await addFavorite(page,'Ônibus Urbano Clássico');
+ await addFavorite(page,'Caminhão Rodoviário');
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ const selected=page.getByRole('checkbox',{name:'Selecionar Caminhão Rodoviário para análise conjunta'});
+ await selected.check();
+ const sort=page.getByRole('combobox',{name:'Ordenar biblioteca'});
+ await sort.selectOption('title');
+ const clear=page.getByRole('button',{name:'Limpar filtros da biblioteca'});
+ await expect(clear).toHaveText('Limpar filtros (1)');
+ await clear.click();
+ await expect(sort).toHaveValue('catalog');
+ await expect(clear).toHaveCount(0);
+ await expect(selected).toBeChecked();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeFocused();
+ await expect(page.getByText('2 favoritos exibidos',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(2);
+});
