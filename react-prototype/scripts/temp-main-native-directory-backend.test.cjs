@@ -185,7 +185,7 @@ test('native results with accessor fields are denied without invoking getter',()
 });
 test('expected native schema is explicit and contains no path or file names',()=>{
  assert.equal(NATIVE_KEYS.length,21);
- assert.equal(TIMEOUT_MS,15000);
+ assert.equal(TIMEOUT_MS,30000);
  assert.equal(MAX_STDOUT,4096);
  assert.equal(NATIVE_KEYS.includes('path'),false);
  assert.equal(NATIVE_KEYS.includes('nonce'),false);
