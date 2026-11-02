@@ -1019,3 +1019,6 @@
 .session-comparison-review .session-import-summary{align-items:center}
 .session-comparison-review .session-import-summary strong{min-width:0}
 @media(max-width:540px){.session-comparison-review{padding:12px}.session-comparison-review .session-import-summary{align-items:stretch}.session-comparison-review .session-import-summary .btn{width:100%}}
+
+/* Touch-safe target for favorite toggles in catalog and library cards. */
+@media(pointer:coarse){.mod-bottom .icon-btn{min-width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}}
