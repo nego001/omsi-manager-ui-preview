@@ -212,3 +212,10 @@ Os testes usam fixtures exclusivamente demonstrativas, incluindo largura de 390 
 As consultas temporárias de JSON (resumos e comparações) e o catálogo demonstrativo usam leitura assíncrona de `File.text()`. A escolha de um novo arquivo invalida conclusões atrasadas de escolhas anteriores. Descartar uma consulta, restaurar a demonstração ou aceitar um novo catálogo impede que uma leitura anterior recrie dados já descartados, mesmo se o navegador devolver o conteúdo depois. A restauração também cancela a aplicação de importação de catálogo ainda pendente. Arquivos inválidos continuam sem substituir a última consulta válida, desde que a ação não tenha sido descartada. Essa proteção é local, não altera o formato dos exports, não persiste arquivos nem modifica jogos.
 
 Quatro cenários Playwright simulam leituras atrasadas: descartar consulta, escolher outra, aceitar catálogo e restaurar demonstração. O bloqueio da CI Ubuntu 24.04 continua independente desta correção.
+
+
+### Ordenação de favoritos por alertas declarados
+
+A Biblioteca oferece a ordenação opcional **Alertas declarados (bloqueios primeiro)**. Ela consulta os mesmos resultados de metadados já exibidos nos cartões, priorizando `blocking`, depois `attention` e, por último, `no-issues`. Empates são resolvidos pelo título e ID para manter a sequência determinística. Isso não verifica instalação, integridade ou compatibilidade e não transforma ausência de avisos declarados em aprovação técnica.
+
+A nova ordenação respeita jogo, categoria, estado, pesquisa e seleção visível, sem alterar favoritos, metadados, filtros ou relatórios. Os controles **Limpar filtros** e o chip de ordenação restauram a sequência padrão. Os atalhos Anterior/Próximo de Detalhes usam a mesma lista filtrada/ordenada. Testes com catálogo fictício exercitam prioridades, empates, limpeza, navegação e tela de 390 pixels; operações de instalação e remoção seguem bloqueadas.
