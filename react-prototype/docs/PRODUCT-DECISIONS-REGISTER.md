@@ -261,3 +261,10 @@ Dois testes Playwright verificam Enter no botão da barra em 390 px, ausência d
 A Biblioteca possui chips que desaparecem após a remoção de um filtro individual. A ação no teclado agora registra a posição do chip antes da atualização: o foco vai para o próximo chip ainda presente, ou para o anterior se o último da fila foi removido. Quando não restam chips ativos, o foco é devolvido ao título do primeiro favorito exibido; se a combinação ainda não mostrar nenhum cartão, usa o primeiro seletor da barra de filtros como alternativa. O fluxo usa os mesmos setters de filtro, sem apagar favoritos, seleção de análise ou relatórios declarativos.
 
 Dois testes Playwright verificam a navegação por Enter/Space, o foco sucessor/antecessor, o fim da fila, a continuidade da seleção conjunta e o layout a 390 px. O sandbox, as permissões e o escopo de metadados demonstrativos não mudam.
+
+
+### Recuperação local do Catálogo sem resultados
+
+Quando uma combinação de busca, simulador e categoria esconde todos os resultados, o Catálogo mostra **Mostrar todos os mods** dentro do próprio estado vazio. Esse botão restaura os três filtros padrão, preservando o catálogo de metadados atual (inclusive um JSON importado), a origem da importação e os favoritos. Após a lista reaparecer, o foco do teclado passa ao primeiro título visível. Em largura estreita, o botão respeita a caixa disponível e possui alvo de toque de 44 px em dispositivos de toque.
+
+A lista vazia resulta apenas de filtros e não significa que um mod foi removido ou que qualquer jogo foi inspecionado. Dois testes Playwright incluem Enter em 390 px, restauração da demonstração filtrada, preservação de origem e favorito em catálogo JSON importado e confirmação de que instalação e remoção seguem bloqueadas.

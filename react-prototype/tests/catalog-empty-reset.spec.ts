@@ -1,0 +1,53 @@
+import {test,expect} from '@playwright/test';
+import {resolve} from 'node:path';
+
+test('catálogo vazio restaura jogo, categoria e busca com foco pelo teclado em 390 px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByRole('button',{name:'Euro Truck Simulator 2',exact:true}).click();
+ const category=page.getByRole('combobox',{name:'Filtrar categoria'});
+ await category.selectOption('Ônibus');
+ const search=page.getByRole('textbox',{name:'Buscar mods'});
+ await search.fill('inexistente');
+ const empty=page.locator('.catalog-empty-filter');
+ await expect(empty.getByRole('heading',{name:'Nenhum mod corresponde aos filtros.'})).toBeVisible();
+ await expect(page.getByText('0 resultados',{exact:true})).toBeVisible();
+ const reset=empty.getByRole('button',{name:'Mostrar todos os mods'});
+ await reset.focus();
+ await page.keyboard.press('Enter');
+ await expect(empty).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Todos os jogos'})).toHaveClass(/selected/);
+ await expect(category).toHaveValue('Todos');
+ await expect(search).toHaveValue('');
+ await expect(page.getByText('7 resultados',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('catálogo JSON importado e favoritos sobrevivem à limpeza de filtros vazios',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(resolve('examples/catalog.example.json'));
+ await expect(page.getByText('Importado: catalog.example.json',{exact:false})).toBeVisible();
+ const title='Ônibus urbano OF-1721';
+ const card=page.locator('.mod-card').filter({has:page.getByRole('button',{name:title,exact:true})});
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await page.getByRole('button',{name:'Euro Truck Simulator 2',exact:true}).click();
+ await page.getByRole('combobox',{name:'Filtrar categoria'}).selectOption('Ônibus');
+ const reset=page.locator('.catalog-empty-filter').getByRole('button',{name:'Mostrar todos os mods'});
+ await expect(reset).toBeVisible();
+ await reset.click();
+ await expect(page.getByText('Origem: Importado: catalog.example.json')).toBeVisible();
+ await expect(page.getByText('3 resultados',{exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:title,exact:true})).toBeFocused();
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await page.getByRole('button',{name:title,exact:true}).click();
+ await expect(page.getByRole('heading',{name:title,exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+});
