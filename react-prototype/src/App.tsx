@@ -364,7 +364,15 @@ export default function App(){
  const focusCardAfterDetails=useRef<string|null>(null);
  const focusFirstLibraryCardAfterReset=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
+ const focusCatalogChipIndexAfterRemoval=useRef<number|null>(null);
  const focusLibraryChipIndexAfterRemoval=useRef<number|null>(null);
+ function removeCatalogFilterChip(event:React.MouseEvent<HTMLButtonElement>,reset:()=>void){
+  // Retain keyboard position when an active chip disappears from the DOM.
+  const siblings=event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button');
+  focusCatalogChipIndexAfterRemoval.current=siblings?
+   Math.max(0,Array.from(siblings).indexOf(event.currentTarget)):0;
+  reset();
+ }
  function removeLibraryFilterChip(event:React.MouseEvent<HTMLButtonElement>,reset:()=>void){
   // A removed chip unmounts immediately; preserve the keyboard position.
   const siblings=event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('button');
@@ -469,6 +477,17 @@ export default function App(){
   document.getElementById('mod-title-'+filtered[0].id)?.focus({preventScroll:true});
  },[screen,filtered]);
  useEffect(()=>{
+  if(focusCatalogChipIndexAfterRemoval.current===null||screen!=='catalog')return;
+  const removedIndex=focusCatalogChipIndexAfterRemoval.current;
+  focusCatalogChipIndexAfterRemoval.current=null;
+  const chips=document.querySelectorAll<HTMLButtonElement>('.catalog-active-filters button');
+  const next=chips[Math.min(removedIndex,chips.length-1)];
+  if(next){next.focus({preventScroll:true});return;}
+  const first=filtered[0]&&document.getElementById('mod-title-'+filtered[0].id);
+  if(first instanceof HTMLButtonElement){first.focus({preventScroll:true});return;}
+  document.querySelector<HTMLInputElement>('.topbar .search input')?.focus({preventScroll:true});
+ },[screen,selectedGame,category,search,filtered]);
+ useEffect(()=>{
   if(!focusFirstLibraryCardAfterReset.current||screen!=='library'||libraryMods.length===0)return;
   focusFirstLibraryCardAfterReset.current=false;
   document.getElementById('mod-title-'+libraryMods[0].id)?.focus({preventScroll:true});
@@ -540,7 +559,14 @@ export default function App(){
        {inspections[id]?.status==='error'&&<p className="inspection-error" role="alert">{inspections[id]?.status==='error'?inspections[id].message:''}</p>}</div>)}</div>
       <p className="inspection-note">No ETS2/ATS, escolha a própria pasta mod ou a pasta acima dela, geralmente nos Documentos do jogo, não necessariamente na Steam. Contagens são apenas pistas de estrutura, nunca prova de instalação, ativação ou compatibilidade. Não enviamos caminhos completos nem nomes de arquivos à interface. Instalar e remover seguem bloqueados.</p>
      </section></>}
-    {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>{filtered.length?modCards(filtered):<div className="empty catalog-empty-filter"><Search size={28}/><h3>Nenhum mod corresponde aos filtros.</h3><p>Os metadados do catálogo continuam disponíveis. Limpe a pesquisa, o jogo e a categoria para vê-los novamente.</p><button type="button" className="btn secondary" onClick={resetCatalogFiltersWithFocus}>Mostrar todos os mods</button></div>}</>}
+    {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
+ { (selectedGame!=='all'||category!=='Todos'||search.trim().length>0)&&<div className="catalog-active-filters" role="group" aria-label="Filtros ativos do catálogo">
+  <span>Filtros ativos:</span>
+  {selectedGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setSelectedGame('all'))}>Jogo: {games[selectedGame].title} <span aria-hidden="true">×</span></button>}
+  {category!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setCategory('Todos'))}>Categoria: {category} <span aria-hidden="true">×</span></button>}
+  {search.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setSearch(''))}>Busca: {search.trim()} <span aria-hidden="true">×</span></button>}
+ </div>}
+ {filtered.length?modCards(filtered):<div className="empty catalog-empty-filter"><Search size={28}/><h3>Nenhum mod corresponde aos filtros.</h3><p>Os metadados do catálogo continuam disponíveis. Limpe a pesquisa, o jogo e a categoria para vê-los novamente.</p><button type="button" className="btn secondary" onClick={resetCatalogFiltersWithFocus}>Mostrar todos os mods</button></div>}</>}
     {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>Os favoritos ficam salvos localmente. Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p></div>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game'|'alerts')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option><option value="alerts">Alertas declarados (bloqueios primeiro)</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryFiltersWithFocus}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}

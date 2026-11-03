@@ -268,3 +268,10 @@ Dois testes Playwright verificam a navegação por Enter/Space, o foco sucessor/
 Quando uma combinação de busca, simulador e categoria esconde todos os resultados, o Catálogo mostra **Mostrar todos os mods** dentro do próprio estado vazio. Esse botão restaura os três filtros padrão, preservando o catálogo de metadados atual (inclusive um JSON importado), a origem da importação e os favoritos. Após a lista reaparecer, o foco do teclado passa ao primeiro título visível. Em largura estreita, o botão respeita a caixa disponível e possui alvo de toque de 44 px em dispositivos de toque.
 
 A lista vazia resulta apenas de filtros e não significa que um mod foi removido ou que qualquer jogo foi inspecionado. Dois testes Playwright incluem Enter em 390 px, restauração da demonstração filtrada, preservação de origem e favorito em catálogo JSON importado e confirmação de que instalação e remoção seguem bloqueadas.
+
+
+### Filtros ativos do Catálogo removíveis individualmente
+
+Quando a busca, o jogo ou a categoria do Catálogo diferem dos padrões, o resultado mostra chips acessíveis com os filtros ativos. Cada chip remove **apenas o respectivo critério**, mantendo intactos os outros dois, os favoritos e o manifesto demonstrativo ou JSON importado. Os chips não são comandos de instalação nem indicadores de compatibilidade.
+
+Como a remoção desmonta o próprio botão acionado, o foco de teclado passa ao próximo chip, ou ao anterior quando o último é removido. Sem chips restantes, o foco retorna ao primeiro mod visível. A interface permite retorno à coleção completa tanto pela remoção individual quanto pelo botão do estado vazio. Os testes Playwright cobrem Enter, foco sucessor/antecessor, largura de 390 px, filtros que produzem zero resultados, catálogo JSON importado e permanência de favoritos.
