@@ -98,6 +98,7 @@ function readPreferences():SavedPreferences{
 export default function App(){
  const [screen,setScreen]=useState<Screen>('home');
  const [selectedGame,setSelectedGame]=useState<GameId|'all'>('all');
+ const [catalogSort,setCatalogSort]=useState<'catalog'|'title'|'game'>('catalog');
  const [featuredGame,setFeaturedGame]=useState<GameId>('omsi');
  const [libraryGame,setLibraryGame]=useState<GameId|'all'>('all');
  const [libraryCategory,setLibraryCategory]=useState<Category>('Todos');
@@ -168,7 +169,19 @@ export default function App(){
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
- const filtered=useMemo(()=>catalogMods.filter(m=>(selectedGame==='all'||m.game===selectedGame)&&(category==='Todos'||m.category===category)&&matchesCatalogSearch(m,games[m.game].title,search)),[catalogMods,selectedGame,category,search]);
+ const filtered=useMemo(()=>{
+  const matching=catalogMods.filter(m=>
+   (selectedGame==='all'||m.game===selectedGame)&&
+   (category==='Todos'||m.category===category)&&
+   matchesCatalogSearch(m,games[m.game].title,search));
+  if(catalogSort==='catalog')return matching;
+  if(catalogSort==='title')return [...matching].sort((a,b)=>
+   a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id));
+  const order:Record<GameId,number>={omsi:0,ets2:1,ats:2};
+  return [...matching].sort((a,b)=>
+   order[a.game]-order[b.game]||
+   a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id));
+ },[catalogMods,selectedGame,category,search,catalogSort]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
  const activeBatch=useMemo(()=>batchSelected.filter(id=>
   favorites.includes(id)&&catalogMods.some(m=>m.id===id)),[batchSelected,favorites,catalogMods]);
@@ -423,7 +436,7 @@ export default function App(){
    setCatalogSource('Importado: '+file.name.slice(0,85));
    setCatalogError('');
    setSelectedMod(next[0].id);
-   setSelectedGame('all');setCategory('Todos');setSearch('');
+   setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
    setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
@@ -446,7 +459,7 @@ export default function App(){
   ++catalogReadGeneration.current;
   ++reviewReadGeneration.current;
   setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
-  setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');
+  setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
@@ -486,7 +499,7 @@ export default function App(){
   const first=filtered[0]&&document.getElementById('mod-title-'+filtered[0].id);
   if(first instanceof HTMLButtonElement){first.focus({preventScroll:true});return;}
   document.querySelector<HTMLInputElement>('.topbar .search input')?.focus({preventScroll:true});
- },[screen,selectedGame,category,search,filtered]);
+ },[screen,selectedGame,category,search,catalogSort,filtered]);
  useEffect(()=>{
   if(!focusFirstLibraryCardAfterReset.current||screen!=='library'||libraryMods.length===0)return;
   focusFirstLibraryCardAfterReset.current=false;
@@ -559,12 +572,13 @@ export default function App(){
        {inspections[id]?.status==='error'&&<p className="inspection-error" role="alert">{inspections[id]?.status==='error'?inspections[id].message:''}</p>}</div>)}</div>
       <p className="inspection-note">No ETS2/ATS, escolha a própria pasta mod ou a pasta acima dela, geralmente nos Documentos do jogo, não necessariamente na Steam. Contagens são apenas pistas de estrutura, nunca prova de instalação, ativação ou compatibilidade. Não enviamos caminhos completos nem nomes de arquivos à interface. Instalar e remover seguem bloqueados.</p>
      </section></>}
-    {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
- { (selectedGame!=='all'||category!=='Todos'||search.trim().length>0)&&<div className="catalog-active-filters" role="group" aria-label="Filtros ativos do catálogo">
+    {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select><label className="catalog-sort-control">Ordenar<select aria-label="Ordenar catálogo" value={catalogSort} onChange={e=>setCatalogSort(e.target.value as 'catalog'|'title'|'game')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option></select></label></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
+ { (selectedGame!=='all'||category!=='Todos'||search.trim().length>0||catalogSort!=='catalog')&&<div className="catalog-active-filters" role="group" aria-label="Filtros ativos do catálogo">
   <span>Filtros ativos:</span>
   {selectedGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setSelectedGame('all'))}>Jogo: {games[selectedGame].title} <span aria-hidden="true">×</span></button>}
   {category!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setCategory('Todos'))}>Categoria: {category} <span aria-hidden="true">×</span></button>}
   {search.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setSearch(''))}>Busca: {search.trim()} <span aria-hidden="true">×</span></button>}
+  {catalogSort!=='catalog'&&<button type="button" aria-label="Remover ordenação do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setCatalogSort('catalog'))}>Ordem: {catalogSort==='title'?'Nome (A–Z)':'Jogo e nome'} <span aria-hidden="true">×</span></button>}
  </div>}
  {filtered.length?modCards(filtered):<div className="empty catalog-empty-filter"><Search size={28}/><h3>Nenhum mod corresponde aos filtros.</h3><p>Os metadados do catálogo continuam disponíveis. Limpe a pesquisa, o jogo e a categoria para vê-los novamente.</p><button type="button" className="btn secondary" onClick={resetCatalogFiltersWithFocus}>Mostrar todos os mods</button></div>}</>}
     {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>Os favoritos ficam salvos localmente. Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p></div>

@@ -1058,3 +1058,8 @@
 .catalog-active-filters button:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
 .catalog-active-filters button span{font-size:16px;margin-left:5px}
 @media(pointer:coarse){.catalog-active-filters button{min-height:44px}}
+
+/* Catalog sorting is view-only and never mutates imported manifest data. */
+.catalog-sort-control{display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;color:#c5cbd6}
+.catalog-sort-control select{min-width:0;max-width:100%}
+@media(max-width:480px){.catalog-sort-control{width:100%;justify-content:space-between}.catalog-sort-control select{flex:1;margin-left:8px}}

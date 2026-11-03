@@ -275,3 +275,10 @@ A lista vazia resulta apenas de filtros e não significa que um mod foi removido
 Quando a busca, o jogo ou a categoria do Catálogo diferem dos padrões, o resultado mostra chips acessíveis com os filtros ativos. Cada chip remove **apenas o respectivo critério**, mantendo intactos os outros dois, os favoritos e o manifesto demonstrativo ou JSON importado. Os chips não são comandos de instalação nem indicadores de compatibilidade.
 
 Como a remoção desmonta o próprio botão acionado, o foco de teclado passa ao próximo chip, ou ao anterior quando o último é removido. Sem chips restantes, o foco retorna ao primeiro mod visível. A interface permite retorno à coleção completa tanto pela remoção individual quanto pelo botão do estado vazio. Os testes Playwright cobrem Enter, foco sucessor/antecessor, largura de 390 px, filtros que produzem zero resultados, catálogo JSON importado e permanência de favoritos.
+
+
+### Ordenação reversível dos metadados do Catálogo
+
+O Catálogo permite as ordens **Original do catálogo**, **Nome (A–Z)** e **Jogo e nome** (OMSI, ETS2, ATS). A ordenação só afeta a visualização e o fluxo de navegação **Anterior/Próximo** dos Detalhes abertos a partir do Catálogo; jamais modifica a lista de metadados importada ou os favoritos. Empates são resolvidos pelo ID. Uma ordem não padrão aparece como chip removível, com continuidade de foco após seu desaparecimento. A ordem padrão é restaurada ao importar outro JSON ou voltar à demonstração. Já o botão para mostrar todos os resultados remove apenas os filtros de jogo, categoria e busca, preservando a ordenação escolhida.
+
+Os testes Playwright cobrem exibição a 390 px, navegação e retorno dos Detalhes, remoção por teclado, catálogo JSON importado, favoritos e ausência de comandos de instalação ou remoção.
