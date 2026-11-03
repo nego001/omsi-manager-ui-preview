@@ -45,7 +45,6 @@ test('refuses incomplete, contradictory, duplicated or out-of-order evidence',()
   sample({outcomes:[outcomes[0]]}),sample({outcomes:[outcomes[1],outcomes[0]]}),
   sample({outcomes:[outcomes[0],outcomes[0]]}),
   sample({outcomes:[{...outcomes[0],mapped:true},outcomes[1]]}),
-  sample({outcomes:[{...outcomes[0],windowOwned:true},outcomes[1]]}),
   sample({outcomes:[{...outcomes[0],triageClassification:'native-auto-window-mapped'},outcomes[1]]}),
   sample({outcomes:[{...outcomes[0],triageClassification:'/tmp/secret'},outcomes[1]]}),
   sample({outcomes:[{...outcomes[0],mapped:true,failed:false,windowOwned:true},outcomes[1]]}),
@@ -77,4 +76,12 @@ test('unmapped but owned X11 window remains diagnostic evidence, not a pass',()=
  assert.equal(result.windows[0].windowMapped,false);
  assert.equal(result.windows[0].nativeWindowVerified,false);
  assert.equal(result.allNativeWindowsVerified,false);
+});
+
+test('mapped window without confirmed ownership is refused as impossible probe order',()=>{
+ const invalid=outcomes.map(o=>({...o}));
+ invalid[0].mapped=true;
+ invalid[0].windowOwned=false;
+ assert.throws(()=>create(sample({outcomes:invalid})),
+  /^Error: AUTO_X11_EVIDENCE_REFUSED$/);
 });
