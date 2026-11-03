@@ -90,3 +90,16 @@ test('refuses missing or repointed sanitized evidence upload after a failed nati
    /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });
+
+test('only the exact post-failure evidence upload may use if: always()',()=>{
+ const marker='      - name: Upload sanitized native X11 evidence, even on strict-sandbox failure';
+ assert.ok(original.includes(marker));
+ for(const modification of [
+  original.replace(marker+'\n        if: always()',marker+'\n        if: success()'),
+  original.replace(marker+'\n        if: always()',marker+'\n        if: failure()'),
+  original.replace('        if-no-files-found: warn','        if-no-files-found: ignore'),
+  original.replace('          retention-days: 14','          retention-days: 365'),
+  original.replace('  native_auto_x11:','  native_auto_x11:\n    if: always()'),
+  original.replace('  native_auto_x11:','  native_auto_x11:\n    continue-on-error: true')
+ ])assert.throws(()=>verify(modification),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+});

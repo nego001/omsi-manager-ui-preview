@@ -49,6 +49,20 @@ export function validateNativeX11Workflow(source){
  if(!(hash<guard&&guard<extract&&extract<evidenceTest&&
    evidenceTest<policyReview&&policyReview<policyHints&&
    policyHints<smoke&&smoke<evidenceUpload))refusal();
+ // The sole allowed conditional is an unconditional forensic upload after
+ // the blocking native test. Any added or moved conditional is refused.
+ const evidenceStep=[
+  '      - name: Upload sanitized native X11 evidence, even on strict-sandbox failure',
+  '        if: always()',
+  '        uses: actions/upload-artifact@v4',
+  '        with:',
+  '          name: native-x11-evidence-${{ matrix.runner }}',
+  '          path: react-prototype/test-results/native-auto-x11/host-evidence.json',
+  '          if-no-files-found: warn',
+  '          retention-days: 14'
+ ].join('\n');
+ if(active.split(evidenceStep).length!==2)refusal();
+ const withoutApprovedUpload=active.replace(evidenceStep,'');
  for(const forbidden of [
   /\bcontinue-on-error\s*:/i,
   /^\s+if\s*:/m,
@@ -59,7 +73,7 @@ export function validateNativeX11Workflow(source){
   /\bsysctl\s+(?:-w|--write)\b/i,
   /\b(?:aa-complain|aa-disable|apparmor_parser|setcap)\b/i,
   /\b(?:chmod\s+(?:4755|u\+s)|chown\s+root)\b/i
- ])if(forbidden.test(active))refusal();
+ ])if(forbidden.test(withoutApprovedUpload))refusal();
  return Object.freeze({
   source:'source-text-admission-only',
   requiredRunners:['ubuntu-24.04','ubuntu-22.04'],
