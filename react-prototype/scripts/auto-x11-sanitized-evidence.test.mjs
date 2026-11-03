@@ -68,3 +68,13 @@ test('extra private strings from source are dropped, never serialized',()=>{
  assert.ok(!result.includes('rawPath'));
  assert.ok(!result.includes('/home/'));
 });
+
+test('unmapped but owned X11 window remains diagnostic evidence, not a pass',()=>{
+ const partial=outcomes.map(o=>({...o}));
+ partial[0].windowOwned=true;
+ const result=create(sample({outcomes:partial}));
+ assert.equal(result.windows[0].windowOwned,true);
+ assert.equal(result.windows[0].windowMapped,false);
+ assert.equal(result.windows[0].nativeWindowVerified,false);
+ assert.equal(result.allNativeWindowsVerified,false);
+});

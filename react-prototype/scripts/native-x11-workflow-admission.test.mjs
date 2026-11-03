@@ -97,8 +97,10 @@ test('only the exact post-failure evidence upload may use if: always()',()=>{
  for(const modification of [
   original.replace(marker+'\n        if: always()',marker+'\n        if: success()'),
   original.replace(marker+'\n        if: always()',marker+'\n        if: failure()'),
-  original.replace('        if-no-files-found: warn','        if-no-files-found: ignore'),
-  original.replace('          retention-days: 14','          retention-days: 365'),
+  original.replace(marker+'\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: native-x11-evidence-${{ matrix.runner }}\n          path: react-prototype/test-results/native-auto-x11/host-evidence.json\n          if-no-files-found: warn',
+   marker+'\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: native-x11-evidence-${{ matrix.runner }}\n          path: react-prototype/test-results/native-auto-x11/host-evidence.json\n          if-no-files-found: ignore'),
+  original.replace('          name: native-x11-evidence-${{ matrix.runner }}\n          path: react-prototype/test-results/native-auto-x11/host-evidence.json\n          if-no-files-found: warn\n          retention-days: 14',
+   '          name: native-x11-evidence-${{ matrix.runner }}\n          path: react-prototype/test-results/native-auto-x11/host-evidence.json\n          if-no-files-found: warn\n          retention-days: 365'),
   original.replace('  native_auto_x11:','  native_auto_x11:\n    if: always()'),
   original.replace('  native_auto_x11:','  native_auto_x11:\n    continue-on-error: true')
  ])assert.throws(()=>verify(modification),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);

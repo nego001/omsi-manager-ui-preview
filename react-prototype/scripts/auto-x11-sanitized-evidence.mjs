@@ -29,7 +29,8 @@ export function createSanitizedX11Evidence(input){
   const verified=entry.mapped&&!entry.failed&&entry.windowOwned&&entry.nativeProcess;
   if(entry.triageClassification==='native-auto-window-mapped'&&!verified)refusal();
   if(entry.triageClassification!=='native-auto-window-mapped'&&verified)refusal();
-  if(entry.windowOwned&&!entry.mapped)refusal();
+  // Owning an X11 window without a mapped state is a legitimate failure
+  // checkpoint. Keep that evidence instead of rejecting the whole report.
   if(entry.mapped&&!entry.nativeProcess)refusal();
   return Object.freeze({
    desktop:entry.desktop,nativeProcessObserved:entry.nativeProcess,
