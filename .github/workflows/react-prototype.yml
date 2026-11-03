@@ -84,6 +84,8 @@ jobs:
         run: node --test scripts/auto-real-x11-contract.test.mjs
       - name: Native X11 triage categories, privacy and strict-sandbox contracts
         run: node --test scripts/auto-x11-native-triage.test.mjs
+      - name: Sanitized X11 evidence format and privacy refusal contracts
+        run: node --test scripts/auto-x11-sanitized-evidence.test.mjs
       - name: AppArmor administrator review classification (synthetic data only)
         run: node --test scripts/ubuntu24-app-profile-review.test.mjs
       - name: Install Weston for a real headless Wayland socket
@@ -162,6 +164,7 @@ jobs:
         timeout-minutes: 3
         env:
           CI: 'true'
+          OMSI_NATIVE_X11_RUNNER: ${{ matrix.runner }}
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends x11-utils x11-apps
@@ -169,10 +172,19 @@ jobs:
           node --check scripts/auto-real-x11-smoke.mjs
           node --test scripts/auto-x11-host-policy-contract.test.mjs
           node --test scripts/auto-x11-native-triage.test.mjs
+          node --test scripts/auto-x11-sanitized-evidence.test.mjs
           node --test scripts/ubuntu24-app-profile-review.test.mjs
           node scripts/auto-x11-host-capabilities.mjs
           # The real auto-launch must still create a mapped X11 window.
           xvfb-run -a node scripts/auto-real-x11-smoke.mjs
+      - name: Upload sanitized native X11 evidence, even on strict-sandbox failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-x11-evidence-${{ matrix.runner }}
+          path: react-prototype/test-results/native-auto-x11/host-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
       # Compare two supported hosted Ubuntu images without changing any
       # sandbox, AppArmor, kernel or privilege policy. The same CI-built
       # unsigned Linux artifact and identical X11 proof are required for both.

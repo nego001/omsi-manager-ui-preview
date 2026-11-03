@@ -14,7 +14,8 @@ export function validateNativeX11Workflow(source){
  const build=lines.slice(buildStart,start).filter(line=>!line.trimStart().startsWith('#')).join('\n');
  // Require the exact synthetic contract in the upstream build and both X11 runners.
  if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
-    !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs'))refusal();
+    !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
  const active=job.split('\n').filter(line=>!line.trimStart().startsWith('#')).join('\n');
  for(const expected of [
@@ -30,6 +31,10 @@ export function validateNativeX11Workflow(source){
   'node scripts/native-sandbox-preflight-ci.mjs',
   'node scripts/auto-x11-host-capabilities.mjs',
   'node --test scripts/auto-x11-native-triage.test.mjs',
+  'node --test scripts/auto-x11-sanitized-evidence.test.mjs',
+  'OMSI_NATIVE_X11_RUNNER: ${{ matrix.runner }}',
+  'name: native-x11-evidence-${{ matrix.runner }}',
+  'path: react-prototype/test-results/native-auto-x11/host-evidence.json',
   'node --test scripts/ubuntu24-app-profile-review.test.mjs',
   'xvfb-run -a node scripts/auto-real-x11-smoke.mjs'
  ])if(!active.includes(expected))refusal();
@@ -37,10 +42,13 @@ export function validateNativeX11Workflow(source){
  const guard=active.indexOf('python3 -I -S -B ../scripts/controlled_ci_archive_guard.py');
  const extract=active.indexOf('tar --no-same-owner --no-same-permissions -xzf');
  const smoke=active.indexOf('xvfb-run -a node scripts/auto-real-x11-smoke.mjs');
+ const evidenceTest=active.indexOf('node --test scripts/auto-x11-sanitized-evidence.test.mjs');
+ const evidenceUpload=active.indexOf('name: native-x11-evidence-${{ matrix.runner }}');
  const policyReview=active.indexOf('node --test scripts/ubuntu24-app-profile-review.test.mjs');
  const policyHints=active.indexOf('node scripts/auto-x11-host-capabilities.mjs');
- if(!(hash<guard&&guard<extract&&extract<policyReview&&
-   policyReview<policyHints&&policyHints<smoke))refusal();
+ if(!(hash<guard&&guard<extract&&extract<evidenceTest&&
+   evidenceTest<policyReview&&policyReview<policyHints&&
+   policyHints<smoke&&smoke<evidenceUpload))refusal();
  for(const forbidden of [
   /\bcontinue-on-error\s*:/i,
   /^\s+if\s*:/m,
@@ -58,6 +66,7 @@ export function validateNativeX11Workflow(source){
   shaBeforeArchiveExtraction:true,
   fullNativeX11ProofStillRequired:true,
   apparmorReviewContractRequired:true,
+  sanitizedEvidenceRequired:true,
   sandboxBypassAllowed:false,
   realWindowProven:false,
   hostPolicyChanged:false

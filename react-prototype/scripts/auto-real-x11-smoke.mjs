@@ -3,12 +3,13 @@
 // This is NOT a real GNOME/KWin compositor or native chooser certification.
 import {spawn,execFile} from 'node:child_process';
 import {promisify} from 'node:util';
-import {readFile,mkdtemp,mkdir,rm,access} from 'node:fs/promises';
+import {readFile,mkdtemp,mkdir,rm,access,writeFile} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
+import {createSanitizedX11Evidence} from './auto-x11-sanitized-evidence.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
 import {categorizeUnshareFailure,categorizeApparmorModule} from './auto-x11-host-policy-contract.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
@@ -176,8 +177,14 @@ async function probePlainX11Display(root){
 
 const root=await mkdtemp(join(tmpdir(),'omsi-x11-native-auto-'));
 const outcomes=[];
+let hostEvidence;
 try{
  await probePlainX11Display(root);
+ hostEvidence={
+  apparmorRestriction:await readApparmorNamespacePolicyCategory(),
+  apparmorModuleState:await readApparmorModuleCategory(),
+  userNamespaceProbe:await probeCiUserNamespaceCategory()
+ };
  for(const desktop of ['GNOME','KDE']){
   // GNOME and KDE use independent disposable roots under this CI-only
   // directory. This is a profile-state separation, not an OS sandbox.
@@ -193,6 +200,7 @@ try{
   const startupHints=new Set();
   let checkpoint='startup';
   let found=false;
+  let triageClassification='native-auto-window-mapped';
   try{
    child=spawn(binary,[],{
     cwd:dirname(binary),detached:true,stdio:['ignore','ignore','pipe'],shell:false,
@@ -269,17 +277,19 @@ try{
      auto:{mapped:found,exited:failed,exitSignal,startupHints:[...startupHints]},
      direct
     });
+    triageClassification=triage.classification;
     console.error('AUTO_X11_NATIVE_TRIAGE',JSON.stringify(triage));
     console.error('AUTO_X11_APPARMOR_ADMIN_REVIEW',JSON.stringify(
      assessApparmorAdminReview({
-      apparmorRestriction:await readApparmorNamespacePolicyCategory(),
-      apparmorModuleState:await readApparmorModuleCategory(),
-      namespaceProbe:await probeCiUserNamespaceCategory(),triage
+      apparmorRestriction:hostEvidence.apparmorRestriction,
+      apparmorModuleState:hostEvidence.apparmorModuleState,
+      namespaceProbe:hostEvidence.userNamespaceProbe,triage
      })
     ));
    }
    outcomes.push({desktop,mapped:found,failed,
-    windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess});
+    windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess,
+    triageClassification});
    if(found&&!failed)
     console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
   }finally{
@@ -293,6 +303,20 @@ try{
 }finally{
  await rm(root,{recursive:true,force:true});
 }
+// Write only fixed categories in a dedicated, temporary CI workspace before
+// asserting the result. The failure must remain red and still be auditable.
+const evidence=createSanitizedX11Evidence({
+ runner:process.env.OMSI_NATIVE_X11_RUNNER,host:hostEvidence,
+ baselineMapped:true,outcomes
+});
+await mkdir('test-results/native-auto-x11',{recursive:true,mode:0o700});
+await writeFile('test-results/native-auto-x11/host-evidence.json',
+ JSON.stringify(evidence)+'\n',{encoding:'utf8',flag:'wx',mode:0o600});
+console.log('AUTO_X11_SANITIZED_EVIDENCE_READY',JSON.stringify({
+ schema:evidence.schema,runner:evidence.runner,
+ allNativeWindowsVerified:evidence.allNativeWindowsVerified,
+ sandboxCertified:false,hostPolicyChanged:false
+}));
 // Do not stop after a GNOME failure: collect independent KDE evidence too.
 // A failing profile keeps this CI job red, regardless of direct Electron probe.
 verifyNativeDesktopResults(outcomes);
