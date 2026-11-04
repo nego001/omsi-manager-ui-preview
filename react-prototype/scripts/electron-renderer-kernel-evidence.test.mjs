@@ -66,3 +66,35 @@ test('raw paths and credentials never become serialized evidence',()=>{
  assert.equal(serialized.includes(secret),false);
  assert.equal(serialized.includes('uid'),false);
 });
+
+
+test('each failure uses only a fixed privacy-safe category',()=>{
+ const cases=[
+  [status(),cmd(['/fake/another','--type=renderer']),'unexpected-executable'],
+  [status(),cmd(['/fake/OMSI-Manager-Preview','--type=gpu-process']),'renderer-role-unverified'],
+  [status(),cmd(['/fake/OMSI-Manager-Preview','--type=renderer','--no-sandbox']),'sandbox-bypass-switch'],
+  [status().replace('Seccomp:\t2',''),'','invalid-seccomp-field'],
+  [status().replace('NoNewPrivs:\t1',''),'','invalid-no-new-privileges-field']
+ ];
+ for(const [stat,argv,reason] of cases){
+  const command=argv===''?cmd():argv;
+  assert.throws(()=>classify(stat,command),e=>
+   e.message==='ELECTRON_RENDERER_KERNEL_EVIDENCE_REFUSED'&&e.reason===reason);
+ }
+ for(const value of [42,null,undefined,Buffer.alloc(0)])
+  assert.throws(()=>classify(status(),value),e=>
+   e.message==='ELECTRON_RENDERER_KERNEL_EVIDENCE_REFUSED'&&
+   e.reason==='invalid-proc-command-line');
+});
+test('reason codes are fixed even when raw input includes private data',()=>{
+ const error=assert.throws(()=>classify(status(),cmd([
+  '/home/private/key/unknown-binary','--type=renderer','--user-data-dir=/home/private/token'
+ ])));
+ // Explicitly capture via try/catch because assert.throws may not return a value.
+ let caught;
+ try{classify(status(),cmd(['/home/private/key/unknown-binary','--type=renderer']));}
+ catch(e){caught=e;}
+ assert.equal(caught.reason,'unexpected-executable');
+ assert.equal(Object.keys(caught).includes('reason'),false);
+ assert.equal(JSON.stringify({reason:caught.reason}).includes('/home/private'),false);
+});

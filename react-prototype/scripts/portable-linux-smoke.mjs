@@ -8,9 +8,32 @@ import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
 import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
-import {probePackagedRendererKernelEvidence} from './electron-renderer-kernel-evidence.mjs';
+import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
+async function requireRendererKernelEvidence(pid,scenario){
+ try{
+  const result=await probePackagedRendererKernelEvidence(pid);
+  if(result.category!=='renderer-kernel-restrictions-observed'){
+   console.error('PACKAGED_RENDERER_KERNEL_PROBE',JSON.stringify({
+    scenario,classification:result.category,seccompMode:result.seccompMode,
+    noNewPrivs:result.noNewPrivs,fullElectronSandboxCertified:false,
+    hostPolicyChanged:false,rawProcessDataExposed:false
+   }));
+   throw Error('PACKAGED_RENDERER_KERNEL_RESTRICTIONS_NOT_OBSERVED');
+  }
+  return result;
+ }catch(error){
+  const reason=PACKAGED_RENDERER_REFUSAL_REASONS.includes(error?.reason)?
+   error.reason:'kernel-restrictions-incomplete-or-unexpected';
+  console.error('PACKAGED_RENDERER_KERNEL_PROBE_REFUSED',JSON.stringify({
+   scenario,reason,fullElectronSandboxCertified:false,
+   hostPolicyChanged:false,rawProcessDataExposed:false
+  }));
+  throw Error('PACKAGED_RENDERER_KERNEL_EVIDENCE_NOT_VERIFIED');
+ }
+}
+
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 await access(executable,constants.X_OK);
 await verifyBuildManifest(dirname(executable),{platform:'linux'});
@@ -109,7 +132,7 @@ try{
  // not a title match or a synthetic setting. Read /proc only, no policy edits.
  const rendererPid=await application.evaluate(({BrowserWindow})=>
   BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
- const kernelEvidence=await probePackagedRendererKernelEvidence(rendererPid);
+ const kernelEvidence=await requireRendererKernelEvidence(rendererPid,'linux-packaged-main');
  const sameRendererPid=await application.evaluate(({BrowserWindow})=>
   BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
  assert.equal(rendererPid,sameRendererPid,'renderer PID changed during kernel security inspection');
@@ -188,7 +211,7 @@ try{
    .waitFor({timeout:25000});
   const labelRendererPid=await application.evaluate(({BrowserWindow})=>
    BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
-  const labelKernel=await probePackagedRendererKernelEvidence(labelRendererPid);
+  const labelKernel=await requireRendererKernelEvidence(labelRendererPid,desktop);
   assert.equal(labelKernel.category,'renderer-kernel-restrictions-observed',
    'renderer OS restrictions missing in '+desktop+' X11 label');
   assert.equal(labelKernel.fullElectronSandboxCertified,false);

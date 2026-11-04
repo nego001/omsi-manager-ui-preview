@@ -174,3 +174,25 @@ não forem observadas.
 Chromium, a eficácia completa do sandbox, o AppArmor ou a compatibilidade Ubuntu
 24.04. O Ubuntu 24.04 continua sujeito à sua prova nativa X11 estrita e
 reprovada quando houver `SIGTRAP`, sem alterar o host.
+
+
+## Triagem limitada da sonda do renderizador
+
+O commit que introduziu a leitura do processo real reprovou no smoke do pacote
+Linux, com erro genérico `ELECTRON_RENDERER_KERNEL_EVIDENCE_REFUSED`.
+**Isso não é prova de sandbox desativado**; a versão anterior misturava erro de
+identificação do processo, formato /proc e falha de leitura em uma única exceção.
+
+A triagem agora reporta **somente uma categoria estática**:
+`invalid-probe-context`, `invalid-process-id`, `proc-read-unavailable`,
+`invalid-proc-status`, `invalid-proc-command-line`, `unexpected-executable`,
+`renderer-role-unverified`, `sandbox-bypass-switch`,
+`invalid-seccomp-field` ou `invalid-no-new-privileges-field`.
+Nenhum PID, argumento bruto, caminho ou exceção de sistema é publicado.
+Se Seccomp/NoNewPrivs forem insuficientes, mostra apenas os indicadores já
+categorizados e mantém a CI vermelha. Isso é diagnóstico, **não relaxamento**
+do requisito e nem certificação de sandbox.
+
+O comparador Ubuntu continua exigindo os dois artefatos; a falha dependente
+de download após um build vermelho não deve ser interpretada como nova
+evidência sobre o AppArmor.
