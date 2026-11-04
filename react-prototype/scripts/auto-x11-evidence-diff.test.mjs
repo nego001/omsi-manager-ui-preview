@@ -39,7 +39,7 @@ test('refuses malformed, secret-bearing, swapped and contradictory evidence',()=
   good.replace('nativeWindowVerified":true','nativeWindowVerified":false'),
   good.replace('electronSandboxCertified":false','electronSandboxCertified":true'),
   good.replace('readOnlyEvidence":true','readOnlyEvidence":false'),
-  good.replace('OMSI','OMSI-'+secret),
+  good.replace('AUTO_X11_HOST_EVIDENCE_V1',secret),
   good.replace('"schema":','"privatePath":"'+secret+'","schema":'),
   good.replace('"GNOME"','"KDE"'),
   good.replace('native-auto-window-mapped','native-auto-window-exit-observed'),
