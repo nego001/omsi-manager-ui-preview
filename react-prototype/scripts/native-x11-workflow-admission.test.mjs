@@ -13,6 +13,7 @@ test('the live workflow requires both Ubuntu images, SHA guard, X11 proof and st
  assert.equal(result.sanitizedEvidenceRequired,true);
  assert.equal(result.crossRunnerComparisonRequired,true);
  assert.equal(result.adminPilotComparisonContractRequired,true);
+ assert.equal(result.abaRollbackComparisonContractRequired,true);
  assert.equal(result.shaBeforeArchiveExtraction,true);
  assert.equal(result.sandboxBypassAllowed,false);
  assert.equal(result.realWindowProven,false);
@@ -76,6 +77,10 @@ test('requires the policy review contract in build and rejects late or missing X
  assert.ok(original.includes(pilotStep));
  assert.throws(()=>verify(original.replace(pilotStep,
   '      - name: pilot-contract-skipped\n        run: echo skipped')),
+  /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ const abaStep='      - name: Controlled Ubuntu 24.04 A-B-A rollback comparison (synthetic only)\n        run: node --test scripts/ubuntu24-controlled-pilot-aba.test.mjs';
+ assert.ok(original.includes(abaStep));
+ assert.throws(()=>verify(original.replace(abaStep,'      - name: skipped-rollback\n        run: echo skipped')),
   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  const reviewLine='          node --test scripts/ubuntu24-app-profile-review.test.mjs';
  const hostLine='          node scripts/auto-x11-host-capabilities.mjs';

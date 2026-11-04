@@ -17,7 +17,8 @@ export function validateNativeX11Workflow(source){
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
     !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
-    !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs'))refusal();
+    !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs')||
+    !build.includes('node --test scripts/ubuntu24-controlled-pilot-aba.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
  const active=job.split('\n').filter(line=>!line.trimStart().startsWith('#')).join('\n');
  for(const expected of [
@@ -110,6 +111,7 @@ export function validateNativeX11Workflow(source){
   sanitizedEvidenceRequired:true,
   crossRunnerComparisonRequired:true,
   adminPilotComparisonContractRequired:true,
+  abaRollbackComparisonContractRequired:true,
   sandboxBypassAllowed:false,
   realWindowProven:false,
   hostPolicyChanged:false

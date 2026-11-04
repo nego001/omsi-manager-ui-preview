@@ -100,3 +100,35 @@ campos de certificação continuam sempre falsos; a homologação requer comprov
 independente da política, isolamento, rollback e o job nativo Ubuntu 24.04 realmente
 aprovado sob sandbox estrito. Mesmo um piloto aparentemente bem-sucedido **não remove
 o bloqueio da CI nem autoriza merge ou lançamento**.
+
+## Comparação A-B-A e reversão administrativa (sem ações no host)
+
+O módulo scripts/ubuntu24-controlled-pilot-aba.mjs compara apenas três observações
+categóricas declaradas por um administrador: **baseline** (falha anterior), 
+**app-specific-pilot** (ensaio autorizado) e **rollback** (retorno ao estado inicial).
+A CI executa apenas dez testes sintéticos; nenhum perfil AppArmor é gerado ou aplicado.
+
+As três observações precisam usar exatamente o mesmo SHA-256 informado, o mesmo
+identificador aleatório opaco de sessão descartável (64 hex) e a mesma etiqueta
+GNOME ou KDE. A regra exige módulo AppArmor e restrição global ativados nos três
+momentos, pacote portátil em caminho estável revisado, ausência de elevação root,
+ausência de bypass do sandbox e nenhuma mudança de política global.
+
+A categoria **reversible-namespace-correlation-observed** exige:
+1. Primeiro: namespace negado e dois caminhos Electron falhando com SIGTRAP.
+2. Piloto: namespace permitido e janelas realmente mapeadas e atribuídas aos dois processos.
+3. Reversão: namespace negado e ambas as falhas SIGTRAP novamente observadas.
+
+Qualquer lacuna ou contradição impede essa conclusão. Observações incompatíveis
+de processo, pacote, sessão, desktop, aprovação ou segurança são recusadas.
+A comparação **não autentica** o host, a política carregada, o hash executado
+ou a remoção de perfil. Mesmo o padrão completo continua sendo somente correlação
+reversível, nunca prova causal, certificação do isolamento Electron ou aprovação
+de distribuição. Não alterar a falha obrigatória do Ubuntu 24.04 nem o Draft da PR.
+
+A documentação oficial descreve perfis específicos com permissão userns para
+aplicativos que necessitam namespaces, mas também ressalta que uma permissão
+não é uma certificação do sandbox do Chromium. Qualquer piloto permanece
+dependente de autorização humana e de prova independente do confinamento.
+Referências: https://documentation.ubuntu.com/release-notes/24.04/
+e https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md
