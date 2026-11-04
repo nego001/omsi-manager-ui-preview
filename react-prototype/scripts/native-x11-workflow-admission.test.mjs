@@ -30,7 +30,6 @@ test('fails closed on missing runner, bypassed failure, removed verification and
   ['node scripts/native-sandbox-preflight-ci.mjs','echo preflight-skipped'],
   ['node scripts/auto-x11-host-capabilities.mjs','echo host-diagnostics-skipped'],
   ['node --test scripts/ubuntu24-app-profile-review.test.mjs','echo policy-review-skipped'],
-  ['node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs','echo admin-pilot-contract-skipped'],
   ['node --test scripts/auto-x11-sanitized-evidence.test.mjs','echo evidence-validation-skipped']
  ];
  const start=original.indexOf('  native_auto_x11:');
@@ -72,6 +71,11 @@ test('requires the policy review contract in build and rejects late or missing X
  const buildStep='      - name: AppArmor administrator review classification (synthetic data only)\n        run: node --test scripts/ubuntu24-app-profile-review.test.mjs';
  assert.ok(original.includes(buildStep));
  assert.throws(()=>verify(original.replace(buildStep,'      - name: policy-review-removed\n        run: echo omitted')),
+  /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ const pilotStep='      - name: Controlled Ubuntu 24.04 administrator pilot comparison (synthetic only)\n        run: node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs';
+ assert.ok(original.includes(pilotStep));
+ assert.throws(()=>verify(original.replace(pilotStep,
+  '      - name: pilot-contract-skipped\n        run: echo skipped')),
   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  const reviewLine='          node --test scripts/ubuntu24-app-profile-review.test.mjs';
  const hostLine='          node scripts/auto-x11-host-capabilities.mjs';
