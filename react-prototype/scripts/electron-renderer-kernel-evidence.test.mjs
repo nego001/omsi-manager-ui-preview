@@ -1,7 +1,8 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {classifyPackagedRendererKernelEvidence as classify,
- probePackagedRendererKernelEvidence as probe} from './electron-renderer-kernel-evidence.mjs';
+ probePackagedRendererKernelEvidence as probe,
+ verifyElectronRendererMetric as verifyMetric} from './electron-renderer-kernel-evidence.mjs';
 const status=(seccomp='2',nnp='1')=>
  'Name:\tOMSI-Manager\nState:\tS (sleeping)\nNoNewPrivs:\t'+nnp+'\nSeccomp:\t'+seccomp+'\n';
 const cmd=(parts=['/fake/release/OMSI-Manager-Preview','--type=renderer','--lang=en-US'])=>
@@ -97,4 +98,47 @@ test('reason codes are fixed even when raw input includes private data',()=>{
  assert.equal(caught.reason,'unexpected-executable');
  assert.equal(Object.keys(caught).includes('reason'),false);
  assert.equal(JSON.stringify({reason:caught.reason}).includes('/home/private'),false);
+});
+
+
+test('trusted Electron Tab metric identifies a real renderer even if Chromium omits --type switch',()=>{
+ const pid=34567;
+ const proof=verifyMetric(pid,[{pid,type:'Tab',creationTime:1710000000000}]);
+ const noType=cmd(['/fake/release/OMSI-Manager-Preview','--lang=en-US','--sandboxed-renderer']);
+ const result=classify(status(),noType,proof);
+ assert.equal(result.category,'renderer-kernel-restrictions-observed');
+ assert.equal(result.roleEvidence,'electron-metrics-and-process-command-line');
+ assert.equal(result.fullElectronSandboxCertified,false);
+});
+test('renderer metric cannot be forged with plain object or wrong process type',()=>{
+ const pid=34567;
+ const noType=cmd(['/fake/release/OMSI-Manager-Preview','--lang=en-US']);
+ assert.throws(()=>classify(status(),noType,{source:'electron-main-process-metrics'}),e=>
+  e.reason==='renderer-role-unverified');
+ for(const records of [[],null,{},[{}],
+  [{pid,type:'Browser',creationTime:1710000000000}],
+  [{pid:pid+1,type:'Tab',creationTime:1710000000000}],
+  [{pid,type:'Utility',creationTime:1710000000000}],
+  [{pid,type:'Tab',creationTime:0}],
+  [{pid,type:'Tab',creationTime:'1710000000000'}],
+  [{pid,type:'Tab',creationTime:1710000000000},{pid,type:'Tab',creationTime:1710000000000}]
+ ]){
+  assert.throws(()=>verifyMetric(pid,records),e=>
+   e.reason==='electron-metric-role-unverified');
+ }
+});
+test('trusted Electron metric never overrides a contrary --type or sandbox bypass',()=>{
+ const pid=34567;
+ const proof=verifyMetric(pid,[{pid,type:'Tab',creationTime:1710000000000}]);
+ for(const argv of [
+  ['/fake/OMSI-Manager-Preview','--type=gpu-process'],
+  ['/fake/OMSI-Manager-Preview','--type=utility'],
+  ['/fake/OMSI-Manager-Preview','--type=renderer','--type=renderer'],
+  ['/fake/OMSI-Manager-Preview','--type=renderer','--no-sandbox'],
+  ['/fake/OMSI-Manager-Preview','--disable-seccomp-filter-sandbox','--lang=en-US']
+ ])assert.throws(()=>classify(status(),cmd(argv),proof),refused);
+});
+test('probe rejects absent main-process role evidence before attempting proc read',async()=>{
+ await assert.rejects(probe(34567,[]),e=>
+  e.reason==='electron-metric-role-unverified');
 });

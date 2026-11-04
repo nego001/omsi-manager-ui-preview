@@ -196,3 +196,24 @@ do requisito e nem certificação de sandbox.
 O comparador Ubuntu continua exigindo os dois artefatos; a falha dependente
 de download após um build vermelho não deve ser interpretada como nova
 evidência sobre o AppArmor.
+
+
+## Conferência do papel real do renderizador com métricas do Electron
+
+Após a primeira falha `renderer-role-unverified`, a inspeção passou a correlacionar
+`webContents.getOSProcessId()` com um **único** registro `type: Tab` de
+`app.getAppMetrics()`, incluindo timestamp de criação válido. A API oficial
+confirma que `getOSProcessId()` fornece o PID do renderizador e a estrutura
+`ProcessMetric` diferencia `Tab`, `Browser`, `Utility` e outros processos.
+
+O argumento `--type=renderer` continua válido quando presente; mas algumas
+invocações reais podem não exibir esse argumento em `/proc/cmdline`.
+Nesses casos, o papel só é aceito mediante **prova cruzada do processo principal**,
+nunca por uma opção booleana fornecida ao classificador.
+Papel explícito contraditório, PID divergente, métrica duplicada, ausência de
+timestamp ou parâmetros de bypass continuam bloqueantes.
+
+Essa mudança não altera `Seccomp=2` nem `NoNewPrivs=1`, não imprime PID ou
+argumentos, não modifica AppArmor e não confere certificação de sandbox.
+Fontes: https://www.electronjs.org/docs/latest/api/web-contents e
+https://www.electronjs.org/docs/latest/api/structures/process-metric

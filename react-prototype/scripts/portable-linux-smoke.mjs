@@ -11,9 +11,9 @@ import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
 import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
-async function requireRendererKernelEvidence(pid,scenario){
+async function requireRendererKernelEvidence(sample,scenario){
  try{
-  const result=await probePackagedRendererKernelEvidence(pid);
+  const result=await probePackagedRendererKernelEvidence(sample.pid,sample.metrics);
   if(result.category!=='renderer-kernel-restrictions-observed'){
    console.error('PACKAGED_RENDERER_KERNEL_PROBE',JSON.stringify({
     scenario,classification:result.category,seccompMode:result.seccompMode,
@@ -130,9 +130,14 @@ try{
   .waitFor({timeout:30000});
  // Inspect the OS renderer process selected by Electron's trusted main process,
  // not a title match or a synthetic setting. Read /proc only, no policy edits.
- const rendererPid=await application.evaluate(({BrowserWindow})=>
-  BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
- const kernelEvidence=await requireRendererKernelEvidence(rendererPid,'linux-packaged-main');
+ const rendererSample=await application.evaluate(({BrowserWindow,app})=>{
+  const pid=BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId();
+  const metrics=app.getAppMetrics().filter(m=>m.pid===pid)
+   .map(m=>({pid:m.pid,type:m.type,creationTime:m.creationTime}));
+  return {pid,metrics};
+ });
+ const rendererPid=rendererSample.pid;
+ const kernelEvidence=await requireRendererKernelEvidence(rendererSample,'linux-packaged-main');
  const sameRendererPid=await application.evaluate(({BrowserWindow})=>
   BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
  assert.equal(rendererPid,sameRendererPid,'renderer PID changed during kernel security inspection');
@@ -209,9 +214,13 @@ try{
   const view=await application.firstWindow();
   await view.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
    .waitFor({timeout:25000});
-  const labelRendererPid=await application.evaluate(({BrowserWindow})=>
-   BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
-  const labelKernel=await requireRendererKernelEvidence(labelRendererPid,desktop);
+  const labelSample=await application.evaluate(({BrowserWindow,app})=>{
+   const pid=BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId();
+   const metrics=app.getAppMetrics().filter(m=>m.pid===pid)
+    .map(m=>({pid:m.pid,type:m.type,creationTime:m.creationTime}));
+   return {pid,metrics};
+  });
+  const labelKernel=await requireRendererKernelEvidence(labelSample,desktop);
   assert.equal(labelKernel.category,'renderer-kernel-restrictions-observed',
    'renderer OS restrictions missing in '+desktop+' X11 label');
   assert.equal(labelKernel.fullElectronSandboxCertified,false);

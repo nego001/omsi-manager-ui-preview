@@ -6,7 +6,8 @@ import {basename} from 'node:path';
 const allowedReasons=new Set([
  'invalid-probe-context','invalid-process-id','proc-read-unavailable',
  'invalid-proc-status','invalid-proc-command-line','unexpected-executable',
- 'renderer-role-unverified','sandbox-bypass-switch','invalid-seccomp-field',
+ 'renderer-role-unverified','electron-metric-role-unverified',
+ 'sandbox-bypass-switch','invalid-seccomp-field',
  'invalid-no-new-privileges-field'
 ]);
 const refuse=reason=>{
@@ -16,12 +17,31 @@ const refuse=reason=>{
 };
 export const PACKAGED_RENDERER_REFUSAL_REASONS=Object.freeze([...allowedReasons]);
 const max=65536;
+// A private token guarantees the classifier only accepts a renderer role that
+// has passed the Electron main-process metric check, never a caller-supplied boolean.
+const metricRoleProofs=new WeakSet();
+export function verifyElectronRendererMetric(pid,records){
+ if(!Number.isSafeInteger(pid)||pid<=1||pid>2147483647)
+  refuse('invalid-process-id');
+ if(!Array.isArray(records)||records.length!==1)
+  refuse('electron-metric-role-unverified');
+ const row=records[0];
+ if(!row||typeof row!=='object'||Array.isArray(row)||
+    row.pid!==pid||row.type!=='Tab'||
+    typeof row.creationTime!=='number'||!Number.isFinite(row.creationTime)||
+    row.creationTime<=0)
+  refuse('electron-metric-role-unverified');
+ const proof=Object.freeze({source:'electron-main-process-metrics'});
+ metricRoleProofs.add(proof);
+ return proof;
+}
+
 function one(raw,name,values,reason){
  const found=[...raw.matchAll(new RegExp('^'+name+':\\s*([0-9]+)\\s*$','gm'))];
  if(found.length!==1||!values.includes(found[0][1]))refuse(reason);
  return Number(found[0][1]);
 }
-export function classifyPackagedRendererKernelEvidence(status,cmdline){
+export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProof){
  if(typeof status!=='string'||status.length<20||status.length>max)
   refuse('invalid-proc-status');
  if(!Buffer.isBuffer(cmdline)||cmdline.length<20||cmdline.length>max||
@@ -33,7 +53,10 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline){
   refuse('invalid-proc-command-line');
  if(basename(argv[0])!=='OMSI-Manager-Preview')
   refuse('unexpected-executable');
- if(argv.filter(a=>a==='--type=renderer').length!==1)
+ const declaredRoles=argv.filter(a=>a.startsWith('--type='));
+ if(declaredRoles.length>1||
+   (declaredRoles.length===1&&declaredRoles[0]!=='--type=renderer')||
+   (declaredRoles.length===0&&!metricRoleProofs.has(metricProof)))
   refuse('renderer-role-unverified');
  if(argv.some(a=>/^(?:--no-sandbox|--disable-setuid-sandbox|--disable-seccomp-filter-sandbox)(?:=|$)/.test(a)))
   refuse('sandbox-bypass-switch');
@@ -49,6 +72,8 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline){
   category:observed?'renderer-kernel-restrictions-observed':
    'renderer-kernel-restrictions-incomplete',
   runtimeRendererIdentityChecked:true,
+  roleEvidence:metricRoleProofs.has(metricProof)?
+   'electron-metrics-and-process-command-line':'renderer-process-command-line-only',
   fullElectronSandboxCertified:false,
   userNamespaceIsolationCertified:false,
   apparmorCausalityProven:false,
@@ -56,11 +81,12 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline){
   gameContentRead:false
  });
 }
-export async function probePackagedRendererKernelEvidence(pid){
+export async function probePackagedRendererKernelEvidence(pid,records){
  if(process.platform!=='linux'||process.getuid?.()===0)
   refuse('invalid-probe-context');
  if(!Number.isSafeInteger(pid)||pid<=1||pid>2147483647)
   refuse('invalid-process-id');
+ const metricProof=verifyElectronRendererMetric(pid,records);
  let status,cmdline;
  try{
   [status,cmdline]=await Promise.all([
@@ -68,5 +94,5 @@ export async function probePackagedRendererKernelEvidence(pid){
    readFile('/proc/'+pid+'/cmdline')
   ]);
  }catch{refuse('proc-read-unavailable');}
- return classifyPackagedRendererKernelEvidence(status,cmdline);
+ return classifyPackagedRendererKernelEvidence(status,cmdline,metricProof);
 }
