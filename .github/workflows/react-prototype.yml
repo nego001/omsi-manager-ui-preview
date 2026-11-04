@@ -88,6 +88,8 @@ jobs:
         run: node --test scripts/auto-x11-sanitized-evidence.test.mjs
       - name: Cross-runner X11 evidence comparison refusal contracts
         run: node --test scripts/auto-x11-evidence-diff.test.mjs
+      - name: Controlled Ubuntu 24.04 administrator pilot comparison (synthetic only)
+        run: node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs
       - name: AppArmor administrator review classification (synthetic data only)
         run: node --test scripts/ubuntu24-app-profile-review.test.mjs
       - name: Install Weston for a real headless Wayland socket

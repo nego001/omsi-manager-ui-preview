@@ -69,3 +69,34 @@ Os artefatos `native-x11-evidence-ubuntu-22.04` e `native-x11-evidence-ubuntu-24
 Um job de **comparação somente leitura**, separado da matriz e com `needs: [build, native_auto_x11]`, executa mesmo quando o teste Ubuntu 24.04 falha. Ele baixa **os dois relatórios da mesma execução CI**, com caminhos fixos, valida um esquema estrito, rejeita arquivos fora do vocabulário e produz apenas o arquivo sanitizado `native-x11-cross-runner-comparison`. Nenhum log bruto, PID, caminho privado, nome de usuário ou dado dos mods entra na comparação.
 
 A categoria `namespace-restriction-correlated-with-startup-failure` exige duas janelas X11 válidas no Ubuntu 22.04, namespace permitido nesse runner, restrição AppArmor habilitada no 24.04, namespace negado e falha de inicialização nas duas etiquetas de ambiente. **Correlação não é causalidade**. O relatório sempre mantém `apparmorCausalityProven:false` e `electronSandboxCertified:false`, mesmo quando ambas as janelas abrem. Se faltar qualquer artefato, a comparação reprova. Os testes da matriz Ubuntu permanecem obrigatórios, com resultado próprio, sem `continue-on-error` ou desativação de sandbox.
+
+
+## Contrato A/B para um futuro piloto administrativo descartável
+
+O módulo puramente funcional `scripts/ubuntu24-controlled-pilot-compare.mjs` e seus testes
+`ubuntu24-controlled-pilot-compare.test.mjs` permitem comparar categorias relatadas
+**antes** e **depois** de uma intervenção executada por administrador autorizado, em VM
+descartável. Este código não cria, carrega, desativa nem sugere comandos prontos de perfil.
+O workflow público executa **apenas testes sintéticos** do comparador.
+
+A entrada `UBUNTU24_CONTROLLED_PILOT_INPUT_V1` exige exatamente duas observações,
+na ordem `baseline` e `app-specific-policy-pilot`, referentes ao Ubuntu 24.04 e ao
+**mesmo SHA-256 relatado** do pacote portátil. Cada observação registra só categorias:
+módulo AppArmor e restrição global ativos, categoria da tentativa não privilegiada de
+namespace, X11 neutro, resultado das janelas do launcher e Electron direto, modo do
+perfil e declarações de que não houve alteração global, bypass do sandbox ou Electron
+executado como root. O caminho absoluto do binário é revisado por humano, **não gravado**.
+Relatos fora do vocabulário, pacotes divergentes e resultados contraditórios são recusados.
+
+O resultado `candidate-for-independent-runtime-and-sandbox-review` só aparece se a
+falha original foi reproduzida com `SIGTRAP` e namespace negado nos dois caminhos,
+seguida por namespace permitido e **duas janelas mapeadas e pertencentes aos processos
+esperados** durante o piloto. Outros resultados são `baseline-not-reproduced` e
+`pilot-did-not-demonstrate-full-recovery`.
+
+Isso **não** autentica o administrador, o host, o hash realmente executado ou a política
+aplicada, **não comprova causalidade** e **não certifica o sandbox de renderização**. Os
+campos de certificação continuam sempre falsos; a homologação requer comprovação
+independente da política, isolamento, rollback e o job nativo Ubuntu 24.04 realmente
+aprovado sob sandbox estrito. Mesmo um piloto aparentemente bem-sucedido **não remove
+o bloqueio da CI nem autoriza merge ou lançamento**.

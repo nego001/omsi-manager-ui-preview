@@ -16,7 +16,8 @@ export function validateNativeX11Workflow(source){
  if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
     !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
-    !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs'))refusal();
+    !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
+    !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
  const active=job.split('\n').filter(line=>!line.trimStart().startsWith('#')).join('\n');
  for(const expected of [
@@ -108,6 +109,7 @@ export function validateNativeX11Workflow(source){
   apparmorReviewContractRequired:true,
   sanitizedEvidenceRequired:true,
   crossRunnerComparisonRequired:true,
+  adminPilotComparisonContractRequired:true,
   sandboxBypassAllowed:false,
   realWindowProven:false,
   hostPolicyChanged:false
