@@ -27,7 +27,7 @@ export function parseSanitizedX11Record(raw,expectedRunner){
  }catch{refuse();}
  // Exact canonical form rejects unexpected properties, false certification,
  // inconsistent counts and private paths; never output the untrusted input.
- if(JSON.stringify(parsed)!==JSON.stringify(reconstructed))refuse();
+ if(raw!==JSON.stringify(reconstructed)+'\n')refuse();
  return reconstructed;
 }
 
