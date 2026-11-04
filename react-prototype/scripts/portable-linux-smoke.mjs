@@ -8,6 +8,7 @@ import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
 import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
+import {probePackagedRendererKernelEvidence} from './electron-renderer-kernel-evidence.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 const executable=resolve(process.argv[2]??'release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
@@ -104,6 +105,18 @@ try{
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
   .waitFor({timeout:30000});
+ // Inspect the OS renderer process selected by Electron's trusted main process,
+ // not a title match or a synthetic setting. Read /proc only, no policy edits.
+ const rendererPid=await application.evaluate(({BrowserWindow})=>
+  BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
+ const kernelEvidence=await probePackagedRendererKernelEvidence(rendererPid);
+ const sameRendererPid=await application.evaluate(({BrowserWindow})=>
+  BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
+ assert.equal(rendererPid,sameRendererPid,'renderer PID changed during kernel security inspection');
+ assert.equal(kernelEvidence.category,'renderer-kernel-restrictions-observed',
+  'packaged Linux renderer must show Seccomp filter and NoNewPrivs');
+ assert.equal(kernelEvidence.fullElectronSandboxCertified,false);
+ console.log('PACKAGED_RENDERER_KERNEL_RESTRICTIONS',JSON.stringify(kernelEvidence));
  const security=await window.evaluate(()=>({
   nodeRequire:typeof window.require,
   nodeProcess:typeof window.process,
@@ -173,6 +186,12 @@ try{
   const view=await application.firstWindow();
   await view.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
    .waitFor({timeout:25000});
+  const labelRendererPid=await application.evaluate(({BrowserWindow})=>
+   BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
+  const labelKernel=await probePackagedRendererKernelEvidence(labelRendererPid);
+  assert.equal(labelKernel.category,'renderer-kernel-restrictions-observed',
+   'renderer OS restrictions missing in '+desktop+' X11 label');
+  assert.equal(labelKernel.fullElectronSandboxCertified,false);
   const isolated=await view.evaluate(()=>({
    nodeRequire:typeof window.require,nodeProcess:typeof window.process,
    mode:window.omsiPreview?.mode,

@@ -17,6 +17,7 @@ export function validateNativeX11Workflow(source){
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
     !build.includes('node --test scripts/auto-x11-archive-provenance.test.mjs')||
     !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
+    !build.includes('node --test scripts/electron-renderer-kernel-evidence.test.mjs')||
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-aba.test.mjs'))refusal();
@@ -113,6 +114,7 @@ export function validateNativeX11Workflow(source){
   sanitizedEvidenceRequired:true,
   crossRunnerComparisonRequired:true,
   archiveSha256ProvenanceContractRequired:true,
+  realPackagedRendererKernelContractRequired:true,
   adminPilotComparisonContractRequired:true,
   abaRollbackComparisonContractRequired:true,
   sandboxBypassAllowed:false,

@@ -152,3 +152,25 @@ baixado do artifact da **mesma CI**.
 O SHA-256 verifica igualdade de bytes nos jobs e consistência com o sidecar;
 **não é assinatura digital**, não autentica um emissor externo, não certifica
 sandbox, não prova causalidade do AppArmor e não muda o status de falha X11.
+
+## Evidência de restrições do processo real de renderização
+
+O teste do Linux portátil passou a consultar o PID do renderizador por meio da
+API `webContents.getOSProcessId()` do processo principal do Electron.
+Uma sonda **somente leitura** inspeciona `/proc/<pid>/status` e `cmdline`,
+confirma o tipo `--type=renderer` do executável empacotado e exige as categorias
+`Seccomp: 2` (filtro) e `NoNewPrivs: 1`. A identidade do PID é consultada
+novamente depois da leitura, recusando troca durante a inspeção. A verificação
+é repetida nas etiquetas X11 GNOME e KDE do teste existente.
+
+A saída é apenas categórica: nenhum PID, UID, token, caminho, argumento bruto,
+nome de arquivo privado ou conteúdo de jogo é registrado. Contratos unitários
+recusam estado `/proc` duplicado/contraditório, parâmetros de bypass e processo
+sem papel renderer. O teste do aplicativo real falha se as restrições esperadas
+não forem observadas.
+
+**Limite:** observar Seccomp e `NoNewPrivs` é mais forte que verificar apenas
+`sandbox: true` no código, mas **não certifica por si só** os namespaces do
+Chromium, a eficácia completa do sandbox, o AppArmor ou a compatibilidade Ubuntu
+24.04. O Ubuntu 24.04 continua sujeito à sua prova nativa X11 estrita e
+reprovada quando houver `SIGTRAP`, sem alterar o host.
