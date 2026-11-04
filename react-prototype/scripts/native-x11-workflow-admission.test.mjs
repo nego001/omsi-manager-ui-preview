@@ -11,6 +11,7 @@ test('the live workflow requires both Ubuntu images, SHA guard, X11 proof and st
  assert.equal(result.fullNativeX11ProofStillRequired,true);
  assert.equal(result.apparmorReviewContractRequired,true);
  assert.equal(result.sanitizedEvidenceRequired,true);
+ assert.equal(result.crossRunnerComparisonRequired,true);
  assert.equal(result.shaBeforeArchiveExtraction,true);
  assert.equal(result.sandboxBypassAllowed,false);
  assert.equal(result.realWindowProven,false);
@@ -104,4 +105,25 @@ test('only the exact post-failure evidence upload may use if: always()',()=>{
   original.replace('  native_auto_x11:','  native_auto_x11:\n    if: always()'),
   original.replace('  native_auto_x11:','  native_auto_x11:\n    continue-on-error: true')
  ])assert.throws(()=>verify(modification),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+});
+
+test('cross-runner comparison stays required without suppressing failing X11 job',()=>{
+ const replacements=[
+  ['  native_x11_evidence_compare:','  optional_x11_compare:'],
+  ['needs: [build, native_auto_x11]','needs: [build]'],
+  ['if: ${{ always() }}','if: ${{ success() }}'],
+  ['name: native-x11-evidence-ubuntu-24.04','name: skipped-ubuntu24'],
+  ['name: native-x11-evidence-ubuntu-22.04','name: skipped-ubuntu22'],
+  ['node react-prototype/scripts/auto-x11-evidence-diff-ci.mjs','echo diff-skipped'],
+  ['name: native-x11-cross-runner-comparison','name: report-suppressed']
+ ];
+ for(const [from,to] of replacements){
+  assert.ok(original.includes(from),from);
+  assert.throws(()=>verify(original.replace(from,to)),
+   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
+ assert.throws(()=>verify(original.replace(
+  '  native_x11_evidence_compare:',
+  '  native_x11_evidence_compare:\n    continue-on-error: true')),
+  /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
 });

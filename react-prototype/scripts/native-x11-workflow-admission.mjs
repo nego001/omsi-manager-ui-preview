@@ -15,7 +15,8 @@ export function validateNativeX11Workflow(source){
  // Require the exact synthetic contract in the upstream build and both X11 runners.
  if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
-    !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs'))refusal();
+    !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
  const active=job.split('\n').filter(line=>!line.trimStart().startsWith('#')).join('\n');
  for(const expected of [
@@ -63,6 +64,31 @@ export function validateNativeX11Workflow(source){
  ].join('\n');
  if(active.split(evidenceStep).length!==2)refusal();
  const withoutApprovedUpload=active.replace(evidenceStep,'');
+ // A separate post-matrix report may run after a red native job, but it may
+ // not replace the native test or change its conclusion.
+ const compareStart=lines.indexOf('  native_x11_evidence_compare:');
+ const compareEnd=lines.findIndex((line,i)=>i>compareStart&&/^  [a-z][a-z0-9_]*:$/.test(line));
+ if(compareStart<=start||compareEnd<=compareStart||
+    lines.indexOf('  native_x11_evidence_compare:',compareStart+1)!==-1)refusal();
+ const compareActive=lines.slice(compareStart,compareEnd)
+  .filter(line=>!line.trimStart().startsWith('#')).join('\n');
+ for(const required of [
+  'needs: [build, native_auto_x11]',
+  'if: ${{ always() }}',
+  'runs-on: ubuntu-24.04',
+  'contents: read',
+  'node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs',
+  'name: native-x11-evidence-ubuntu-22.04',
+  'name: native-x11-evidence-ubuntu-24.04',
+  'node react-prototype/scripts/auto-x11-evidence-diff-ci.mjs',
+  'name: native-x11-cross-runner-comparison',
+  'path: x11-diff-output/host-comparison.json',
+  'if-no-files-found: error'
+ ])if(!compareActive.includes(required))refusal();
+ if(compareActive.split('if: ${{ always() }}').length!==2||
+    /\bcontinue-on-error\s*:/i.test(compareActive)||
+    /--no-sandbox|ELECTRON_DISABLE_SANDBOX/i.test(compareActive)||
+    compareActive.split(/\n\s+if\s*:/).length!==2)refusal();
  for(const forbidden of [
   /\bcontinue-on-error\s*:/i,
   /^\s+if\s*:/m,
@@ -81,6 +107,7 @@ export function validateNativeX11Workflow(source){
   fullNativeX11ProofStillRequired:true,
   apparmorReviewContractRequired:true,
   sanitizedEvidenceRequired:true,
+  crossRunnerComparisonRequired:true,
   sandboxBypassAllowed:false,
   realWindowProven:false,
   hostPolicyChanged:false

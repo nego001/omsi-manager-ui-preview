@@ -86,6 +86,8 @@ jobs:
         run: node --test scripts/auto-x11-native-triage.test.mjs
       - name: Sanitized X11 evidence format and privacy refusal contracts
         run: node --test scripts/auto-x11-sanitized-evidence.test.mjs
+      - name: Cross-runner X11 evidence comparison refusal contracts
+        run: node --test scripts/auto-x11-evidence-diff.test.mjs
       - name: AppArmor administrator review classification (synthetic data only)
         run: node --test scripts/ubuntu24-app-profile-review.test.mjs
       - name: Install Weston for a real headless Wayland socket
@@ -191,6 +193,40 @@ jobs:
       # Any failed matrix image MUST keep the workflow red: a successful
       # ubuntu-22.04 run cannot waive a failure on ubuntu-24.04.
       # No --no-sandbox or weakened security is allowed.
+
+  native_x11_evidence_compare:
+    name: Compare sanitized X11 host evidence (no sandbox changes)
+    needs: [build, native_auto_x11]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate cross-runner comparison contracts (synthetic only)
+        run: node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-x11-evidence-ubuntu-22.04
+          path: x11-diff-input/ubuntu-22.04
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-x11-evidence-ubuntu-24.04
+          path: x11-diff-input/ubuntu-24.04
+      - name: Compare only the two fixed, sanitized reports
+        env:
+          CI: 'true'
+        run: node react-prototype/scripts/auto-x11-evidence-diff-ci.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-x11-cross-runner-comparison
+          path: x11-diff-output/host-comparison.json
+          if-no-files-found: error
+          retention-days: 14
+      # This runs even after the Ubuntu 24.04 test fails; it never waives that failure.
 
   arch_portable_audit:
     name: Arch Linux x64 container / ELF runtime audit (no GUI)
