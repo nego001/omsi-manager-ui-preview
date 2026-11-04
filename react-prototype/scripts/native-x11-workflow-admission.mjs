@@ -15,6 +15,7 @@ export function validateNativeX11Workflow(source){
  // Require the exact synthetic contract in the upstream build and both X11 runners.
  if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-archive-provenance.test.mjs')||
     !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs')||
@@ -34,6 +35,7 @@ export function validateNativeX11Workflow(source){
   'node scripts/native-sandbox-preflight-ci.mjs',
   'node scripts/auto-x11-host-capabilities.mjs',
   'node --test scripts/auto-x11-native-triage.test.mjs',
+  'node --test scripts/auto-x11-archive-provenance.test.mjs',
   'node --test scripts/auto-x11-sanitized-evidence.test.mjs',
   'OMSI_NATIVE_X11_RUNNER: ${{ matrix.runner }}',
   'name: native-x11-evidence-${{ matrix.runner }}',
@@ -110,6 +112,7 @@ export function validateNativeX11Workflow(source){
   apparmorReviewContractRequired:true,
   sanitizedEvidenceRequired:true,
   crossRunnerComparisonRequired:true,
+  archiveSha256ProvenanceContractRequired:true,
   adminPilotComparisonContractRequired:true,
   abaRollbackComparisonContractRequired:true,
   sandboxBypassAllowed:false,

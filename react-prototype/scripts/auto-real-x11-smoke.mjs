@@ -10,6 +10,7 @@ import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
 import {createSanitizedX11Evidence} from './auto-x11-sanitized-evidence.mjs';
+import {readVerifiedX11ArchiveSha256} from './auto-x11-archive-provenance.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
 import {categorizeUnshareFailure,categorizeApparmorModule} from './auto-x11-host-policy-contract.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
@@ -53,6 +54,10 @@ async function readApparmorNamespacePolicyCategory(){
 
 const binary=resolve('release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Auto');
 await access(binary,constants.X_OK);
+const archiveSha256=await readVerifiedX11ArchiveSha256(
+ resolve('release/OMSI-Manager-Preview-Linux-x64.tar.gz'),
+ resolve('release/OMSI-Manager-Preview-Linux-x64.sha256')
+);
 // Differential control: when Auto fails, run the SAME packaged Electron
 // directly with the same X11 ozone setting and strict sandbox. This does not
 // turn a failed Auto test green; it only narrows the CI root cause.
@@ -306,7 +311,7 @@ try{
 // Write only fixed categories in a dedicated, temporary CI workspace before
 // asserting the result. The failure must remain red and still be auditable.
 const evidence=createSanitizedX11Evidence({
- runner:process.env.OMSI_NATIVE_X11_RUNNER,host:hostEvidence,
+ runner:process.env.OMSI_NATIVE_X11_RUNNER,archiveSha256,host:hostEvidence,
  baselineMapped:true,outcomes
 });
 await mkdir('test-results/native-auto-x11',{recursive:true,mode:0o700});

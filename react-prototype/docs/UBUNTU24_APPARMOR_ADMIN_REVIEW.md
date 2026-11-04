@@ -132,3 +132,23 @@ não é uma certificação do sandbox do Chromium. Qualquer piloto permanece
 dependente de autorização humana e de prova independente do confinamento.
 Referências: https://documentation.ubuntu.com/release-notes/24.04/
 e https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md
+
+
+## SHA-256 do pacote efetivamente lido pelos runners Ubuntu
+
+O diagnóstico X11 lê novamente o pacote `OMSI-Manager-Preview-Linux-x64.tar.gz`
+antes de abrir Electron e calcula SHA-256 **a partir dos bytes reais**, não apenas
+da declaração do arquivo .sha256. O leitor recusa link simbólico, arquivo não regular,
+sidecar malformado, nome inesperado, tamanho fora do limite e hash divergente.
+Não registra conteúdo do pacote nem dados pessoais.
+
+O esquema de evidências muda para `AUTO_X11_HOST_EVIDENCE_V2` e inclui
+`archiveSha256`. A comparação `AUTO_X11_CROSS_RUNNER_COMPARISON_V2`
+recusa divergência entre os dois hashes e registra somente o hash comum e os
+resultados sanitizados. Os contratos sintéticos rodam na compilação e em ambos
+os jobs Ubuntu. A verificação real só acontece quando cada runner lê o pacote
+baixado do artifact da **mesma CI**.
+
+O SHA-256 verifica igualdade de bytes nos jobs e consistência com o sidecar;
+**não é assinatura digital**, não autentica um emissor externo, não certifica
+sandbox, não prova causalidade do AppArmor e não muda o status de falha X11.

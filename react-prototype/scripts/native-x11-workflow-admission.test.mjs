@@ -12,6 +12,7 @@ test('the live workflow requires both Ubuntu images, SHA guard, X11 proof and st
  assert.equal(result.apparmorReviewContractRequired,true);
  assert.equal(result.sanitizedEvidenceRequired,true);
  assert.equal(result.crossRunnerComparisonRequired,true);
+ assert.equal(result.archiveSha256ProvenanceContractRequired,true);
  assert.equal(result.adminPilotComparisonContractRequired,true);
  assert.equal(result.abaRollbackComparisonContractRequired,true);
  assert.equal(result.shaBeforeArchiveExtraction,true);
@@ -31,6 +32,7 @@ test('fails closed on missing runner, bypassed failure, removed verification and
   ['node scripts/native-sandbox-preflight-ci.mjs','echo preflight-skipped'],
   ['node scripts/auto-x11-host-capabilities.mjs','echo host-diagnostics-skipped'],
   ['node --test scripts/ubuntu24-app-profile-review.test.mjs','echo policy-review-skipped'],
+  ['node --test scripts/auto-x11-archive-provenance.test.mjs','echo sha-contract-skipped'],
   ['node --test scripts/auto-x11-sanitized-evidence.test.mjs','echo evidence-validation-skipped']
  ];
  const start=original.indexOf('  native_auto_x11:');

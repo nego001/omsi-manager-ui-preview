@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createSanitizedX11Evidence as create} from './auto-x11-sanitized-evidence.mjs';
+const archiveSha256='a'.repeat(64);
 const host={apparmorRestriction:'enabled',apparmorModuleState:'enabled',userNamespaceProbe:'permission-denied'};
 const outcomes=[
  {desktop:'GNOME',mapped:false,failed:true,windowOwned:false,nativeProcess:true,
@@ -9,11 +10,11 @@ const outcomes=[
   triageClassification:'shared-electron-sandbox-startup-suspected'}
 ];
 const sample=(changes={})=>({
- runner:'ubuntu-24.04',host,baselineMapped:true,outcomes,...changes
+ runner:'ubuntu-24.04',archiveSha256,host,baselineMapped:true,outcomes,...changes
 });
 test('records the 24.04 SIGTRAP investigation with no certification or secrets',()=>{
  const evidence=create(sample());
- assert.equal(evidence.schema,'AUTO_X11_HOST_EVIDENCE_V1');
+ assert.equal(evidence.schema,'AUTO_X11_HOST_EVIDENCE_V2');
  assert.equal(evidence.host.userNamespaceProbe,'permission-denied');
  assert.equal(evidence.allNativeWindowsVerified,false);
  assert.equal(evidence.windows[0].startupClassification,
@@ -39,6 +40,7 @@ test('records successful Ubuntu 22.04 windows without claiming sandbox certifica
 });
 test('refuses incomplete, contradictory, duplicated or out-of-order evidence',()=>{
  const variants=[
+  sample({archiveSha256:'b'.repeat(63)}),sample({archiveSha256:'/home/private/secret'}),
   sample({runner:'local'}),sample({baselineMapped:false}),
   sample({host:{...host,apparmorRestriction:'/home/private'}}),
   sample({host:{...host,userNamespaceProbe:'EPERM: /home/private'}}),

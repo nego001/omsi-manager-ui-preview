@@ -13,7 +13,9 @@ const classifications=new Set([
 const desktops=['GNOME','KDE'];
 export function createSanitizedX11Evidence(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
-    !runners.has(input.runner)||input.baselineMapped!==true)refusal();
+    !runners.has(input.runner)||input.baselineMapped!==true||
+    typeof input.archiveSha256!=='string'||
+    !/^[a-f0-9]{64}$/.test(input.archiveSha256))refusal();
  const host=input.host;
  if(!host||typeof host!=='object'||Array.isArray(host)||
     !policies.has(host.apparmorRestriction)||
@@ -42,7 +44,8 @@ export function createSanitizedX11Evidence(input){
   });
  });
  return Object.freeze({
-  schema:'AUTO_X11_HOST_EVIDENCE_V1',runner:input.runner,
+  schema:'AUTO_X11_HOST_EVIDENCE_V2',runner:input.runner,
+  archiveSha256:input.archiveSha256,
   host:Object.freeze({
    apparmorRestriction:host.apparmorRestriction,
    apparmorModuleState:host.apparmorModuleState,

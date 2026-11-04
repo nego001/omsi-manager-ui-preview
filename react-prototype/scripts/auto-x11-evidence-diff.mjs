@@ -10,13 +10,13 @@ export function parseSanitizedX11Record(raw,expectedRunner){
  let parsed;
  try{parsed=JSON.parse(raw);}catch{refuse();}
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)||
-    parsed.schema!=='AUTO_X11_HOST_EVIDENCE_V1'||
+    parsed.schema!=='AUTO_X11_HOST_EVIDENCE_V2'||
     parsed.runner!==expectedRunner||!Array.isArray(parsed.windows)||
     parsed.windows.length!==2)refuse();
  let reconstructed;
  try{
   reconstructed=createSanitizedX11Evidence({
-   runner:parsed.runner,baselineMapped:true,host:parsed.host,
+   runner:parsed.runner,baselineMapped:true,archiveSha256:parsed.archiveSha256,host:parsed.host,
    outcomes:parsed.windows.map(w=>({
     desktop:w?.desktop,mapped:w?.windowMapped,
     failed:w?.nativeWindowVerified===false,
@@ -33,7 +33,8 @@ export function parseSanitizedX11Record(raw,expectedRunner){
 
 export function compareSanitizedX11Records(older,newer){
  if(!older||!newer||older.runner!=='ubuntu-22.04'||
-  newer.runner!=='ubuntu-24.04')refuse();
+  newer.runner!=='ubuntu-24.04'||
+  older.archiveSha256!==newer.archiveSha256)refuse();
  // Revalidation prevents callers from passing fabricated objects directly.
  const left=parseSanitizedX11Record(JSON.stringify(older)+'\n','ubuntu-22.04');
  const right=parseSanitizedX11Record(JSON.stringify(newer)+'\n','ubuntu-24.04');
@@ -47,7 +48,10 @@ export function compareSanitizedX11Records(older,newer){
   right.windows.every(w=>w.startupClassification===
    'shared-electron-sandbox-startup-suspected');
  const result={
-  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V1',
+  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V2',
+  archiveSha256:left.archiveSha256,
+  sameArchiveSha256ReportedByBothRunners:true,
+  packageSignatureVerified:false,
   ubuntu22NativeWindowsVerified:left.allNativeWindowsVerified,
   ubuntu24NativeWindowsVerified:right.allNativeWindowsVerified,
   ubuntu22NamespaceProbe:left.host.userNamespaceProbe,

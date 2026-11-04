@@ -84,6 +84,8 @@ jobs:
         run: node --test scripts/auto-real-x11-contract.test.mjs
       - name: Native X11 triage categories, privacy and strict-sandbox contracts
         run: node --test scripts/auto-x11-native-triage.test.mjs
+      - name: Archive SHA256 fingerprint and strict sidecar contracts (synthetic only)
+        run: node --test scripts/auto-x11-archive-provenance.test.mjs
       - name: Sanitized X11 evidence format and privacy refusal contracts
         run: node --test scripts/auto-x11-sanitized-evidence.test.mjs
       - name: Cross-runner X11 evidence comparison refusal contracts
@@ -178,6 +180,7 @@ jobs:
           node --check scripts/auto-real-x11-smoke.mjs
           node --test scripts/auto-x11-host-policy-contract.test.mjs
           node --test scripts/auto-x11-native-triage.test.mjs
+          node --test scripts/auto-x11-archive-provenance.test.mjs
           node --test scripts/auto-x11-sanitized-evidence.test.mjs
           node --test scripts/ubuntu24-app-profile-review.test.mjs
           node scripts/auto-x11-host-capabilities.mjs
