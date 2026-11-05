@@ -54,7 +54,8 @@ export function compareControlledUbuntu24Pilot(input){
  const pilot=checkObservation(input.observations[1],'app-specific-policy-pilot');
  if(baseline.reportedArtifactSha256!==pilot.reportedArtifactSha256)refuse();
  const beforeBlocked=baseline.userNamespaceProbe==='permission-denied'&&
-  [baseline.launcher,baseline.direct].every(p=>!p.windowMapped&&p.exitSignal==='SIGTRAP');
+  [baseline.launcher,baseline.direct].every(p=>p.nativeProcessObserved===true&&
+   !p.windowMapped&&p.exitSignal==='SIGTRAP');
  const afterRecovered=pilot.userNamespaceProbe==='allowed'&&
   [pilot.launcher,pilot.direct].every(p=>p.windowMapped&&p.windowOwned&&p.nativeProcessObserved);
  const status=!beforeBlocked?'baseline-not-reproduced':

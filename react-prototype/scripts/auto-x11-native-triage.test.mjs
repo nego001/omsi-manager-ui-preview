@@ -1,8 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {classifyNativeX11Startup as classify} from './auto-x11-native-triage.mjs';
-const auto=(mapped,exitSignal=null,startupHints=[],exited=false)=>({mapped,exitSignal,startupHints,exited});
-const direct=(mapped,exitSignal=null,hints=[])=>({seen:{mapped},exitSignal,hints});
+const auto=(mapped,exitSignal=null,startupHints=[],exited=false,nativeProcess=true)=>
+ ({mapped,exitSignal,startupHints,exited,nativeProcess});
+const direct=(mapped,exitSignal=null,hints=[],nativeProcess=true)=>
+ ({seen:{mapped,nativeProcess},exitSignal,hints});
 test('two sandbox-hinted SIGTRAP controls are a suspicion, never certification',()=>{
  const r=classify({desktop:'GNOME',baselineMapped:true,
   auto:auto(false,'SIGTRAP',['sandbox'],true),
@@ -42,4 +44,21 @@ test('output is bounded to enums and booleans, without raw paths or injected sec
  assert.equal(r.sandboxBypassApplied,false);
  assert.ok(!JSON.stringify(r).includes(secret));
  assert.ok(!JSON.stringify(r).includes('/home/'));
+});
+
+test('a SIGTRAP without observed native process never raises shared sandbox suspicion',()=>{
+ for(const unavailable of ['auto','direct']){
+  const controlAuto=auto(false,'SIGTRAP',['sandbox'],true,unavailable!=='auto');
+  const controlDirect=direct(false,'SIGTRAP',['sandbox'],unavailable!=='direct');
+  const result=classify({desktop:'GNOME',baselineMapped:true,
+   auto:controlAuto,direct:controlDirect});
+  assert.equal(result.classification,'shared-native-electron-startup-undetermined');
+  assert.equal(result.electronSandboxCertified,false);
+ }
+});
+test('unverified mapped process cannot be declared a successful native Auto window',()=>{
+ const result=classify({desktop:'GNOME',baselineMapped:true,
+  auto:auto(true,null,[],false,false)});
+ assert.equal(result.classification,'shared-native-electron-startup-undetermined');
+ assert.equal(result.nativeAutoWindowVerified,false);
 });

@@ -279,7 +279,8 @@ try{
     }
     const triage=classifyNativeX11Startup({
      desktop,baselineMapped:true,
-     auto:{mapped:found,exited:failed,exitSignal,startupHints:[...startupHints]},
+     auto:{mapped:found,nativeProcess:observed.nativeProcess,
+      exited:failed,exitSignal,startupHints:[...startupHints]},
      direct
     });
     triageClassification=triage.classification;

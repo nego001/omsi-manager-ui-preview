@@ -86,3 +86,13 @@ test('private free-text fields cannot appear in the canonical output',()=>{
  assert.ok(!out.includes('stderr'));
  assert.ok(!out.includes('commandLine'));
 });
+
+test('SIGTRAP without a confirmed native process cannot reproduce the baseline',()=>{
+ for(const target of ['launcher','direct']){
+  const missing={...failed(),nativeProcessObserved:false};
+  const result=compare(input(record('baseline',{[target]:missing})));
+  assert.equal(result.status,'baseline-not-reproduced');
+  assert.equal(result.baselineFailureReproduced,false);
+  assert.equal(result.electronSandboxCertified,false);
+ }
+});

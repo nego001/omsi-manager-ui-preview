@@ -37,7 +37,8 @@ function validateStep(s,i){
  });
 }
 const bothSigtrap=s=>s.userNamespaceProbe==='permission-denied'&&
- [s.launcher,s.direct].every(p=>p.mapped===false&&p.signal==='SIGTRAP');
+ [s.launcher,s.direct].every(p=>p.nativeProcess===true&&
+  p.mapped===false&&p.signal==='SIGTRAP');
 const bothMapped=s=>s.userNamespaceProbe==='allowed'&&
  [s.launcher,s.direct].every(p=>p.mapped&&p.owned&&p.nativeProcess&&p.signal==='none');
 

@@ -94,3 +94,16 @@ test('unexpected unknown results fail closed rather than imply success',()=>{
  assert.equal(compare(modified(1,{userNamespaceProbe:'unknown'})).classification,
   'pilot-recovery-not-demonstrated');
 });
+
+test('missing native-process confirmation defeats baseline and rollback SIGTRAP correlation',()=>{
+ for(const target of ['launcher','direct']){
+  const unobserved={...crash(),nativeProcessObserved:false};
+  const before=compare(modified(0,{[target]:unobserved}));
+  assert.equal(before.classification,'baseline-not-reproduced');
+  assert.equal(before.baselineFailureReproduced,false);
+  const after=compare(modified(2,{[target]:unobserved}));
+  assert.equal(after.classification,'rollback-reproduction-not-demonstrated');
+  assert.equal(after.rollbackFailureReproduced,false);
+  assert.equal(after.actualElectronSandboxCertified,false);
+ }
+});

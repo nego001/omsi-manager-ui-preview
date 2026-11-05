@@ -357,3 +357,19 @@ O teste Wayland ainda não comprova GNOME, KDE ou Hyprland reais.
 
 Referência da versão 9:
 https://pq.pages.freedesktop.org/weston/toc/running-weston.html
+
+## Rastreabilidade de PID nos comparadores de falha SIGTRAP
+
+Os comparadores categóricos A/B e A-B-A agora só tratam `SIGTRAP`
+como falha nativa reproduzida quando **cada** caminho de execução também
+relata `nativeProcessObserved:true`. Sinal isolado sem processo observado
+é insuficiente para atribuir o problema ao Electron; baseline ou rollback
+permanecem não demonstrados.
+
+A triagem X11 ao vivo também exige `nativeProcess:true` para
+`OMSI-Manager-Auto` e para o Electron direto antes de classificar a dupla
+falha como suspeita de restrição do sandbox. O diagnóstico envia à triagem
+somente esse booleano já coletado, sem PID, cmdline nem caminho privado.
+Os novos testes cobrem sinal sem processo, janela não autenticada e
+rollback sem reprodução. Isso reduz falsos positivos, **não resolve
+o SIGTRAP** do Ubuntu 24.04, não comprova AppArmor e não autoriza merge.

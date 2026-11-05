@@ -2,7 +2,12 @@
 const signal=v=>v==='SIGTRAP'?'SIGTRAP':v==='SIGABRT'?'SIGABRT':v==='SIGSEGV'?'SIGSEGV':typeof v==='string'?'other':'none';
 export function classifyNativeX11Startup({desktop,auto,direct,baselineMapped}={}){
  const label=desktop==='GNOME'||desktop==='KDE'?desktop:'unknown';
- const a=auto?.mapped===true,d=direct?.seen?.mapped===true;
+ const autoObserved=auto?.nativeProcess===true;
+ const directObserved=direct?.seen?.nativeProcess===true;
+ // A signal without a verified native process cannot establish an Electron
+ // startup failure. Never infer AppArmor suspicion from a missing process.
+ const a=auto?.mapped===true&&autoObserved;
+ const d=direct?.seen?.mapped===true&&directObserved;
  const unavailable=direct?.probeUnavailable===true;
  const aSig=signal(auto?.exitSignal),dSig=signal(direct?.exitSignal);
  const aHint=Array.isArray(auto?.startupHints)&&auto.startupHints.includes('sandbox');
@@ -13,7 +18,8 @@ export function classifyNativeX11Startup({desktop,auto,direct,baselineMapped}={}
  else if(a)classification='native-auto-window-exit-observed';
  else if(unavailable)classification='direct-control-unavailable';
  else if(d)classification='auto-launcher-specific-suspected';
- else if(aSig==='SIGTRAP'&&dSig==='SIGTRAP'&&aHint&&dHint)
+ else if(autoObserved&&directObserved&&aSig==='SIGTRAP'&&
+  dSig==='SIGTRAP'&&aHint&&dHint)
   classification='shared-electron-sandbox-startup-suspected';
  return Object.freeze({
   schema:'AUTO_X11_NATIVE_TRIAGE_V1',desktop:label,classification,
