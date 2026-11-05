@@ -2,7 +2,8 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {classifyPackagedRendererKernelEvidence as classify,
  probePackagedRendererKernelEvidence as probe,
- verifyElectronRendererMetric as verifyMetric} from './electron-renderer-kernel-evidence.mjs';
+ verifyElectronRendererMetric as verifyMetric,
+ categorizeRendererAppArmorLabel as apparmorLabel} from './electron-renderer-kernel-evidence.mjs';
 const status=(seccomp='2',nnp='1')=>
  'Name:\tOMSI-Manager\nState:\tS (sleeping)\nNoNewPrivs:\t'+nnp+'\nSeccomp:\t'+seccomp+'\n';
 const cmd=(parts=['/fake/release/OMSI-Manager-Preview','--type=renderer','--lang=en-US'])=>
@@ -269,4 +270,44 @@ test('every packaged Weston Wayland Electron launch enables Chromium sandbox exp
   source.replace('chromiumSandbox:true,','chromiumSandbox:false,'),
   source.replace(/chromiumSandbox:true,/g,'')
  ])assert.equal(validates(mutated),false,'missing or disabled sandbox must fail');
+});
+
+
+test('AppArmor renderer label is categorized without revealing the profile name',()=>{
+ const cases=[
+  [null,'unavailable'],
+  [undefined,'unavailable'],
+  ['unconfined\n','unconfined'],
+  ['/home/PRIVATE/omsi-preview (enforce)\n','enforce-label-observed'],
+  ['/home/PRIVATE/omsi-preview (complain)\n','complain-label-observed'],
+  ['/home/PRIVATE/omsi-preview (kill)\n','kill-label-observed'],
+  ['unknown mode','unknown'],
+  ['some-profile (unconfined)','unknown'],
+  ['profile (enforce)\nmore data','unknown'],
+  ['profile (enforce)\r\n','unknown'],
+  ['','unknown'],
+  ['/PRIVATE/path (enforce)\0','unknown'],
+  ['x'.repeat(2049),'unknown']
+ ];
+ for(const [raw,expected] of cases){
+  const category=apparmorLabel(raw);
+  assert.equal(category,expected);
+  assert.equal(category.includes('PRIVATE'),false);
+ }
+});
+test('renderer kernel evidence includes read-only AppArmor label category, not an attestation',()=>{
+ for(const [raw,expected] of [
+  [null,'unavailable'],['unconfined\n','unconfined'],
+  ['/home/PRIVATE/profile (enforce)\n','enforce-label-observed'],
+  ['/home/PRIVATE/profile (complain)\n','complain-label-observed']
+ ]){
+  const evidence=classify(status(),cmd(),undefined,raw);
+  assert.equal(evidence.apparmorRendererLabelCategory,expected);
+  assert.equal(evidence.apparmorTargetPolicyIndependentlyVerified,false);
+  assert.equal(evidence.fullElectronSandboxCertified,false);
+  assert.equal(evidence.hostPolicyChanged,false);
+  assert.equal(evidence.category,'renderer-kernel-restrictions-observed');
+  assert.equal(JSON.stringify(evidence).includes('PRIVATE'),false);
+  assert.equal(Object.isFrozen(evidence),true);
+ }
 });

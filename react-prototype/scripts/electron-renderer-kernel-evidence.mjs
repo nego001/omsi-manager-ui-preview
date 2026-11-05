@@ -20,6 +20,21 @@ const refuse=reason=>{
 };
 export const PACKAGED_RENDERER_REFUSAL_REASONS=Object.freeze([...allowedReasons]);
 const max=65536;
+// Parse only a read-only /proc/<renderer>/attr/current snapshot. The actual
+// AppArmor profile name can contain private paths; it is never returned.
+export function categorizeRendererAppArmorLabel(raw){
+ if(raw==null)return 'unavailable';
+ if(typeof raw!=='string'||raw.length===0||raw.length>2048)
+  return 'unknown';
+ const value=raw.endsWith('\n')?raw.slice(0,-1):raw;
+ if(value==='unconfined')return 'unconfined';
+ if(/[\r\n\0\x00-\x1f\x7f]/.test(value))return 'unknown';
+ const matched=/^.{1,1024} \((enforce|complain|kill)\)$/.exec(value);
+ if(!matched)return 'unknown';
+ return matched[1]==='enforce'?'enforce-label-observed':
+  matched[1]==='complain'?'complain-label-observed':'kill-label-observed';
+}
+
 // A private token guarantees the classifier only accepts a renderer role that
 // has passed the Electron main-process metric check, never a caller-supplied boolean.
 const metricRoleProofs=new WeakSet();
@@ -44,7 +59,7 @@ function one(raw,name,values,reason){
  if(found.length!==1||!values.includes(found[0][1]))refuse(reason);
  return Number(found[0][1]);
 }
-export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProof){
+export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProof,apparmorLabel=null){
  if(typeof status!=='string'||status.length<20||status.length>max)
   refuse('invalid-proc-status');
  if(!Buffer.isBuffer(cmdline)||cmdline.length<20||cmdline.length>max||
@@ -85,6 +100,9 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProo
   commandLineSandboxBypassDetected:false,
   seccompMode:seccomp===2?'filter':seccomp===1?'strict':'off',
   noNewPrivs:nnp===1?'enabled':'disabled',
+  // Observes the process label only, never the profile name or policy content.
+  apparmorRendererLabelCategory:categorizeRendererAppArmorLabel(apparmorLabel),
+  apparmorTargetPolicyIndependentlyVerified:false,
   category:observed?'renderer-kernel-restrictions-observed':
    'renderer-kernel-restrictions-incomplete',
   runtimeRendererIdentityChecked:true,
@@ -105,12 +123,15 @@ export async function probePackagedRendererKernelEvidence(pid,records){
  if(!Number.isSafeInteger(pid)||pid<=1||pid>2147483647)
   refuse('invalid-process-id');
  const metricProof=verifyElectronRendererMetric(pid,records);
- let status,cmdline;
+ let status,cmdline,apparmorLabel;
  try{
-  [status,cmdline]=await Promise.all([
+  [status,cmdline,apparmorLabel]=await Promise.all([
    readFile('/proc/'+pid+'/status','utf8'),
-   readFile('/proc/'+pid+'/cmdline')
+   readFile('/proc/'+pid+'/cmdline'),
+   // AppArmor might not be active or accessible. Missing label remains an
+   // unknown diagnostic, never an excuse to skip Seccomp or NoNewPrivs.
+   readFile('/proc/'+pid+'/attr/current','utf8').catch(()=>null)
   ]);
  }catch{refuse('proc-read-unavailable');}
- return classifyPackagedRendererKernelEvidence(status,cmdline,metricProof);
+ return classifyPackagedRendererKernelEvidence(status,cmdline,metricProof,apparmorLabel);
 }

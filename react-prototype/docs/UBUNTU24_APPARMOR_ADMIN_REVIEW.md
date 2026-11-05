@@ -393,3 +393,28 @@ O teste Ubuntu 24.04 permanece estritamente bloqueante. As etiquetas
 GNOME/KDE rodam em Xvfb, não em compositores de desktop reais. Nada
 disso instala perfil AppArmor, altera o host, confirma causalidade ou
 certifica o sandbox Electron.
+
+## Rótulo AppArmor do renderizador em execução (sem modificar política)
+
+Uma sonda adicional somente leitura consulta o arquivo do processo
+`/proc/<pid>/attr/current`, usando o mesmo PID do renderizador já
+confirmado pelo processo principal do Electron. O arquivo pode conter
+o **nome do perfil AppArmor e até caminhos privados**; por isso, o
+conteúdo bruto nunca aparece no log, no relatório nem em exceções.
+
+O resultado contém apenas `apparmorRendererLabelCategory`:
+`unconfined`, `enforce-label-observed`,
+`complain-label-observed`, `kill-label-observed`,
+`unknown` ou `unavailable`. Se o arquivo não puder ser lido,
+a sondagem categoriza como `unavailable`, sem alterar a verificação
+obrigatória de `Seccomp=2` e `NoNewPrivs=1`.
+
+**Limitação:** mesmo `enforce-label-observed` não prova que o
+perfil correto foi aplicado, que contém a regra `userns`, nem que
+o sandbox Chromium está íntegro. Uma política pode estar ativa e
+não corresponder ao executável autorizado. O piloto administrativo
+necessita da revisão independente do perfil carregado e seu rollback.
+Nenhum perfil é criado, carregado ou modificado por esta sonda.
+
+Referência: documentação de diagnósticos AppArmor
+https://apparmor-documentation-c38b15.gitlab.io/documentation/getting-started/troubleshooting/
