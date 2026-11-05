@@ -42,7 +42,13 @@ test('compares two real-shaped records without asserting AppArmor causality',()=
  assert.equal(comparison.packageSignatureVerified,false);
  assert.equal(comparison.earlyMainKernelComparison,'matched-observed');
  assert.equal(comparison.earlyMainKernelIsRendererProof,false);
- assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V3');
+ assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V4');
+ assert.deepEqual(comparison.earlyMainKernelByDesktop,[
+  {desktop:'GNOME',comparison:'matched-observed'},
+  {desktop:'KDE',comparison:'matched-observed'}
+ ]);
+ assert.equal(Object.isFrozen(comparison.earlyMainKernelByDesktop),true);
+ assert.equal(Object.isFrozen(comparison.earlyMainKernelByDesktop[0]),true);
  for(const field of ['apparmorCausalityProven','electronSandboxCertified',
   'realDesktopCertified','hostPolicyChanged','sandboxBypassApplied'])
   assert.equal(comparison[field],false);
@@ -130,4 +136,52 @@ test('cross-runner loader refuses edited kernel statuses and forged sandbox proo
   assert.throws(()=>parse(altered,'ubuntu-24.04'),
    /^Error: AUTO_X11_CROSS_RUNNER_REFUSED$/);
  }
+});
+
+
+test('early GNOME equality survives a missing KDE process without claiming a complete match',()=>{
+ const partial=create({runner:'ubuntu-24.04',archiveSha256,
+  host:host('enabled','permission-denied'),baselineMapped:true,
+  outcomes:[
+   entry('GNOME',false),
+   {...entry('KDE',false),nativeProcess:false,
+    earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
+    triageClassification:'shared-native-electron-startup-undetermined'}
+  ]
+ });
+ const result=compare(older,partial);
+ assert.deepEqual(result.earlyMainKernelByDesktop,[
+  {desktop:'GNOME',comparison:'matched-observed'},
+  {desktop:'KDE',comparison:'insufficient-data'}
+ ]);
+ assert.equal(result.earlyMainKernelComparison,'insufficient-data');
+ assert.equal(result.classification,'inconclusive');
+ assert.equal(result.earlyMainKernelIsRendererProof,false);
+ for(const flag of ['apparmorCausalityProven','electronSandboxCertified',
+  'hostPolicyChanged','sandboxBypassApplied'])assert.equal(result[flag],false);
+ const serialized=JSON.stringify(result);
+ assert.equal(serialized.includes('/proc/'),false);
+ assert.equal(serialized.includes('private'),false);
+});
+test('a real observed difference is kept per label even if the other label is missing',()=>{
+ const different=earlyKernel(
+  'Name:\tOMSI\nState:\tS\nSeccomp:\t2\nNoNewPrivs:\t1\n',
+  'label (enforce)\n');
+ const partial=create({runner:'ubuntu-24.04',archiveSha256,
+  host:host('enabled','permission-denied'),baselineMapped:true,
+  outcomes:[
+   {...entry('GNOME',false),earlyNativeKernel:different},
+   {...entry('KDE',false),nativeProcess:false,
+    earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
+    triageClassification:'shared-native-electron-startup-undetermined'}
+  ]
+ });
+ const result=compare(older,partial);
+ assert.deepEqual(result.earlyMainKernelByDesktop,[
+  {desktop:'GNOME',comparison:'different-observed'},
+  {desktop:'KDE',comparison:'insufficient-data'}
+ ]);
+ assert.equal(result.earlyMainKernelComparison,'insufficient-data');
+ assert.equal(result.apparmorCausalityProven,false);
+ assert.equal(result.packageSignatureVerified,false);
 });

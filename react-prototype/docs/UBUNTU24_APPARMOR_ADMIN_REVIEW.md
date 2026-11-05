@@ -489,3 +489,24 @@ como sandbox do renderizador** (`earlyMainKernelIsRendererProof:false`)
 e não altera a classificação de causalidade AppArmor. A mesma compilação
 Linux e o mesmo hash SHA-256 continuam obrigatórios nos dois runners.
 O Ubuntu 24.04 continua bloqueante mesmo que as categorias coincidam.
+
+## Comparação V4 por etiqueta X11: evidência parcial sem falso PASS
+
+O resultado de comparação passa a
+`AUTO_X11_CROSS_RUNNER_COMPARISON_V4`.
+Além do resumo estrito `earlyMainKernelComparison`, agora emite
+`earlyMainKernelByDesktop`, sempre na ordem `GNOME`, `KDE`,
+com `comparison` limitado a
+`matched-observed`, `different-observed` ou
+`insufficient-data`.
+
+Isso evita perder uma observação confirmada de um dos dois testes
+Xvfb quando o processo do outro morre com `SIGTRAP` antes de ser
+identificado. O **resumo global continua `insufficient-data`**
+quando qualquer etiqueta tiver dados ausentes; nem uma igualdade
+parcial nem uma diferença parcial alteram a classificação de causa,
+a prova do sandbox ou o resultado bloqueante do Ubuntu 24.04.
+
+Esses nomes GNOME/KDE são **etiquetas simuladas em Xvfb**, não testes
+em compositores GNOME ou KDE reais. Nenhum PID, caminho ou perfil
+AppArmor bruto entra no novo campo.

@@ -32,21 +32,34 @@ export function parseSanitizedX11Record(raw,expectedRunner){
  return reconstructed;
 }
 
-// Compare the two simulated desktop labels at the same early *main-process*
-// stage; unknown observations cannot establish an equality or difference.
-function earlyMainKernelComparison(left,right){
- const comparable=(k)=>k?.seccompMode!==undefined&&
-  !['unknown'].includes(k.seccompMode)&&
-  !['unknown'].includes(k.noNewPrivs)&&
+// Each Xvfb desktop label is a separate, simulated environment. Retain the
+// comparison of a fully observed label even when another exits too early.
+// This ONLY compares early main-process categories; it is not a renderer
+// sandbox proof and never upgrades the native-window release gate.
+const earlyFields=['seccompMode','noNewPrivs','apparmorLabelCategory'];
+function compareEarlyMainKernelPair(a,b){
+ if(a.nativeProcessObserved!==true||b.nativeProcessObserved!==true)
+  return 'insufficient-data';
+ const x=a.earlyNativeKernel,y=b.earlyNativeKernel;
+ const comparable=k=>k&&
+  k.seccompMode!=='unknown'&&
+  k.noNewPrivs!=='unknown'&&
   !['unknown','unavailable'].includes(k.apparmorLabelCategory);
- const pairs=left.windows.map((a,i)=>[
-  a.nativeProcessObserved?a.earlyNativeKernel:null,
-  right.windows[i].nativeProcessObserved?right.windows[i].earlyNativeKernel:null
- ]);
- if(pairs.some(pair=>!pair.every(comparable)))return 'insufficient-data';
- const fields=['seccompMode','noNewPrivs','apparmorLabelCategory'];
- return pairs.every(([a,b])=>fields.every(key=>a[key]===b[key]))?
+ if(!comparable(x)||!comparable(y))return 'insufficient-data';
+ return earlyFields.every(key=>x[key]===y[key])?
   'matched-observed':'different-observed';
+}
+function compareEarlyMainKernelByDesktop(left,right){
+ return Object.freeze(left.windows.map((a,i)=>Object.freeze({
+  desktop:a.desktop,
+  comparison:compareEarlyMainKernelPair(a,right.windows[i])
+ })));
+}
+function summarizeEarlyMainKernel(entries){
+ const modes=entries.map(x=>x.comparison);
+ if(modes.includes('insufficient-data'))return 'insufficient-data';
+ return modes.includes('different-observed')?'different-observed':
+  'matched-observed';
 }
 export function compareSanitizedX11Records(older,newer){
  if(!older||!newer||older.runner!=='ubuntu-22.04'||
@@ -55,6 +68,7 @@ export function compareSanitizedX11Records(older,newer){
  // Revalidation prevents callers from passing fabricated objects directly.
  const left=parseSanitizedX11Record(JSON.stringify(older)+'\n','ubuntu-22.04');
  const right=parseSanitizedX11Record(JSON.stringify(newer)+'\n','ubuntu-24.04');
+ const earlyByDesktop=compareEarlyMainKernelByDesktop(left,right);
  const typical=left.allNativeWindowsVerified&&
   left.host.apparmorRestriction==='disabled'&&
   left.host.userNamespaceProbe==='allowed'&&
@@ -65,7 +79,7 @@ export function compareSanitizedX11Records(older,newer){
   right.windows.every(w=>w.startupClassification===
    'shared-electron-sandbox-startup-suspected');
  const result={
-  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V3',
+  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V4',
   archiveSha256:left.archiveSha256,
   sameArchiveSha256ReportedByBothRunners:true,
   packageSignatureVerified:false,
@@ -74,7 +88,8 @@ export function compareSanitizedX11Records(older,newer){
   ubuntu22NamespaceProbe:left.host.userNamespaceProbe,
   ubuntu24NamespaceProbe:right.host.userNamespaceProbe,
   ubuntu24ApparmorRestriction:right.host.apparmorRestriction,
-  earlyMainKernelComparison:earlyMainKernelComparison(left,right),
+  earlyMainKernelComparison:summarizeEarlyMainKernel(earlyByDesktop),
+  earlyMainKernelByDesktop:earlyByDesktop,
   earlyMainKernelIsRendererProof:false,
   classification:typical?'namespace-restriction-correlated-with-startup-failure':
    left.allNativeWindowsVerified&&right.allNativeWindowsVerified?
