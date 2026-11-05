@@ -442,3 +442,26 @@ permanece **inconclusivo** quando falta prova da imagem, mesmo com
 um evento de `spawn` e encerramento `SIGTRAP`.
 Não é diagnóstico causal, não é perfil AppArmor, não altera nenhuma
 política, nem dispensa o teste de janela Ubuntu 24.04.
+
+## Retrato inicial do kernel dos processos principais (sem prova do renderizador)
+
+No laboratório X11, quando a linha de comando do processo nativo já
+foi identificada, fazemos uma leitura não privilegiada e de curta
+duração de `/proc/<pid>/status` e `/proc/<pid>/attr/current`, antes
+de procurar a janela X11. O resultado contém **somente categorias**:
+`Seccomp` (`off`, `strict`, `filter`, `unknown`);
+`NoNewPrivs` (`enabled`, `disabled`, `unknown`);
+e modo do rótulo AppArmor, sem nome nem caminho privado.
+
+Um processo que termina antes da leitura recebe categorias `unknown`
+ou `unavailable`: ausência de observação não prova ausência de proteção.
+Esta amostragem é do **processo principal logo no início**, não do
+renderizador depois de inicializado. Também não identifica de maneira
+independente a política carregada ou a identidade final do processo
+durante toda a leitura. Por isso traz sempre
+`fullElectronSandboxCertified:false` e
+`processIdentityIndependentAttestation:false`.
+
+A CI executa contratos sintéticos desse parser no build e nos dois
+runners X11. Não há alteração de AppArmor, sysctl, sandbox ou privilégios.
+O Ubuntu 24.04 continua bloqueante e sujeito ao piloto administrador.

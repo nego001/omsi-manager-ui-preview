@@ -175,3 +175,14 @@ test('build and strict packaged X11/Wayland smoke stay on Ubuntu 22.04',()=>{
   assert.throws(()=>verify(changed),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });
+
+test('early native kernel witness remains mandatory on build and strict matrix',()=>{
+ const cmd='node --test scripts/auto-x11-early-native-kernel.test.mjs';
+ const matches=original.split(cmd).length-1;
+ assert.equal(matches,2);
+ const replacedFirst=original.replace(cmd,'echo early-kernel-contract-removed');
+ assert.throws(()=>verify(replacedFirst),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ const split=original.split(cmd);
+ const replacedSecond=split[0]+cmd+split[1]+'echo early-kernel-contract-removed'+split[2];
+ assert.throws(()=>verify(replacedSecond),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+});

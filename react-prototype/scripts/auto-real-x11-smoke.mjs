@@ -9,6 +9,8 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
+import {observeEarlyNativeSecurity,EARLY_NATIVE_UNAVAILABLE}
+ from './auto-x11-early-native-kernel.mjs';
 import {createSanitizedX11Evidence} from './auto-x11-sanitized-evidence.mjs';
 import {readVerifiedX11ArchiveSha256} from './auto-x11-archive-provenance.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
@@ -71,7 +73,8 @@ async function probeDirectPackagedElectron(desktop,root){
  for(const part of ['config','cache','data','runtime'])
   await mkdir(join(directRoot,part),{mode:0o700});
  const seen={spawnEventObserved:false,nativeProcess:false,
-  windowFound:false,windowOwned:false,mapped:false};
+  windowFound:false,windowOwned:false,mapped:false,
+  earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE};
  const hints=new Set();
  let exited=false,exitCode=null,exitSignal=null,child;
  try{
@@ -104,6 +107,8 @@ async function probeDirectPackagedElectron(desktop,root){
     const command=await readFile('/proc/'+child.pid+'/cmdline');
     verifyNativeCommandLine(command,'x11');
     seen.nativeProcess=true;
+    if(seen.earlyNativeKernel===EARLY_NATIVE_UNAVAILABLE)
+     seen.earlyNativeKernel=await observeEarlyNativeSecurity(child.pid);
     const {stdout}=await execAsync('xwininfo',['-root','-tree'],
      {encoding:'utf8',timeout:2000,maxBuffer:65536});
     const id=findPreviewWindow(stdout);
@@ -204,7 +209,8 @@ try{
   let exitCode=null;
   let exitSignal=null;
   const observed={spawnEventObserved:false,nativeProcess:false,
-   windowFound:false,windowOwned:false,mapped:false};
+   windowFound:false,windowOwned:false,mapped:false,
+   earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE};
   const startupHints=new Set();
   let checkpoint='startup';
   let found=false;
@@ -242,6 +248,8 @@ try{
      const command=await readFile('/proc/'+child.pid+'/cmdline');
      verifyNativeCommandLine(command,'x11');
      observed.nativeProcess=true;
+     if(observed.earlyNativeKernel===EARLY_NATIVE_UNAVAILABLE)
+      observed.earlyNativeKernel=await observeEarlyNativeSecurity(child.pid);
      checkpoint='window-search';
      const {stdout}=await execAsync('xwininfo',['-root','-tree'],
       {encoding:'utf8',timeout:2000,maxBuffer:65536});
@@ -299,6 +307,12 @@ try{
      })
     ));
    }
+   // Compare MAIN process states only, never call this a renderer attestation.
+   // The direct process is inspected only on the failure path.
+   console.log('AUTO_X11_EARLY_NATIVE_KERNEL_CATEGORY',JSON.stringify({
+    desktop,auto:observed.earlyNativeKernel,
+    direct:null,rendererSandboxCertified:false,hostPolicyChanged:false
+   }));
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess,
     triageClassification});
