@@ -152,7 +152,7 @@ test('categorizes contradictory Chromium roles without logging raw process argum
   [['--type=renderer','--type=utility'],'renderer-role-duplicate-type-switch'],
   [['--type=gpu-process'],'renderer-role-conflicting-gpu'],
   [['--type=utility'],'renderer-role-conflicting-utility'],
-  [['--type=zygote'],'renderer-role-conflicting-zygote'],
+  [['--type=zygote','--type=zygote'],'renderer-role-duplicate-type-switch'],
   [['--type=irrelevant-private-secret'],'renderer-role-conflicting-other']
  ];
  for(const [args,expected] of scenarios){
@@ -246,4 +246,27 @@ test('all packaged Linux Electron Playwright launches explicitly request Chromiu
    !/chromiumSandbox:\s*false\b/.test(changed.slice(m.index,m.index+500))
   ),false);
  }
+});
+
+
+test('every packaged Weston Wayland Electron launch enables Chromium sandbox explicitly',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('./wayland-weston-smoke.mjs',import.meta.url),'utf8');
+ const expression=/\bapplication\s*=\s*await\s+electron\.launch\s*\(\s*\{/g;
+ const occurrences=[...source.matchAll(expression)];
+ assert.equal(occurrences.length,3,'initial, automatic, and GNOME/KDE Weston launch sites');
+ const validates=value=>{
+  const positions=[...value.matchAll(expression)];
+  return positions.length===3&&positions.every(m=>{
+   const signature=value.slice(m.index,m.index+320);
+   return /chromiumSandbox:\s*true\b/.test(signature)&&
+    !/chromiumSandbox:\s*false\b/.test(signature);
+  });
+ };
+ assert.equal(validates(source),true);
+ for(const mutated of [
+  source.replace('chromiumSandbox:true,',''),
+  source.replace('chromiumSandbox:true,','chromiumSandbox:false,'),
+  source.replace(/chromiumSandbox:true,/g,'')
+ ])assert.equal(validates(mutated),false,'missing or disabled sandbox must fail');
 });

@@ -52,6 +52,7 @@ try{
  }
  assert.equal(ready,true,'Headless Wayland socket did not start: '+stderr.slice(-2500));
  application=await electron.launch({
+  chromiumSandbox:true,
   executablePath:launcher,args:[],cwd:root,env,timeout:90000
  });
  const info=await application.evaluate(({app})=>({
@@ -131,6 +132,7 @@ try{
  const existingSocket=await stat(join(runtime,socketName));
  assert.equal(existingSocket.isSocket(),true);
  application=await electron.launch({
+  chromiumSandbox:true,
   executablePath:launcher,args:[],cwd:root,env:automaticEnv,timeout:90000
  });
  const autoInfo=await application.evaluate(({app})=>({
@@ -164,6 +166,7 @@ try{
  application=undefined;
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
+  chromiumSandbox:true,
    executablePath:launcher,args:[],cwd:root,
    env:{...automaticEnv,XDG_CURRENT_DESKTOP:desktop},timeout:90000
   });

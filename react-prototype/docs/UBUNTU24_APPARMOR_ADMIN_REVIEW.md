@@ -288,3 +288,26 @@ Ubuntu 22.04/24.04 e a revisão administrativa continuam exigências
 separadas. A documentação oficial:
 https://playwright.dev/docs/api/class-electron
 https://www.electronjs.org/docs/latest/tutorial/sandbox
+
+
+## Weston Wayland: corrigir defaults de sandbox no Playwright
+
+O lançamento da prévia Linux no Weston headless também usava
+`_electron.launch()` sem solicitar `chromiumSandbox:true`, enquanto
+o Playwright usa `false` por padrão. Os **três locais de lançamento**
+(Wayland explícito, seleção automática e etiquetas GNOME/KDE simuladas)
+passaram a exigir `chromiumSandbox:true`, sem modificar o executável
+distribuído ou a política AppArmor do host.
+
+O contrato de fonte no teste de renderizador verifica todos os locais de
+lançamento e recusa omissão ou `chromiumSandbox:false`.
+A validação de janela Weston só comprova o uso do socket Wayland e a
+interface em ambiente headless, e não compatibilidade real com
+Hyprland, Mutter ou KWin, nem isolamento Chromium integral.
+
+A suíte de segurança também foi sincronizada com a decisão anterior sobre
+Zygote: o argumento `--type=zygote` é permitido **apenas** quando a
+identidade `Tab` do processo já foi confirmada; argumentos de tipo
+duplicados continuam rejeitados. O teste antigo que classificava todo
+Zygote como divergente foi corrigido. A prova de Seccomp e NoNewPrivs
+continua obrigatória e o gate Ubuntu 24.04 segue bloqueante.
