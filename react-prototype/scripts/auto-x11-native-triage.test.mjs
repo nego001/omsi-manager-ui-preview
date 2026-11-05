@@ -86,3 +86,30 @@ test('SIGTRAP hints must have exit events for both independently observed native
   assert.equal(result.electronSandboxCertified,false);
  }
 });
+
+
+test('early SIGTRAP after spawn but before proc identity stays inconclusive',()=>{
+ const autoOnly={...auto(false,'SIGTRAP',['sandbox'],true,false),
+  spawnEventObserved:true};
+ const directKnown={...direct(false,'SIGTRAP',['sandbox']),
+  seen:{...direct(false,'SIGTRAP',['sandbox']).seen,spawnEventObserved:true}};
+ const output=classify({desktop:'GNOME',baselineMapped:true,
+  auto:autoOnly,direct:directKnown});
+ assert.equal(output.autoStartupWitness,'spawn-event-only');
+ assert.equal(output.directStartupWitness,'proc-command-line-observed');
+ assert.equal(output.classification,'shared-native-electron-startup-undetermined');
+ assert.equal(output.spawnEventProvesExecutedImage,false);
+ assert.equal(output.nativeAutoWindowVerified,false);
+ assert.equal(output.electronSandboxCertified,false);
+});
+test('no spawn receipt and fake identity flags never infer startup of executable',()=>{
+ const result=classify({desktop:'KDE',baselineMapped:true,
+  auto:{spawnEventObserved:'true',nativeProcess:0,mapped:false,
+   exited:true,exitSignal:'SIGTRAP',startupHints:['sandbox']},
+  direct:{seen:{spawnEventObserved:false,nativeProcess:false},
+   exited:true,exitSignal:'SIGTRAP',hints:['sandbox']}});
+ assert.equal(result.autoStartupWitness,'not-observed');
+ assert.equal(result.directStartupWitness,'not-observed');
+ assert.equal(result.classification,'shared-native-electron-startup-undetermined');
+ assert.equal(result.spawnEventProvesExecutedImage,false);
+});

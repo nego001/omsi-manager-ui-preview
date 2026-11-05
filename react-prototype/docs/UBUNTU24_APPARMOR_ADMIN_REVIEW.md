@@ -418,3 +418,27 @@ Nenhum perfil é criado, carregado ou modificado por esta sonda.
 
 Referência: documentação de diagnósticos AppArmor
 https://apparmor-documentation-c38b15.gitlab.io/documentation/getting-started/troubleshooting/
+
+## Testemunho de inicialização de processos curtos, sem falsa prova de execução
+
+Os controles X11 agora registram o evento `spawn` de `child_process`
+como um **booleano separado** da prova de identidade do executável via
+`/proc/<pid>/cmdline`. Se o processo terminar com `SIGTRAP` antes de
+ser possível ler sua linha de comando, o diagnóstico distinguirá:
+
+- `spawn-event-only`: o sistema confirmou a criação do subprocesso,
+  mas **não** confirmou qual imagem executável chegou a rodar;
+- `proc-command-line-observed`: a identidade do processo foi confirmada
+  pela leitura restrita de `/proc`;
+- `not-observed`: nenhuma dessas evidências foi obtida.
+
+Essas categorias são registradas em `autoStartupWitness` e
+`directStartupWitness`. O marcador
+`spawnEventProvesExecutedImage:false` é sempre falso: criar um filho
+não comprova que o Electron chegou à inicialização do sandbox.
+
+Assim, o resultado `shared-native-electron-startup-undetermined`
+permanece **inconclusivo** quando falta prova da imagem, mesmo com
+um evento de `spawn` e encerramento `SIGTRAP`.
+Não é diagnóstico causal, não é perfil AppArmor, não altera nenhuma
+política, nem dispensa o teste de janela Ubuntu 24.04.

@@ -4,6 +4,12 @@ export function classifyNativeX11Startup({desktop,auto,direct,baselineMapped}={}
  const label=desktop==='GNOME'||desktop==='KDE'?desktop:'unknown';
  const autoObserved=auto?.nativeProcess===true;
  const directObserved=direct?.seen?.nativeProcess===true;
+ // A successful Node spawn event only proves the child was started;
+ // it does NOT prove which executable image ran, or a Chromium renderer.
+ const autoSpawnEvent=auto?.spawnEventObserved===true;
+ const directSpawnEvent=direct?.seen?.spawnEventObserved===true;
+ const startupWitness=(identity,spawned)=>identity?
+  'proc-command-line-observed':spawned?'spawn-event-only':'not-observed';
  // A window must be owned by the verified native process before we claim a
  // mapped Electron window. A title or mapped flag alone is insufficient.
  const a=auto?.mapped===true&&autoObserved&&auto?.windowOwned===true;
@@ -28,6 +34,9 @@ export function classifyNativeX11Startup({desktop,auto,direct,baselineMapped}={}
   schema:'AUTO_X11_NATIVE_TRIAGE_V1',desktop:label,classification,
   x11BaselineMapped:baselineMapped===true,
   autoMapped:a,directMapped:d,directControlUnavailable:unavailable,
+  autoStartupWitness:startupWitness(autoObserved,autoSpawnEvent),
+  directStartupWitness:startupWitness(directObserved,directSpawnEvent),
+  spawnEventProvesExecutedImage:false,
   autoSignal:aSig,directSignal:dSig,
   hostPolicyChanged:false,sandboxBypassApplied:false,
   electronSandboxCertified:false,realDesktopCertified:false,

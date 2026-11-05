@@ -70,7 +70,8 @@ async function probeDirectPackagedElectron(desktop,root){
  await mkdir(directRoot,{mode:0o700});
  for(const part of ['config','cache','data','runtime'])
   await mkdir(join(directRoot,part),{mode:0o700});
- const seen={nativeProcess:false,windowFound:false,windowOwned:false,mapped:false};
+ const seen={spawnEventObserved:false,nativeProcess:false,
+  windowFound:false,windowOwned:false,mapped:false};
  const hints=new Set();
  let exited=false,exitCode=null,exitSignal=null,child;
  try{
@@ -92,6 +93,7 @@ async function probeDirectPackagedElectron(desktop,root){
    if(/x11|xserver|display|ozone/i.test(fragment))hints.add('display');
    if(/gpu|egl|mesa|glx/i.test(fragment))hints.add('gpu');
   });
+  child.once('spawn',()=>{seen.spawnEventObserved=true;});
   child.once('error',()=>{exited=true;hints.add('spawn-error');});
   child.once('exit',(code,signal)=>{
    exited=true;exitCode=code;exitSignal=signal;
@@ -201,7 +203,8 @@ try{
   let failed=false;
   let exitCode=null;
   let exitSignal=null;
-  const observed={nativeProcess:false,windowFound:false,windowOwned:false,mapped:false};
+  const observed={spawnEventObserved:false,nativeProcess:false,
+   windowFound:false,windowOwned:false,mapped:false};
   const startupHints=new Set();
   let checkpoint='startup';
   let found=false;
@@ -230,6 +233,7 @@ try{
     ];
     for(const [label,re] of patterns)if(re.test(text))startupHints.add(label);
    });
+   child.once('spawn',()=>{observed.spawnEventObserved=true;});
    child.once('error',()=>{failed=true;startupHints.add('spawn-error');});
    child.once('exit',(code,signal)=>{failed=true;exitCode=code;exitSignal=signal;});
    for(let i=0;i<70;i++){
@@ -280,6 +284,7 @@ try{
     const triage=classifyNativeX11Startup({
      desktop,baselineMapped:true,
      auto:{mapped:found,nativeProcess:observed.nativeProcess,
+      spawnEventObserved:observed.spawnEventObserved,
       windowOwned:observed.windowOwned,
       exited:failed,exitSignal,startupHints:[...startupHints]},
      direct
