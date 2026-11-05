@@ -315,7 +315,7 @@ try{
    }));
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess,
-    triageClassification});
+    triageClassification,earlyNativeKernel:observed.earlyNativeKernel});
    if(found&&!failed)
     console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
   }finally{

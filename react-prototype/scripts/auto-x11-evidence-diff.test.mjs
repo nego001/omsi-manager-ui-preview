@@ -3,14 +3,18 @@ import assert from 'node:assert/strict';
 import {createSanitizedX11Evidence as create} from './auto-x11-sanitized-evidence.mjs';
 import {parseSanitizedX11Record as parse,compareSanitizedX11Records as compare}
  from './auto-x11-evidence-diff.mjs';
+import {categorizeEarlyNativeSecurity as earlyKernel,
+ EARLY_NATIVE_UNAVAILABLE} from './auto-x11-early-native-kernel.mjs';
 const archiveSha256='a'.repeat(64);
 const host=(restriction,probe)=>({
  apparmorRestriction:restriction,apparmorModuleState:'enabled',
  userNamespaceProbe:probe
 });
+const mainKernel=earlyKernel(
+ 'Name:\tOMSI\nState:\tS\nSeccomp:\t0\nNoNewPrivs:\t0\n','unconfined\n');
 const entry=(desktop,success)=>({
  desktop,mapped:success,failed:!success,windowOwned:success,
- nativeProcess:true,triageClassification:success?
+ nativeProcess:true,earlyNativeKernel:mainKernel,triageClassification:success?
   'native-auto-window-mapped':'shared-electron-sandbox-startup-suspected'
 });
 const record=(runner,restriction,probe,success)=>create({
@@ -36,6 +40,9 @@ test('compares two real-shaped records without asserting AppArmor causality',()=
  assert.equal(comparison.archiveSha256,archiveSha256);
  assert.equal(comparison.sameArchiveSha256ReportedByBothRunners,true);
  assert.equal(comparison.packageSignatureVerified,false);
+ assert.equal(comparison.earlyMainKernelComparison,'matched-observed');
+ assert.equal(comparison.earlyMainKernelIsRendererProof,false);
+ assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V3');
  for(const field of ['apparmorCausalityProven','electronSandboxCertified',
   'realDesktopCertified','hostPolicyChanged','sandboxBypassApplied'])
   assert.equal(comparison[field],false);
@@ -49,7 +56,7 @@ test('refuses malformed, secret-bearing, swapped and contradictory evidence',()=
   good.replace('nativeWindowVerified":true','nativeWindowVerified":false'),
   good.replace('electronSandboxCertified":false','electronSandboxCertified":true'),
   good.replace('readOnlyEvidence":true','readOnlyEvidence":false'),
-  good.replace('AUTO_X11_HOST_EVIDENCE_V2',secret),
+  good.replace('AUTO_X11_HOST_EVIDENCE_V3',secret),
   good.replace('"schema":','"privatePath":"'+secret+'","schema":'),
   good.replace('"GNOME"','"KDE"'),
   good.replace('native-auto-window-mapped','native-auto-window-exit-observed'),
@@ -85,4 +92,42 @@ test('accepts partial window ownership as failure evidence only',()=>{
  const result=compare(older,partial);
  assert.equal(result.ubuntu24NativeWindowsVerified,false);
  assert.equal(result.classification,'namespace-restriction-correlated-with-startup-failure');
+});
+
+
+test('early kernel difference and missing sample stay diagnostic, never causal',()=>{
+ const changed=create({
+  runner:'ubuntu-24.04',archiveSha256,host:host('enabled','permission-denied'),
+  baselineMapped:true,
+  outcomes:['GNOME','KDE'].map(d=>({...entry(d,false),
+   earlyNativeKernel:earlyKernel(
+    'Name:\tOMSI\nState:\tS\nSeccomp:\t2\nNoNewPrivs:\t1\n',
+    'some-policy (enforce)\n')}))
+ });
+ const different=compare(older,changed);
+ assert.equal(different.earlyMainKernelComparison,'different-observed');
+ assert.equal(different.classification,'namespace-restriction-correlated-with-startup-failure');
+ assert.equal(different.earlyMainKernelIsRendererProof,false);
+ const missing=create({runner:'ubuntu-24.04',archiveSha256,
+  host:host('enabled','permission-denied'),baselineMapped:true,
+  outcomes:['GNOME','KDE'].map(d=>({...entry(d,false),
+   earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE}))});
+ const incomplete=compare(older,missing);
+ assert.equal(incomplete.earlyMainKernelComparison,'insufficient-data');
+ assert.equal(incomplete.apparmorCausalityProven,false);
+});
+test('cross-runner loader refuses edited kernel statuses and forged sandbox proof',()=>{
+ const orig=JSON.stringify(newer)+'\n';
+ for(const altered of [
+  orig.replace('"seccompMode":"off"','"seccompMode":"invalid"'),
+  orig.replace('"noNewPrivs":"disabled"','"noNewPrivs":"ENABLED"'),
+  orig.replace('"apparmorLabelCategory":"unconfined"',
+   '"apparmorLabelCategory":"/home/private/secret"'),
+  orig.replace('"rendererSandboxCertified":false',
+   '"rendererSandboxCertified":true'),
+  orig.replace('"AUTO_X11_HOST_EVIDENCE_V3"','"AUTO_X11_HOST_EVIDENCE_V2"')
+ ]){
+  assert.throws(()=>parse(altered,'ubuntu-24.04'),
+   /^Error: AUTO_X11_CROSS_RUNNER_REFUSED$/);
+ }
 });

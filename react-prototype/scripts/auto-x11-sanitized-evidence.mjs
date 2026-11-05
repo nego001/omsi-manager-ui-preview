@@ -11,6 +11,37 @@ const classifications=new Set([
  'shared-native-electron-startup-undetermined','display-baseline-unverified'
 ]);
 const desktops=['GNOME','KDE'];
+const kernelModes=new Set(['off','strict','filter','unknown']);
+const privilegeModes=new Set(['enabled','disabled','unknown']);
+const labels=new Set(['unconfined','enforce-label-observed',
+ 'complain-label-observed','kill-label-observed','unknown','unavailable']);
+// Canonicalize an observation already produced by the read-only process probe.
+// Never forward a raw /proc field, private profile label or arbitrary string.
+function canonicalEarlyKernel(v){
+ if(!v||typeof v!=='object'||Array.isArray(v)||
+    v.schema!=='AUTO_X11_EARLY_NATIVE_KERNEL_V1'||
+    v.phase!=='after-command-line-check-before-window-search'||
+    !kernelModes.has(v.seccompMode)||
+    !privilegeModes.has(v.noNewPrivs)||
+    !labels.has(v.apparmorLabelCategory)||
+    v.processIdentityIndependentAttestation!==false||
+    v.rendererSandboxCertified!==false||
+    v.fullElectronSandboxCertified!==false||
+    v.hostPolicyChanged!==false||
+    v.userNamespaceIsolationCertified!==false)refusal();
+ return Object.freeze({
+  schema:'AUTO_X11_EARLY_NATIVE_KERNEL_V1',
+  phase:'after-command-line-check-before-window-search',
+  seccompMode:v.seccompMode,
+  noNewPrivs:v.noNewPrivs,
+  apparmorLabelCategory:v.apparmorLabelCategory,
+  processIdentityIndependentAttestation:false,
+  rendererSandboxCertified:false,
+  fullElectronSandboxCertified:false,
+  hostPolicyChanged:false,
+  userNamespaceIsolationCertified:false
+ });
+}
 export function createSanitizedX11Evidence(input){
  if(!input||typeof input!=='object'||Array.isArray(input)||
     !runners.has(input.runner)||input.baselineMapped!==true||
@@ -28,6 +59,11 @@ export function createSanitizedX11Evidence(input){
      typeof entry.mapped!=='boolean'||typeof entry.failed!=='boolean'||
      typeof entry.windowOwned!=='boolean'||typeof entry.nativeProcess!=='boolean'||
      !classifications.has(entry.triageClassification))refusal();
+  const earlyNativeKernel=canonicalEarlyKernel(entry.earlyNativeKernel);
+  if(!entry.nativeProcess&&(
+    earlyNativeKernel.seccompMode!=='unknown'||
+    earlyNativeKernel.noNewPrivs!=='unknown'||
+    earlyNativeKernel.apparmorLabelCategory!=='unavailable'))refusal();
   const verified=entry.mapped&&!entry.failed&&entry.windowOwned&&entry.nativeProcess;
   if(entry.triageClassification==='native-auto-window-mapped'&&!verified)refusal();
   if(entry.triageClassification!=='native-auto-window-mapped'&&verified)refusal();
@@ -40,11 +76,12 @@ export function createSanitizedX11Evidence(input){
    desktop:entry.desktop,nativeProcessObserved:entry.nativeProcess,
    windowOwned:entry.windowOwned,windowMapped:entry.mapped,
    startupClassification:entry.triageClassification,
+   earlyNativeKernel,
    nativeWindowVerified:verified
   });
  });
  return Object.freeze({
-  schema:'AUTO_X11_HOST_EVIDENCE_V2',runner:input.runner,
+  schema:'AUTO_X11_HOST_EVIDENCE_V3',runner:input.runner,
   archiveSha256:input.archiveSha256,
   host:Object.freeze({
    apparmorRestriction:host.apparmorRestriction,

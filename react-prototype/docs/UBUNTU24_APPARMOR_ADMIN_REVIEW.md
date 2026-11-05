@@ -465,3 +465,27 @@ durante toda a leitura. Por isso traz sempre
 A CI executa contratos sintéticos desse parser no build e nos dois
 runners X11. Não há alteração de AppArmor, sysctl, sandbox ou privilégios.
 O Ubuntu 24.04 continua bloqueante e sujeito ao piloto administrador.
+
+## Artefato X11 V3: comparação persistente do estado inicial do processo principal
+
+O relatório público sanitizado `AUTO_X11_HOST_EVIDENCE_V3` agora contém,
+para cada etiqueta GNOME/KDE simulada no Xvfb, o retrato inicial
+`earlyNativeKernel` do processo principal (apenas as categorias
+`Seccomp`, `NoNewPrivs` e modo de rótulo AppArmor). Não publica PID,
+nomes reais de perfis, argumentos ou conteúdo de `/proc`.
+
+O parser canônico da comparação recusa registros falsificados, estados
+contraditórios com a ausência de identidade de processo, rótulos privados,
+campos de certificação positivos e hashes diferentes. O resultado
+`AUTO_X11_CROSS_RUNNER_COMPARISON_V3` inclui
+`earlyMainKernelComparison`:
+- `matched-observed`: as **duas** etiquetas têm estados completos e iguais;
+- `different-observed`: as **duas** etiquetas têm estados completos, com
+  divergência em pelo menos um indicador;
+- `insufficient-data`: alguma observação está ausente ou desconhecida.
+
+Esse comparador **não interpreta o estado inicial do processo principal
+como sandbox do renderizador** (`earlyMainKernelIsRendererProof:false`)
+e não altera a classificação de causalidade AppArmor. A mesma compilação
+Linux e o mesmo hash SHA-256 continuam obrigatórios nos dois runners.
+O Ubuntu 24.04 continua bloqueante mesmo que as categorias coincidam.

@@ -10,7 +10,7 @@ export function parseSanitizedX11Record(raw,expectedRunner){
  let parsed;
  try{parsed=JSON.parse(raw);}catch{refuse();}
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)||
-    parsed.schema!=='AUTO_X11_HOST_EVIDENCE_V2'||
+    parsed.schema!=='AUTO_X11_HOST_EVIDENCE_V3'||
     parsed.runner!==expectedRunner||!Array.isArray(parsed.windows)||
     parsed.windows.length!==2)refuse();
  let reconstructed;
@@ -21,7 +21,8 @@ export function parseSanitizedX11Record(raw,expectedRunner){
     desktop:w?.desktop,mapped:w?.windowMapped,
     failed:w?.nativeWindowVerified===false,
     windowOwned:w?.windowOwned,nativeProcess:w?.nativeProcessObserved,
-    triageClassification:w?.startupClassification
+    triageClassification:w?.startupClassification,
+    earlyNativeKernel:w?.earlyNativeKernel
    }))
   });
  }catch{refuse();}
@@ -31,6 +32,22 @@ export function parseSanitizedX11Record(raw,expectedRunner){
  return reconstructed;
 }
 
+// Compare the two simulated desktop labels at the same early *main-process*
+// stage; unknown observations cannot establish an equality or difference.
+function earlyMainKernelComparison(left,right){
+ const comparable=(k)=>k?.seccompMode!==undefined&&
+  !['unknown'].includes(k.seccompMode)&&
+  !['unknown'].includes(k.noNewPrivs)&&
+  !['unknown','unavailable'].includes(k.apparmorLabelCategory);
+ const pairs=left.windows.map((a,i)=>[
+  a.nativeProcessObserved?a.earlyNativeKernel:null,
+  right.windows[i].nativeProcessObserved?right.windows[i].earlyNativeKernel:null
+ ]);
+ if(pairs.some(pair=>!pair.every(comparable)))return 'insufficient-data';
+ const fields=['seccompMode','noNewPrivs','apparmorLabelCategory'];
+ return pairs.every(([a,b])=>fields.every(key=>a[key]===b[key]))?
+  'matched-observed':'different-observed';
+}
 export function compareSanitizedX11Records(older,newer){
  if(!older||!newer||older.runner!=='ubuntu-22.04'||
   newer.runner!=='ubuntu-24.04'||
@@ -48,7 +65,7 @@ export function compareSanitizedX11Records(older,newer){
   right.windows.every(w=>w.startupClassification===
    'shared-electron-sandbox-startup-suspected');
  const result={
-  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V2',
+  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V3',
   archiveSha256:left.archiveSha256,
   sameArchiveSha256ReportedByBothRunners:true,
   packageSignatureVerified:false,
@@ -57,6 +74,8 @@ export function compareSanitizedX11Records(older,newer){
   ubuntu22NamespaceProbe:left.host.userNamespaceProbe,
   ubuntu24NamespaceProbe:right.host.userNamespaceProbe,
   ubuntu24ApparmorRestriction:right.host.apparmorRestriction,
+  earlyMainKernelComparison:earlyMainKernelComparison(left,right),
+  earlyMainKernelIsRendererProof:false,
   classification:typical?'namespace-restriction-correlated-with-startup-failure':
    left.allNativeWindowsVerified&&right.allNativeWindowsVerified?
     'both-x11-window-probes-mapped':'inconclusive',
