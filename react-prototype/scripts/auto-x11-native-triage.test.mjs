@@ -1,10 +1,10 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {classifyNativeX11Startup as classify} from './auto-x11-native-triage.mjs';
-const auto=(mapped,exitSignal=null,startupHints=[],exited=false,nativeProcess=true)=>
- ({mapped,exitSignal,startupHints,exited,nativeProcess});
-const direct=(mapped,exitSignal=null,hints=[],nativeProcess=true)=>
- ({seen:{mapped,nativeProcess},exitSignal,hints});
+const auto=(mapped,exitSignal=null,startupHints=[],exited=false,nativeProcess=true,
+ windowOwned=mapped)=>({mapped,exitSignal,startupHints,exited,nativeProcess,windowOwned});
+const direct=(mapped,exitSignal=null,hints=[],nativeProcess=true,exited=true,
+ windowOwned=mapped)=>({seen:{mapped,nativeProcess,windowOwned},exitSignal,hints,exited});
 test('two sandbox-hinted SIGTRAP controls are a suspicion, never certification',()=>{
  const r=classify({desktop:'GNOME',baselineMapped:true,
   auto:auto(false,'SIGTRAP',['sandbox'],true),
@@ -61,4 +61,28 @@ test('unverified mapped process cannot be declared a successful native Auto wind
   auto:auto(true,null,[],false,false)});
  assert.equal(result.classification,'shared-native-electron-startup-undetermined');
  assert.equal(result.nativeAutoWindowVerified,false);
+});
+
+
+test('X11 mapping without exact verified window ownership is not a native success',()=>{
+ const noOwner=classify({desktop:'GNOME',baselineMapped:true,
+  auto:auto(true,null,[],false,true,false)});
+ assert.equal(noOwner.classification,'shared-native-electron-startup-undetermined');
+ assert.equal(noOwner.nativeAutoWindowVerified,false);
+ const missingDirectOwner=classify({desktop:'KDE',baselineMapped:true,
+  auto:auto(false,'SIGTRAP',['sandbox'],true),
+  direct:direct(true,null,[],true,false,false)});
+ assert.equal(missingDirectOwner.classification,'shared-native-electron-startup-undetermined');
+ assert.equal(missingDirectOwner.directMapped,false);
+ assert.equal(missingDirectOwner.electronSandboxCertified,false);
+});
+test('SIGTRAP hints must have exit events for both independently observed native controls',()=>{
+ for(const path of ['auto','direct']){
+  const a=auto(false,'SIGTRAP',['sandbox'],path!=='auto');
+  const d=direct(false,'SIGTRAP',['sandbox'],true,path!=='direct');
+  const result=classify({desktop:'GNOME',baselineMapped:true,auto:a,direct:d});
+  assert.equal(result.classification,'shared-native-electron-startup-undetermined');
+  assert.equal(result.apparmorCausalityProven,undefined);
+  assert.equal(result.electronSandboxCertified,false);
+ }
 });

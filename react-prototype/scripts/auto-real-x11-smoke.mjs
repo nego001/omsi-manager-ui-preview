@@ -280,6 +280,7 @@ try{
     const triage=classifyNativeX11Startup({
      desktop,baselineMapped:true,
      auto:{mapped:found,nativeProcess:observed.nativeProcess,
+      windowOwned:observed.windowOwned,
       exited:failed,exitSignal,startupHints:[...startupHints]},
      direct
     });

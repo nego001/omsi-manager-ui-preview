@@ -373,3 +373,23 @@ somente esse booleano já coletado, sem PID, cmdline nem caminho privado.
 Os novos testes cobrem sinal sem processo, janela não autenticada e
 rollback sem reprodução. Isso reduz falsos positivos, **não resolve
 o SIGTRAP** do Ubuntu 24.04, não comprova AppArmor e não autoriza merge.
+
+## Prova de posse da janela e encerramento nos diagnósticos X11
+
+A triagem X11 agora só chama uma janela nativa de verificada quando
+**três condições** são verdadeiras no mesmo resultado: estado mapeado,
+processo nativo observado e propriedade X11 confirmada por
+`_NET_WM_PID`. A prova de propriedade já era exigida na execução real;
+ela também passou a ser obrigatória na interface do classificador.
+O código de diagnóstico recebe apenas o booleano `windowOwned`,
+nunca o PID ou a resposta original do X11.
+
+O diagnóstico de dupla falha `SIGTRAP` exige, além das evidências de
+processo e dos dois sinais, a observação dos eventos de encerramento de
+**ambos** os controles. Isso impede que valores sintéticos inconsistentes
+sejam interpretados como falha real confirmada.
+
+O teste Ubuntu 24.04 permanece estritamente bloqueante. As etiquetas
+GNOME/KDE rodam em Xvfb, não em compositores de desktop reais. Nada
+disso instala perfil AppArmor, altera o host, confirma causalidade ou
+certifica o sandbox Electron.
