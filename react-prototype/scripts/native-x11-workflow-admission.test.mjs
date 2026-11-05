@@ -8,6 +8,8 @@ const verify=value=>validateNativeX11Workflow(value);
 test('the live workflow requires both Ubuntu images, SHA guard, X11 proof and strict sandbox',()=>{
  const result=verify(original);
  assert.deepEqual(result.requiredRunners,['ubuntu-24.04','ubuntu-22.04']);
+ assert.equal(result.strictSandboxBuildRunner,'ubuntu-22.04');
+ assert.equal(result.separateUbuntu24NativeGateRequired,true);
  assert.equal(result.fullNativeX11ProofStillRequired,true);
  assert.equal(result.apparmorReviewContractRequired,true);
  assert.equal(result.sanitizedEvidenceRequired,true);
@@ -145,4 +147,22 @@ test('cross-runner comparison stays required without suppressing failing X11 job
   '  native_x11_evidence_compare:',
   '  native_x11_evidence_compare:\n    continue-on-error: true')),
   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+});
+
+
+test('build and strict packaged X11/Wayland smoke stay on Ubuntu 22.04',()=>{
+ const variations=[
+  original.replace('  build:\n    runs-on: ubuntu-22.04',
+   '  build:\n    runs-on: ubuntu-latest'),
+  original.replace('  build:\n    runs-on: ubuntu-22.04',
+   '  build:\n    runs-on: ubuntu-24.04'),
+  original.replace('  build:\n    runs-on: ubuntu-22.04',
+   '  build:\n    runs-on: ubuntu-22.04\n    runs-on: ubuntu-24.04'),
+  original.replace('run: xvfb-run -a npm run test:portable:linux','run: echo skipped'),
+  original.replace('run: npm run test:wayland:headless','run: echo skipped')
+ ];
+ for(const changed of variations){
+  assert.notEqual(changed,original);
+  assert.throws(()=>verify(changed),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
 });

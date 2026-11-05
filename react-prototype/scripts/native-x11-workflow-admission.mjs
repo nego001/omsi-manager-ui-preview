@@ -12,6 +12,16 @@ export function validateNativeX11Workflow(source){
  const buildStart=lines.indexOf('  build:');
  if(buildStart<0||buildStart>=start)refusal();
  const build=lines.slice(buildStart,start).filter(line=>!line.trimStart().startsWith('#')).join('\n');
+ // Ubuntu 22.04 is the known working strict native sandbox baseline.
+ // Ubuntu 24.04 must remain in the mandatory X11 matrix and must NOT
+ // be dismissed by a successful build on the less restrictive host.
+ const buildRunners=build.split('\n').filter(l=>/^    runs-on:/.test(l));
+ if(buildRunners.length!==1||buildRunners[0]!=='    runs-on: ubuntu-22.04')
+  refusal();
+ if(!build.includes('name: Test packaged Linux ELF GUI using synthetic game folder')||
+    !build.includes('run: xvfb-run -a npm run test:portable:linux')||
+    !build.includes('name: Native Wayland packaged GUI smoke in disposable Weston')||
+    !build.includes('run: npm run test:wayland:headless'))refusal();
  // Require the exact synthetic contract in the upstream build and both X11 runners.
  if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||
@@ -108,6 +118,8 @@ export function validateNativeX11Workflow(source){
  return Object.freeze({
   source:'source-text-admission-only',
   requiredRunners:['ubuntu-24.04','ubuntu-22.04'],
+  strictSandboxBuildRunner:'ubuntu-22.04',
+  separateUbuntu24NativeGateRequired:true,
   shaBeforeArchiveExtraction:true,
   fullNativeX11ProofStillRequired:true,
   apparmorReviewContractRequired:true,

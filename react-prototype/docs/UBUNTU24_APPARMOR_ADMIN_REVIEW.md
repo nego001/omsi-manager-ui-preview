@@ -311,3 +311,29 @@ identidade `Tab` do processo já foi confirmada; argumentos de tipo
 duplicados continuam rejeitados. O teste antigo que classificava todo
 Zygote como divergente foi corrigido. A prova de Seccomp e NoNewPrivs
 continua obrigatória e o gate Ubuntu 24.04 segue bloqueante.
+
+
+## Separação explícita de ambientes: build estrito em Ubuntu 22.04
+
+As CI `41961311007` e `41961315825` terminaram com **839/839
+Playwright, 20/20 contratos da sonda e os dois jobs Windows aprovados**,
+mas o smoke Linux empacotado com `chromiumSandbox:true` falhou antes
+de abrir janela: `Process failed to launch!`. Isso **não certifica**
+sandbox quebrado no aplicativo, apenas demonstra que o lançamento estrito
+não funcionou no job `ubuntu-latest` utilizado na época.
+
+O job de build agora roda **explicitamente no Ubuntu 22.04**, imagem
+em que a matriz nativa anterior conseguia iniciar o mesmo aplicativo
+sem desativar o sandbox. Isso permite testar o artefato Linux com
+Playwright `chromiumSandbox:true` e, se passar, publicar o pacote
+para a matriz de verificação. Um contrato de workflow impede retorno
+silencioso para `ubuntu-latest` ou troca por `ubuntu-24.04`,
+e exige os dois smokes de Linux empacotado (X11 e Weston).
+
+**Crucial:** o Ubuntu 24.04 permanece obrigatório e bloqueante na
+matriz `native_auto_x11`. A mudança do build **não é prova de
+compatibilidade Ubuntu 24.04**; é a separação entre ambiente de
+construção conhecido e ambiente restritivo sob investigação. Não foram
+alterados AppArmor, kernel, perfis setuid, flags ou políticas de host.
+Se o Ubuntu 22.04 com sandbox estrito também falhar, manter o build
+vermelho e investigar a evidência, sem bypass.
