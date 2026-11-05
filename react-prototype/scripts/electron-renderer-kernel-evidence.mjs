@@ -6,7 +6,10 @@ import {basename} from 'node:path';
 const allowedReasons=new Set([
  'invalid-probe-context','invalid-process-id','proc-read-unavailable',
  'invalid-proc-status','invalid-proc-command-line','unexpected-executable',
- 'renderer-role-unverified','electron-metric-role-unverified',
+ 'renderer-role-unverified','renderer-role-duplicate-type-switch',
+ 'renderer-role-conflicting-gpu','renderer-role-conflicting-utility',
+ 'renderer-role-conflicting-zygote','renderer-role-conflicting-other',
+ 'electron-metric-role-unverified',
  'sandbox-bypass-switch','invalid-seccomp-field',
  'invalid-no-new-privileges-field'
 ]);
@@ -54,9 +57,16 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProo
  if(basename(argv[0])!=='OMSI-Manager-Preview')
   refuse('unexpected-executable');
  const declaredRoles=argv.filter(a=>a.startsWith('--type='));
- if(declaredRoles.length>1||
-   (declaredRoles.length===1&&declaredRoles[0]!=='--type=renderer')||
-   (declaredRoles.length===0&&!metricRoleProofs.has(metricProof)))
+ if(declaredRoles.length>1)refuse('renderer-role-duplicate-type-switch');
+ if(declaredRoles.length===1&&declaredRoles[0]!=='--type=renderer'){
+  // Never publish argv values: translate only known Chromium process classes.
+  const role=declaredRoles[0];
+  if(role==='--type=gpu-process')refuse('renderer-role-conflicting-gpu');
+  if(role==='--type=utility')refuse('renderer-role-conflicting-utility');
+  if(role==='--type=zygote')refuse('renderer-role-conflicting-zygote');
+  refuse('renderer-role-conflicting-other');
+ }
+ if(declaredRoles.length===0&&!metricRoleProofs.has(metricProof))
   refuse('renderer-role-unverified');
  if(argv.some(a=>/^(?:--no-sandbox|--disable-setuid-sandbox|--disable-seccomp-filter-sandbox)(?:=|$)/.test(a)))
   refuse('sandbox-bypass-switch');

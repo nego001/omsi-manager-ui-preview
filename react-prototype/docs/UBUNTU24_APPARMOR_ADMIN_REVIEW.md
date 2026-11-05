@@ -217,3 +217,18 @@ Essa mudança não altera `Seccomp=2` nem `NoNewPrivs=1`, não imprime PID ou
 argumentos, não modifica AppArmor e não confere certificação de sandbox.
 Fontes: https://www.electronjs.org/docs/latest/api/web-contents e
 https://www.electronjs.org/docs/latest/api/structures/process-metric
+
+
+## Categorias para divergência do papel Chromium (sem publicar a linha de comando)
+
+A validação da CI do commit `91671a6` continuou recusando a categoria
+`renderer-role-unverified` mesmo com a confirmação `type: Tab` por métricas do Electron.
+A sonda foi endurecida para distinguir **argumento de tipo duplicado**,
+**papel contraditório GPU**, **Utility**, **Zygote** e **outro tipo desconhecido**.
+A ausência de `--type=` com métrica autenticada continua elegível; papel
+explicitamente divergente, mesmo com `Tab`, continua bloqueado.
+
+São apenas categorias prefixadas `renderer-role-` e nomes fixos, sem logar
+PID, argumentos originais, conteúdo privado, valores desconhecidos ou caminhos.
+Esta etapa identifica a divergência observada, sem declarar isolamento ativo,
+sem modificar sandbox/AppArmor e sem retirar qualquer falha obrigatória.

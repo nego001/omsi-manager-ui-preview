@@ -72,7 +72,7 @@ test('raw paths and credentials never become serialized evidence',()=>{
 test('each failure uses only a fixed privacy-safe category',()=>{
  const cases=[
   [status(),cmd(['/fake/another','--type=renderer']),'unexpected-executable'],
-  [status(),cmd(['/fake/OMSI-Manager-Preview','--type=gpu-process']),'renderer-role-unverified'],
+  [status(),cmd(['/fake/OMSI-Manager-Preview','--type=gpu-process']),'renderer-role-conflicting-gpu'],
   [status(),cmd(['/fake/OMSI-Manager-Preview','--type=renderer','--no-sandbox']),'sandbox-bypass-switch'],
   [status().replace('Seccomp:\t2',''),'','invalid-seccomp-field'],
   [status().replace('NoNewPrivs:\t1',''),'','invalid-no-new-privileges-field']
@@ -141,4 +141,35 @@ test('trusted Electron metric never overrides a contrary --type or sandbox bypas
 test('probe rejects absent main-process role evidence before attempting proc read',async()=>{
  await assert.rejects(probe(34567,[]),e=>
   e.reason==='electron-metric-role-unverified');
+});
+
+
+test('categorizes contradictory Chromium roles without logging raw process arguments',()=>{
+ const pid=45678;
+ const proof=verifyMetric(pid,[{pid,type:'Tab',creationTime:1710000000000}]);
+ const scenarios=[
+  [['--type=renderer','--type=renderer'],'renderer-role-duplicate-type-switch'],
+  [['--type=renderer','--type=utility'],'renderer-role-duplicate-type-switch'],
+  [['--type=gpu-process'],'renderer-role-conflicting-gpu'],
+  [['--type=utility'],'renderer-role-conflicting-utility'],
+  [['--type=zygote'],'renderer-role-conflicting-zygote'],
+  [['--type=irrelevant-private-secret'],'renderer-role-conflicting-other']
+ ];
+ for(const [args,expected] of scenarios){
+  let result;
+  try{classify(status(),cmd(['/fake/OMSI-Manager-Preview',...args,'--lang=en-US']),proof);}
+  catch(e){result=e;}
+  assert.equal(result?.reason,expected);
+  assert.equal(result?.message,'ELECTRON_RENDERER_KERNEL_EVIDENCE_REFUSED');
+  assert.equal(JSON.stringify({reason:result.reason}).includes('secret'),false);
+  assert.equal(Object.keys(result).includes('reason'),false);
+ }
+});
+test('missing type switch is accepted only with a valid Electron Tab proof',()=>{
+ const pid=45678;
+ const line=cmd(['/fake/OMSI-Manager-Preview','--lang=en-US']);
+ assert.throws(()=>classify(status(),line),e=>e.reason==='renderer-role-unverified');
+ const proof=verifyMetric(pid,[{pid,type:'Tab',creationTime:1710000000000}]);
+ assert.equal(classify(status(),line,proof).roleEvidence,
+  'electron-metrics-and-process-command-line');
 });
