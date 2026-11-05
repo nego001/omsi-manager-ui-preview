@@ -337,3 +337,23 @@ construção conhecido e ambiente restritivo sob investigação. Não foram
 alterados AppArmor, kernel, perfis setuid, flags ou políticas de host.
 Se o Ubuntu 22.04 com sandbox estrito também falhar, manter o build
 vermelho e investigar a evidência, sem bypass.
+
+## Weston 9 headless: sintaxe de renderizador compatível
+
+Na CI [41972033016](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/41972033016),
+o smoke Linux empacotado com sandbox estrito observou `Seccomp=2` e
+`NoNewPrivs=1` no renderizador e passou. O build falhou depois,
+no teste Wayland: o Weston 9 do Ubuntu 22.04 encerrou com
+`fatal: unhandled option: --renderer=pixman`, antes da criação do socket.
+
+O laboratório usa agora `--use-pixman`, sintaxe documentada
+para o Weston 9, conservando o compositor headless de software.
+Um contrato determinístico recusa nomes de socket com injeção de
+argumentos, exige os argumentos permitidos e impede a regressão
+para a opção de Weston mais recente. O workflow executa esse
+contrato antes do smoke Wayland e seu guard de CI impede omissão.
+Isso não modifica flags do Electron, AppArmor ou permissões do host.
+O teste Wayland ainda não comprova GNOME, KDE ou Hyprland reais.
+
+Referência da versão 9:
+https://pq.pages.freedesktop.org/weston/toc/running-weston.html

@@ -150,6 +150,15 @@ test('cross-runner comparison stays required without suppressing failing X11 job
 });
 
 
+test('Weston 9 CLI compatibility test stays mandatory before Wayland smoke',()=>{
+ const contract='      - name: Weston 9 headless CLI compatibility and injection contracts\n        run: node --test scripts/weston-9-headless-contract.test.mjs';
+ const wayland='      - name: Native Wayland packaged GUI smoke in disposable Weston';
+ assert.ok(original.includes(contract));
+ assert.ok(original.indexOf(contract)<original.indexOf(wayland));
+ assert.throws(()=>verify(original.replace(contract,'      - name: CLI-test-removed\n        run: echo omitted')),
+  /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+});
+
 test('build and strict packaged X11/Wayland smoke stay on Ubuntu 22.04',()=>{
  const variations=[
   original.replace('  build:\n    runs-on: ubuntu-22.04',

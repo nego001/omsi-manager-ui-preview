@@ -21,7 +21,8 @@ export function validateNativeX11Workflow(source){
  if(!build.includes('name: Test packaged Linux ELF GUI using synthetic game folder')||
     !build.includes('run: xvfb-run -a npm run test:portable:linux')||
     !build.includes('name: Native Wayland packaged GUI smoke in disposable Weston')||
-    !build.includes('run: npm run test:wayland:headless'))refusal();
+    !build.includes('run: npm run test:wayland:headless')||
+    !build.includes('node --test scripts/weston-9-headless-contract.test.mjs'))refusal();
  // Require the exact synthetic contract in the upstream build and both X11 runners.
  if(!build.includes('name: AppArmor administrator review classification (synthetic data only)')||
     !build.includes('node --test scripts/ubuntu24-app-profile-review.test.mjs')||

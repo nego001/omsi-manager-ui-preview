@@ -6,6 +6,7 @@ import {join, resolve, dirname} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {_electron as electron} from 'playwright';
 import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
+import {weston9HeadlessArgs} from './weston-9-headless-contract.mjs';
 
 // Genuine Wayland socket test using an ephemeral, unprivileged Weston headless
 // compositor in CI. This is NOT a Hyprland or GPU-driver qualification.
@@ -29,12 +30,10 @@ const env={
  LIBGL_ALWAYS_SOFTWARE:'1',
  OMSI_MANAGER_DEV_PREVIEW:'0'
 };
-const weston=spawn('weston',[
- '--backend=headless-backend.so',
- '--socket='+socketName,
- '--idle-time=0',
- '--renderer=pixman'
-],{stdio:['ignore','pipe','pipe'],env,windowsHide:true});
+// Ubuntu 22.04 installs Weston 9; --renderer=pixman is not supported there.
+// Keep a renderer active so the headless Wayland test exercises real surfaces.
+const weston=spawn('weston',weston9HeadlessArgs(socketName),
+ {stdio:['ignore','pipe','pipe'],env,windowsHide:true});
 let stderr='';
 let exited=false;
 weston.stderr.on('data',data=>{stderr+=data.toString();if(stderr.length>12000)stderr=stderr.slice(-12000);});
