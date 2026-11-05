@@ -109,6 +109,7 @@ try{
  const sentinel=join(fixture,'Vehicles','Dummy Bus','fixture.bus');
  await writeFile(sentinel,'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n','utf8');
  application=await electron.launch({
+  chromiumSandbox:true,
   executablePath:launcher,
   args:[],
   cwd:temp,
@@ -201,6 +202,7 @@ try{
  application=undefined;
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
+   chromiumSandbox:true,
    executablePath:launcher,args:['--ozone-platform=x11'],cwd:temp,
    env:{...process.env,XDG_CURRENT_DESKTOP:desktop,
     XDG_SESSION_TYPE:'x11',WAYLAND_DISPLAY:'',

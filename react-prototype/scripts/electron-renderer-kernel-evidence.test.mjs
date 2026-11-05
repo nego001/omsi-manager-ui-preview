@@ -221,3 +221,29 @@ test('zygote identity proof is invalid when metric PID or type mismatches',()=>{
   {pid,type:'Tab',creationTime:0}
  ])assert.throws(()=>verifyMetric(pid,[row]),e=>e.reason==='electron-metric-role-unverified');
 });
+
+
+test('all packaged Linux Electron Playwright launches explicitly request Chromium sandbox',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const source=await readFile(new URL('./portable-linux-smoke.mjs',import.meta.url),'utf8');
+ const starts=[...source.matchAll(/\bapplication\s*=\s*await\s+electron\.launch\s*\(\s*\{/g)];
+ assert.equal(starts.length,2,'expected main and GNOME/KDE X11 Electron launch sites');
+ for(const match of starts){
+  const body=source.slice(match.index,match.index+500);
+  assert.match(body,/chromiumSandbox:\s*true\b/);
+  assert.doesNotMatch(body,/chromiumSandbox:\s*false\b/);
+ }
+ assert.doesNotMatch(source,/chromiumSandbox:\s*false\b/);
+ // A removed or weakened option must fail the gate for that launch site.
+ for(const changed of [
+  source.replace('chromiumSandbox:true,',''),
+  source.replace('chromiumSandbox:true,','chromiumSandbox:false,')
+ ]){
+  const launches=[...changed.matchAll(/\bapplication\s*=\s*await\s+electron\.launch\s*\(\s*\{/g)];
+  assert.equal(launches.length,2);
+  assert.equal(launches.every(m=>
+   /chromiumSandbox:\s*true\b/.test(changed.slice(m.index,m.index+500)) &&
+   !/chromiumSandbox:\s*false\b/.test(changed.slice(m.index,m.index+500))
+  ),false);
+ }
+});

@@ -261,3 +261,30 @@ e não modifica o bloqueio obrigatório Ubuntu 24.04.
 
 Referência técnica:
 https://chromium.googlesource.com/chromium/src/+/474020269055c03ca1386e931d918e47656608a2/docs/linux_zygote.md
+
+
+## Playwright Electron não é sandbox estrito por padrão
+
+Foi identificada a origem do `sandbox-bypass-switch` no smoke Linux
+empacotado: o teste chamava `_electron.launch()` sem
+`chromiumSandbox:true`. **O padrão documentado do Playwright é false**,
+diferente do navegador Electron iniciado diretamente. Isso significa que o
+smoke anterior de interface não era comprovação de sandbox nativo.
+
+Ambos os lançamentos da prévia no smoke (inicial e os ambientes rotulados
+GNOME/KDE) agora passam **`chromiumSandbox:true`** explicitamente.
+O requisito mínimo de Playwright passou a 1.59, versão que documenta
+essa opção. Um teste de fonte verifica todas as invocações e recusa omissões
+ou `chromiumSandbox:false`.
+
+A sondagem de runtime **continua** a exigir renderer identificado e
+`Seccomp=2` com `NoNewPrivs=1`; flags `--no-sandbox` continuam proibidas.
+Se a imagem Ubuntu do job de compilação impedir user namespaces, o teste
+estrito deve **reprovar**, registrando o bloqueio de ambiente; não aplicar
+mudança global de AppArmor, não habilitar setuid, não desativar sandbox.
+
+O teste com Xvfb não equivale a GNOME/KDE real. A matriz X11 nativa
+Ubuntu 22.04/24.04 e a revisão administrativa continuam exigências
+separadas. A documentação oficial:
+https://playwright.dev/docs/api/class-electron
+https://www.electronjs.org/docs/latest/tutorial/sandbox
