@@ -57,18 +57,24 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProo
  if(basename(argv[0])!=='OMSI-Manager-Preview')
   refuse('unexpected-executable');
  const declaredRoles=argv.filter(a=>a.startsWith('--type='));
+ const trustedTabMetric=metricRoleProofs.has(metricProof);
  if(declaredRoles.length>1)refuse('renderer-role-duplicate-type-switch');
  if(declaredRoles.length===1&&declaredRoles[0]!=='--type=renderer'){
-  // Never publish argv values: translate only known Chromium process classes.
+  // Chromium forks renderers from a zygote on Linux. After fork, cmdline
+  // can retain --type=zygote; ONLY a matched Electron Tab metric may
+  // disambiguate that inherited command line. Other roles stay blocked.
   const role=declaredRoles[0];
   if(role==='--type=gpu-process')refuse('renderer-role-conflicting-gpu');
   if(role==='--type=utility')refuse('renderer-role-conflicting-utility');
-  if(role==='--type=zygote')refuse('renderer-role-conflicting-zygote');
-  refuse('renderer-role-conflicting-other');
+  if(role==='--type=zygote'){
+   if(!trustedTabMetric)refuse('renderer-role-conflicting-zygote');
+  }else{
+   refuse('renderer-role-conflicting-other');
+  }
  }
- if(declaredRoles.length===0&&!metricRoleProofs.has(metricProof))
+ if(declaredRoles.length===0&&!trustedTabMetric)
   refuse('renderer-role-unverified');
- if(argv.some(a=>/^(?:--no-sandbox|--disable-setuid-sandbox|--disable-seccomp-filter-sandbox)(?:=|$)/.test(a)))
+ if(argv.some(a=>/^(?:--no-sandbox|--disable-setuid-sandbox|--disable-seccomp-filter-sandbox|--no-zygote|--single-process)(?:=|$)/.test(a)))
   refuse('sandbox-bypass-switch');
  const seccomp=one(status,'Seccomp',['0','1','2'],'invalid-seccomp-field');
  const nnp=one(status,'NoNewPrivs',['0','1'],'invalid-no-new-privileges-field');
@@ -82,8 +88,10 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProo
   category:observed?'renderer-kernel-restrictions-observed':
    'renderer-kernel-restrictions-incomplete',
   runtimeRendererIdentityChecked:true,
-  roleEvidence:metricRoleProofs.has(metricProof)?
-   'electron-metrics-and-process-command-line':'renderer-process-command-line-only',
+  roleEvidence:declaredRoles[0]==='--type=zygote'?
+   'electron-tab-metric-and-zygote-fork-cmdline':
+   trustedTabMetric?'electron-metrics-and-process-command-line':
+   'renderer-process-command-line-only',
   fullElectronSandboxCertified:false,
   userNamespaceIsolationCertified:false,
   apparmorCausalityProven:false,

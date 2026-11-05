@@ -232,3 +232,32 @@ São apenas categorias prefixadas `renderer-role-` e nomes fixos, sem logar
 PID, argumentos originais, conteúdo privado, valores desconhecidos ou caminhos.
 Esta etapa identifica a divergência observada, sem declarar isolamento ativo,
 sem modificar sandbox/AppArmor e sem retirar qualquer falha obrigatória.
+
+
+## Renderizadores Linux originados de Zygote: correção de falso negativo
+
+A CI do commit `8543fc4` confirmou a categoria
+`renderer-role-conflicting-zygote` no processo cuja identidade também foi
+correlacionada com uma métrica Electron `type: Tab`. A documentação oficial do
+Chromium descreve o modelo de inicialização Linux: renderizadores são criados
+por `fork()` do processo Zygote; a linha de comando de origem pode continuar
+marcada `--type=zygote` após o fork. Assim, esse argumento **não basta**
+para classificar o processo como Zygote em execução.
+
+A sonda agora aceita **somente** essa aparente divergência quando:
+- o PID do `webContents` coincide com exatamente uma métrica `type: Tab`
+  e timestamp válido obtidos pelo processo principal do Electron;
+- o executável do `/proc/cmdline` é o esperado;
+- não existem switches `--type=` duplicados;
+- não há `--no-sandbox`, `--disable-setuid-sandbox`,
+  `--disable-seccomp-filter-sandbox`, `--no-zygote` ou `--single-process`;
+- o processo continua exigindo `Seccomp=2` e `NoNewPrivs=1`.
+
+GPU, Utility, tipo desconhecido e Zygote sem métrica Tab válida são recusados.
+O resultado fica classificado como `electron-tab-metric-and-zygote-fork-cmdline`,
+sem registrar PID ou argumentos. A exceção é restrita à identificação Linux:
+**não certifica todo o sandbox Chromium**, não altera políticas do kernel/AppArmor
+e não modifica o bloqueio obrigatório Ubuntu 24.04.
+
+Referência técnica:
+https://chromium.googlesource.com/chromium/src/+/474020269055c03ca1386e931d918e47656608a2/docs/linux_zygote.md

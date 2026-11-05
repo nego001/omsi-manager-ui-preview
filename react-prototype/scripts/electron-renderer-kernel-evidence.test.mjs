@@ -173,3 +173,51 @@ test('missing type switch is accepted only with a valid Electron Tab proof',()=>
  assert.equal(classify(status(),line,proof).roleEvidence,
   'electron-metrics-and-process-command-line');
 });
+
+
+test('Linux zygote-fork cmdline is accepted ONLY with a verified Electron Tab metric',()=>{
+ const pid=56321;
+ const inherited=cmd(['/fake/release/OMSI-Manager-Preview','--type=zygote','--lang=en-US']);
+ assert.throws(()=>classify(status(),inherited),e=>
+  e.reason==='renderer-role-conflicting-zygote');
+ const proof=verifyMetric(pid,[{pid,type:'Tab',creationTime:1710000000000}]);
+ const result=classify(status(),inherited,proof);
+ assert.equal(result.category,'renderer-kernel-restrictions-observed');
+ assert.equal(result.roleEvidence,'electron-tab-metric-and-zygote-fork-cmdline');
+ assert.equal(result.seccompMode,'filter');
+ assert.equal(result.noNewPrivs,'enabled');
+ assert.equal(result.fullElectronSandboxCertified,false);
+ assert.equal(result.userNamespaceIsolationCertified,false);
+ assert.ok(Object.isFrozen(result));
+});
+test('zygote inheritance never authorizes bypass or another process type',()=>{
+ const pid=56321;
+ const proof=verifyMetric(pid,[{pid,type:'Tab',creationTime:1710000000000}]);
+ for(const sw of ['--no-sandbox','--disable-setuid-sandbox',
+  '--disable-seccomp-filter-sandbox','--no-zygote','--single-process']){
+  assert.throws(()=>classify(status(),cmd([
+   '/fake/release/OMSI-Manager-Preview','--type=zygote',sw
+  ]),proof),e=>e.reason==='sandbox-bypass-switch',sw);
+ }
+ for(const sw of ['--type=utility','--type=gpu-process','--type=unknown']){
+  assert.throws(()=>classify(status(),cmd([
+   '/fake/release/OMSI-Manager-Preview',sw
+  ]),proof),refused);
+ }
+ for(const [seccomp,nnp] of [['0','1'],['1','1'],['2','0']]){
+  const evidence=classify(status(seccomp,nnp),cmd([
+   '/fake/release/OMSI-Manager-Preview','--type=zygote','--lang=en-US'
+  ]),proof);
+  assert.equal(evidence.category,'renderer-kernel-restrictions-incomplete');
+  assert.equal(evidence.fullElectronSandboxCertified,false);
+ }
+});
+test('zygote identity proof is invalid when metric PID or type mismatches',()=>{
+ const pid=56321;
+ for(const row of [
+  {pid:pid+1,type:'Tab',creationTime:1710000000000},
+  {pid,type:'Zygote',creationTime:1710000000000},
+  {pid,type:'Utility',creationTime:1710000000000},
+  {pid,type:'Tab',creationTime:0}
+ ])assert.throws(()=>verifyMetric(pid,[row]),e=>e.reason==='electron-metric-role-unverified');
+});
