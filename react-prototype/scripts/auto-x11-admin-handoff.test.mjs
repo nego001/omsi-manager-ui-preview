@@ -16,7 +16,8 @@ const runner=(runner,success,options={})=>create({
   apparmorRestriction:runner==='ubuntu-22.04'?'disabled':'enabled',
   userNamespaceProbe:runner==='ubuntu-22.04'?'allowed':'permission-denied'},
  outcomes:['GNOME','KDE'].map((desktop,index)=>{
-  const missing=options.missingKde===true&&index===1;
+  const missing=options.missingAll===true||
+   (options.missingKde===true&&index===1);
   return {desktop,mapped:success,failed:!success,
    windowOwned:success,nativeProcess:!missing,
    triageClassification:success?'native-auto-window-mapped':
@@ -36,6 +37,8 @@ test('handoff preserves blocked status and no sandbox claim despite correlated e
  assert.equal(hand.schema,'AUTO_X11_ADMIN_HANDOFF_V1');
  assert.equal(hand.status,'ubuntu24-native-window-blocked');
  assert.equal(hand.startupCorrelationObserved,true);
+ assert.equal(hand.autoIdentityCoverage,'complete');
+ assert.equal(hand.directElectronSigtrapWitnessComplete,true);
  assert.equal(hand.recommendedNextStep,
   'request-independent-app-specific-policy-review-on-approved-disposable-host');
  assert.deepEqual(hand.byDesktop,[
@@ -60,8 +63,24 @@ test('missing native process and unobserved capture remain diagnostic, not infer
  assert.equal(hand.status,'ubuntu24-native-window-blocked');
  assert.equal(hand.byDesktop[1].earlyMainKernelComparison,'insufficient-data');
  assert.equal(hand.byDesktop[1].ubuntu24AutoIdentitySource,'unobserved');
- assert.equal(hand.startupCorrelationObserved,true); // Direct controls are independently observed.
+ assert.equal(hand.autoIdentityCoverage,'partial');
+ assert.equal(hand.directElectronSigtrapWitnessComplete,true);
+ assert.equal(hand.startupCorrelationObserved,false);
+ assert.equal(hand.recommendedNextStep,
+  'collect-missing-evidence-and-review-startup-before-policy-experiment');
  assert.equal(hand.apparmorCausalityProven,false);
+});
+test('two missing Auto identities cannot be inferred from two verified direct SIGTRAP controls',()=>{
+ const partial=compare(older,runner('ubuntu-24.04',false,{missingAll:true}));
+ const hand=handoff(partial);
+ assert.equal(hand.autoIdentityCoverage,'none');
+ assert.equal(hand.directElectronSigtrapWitnessComplete,true);
+ assert.equal(hand.startupCorrelationObserved,false);
+ assert.equal(hand.status,'ubuntu24-native-window-blocked');
+ assert.equal(hand.recommendedNextStep,
+  'collect-missing-evidence-and-review-startup-before-policy-experiment');
+ assert.equal(hand.apparmorCausalityProven,false);
+ assert.equal(hand.fullReleaseAuthorized,false);
 });
 test('direct control missing or an intact window cannot authorize release',()=>{
  const unavailable=create({runner:'ubuntu-24.04',
@@ -106,7 +125,10 @@ test('forged comparisons, contradictory schemas, secret paths and positive flags
     ubuntu24CaptureSource:'anonymous-private-path'},
    valid.identityCaptureByDesktop[1]]},
   {...valid,ubuntu24NativeWindowsVerified:true},
-  {...valid,classification:'both-x11-window-probes-mapped'}
+  {...valid,classification:'both-x11-window-probes-mapped'},
+  {...valid,identityCaptureByDesktop:[
+   valid.identityCaptureByDesktop[0],
+   {...valid.identityCaptureByDesktop[1],ubuntu24CaptureSource:'unobserved'}]}
  ]){
   assert.throws(()=>handoff(corrupt),/^Error: AUTO_X11_ADMIN_HANDOFF_REFUSED$/);
  }

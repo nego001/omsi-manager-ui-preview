@@ -57,6 +57,15 @@ export function createX11AdminHandoff(value){
    ubuntu24DirectElectronControl:control.category
   });
  });
+ // Capture source is itself a bound on observable kernel evidence. If no
+ // exact native process command line was verified, a cross-runner kernel
+ // equality/difference cannot legitimately exist for that label.
+ if(byDesktop.some(d=>d.ubuntu24AutoIdentitySource==='unobserved'&&
+    d.earlyMainKernelComparison!=='insufficient-data'))fail();
+ const observedAutoCount=byDesktop.filter(d=>
+  d.ubuntu24AutoIdentitySource!=='unobserved').length;
+ const autoIdentityCoverage=observedAutoCount===2?'complete':
+  observedAutoCount===1?'partial':'none';
  const kinds=byDesktop.map(x=>x.earlyMainKernelComparison);
  const calculated=kinds.includes('insufficient-data')?'insufficient-data':
   kinds.includes('different-observed')?'different-observed':'matched-observed';
@@ -72,7 +81,11 @@ export function createX11AdminHandoff(value){
  const directSigtraps=byDesktop.every(d=>
   ['sigtrap-cmdline-spawn','sigtrap-cmdline-polling'].includes(
    d.ubuntu24DirectElectronControl));
- const correlated=blocked&&x.ubuntu22NativeWindowsVerified&&
+ // Never suggest a host-policy experiment while the Auto process itself
+ // is still unobserved in either Xvfb label. Direct Electron witnesses
+ // are a separate control and cannot fill missing Auto identity.
+ const correlated=blocked&&autoIdentityCoverage==='complete'&&
+  x.ubuntu22NativeWindowsVerified&&
   x.ubuntu22NamespaceProbe==='allowed'&&
   x.ubuntu24NamespaceProbe==='permission-denied'&&
   x.ubuntu24ApparmorRestriction==='enabled'&&directSigtraps;
@@ -89,6 +102,8 @@ export function createX11AdminHandoff(value){
   ubuntu24UserNamespaceProbe:x.ubuntu24NamespaceProbe,
   ubuntu24ApparmorRestriction:x.ubuntu24ApparmorRestriction,
   byDesktop:Object.freeze(byDesktop),
+  autoIdentityCoverage,
+  directElectronSigtrapWitnessComplete:directSigtraps,
   startupCorrelationObserved:correlated,
   recommendedNextStep,
   source:'sanitized-same-workflow-ubuntu-comparison',

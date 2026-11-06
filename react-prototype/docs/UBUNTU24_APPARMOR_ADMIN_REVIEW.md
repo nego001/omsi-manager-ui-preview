@@ -602,3 +602,23 @@ O relatório **nunca** declara versão pronta:
 invariantes. Evidência correlacionada não demonstra causalidade.
 A exportação é somente leitura e não modifica sistema, AppArmor,
 política global, permissões ou sandbox.
+
+## Gatilho para revisão de política: exige identidade Auto completa
+
+O relatório administrativo não pode sugerir uma experiência
+privilegiada de política AppArmor só porque os **controles diretos**
+do Electron foram identificados. A sugestão de revisão específica
+agora depende de identidade confirmada do **launcher Auto nas duas**
+etiquetas Xvfb. O campo `autoIdentityCoverage` distingue
+`complete`, `partial` e `none`, e
+`directElectronSigtrapWitnessComplete` descreve a evidência
+independente dos controles diretos.
+
+Se o KDE Auto não for observado, a recomendação permanece
+`collect-missing-evidence-and-review-startup-before-policy-experiment`,
+mesmo com dois controles diretos `SIGTRAP`. Uma fonte Auto
+`unobserved` acompanhada de comparação de kernel declarada
+como `matched-observed` é recusada como contraditória.
+
+Esses critérios não modificam a CI de janela, o host ou o
+sandbox e não autorizam, por si, nenhum piloto administrativo.
