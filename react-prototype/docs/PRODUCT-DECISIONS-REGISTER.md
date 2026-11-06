@@ -282,3 +282,21 @@ Como a remoção desmonta o próprio botão acionado, o foco de teclado passa ao
 O Catálogo permite as ordens **Original do catálogo**, **Nome (A–Z)** e **Jogo e nome** (OMSI, ETS2, ATS). A ordenação só afeta a visualização e o fluxo de navegação **Anterior/Próximo** dos Detalhes abertos a partir do Catálogo; jamais modifica a lista de metadados importada ou os favoritos. Empates são resolvidos pelo ID. Uma ordem não padrão aparece como chip removível, com continuidade de foco após seu desaparecimento. A ordem padrão é restaurada ao importar outro JSON ou voltar à demonstração. Já o botão para mostrar todos os resultados remove apenas os filtros de jogo, categoria e busca, preservando a ordenação escolhida.
 
 Os testes Playwright cobrem exibição a 390 px, navegação e retorno dos Detalhes, remoção por teclado, catálogo JSON importado, favoritos e ausência de comandos de instalação ou remoção.
+
+### Ordenação reversível por tamanho declarado na Biblioteca
+
+A Biblioteca permite ordenar os favoritos por **tamanho declarado
+(maior/menor primeiro)**, preservando as ordenações já existentes e o
+fluxo de Detalhes anterior/próximo na ordem filtrada. O conversor
+estritamente local reconhece unidades decimais (B, KB, MB, GB, TB)
+e binárias (KiB, MiB, GiB, TiB), números com vírgula ou ponto e
+descarta quantidades ambíguas ou grandes demais. Tamanhos não
+reconhecidos ficam **por último** em qualquer direção, com empates
+estáveis por título/ID. Ao selecionar essa ordem, um aviso deixa
+explícito que o dado é metadado fornecido pelo catálogo, e **não**
+consumo real de espaço no disco.
+
+As ações de limpar filtros e remover apenas o chip de ordenação
+voltam à ordem original sem apagar favoritos nem seleção de análise.
+Nenhuma operação de arquivo, instalação, medição de disco ou alteração
+do sandbox é efetuada.
