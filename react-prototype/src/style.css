@@ -1145,3 +1145,10 @@
 
 /* An imported metadata ID is visible and readable even at its 64-char limit. */
 .properties .mod-declared-id{display:block;overflow-wrap:anywhere;word-break:break-word;max-width:100%}
+
+/* Search explanations are declared JSON metadata, never verified disk state. */
+.mod-search-evidence{display:flex;flex-direction:column;gap:4px;
+ margin:-5px 0 12px;padding:8px 10px;background:#243040;border:1px solid #536a83;
+ border-radius:7px;max-width:100%;min-width:0;overflow-wrap:anywhere}
+.mod-search-evidence>span{font-size:10px;line-height:1.6;color:#d0e2f8}
+.mod-search-evidence strong{font-size:10px;color:#f1f6ff;font-weight:700;word-break:break-word}

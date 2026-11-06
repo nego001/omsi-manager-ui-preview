@@ -22,3 +22,20 @@ export function matchesCatalogSearch(
  // Independent terms tolerate reordered words without losing game/category.
  return terms.split(' ').every(term=>haystack.includes(term));
 }
+
+/** Explains which declared metadata fields contain a search term.
+ * A field match is not proof of installation, integrity or compatibility. */
+export function declaredSearchMatchFields(
+ mod:Pick<CatalogMod,'id'|'version'>,
+ query:string
+):Readonly<{id:boolean;version:boolean}>{
+ const normalized=normalizeCatalogSearch(query);
+ if(!normalized)return {id:false,version:false};
+ const terms=normalized.split(' ');
+ const id=normalizeCatalogSearch(mod.id);
+ const version=normalizeCatalogSearch(mod.version);
+ return {
+  id:terms.some(term=>id.includes(term)),
+  version:terms.some(term=>version.includes(term))
+ };
+}

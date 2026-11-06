@@ -396,3 +396,15 @@ de mod, pastas de jogo, rede ou instaladores. O ID de até 64 caracteres
 quebra linhas para telas móveis e não afeta filtros, favoritos nem seleção.
 Três testes Playwright cobrem busca por ID/versão, origem declarada,
 navegação Anterior/Próximo, limites operacionais e viewport de 390 px.
+
+### Resultados da busca explicam ID/versão declarados
+
+Após busca por ID ou versão, os cartões do Catálogo e da Biblioteca
+identificam **qual campo declarado contém um dos termos** (ID e/ou versão).
+O aviso não aparece para busca vazia ou para coincidência somente no
+título, categoria ou jogo. Não altera o algoritmo de seleção de resultados
+nem a ordenação. Em combinações de termos, ambos os campos podem aparecer.
+Os cartões continuam explicando apenas o JSON local: nenhuma identificação
+real de arquivo, instalação ou compatibilidade é inferida. Não há
+consultas externas. Três testes Playwright cobrem ID, versão, ambos,
+ausência do aviso, seleção da Biblioteca, retorno de Detalhes e 390 px.

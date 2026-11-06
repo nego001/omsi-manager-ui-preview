@@ -1,6 +1,6 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
-import {matchesCatalogSearch} from './catalog-search';
+import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
 import {summarizeDeclaredSizes} from './declared-size-summary';
 import {analyzeModRelations} from './relation-analysis';
@@ -96,6 +96,14 @@ function readPreferences():SavedPreferences{
    dense:obj.dense===true
   };
  }catch{return defaults}
+}
+function DeclaredSearchEvidence({mod,query}:{mod:Mod;query:string}){
+ const matches=declaredSearchMatchFields(mod,query);
+ if(!matches.id&&!matches.version)return null;
+ return <span className="mod-search-evidence" role="note" aria-label="Campos declarados que coincidem com a busca">
+  {matches.id&&<span>ID declarado: <strong>{mod.id}</strong></span>}
+  {matches.version&&<span>Versão declarada: <strong>{mod.version}</strong></span>}
+ </span>;
 }
 export default function App(){
  const [screen,setScreen]=useState<Screen>('home');
@@ -495,7 +503,7 @@ export default function App(){
   }
   setFavorites(ids=>ids.includes(modId)?ids.filter(id=>id!==modId):[...ids,modId]);
  }
- const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <><span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>{status&&status.issueCount>0&&<button type="button" className="library-diagnostic-link" aria-label={'Ver diagnóstico de '+m.title} onClick={()=>openDeclaredDiagnostic(m.id)}><AlertTriangle size={13}/><span>Consultar {status.issueCount} {status.issueCount===1?'alerta declarado':'alertas declarados'}</span><ChevronRight size={13}/></button>}</>})()}<button className="text-button" id={`mod-title-${m.id}`} onClick={()=>detail(m.id)}>{m.title}</button>{screen==='library'&&<label className="library-batch-select"><input type="checkbox" aria-label={'Selecionar '+m.title+' para análise conjunta'} checked={activeBatch.includes(m.id)} onChange={e=>{setBatchSelected(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id));setBatchOpen(false)}}/>Incluir na análise conjunta</label>}<div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} aria-describedby={`mod-title-${m.id}`} onClick={()=>toggleFavorite(m.id)}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
+ const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <><span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>{status&&status.issueCount>0&&<button type="button" className="library-diagnostic-link" aria-label={'Ver diagnóstico de '+m.title} onClick={()=>openDeclaredDiagnostic(m.id)}><AlertTriangle size={13}/><span>Consultar {status.issueCount} {status.issueCount===1?'alerta declarado':'alertas declarados'}</span><ChevronRight size={13}/></button>}</>})()}<button className="text-button" id={`mod-title-${m.id}`} onClick={()=>detail(m.id)}>{m.title}</button>{(screen==='catalog'||screen==='library')&&<DeclaredSearchEvidence mod={m} query={screen==='library'?librarySearch:search}/>}{screen==='library'&&<label className="library-batch-select"><input type="checkbox" aria-label={'Selecionar '+m.title+' para análise conjunta'} checked={activeBatch.includes(m.id)} onChange={e=>{setBatchSelected(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id));setBatchOpen(false)}}/>Incluir na análise conjunta</label>}<div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} aria-describedby={`mod-title-${m.id}`} onClick={()=>toggleFavorite(m.id)}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
  useEffect(()=>{
   if(!focusMainAfterNavigation.current)return;
   focusMainAfterNavigation.current=false;
