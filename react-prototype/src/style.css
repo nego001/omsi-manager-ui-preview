@@ -1091,3 +1091,20 @@
 .library-by-game-grid button strong{font-size:18px;font-variant-numeric:tabular-nums}
 .library-by-game-grid button small{font-size:11px;line-height:1.5;color:#d0dbe7}
 .library-by-game-hint{font-size:11px;color:#bad3ef;margin-top:4px}
+
+/* Quick filters operate on declared metadata, not filesystem measurements. */
+.library-size-quick-filters{min-width:0;display:flex;align-items:center;justify-content:space-between;
+ flex-wrap:wrap;gap:12px;padding:13px 15px;margin:0 0 20px;background:#1c252e;
+ border:1px solid #475566;border-radius:9px}
+.library-size-quick-filters>div:first-child{min-width:0;flex:1 1 240px;display:flex;flex-direction:column;gap:5px}
+.library-size-quick-filters strong{font-size:12px;color:#f0f5fc}
+.library-size-quick-filters small{font-size:11px;line-height:1.5;color:#c0ccd9;overflow-wrap:anywhere}
+.library-size-filter-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.library-size-filter-actions button{min-height:42px;max-width:100%;padding:9px 12px;
+ border:1px solid #6a809a;border-radius:8px;background:#293444;
+ color:#edf4ff;font-size:11px;font-weight:650;cursor:pointer;white-space:normal}
+.library-size-filter-actions button[aria-pressed="true"]{border-color:#b0d1fc;background:#3b5779}
+.library-size-filter-actions button:disabled{opacity:.48;cursor:not-allowed}
+.library-size-filter-actions button:focus-visible{outline:3px solid #c2ddff;outline-offset:3px}
+@media(max-width:480px){.library-size-filter-actions{width:100%;flex-direction:column}
+ .library-size-filter-actions button{width:100%;min-height:44px}}

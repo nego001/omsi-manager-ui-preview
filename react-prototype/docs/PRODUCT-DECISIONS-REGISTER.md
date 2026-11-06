@@ -324,3 +324,18 @@ existente, sem trocar ordem, seleção de análise ou favoritos. Em 390 px, os
 cartões se ajustam à largura sem rolagem horizontal. Este painel não altera o
 estado de compatibilidade, não mede espaço real nem autoriza instalação;
 suas únicas fontes são os metadados já carregados.
+
+### Filtro reversível: tamanho de catálogo reconhecido ou desconhecido
+
+A Biblioteca oferece dois atalhos para selecionar favoritos com tamanho
+**interpretável** ou **desconhecido/inválido**, usando a mesma conversão
+segura já presente na ordenação. `0 B` explicitamente declarado conta como
+reconhecido, enquanto ausência, unidades não suportadas e notação ambígua
+ficam no grupo desconhecido. A contagem dos botões considera **todos os
+favoritos**, com procedência visível. O filtro combina com jogo, categoria,
+alertas, busca, seleção e ordenação, participa dos filtros ativos e pode ser
+removido pelo chip acessível ou pelo botão geral de limpar filtros.
+Importar catálogo ou restaurar demonstração limpa esse filtro, sem alterar
+favoritos indevidamente. Testes Playwright incluem zero vs. desconhecido,
+combinação com outros filtros, navegação por teclado, Detalhes e tela de 390 px.
+Nenhum conteúdo de jogo/mod é aberto, instalado ou alterado.
