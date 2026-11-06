@@ -29,3 +29,16 @@ export function captureNativeAtSpawn(pid,backend,read=readFileSync){
   processImageVerifiedByCmdline:true,spawnEventAloneAccepted:false
  });
 }
+
+
+// Source attribution is only metadata after successful command-line
+// verification. The event alone never earns a positive identity source.
+// Preserve the FIRST verified observation, not a later poll that repeats it.
+export function recordVerifiedIdentitySource(previous,source,verified){
+ const sources=new Set(['unobserved','spawn-callback','polling']);
+ if(!sources.has(previous)||!sources.has(source)||
+    source==='unobserved'||typeof verified!=='boolean')
+  return 'unobserved';
+ if(previous!=='unobserved')return previous;
+ return verified===true?source:'unobserved';
+}

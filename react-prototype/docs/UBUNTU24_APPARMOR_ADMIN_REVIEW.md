@@ -529,3 +529,18 @@ Esta é uma mitigação de **corrida de observação**, não uma correção do
 sozinho não identifica a imagem executada. Não há mudança de AppArmor,
 configuração de kernel, privilégios ou flags de sandbox. A janela real
 continua exigida nos dois rótulos Xvfb e Ubuntu 24.04 segue bloqueante.
+
+## Origem da observação de identidade no X11
+
+O teste registra `identityCaptureSource` como categoria fixa:
+`spawn-callback`, `polling` ou `unobserved`. O callback só atribui
+`spawn-callback` se a linha de comando for verificada; o laço atribui
+`polling` somente após a mesma verificação. Se ambos observarem o
+mesmo processo, prevalece a **primeira confirmação**. Isso distingue
+a eficácia da sonda antecipada de uma observação posterior sem coletar
+horário individual, PID, argumentos ou caminhos.
+
+A origem vai para o log sanitizado de diagnóstico X11, sem alterar
+a prova de janela, a classificação de causalidade, o artefato de
+integridade ou o requisito de sandbox estrito. O evento `spawn`
+sozinho continua sem valor probatório de identidade.

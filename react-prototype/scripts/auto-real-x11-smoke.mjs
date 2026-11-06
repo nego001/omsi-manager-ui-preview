@@ -11,7 +11,8 @@ import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
 import {observeEarlyNativeSecurity,EARLY_NATIVE_UNAVAILABLE}
  from './auto-x11-early-native-kernel.mjs';
-import {captureNativeAtSpawn} from './auto-x11-spawn-witness.mjs';
+import {captureNativeAtSpawn,recordVerifiedIdentitySource}
+ from './auto-x11-spawn-witness.mjs';
 import {createSanitizedX11Evidence} from './auto-x11-sanitized-evidence.mjs';
 import {readVerifiedX11ArchiveSha256} from './auto-x11-archive-provenance.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
@@ -75,7 +76,8 @@ async function probeDirectPackagedElectron(desktop,root){
   await mkdir(join(directRoot,part),{mode:0o700});
  const seen={spawnEventObserved:false,nativeProcess:false,
   windowFound:false,windowOwned:false,mapped:false,
-  earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE};
+  earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
+  identityCaptureSource:'unobserved'};
  const hints=new Set();
  let exited=false,exitCode=null,exitSignal=null,child;
  try{
@@ -100,9 +102,11 @@ async function probeDirectPackagedElectron(desktop,root){
   child.once('spawn',()=>{
    seen.spawnEventObserved=true;
    const sample=captureNativeAtSpawn(child.pid,'x11');
-   if(sample.nativeProcess){
+   if(sample.nativeProcess&&sample.processImageVerifiedByCmdline){
     seen.nativeProcess=true;
     seen.earlyNativeKernel=sample.earlyNativeKernel;
+    seen.identityCaptureSource=recordVerifiedIdentitySource(
+     seen.identityCaptureSource,'spawn-callback',true);
    }
   });
   child.once('error',()=>{exited=true;hints.add('spawn-error');});
@@ -115,6 +119,8 @@ async function probeDirectPackagedElectron(desktop,root){
     const command=await readFile('/proc/'+child.pid+'/cmdline');
     verifyNativeCommandLine(command,'x11');
     seen.nativeProcess=true;
+    seen.identityCaptureSource=recordVerifiedIdentitySource(
+     seen.identityCaptureSource,'polling',true);
     if(seen.earlyNativeKernel===EARLY_NATIVE_UNAVAILABLE)
      seen.earlyNativeKernel=await observeEarlyNativeSecurity(child.pid);
     const {stdout}=await execAsync('xwininfo',['-root','-tree'],
@@ -218,7 +224,8 @@ try{
   let exitSignal=null;
   const observed={spawnEventObserved:false,nativeProcess:false,
    windowFound:false,windowOwned:false,mapped:false,
-   earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE};
+   earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
+  identityCaptureSource:'unobserved'};
   const startupHints=new Set();
   let checkpoint='startup';
   let found=false;
@@ -250,9 +257,11 @@ try{
    child.once('spawn',()=>{
     observed.spawnEventObserved=true;
     const sample=captureNativeAtSpawn(child.pid,'x11');
-    if(sample.nativeProcess){
+    if(sample.nativeProcess&&sample.processImageVerifiedByCmdline){
      observed.nativeProcess=true;
      observed.earlyNativeKernel=sample.earlyNativeKernel;
+     observed.identityCaptureSource=recordVerifiedIdentitySource(
+      observed.identityCaptureSource,'spawn-callback',true);
      checkpoint='window-search';
     }
    });
@@ -264,6 +273,8 @@ try{
      const command=await readFile('/proc/'+child.pid+'/cmdline');
      verifyNativeCommandLine(command,'x11');
      observed.nativeProcess=true;
+     observed.identityCaptureSource=recordVerifiedIdentitySource(
+      observed.identityCaptureSource,'polling',true);
      if(observed.earlyNativeKernel===EARLY_NATIVE_UNAVAILABLE)
       observed.earlyNativeKernel=await observeEarlyNativeSecurity(child.pid);
      checkpoint='window-search';
@@ -327,6 +338,7 @@ try{
    // The direct process is inspected only on the failure path.
    console.log('AUTO_X11_EARLY_NATIVE_KERNEL_CATEGORY',JSON.stringify({
     desktop,auto:observed.earlyNativeKernel,
+    identityCaptureSource:observed.identityCaptureSource,
     direct:null,rendererSandboxCertified:false,hostPolicyChanged:false
    }));
    outcomes.push({desktop,mapped:found,failed,
