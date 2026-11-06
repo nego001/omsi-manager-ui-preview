@@ -1074,3 +1074,20 @@
  border-radius:9px;background:#1c252e;overflow-wrap:anywhere}
 .library-declared-size-summary strong{color:#ebf2fa;font-size:13px;line-height:1.5}
 .library-declared-size-summary span{color:#c0ccd9;font-size:12px;line-height:1.6}
+
+/* All-favorites-by-game overview. Values come only from catalog metadata. */
+.library-by-game{min-width:0;margin:0 0 19px}
+.library-by-game-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin:0 0 10px}
+.library-by-game-heading strong{color:#edf2f8;font-size:14px}
+.library-by-game-heading span{color:#bac6d3;font-size:11px;line-height:1.5}
+.library-by-game-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px}
+.library-by-game-grid button{min-width:0;text-align:left;display:flex;flex-direction:column;gap:5px;
+ padding:13px 15px;background:#1e2731;color:#ebf2fa;border:1px solid #4b5a6d;
+ border-radius:11px;cursor:pointer;overflow-wrap:anywhere}
+.library-by-game-grid button:hover{border-color:#8caccf;background:#273444}
+.library-by-game-grid button[aria-pressed="true"]{border-color:#86b1e9;background:#283b50}
+.library-by-game-grid button:focus-visible{outline:3px solid #c2ddff;outline-offset:3px}
+.library-by-game-title{font-size:12px;font-weight:700;color:#b9d3ef}
+.library-by-game-grid button strong{font-size:18px;font-variant-numeric:tabular-nums}
+.library-by-game-grid button small{font-size:11px;line-height:1.5;color:#d0dbe7}
+.library-by-game-hint{font-size:11px;color:#bad3ef;margin-top:4px}

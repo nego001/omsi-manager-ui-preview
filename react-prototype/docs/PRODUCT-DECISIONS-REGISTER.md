@@ -312,3 +312,15 @@ em unidades decimais. O texto explica que **não se trata de espaço em disco
 nem de instalação verificada**. A implementação não lê nem altera mods, jogos,
 sistema de arquivos ou sandbox. Testes cobrem metadados mistos, filtros,
 ordenação, dados desconhecidos, agregados grandes e 390 px.
+
+### Visão rápida por simulador na Biblioteca (somente favoritos)
+
+A Biblioteca agora separa uma visão **de todos os favoritos cadastrados**
+por OMSI 2, ETS2 e ATS, mostrando contagem e subtotal de **tamanhos declarados**
+com quantidade desconhecida. As contagens representam a coleção inteira,
+independentemente dos filtros atuais; isso é explicado na tela. Botões nativos
+com `aria-pressed` funcionam como atalhos reversíveis para o filtro de jogo
+existente, sem trocar ordem, seleção de análise ou favoritos. Em 390 px, os
+cartões se ajustam à largura sem rolagem horizontal. Este painel não altera o
+estado de compatibilidade, não mede espaço real nem autoriza instalação;
+suas únicas fontes são os metadados já carregados.
