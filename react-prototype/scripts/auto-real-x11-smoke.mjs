@@ -230,6 +230,7 @@ try{
   let checkpoint='startup';
   let found=false;
   let triageClassification='native-auto-window-mapped';
+  let direct={probeUnavailable:true};
   try{
    child=spawn(binary,[],{
     cwd:dirname(binary),detached:true,stdio:['ignore','ignore','pipe'],shell:false,
@@ -307,7 +308,6 @@ try{
    }));
    if(!found){
     // No host policy changes or sandbox bypass; classify only fixed categories.
-    let direct={probeUnavailable:true};
     try{
      direct=await probeDirectPackagedElectron(desktop,desktopRoot);
      console.error('AUTO_X11_DIRECT_SANDBOX_CONTROL',
@@ -341,10 +341,17 @@ try{
     identityCaptureSource:observed.identityCaptureSource,
     direct:null,rendererSandboxCertified:false,hostPolicyChanged:false
    }));
+   const directControlCategory=found?'not-run':
+    direct.probeUnavailable===true?'unavailable':
+    direct.exitSignal==='SIGTRAP'?
+     direct.seen?.nativeProcess===true?
+      direct.seen?.identityCaptureSource==='spawn-callback'?
+       'sigtrap-cmdline-spawn':'sigtrap-cmdline-polling':
+      'sigtrap-no-cmdline':'other-result';
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess,
     triageClassification,earlyNativeKernel:observed.earlyNativeKernel,
-    identityCaptureSource:observed.identityCaptureSource});
+    identityCaptureSource:observed.identityCaptureSource,directControlCategory});
    if(found&&!failed)
     console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
   }finally{

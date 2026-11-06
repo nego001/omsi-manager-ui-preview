@@ -560,3 +560,24 @@ cada etiqueta simulada. O campo `identityCaptureSourceProvesSandbox`
 continua sempre falso: fonte de observação não é prova de sandbox.
 Ambos os rótulos GNOME/KDE são ambientes simulados Xvfb, não
 sessões gráficas reais. A falha Ubuntu 24.04 permanece bloqueante.
+
+## Evidência do controle direto separada do Auto (V5/V6)
+
+A versão `AUTO_X11_HOST_EVIDENCE_V5` agora preserva a categoria
+`directControlCategory`, derivada do controle Electron direto
+quando o launcher Auto falha. Valores aceitos:
+`not-run`, `unavailable`, `sigtrap-cmdline-spawn`,
+`sigtrap-cmdline-polling`, `sigtrap-no-cmdline` e
+`other-result`. Essas categorias distinguem a falha direta com
+identidade verificada da ausência de observação, sem divulgar
+PIDs, perfil, stderr ou argumentos privados.
+
+A comparação `AUTO_X11_CROSS_RUNNER_COMPARISON_V6` inclui
+`ubuntu24DirectControlByDesktop`. O campo invariável
+`directControlProvesSandbox:false` evita confundir o controle
+direto com certificação do Chromium ou aprovação da janela Auto.
+`other-result` não significa sucesso; significa somente que
+o controle não retornou as categorias SIGTRAP previstas.
+
+A falha no Ubuntu 24.04 continua bloqueante. Não há alterações
+nas políticas AppArmor, namespaces do host ou sandbox Electron.

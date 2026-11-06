@@ -10,17 +10,17 @@ const mainKernel=earlyKernel(
 const outcomes=[
  {desktop:'GNOME',mapped:false,failed:true,windowOwned:false,nativeProcess:true,
   triageClassification:'shared-electron-sandbox-startup-suspected',earlyNativeKernel:mainKernel,
-  identityCaptureSource:'polling'},
+  identityCaptureSource:'polling',directControlCategory:'sigtrap-cmdline-spawn'},
  {desktop:'KDE',mapped:false,failed:true,windowOwned:false,nativeProcess:true,
   triageClassification:'shared-electron-sandbox-startup-suspected',earlyNativeKernel:mainKernel,
-  identityCaptureSource:'spawn-callback'}
+  identityCaptureSource:'spawn-callback',directControlCategory:'sigtrap-cmdline-spawn'}
 ];
 const sample=(changes={})=>({
  runner:'ubuntu-24.04',archiveSha256,host,baselineMapped:true,outcomes,...changes
 });
 test('records the 24.04 SIGTRAP investigation with no certification or secrets',()=>{
  const evidence=create(sample());
- assert.equal(evidence.schema,'AUTO_X11_HOST_EVIDENCE_V4');
+ assert.equal(evidence.schema,'AUTO_X11_HOST_EVIDENCE_V5');
  assert.equal(evidence.host.userNamespaceProbe,'permission-denied');
  assert.equal(evidence.allNativeWindowsVerified,false);
  assert.equal(evidence.windows[0].startupClassification,
@@ -34,7 +34,7 @@ test('records the 24.04 SIGTRAP investigation with no certification or secrets',
 });
 test('records successful Ubuntu 22.04 windows without claiming sandbox certification',()=>{
  const good=outcomes.map(o=>({...o,mapped:true,failed:false,windowOwned:true,
-  triageClassification:'native-auto-window-mapped'}));
+  triageClassification:'native-auto-window-mapped',directControlCategory:'not-run'}));
  const evidence=create(sample({
   runner:'ubuntu-22.04',host:{...host,apparmorRestriction:'disabled',
     userNamespaceProbe:'allowed'},outcomes:good
@@ -159,4 +159,25 @@ test('verified process identity source remains restricted to three safe categori
  assert.equal(noProc.windows[0].identityCaptureSource,'unobserved');
  assert.equal(noProc.windows[0].nativeWindowVerified,false);
  assert.equal(noProc.electronSandboxCertified,false);
+});
+
+test('direct Electron result is categorical, separate and cannot waive Auto failure',()=>{
+ const e=create(sample());
+ assert.deepEqual(e.windows.map(w=>w.directControlCategory),[
+  'sigtrap-cmdline-spawn','sigtrap-cmdline-spawn']);
+ assert.equal(e.allNativeWindowsVerified,false);
+ assert.equal(e.electronSandboxCertified,false);
+ const noControl=create(sample({outcomes:outcomes.map(o=>({...o,
+  directControlCategory:'unavailable'}))}));
+ assert.equal(noControl.windows[0].directControlCategory,'unavailable');
+ for(const value of ['/home/private/token','SIGTRAP',null,{},'not-run',
+  'sigtrap-cmdline-random']){
+  assert.throws(()=>create(sample({outcomes:[
+   {...outcomes[0],directControlCategory:value},outcomes[1]
+  ]})),/^Error: AUTO_X11_EVIDENCE_REFUSED$/);
+ }
+ const good=outcomes.map(o=>({...o,mapped:true,failed:false,
+  windowOwned:true,triageClassification:'native-auto-window-mapped'}));
+ assert.throws(()=>create(sample({outcomes:good})),
+  /^Error: AUTO_X11_EVIDENCE_REFUSED$/);
 });

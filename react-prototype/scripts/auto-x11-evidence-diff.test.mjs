@@ -15,7 +15,9 @@ const mainKernel=earlyKernel(
 const entry=(desktop,success)=>({
  desktop,mapped:success,failed:!success,windowOwned:success,
  nativeProcess:true,earlyNativeKernel:mainKernel,
- identityCaptureSource:'polling',triageClassification:success?
+ identityCaptureSource:'polling',
+ directControlCategory:success?'not-run':'sigtrap-cmdline-spawn',
+ triageClassification:success?
   'native-auto-window-mapped':'shared-electron-sandbox-startup-suspected'
 });
 const record=(runner,restriction,probe,success)=>create({
@@ -44,11 +46,16 @@ test('compares two real-shaped records without asserting AppArmor causality',()=
  assert.equal(comparison.earlyMainKernelComparison,'matched-observed');
  assert.equal(comparison.earlyMainKernelIsRendererProof,false);
  assert.equal(comparison.identityCaptureSourceProvesSandbox,false);
+ assert.equal(comparison.directControlProvesSandbox,false);
+ assert.deepEqual(comparison.ubuntu24DirectControlByDesktop,[
+  {desktop:'GNOME',category:'sigtrap-cmdline-spawn'},
+  {desktop:'KDE',category:'sigtrap-cmdline-spawn'}
+ ]);
  assert.deepEqual(comparison.identityCaptureByDesktop,[
   {desktop:'GNOME',ubuntu22CaptureSource:'polling',ubuntu24CaptureSource:'polling'},
   {desktop:'KDE',ubuntu22CaptureSource:'polling',ubuntu24CaptureSource:'polling'}
  ]);
- assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V5');
+ assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V6');
  assert.deepEqual(comparison.earlyMainKernelByDesktop,[
   {desktop:'GNOME',comparison:'matched-observed'},
   {desktop:'KDE',comparison:'matched-observed'}
@@ -68,7 +75,7 @@ test('refuses malformed, secret-bearing, swapped and contradictory evidence',()=
   good.replace('nativeWindowVerified":true','nativeWindowVerified":false'),
   good.replace('electronSandboxCertified":false','electronSandboxCertified":true'),
   good.replace('readOnlyEvidence":true','readOnlyEvidence":false'),
-  good.replace('AUTO_X11_HOST_EVIDENCE_V4',secret),
+  good.replace('AUTO_X11_HOST_EVIDENCE_V5',secret),
   good.replace('"schema":','"privatePath":"'+secret+'","schema":'),
   good.replace('"GNOME"','"KDE"'),
   good.replace('native-auto-window-mapped','native-auto-window-exit-observed'),
@@ -137,7 +144,7 @@ test('cross-runner loader refuses edited kernel statuses and forged sandbox proo
    '"apparmorLabelCategory":"/home/private/secret"'),
   orig.replace('"rendererSandboxCertified":false',
    '"rendererSandboxCertified":true'),
-  orig.replace('"AUTO_X11_HOST_EVIDENCE_V4"','"AUTO_X11_HOST_EVIDENCE_V3"'),
+  orig.replace('"AUTO_X11_HOST_EVIDENCE_V5"','"AUTO_X11_HOST_EVIDENCE_V3"'),
   orig.replace('"identityCaptureSource":"polling"',
    '"identityCaptureSource":"/home/private/secret"'),
   orig.replace('"identityCaptureSource":"polling"',
@@ -217,4 +224,18 @@ test('per-label capture source persists without claiming sandbox or causality',(
  assert.equal(result.apparmorCausalityProven,false);
  assert.ok(Object.isFrozen(result.identityCaptureByDesktop));
  assert.ok(Object.isFrozen(result.identityCaptureByDesktop[0]));
+});
+
+test('unavailable direct control remains a failure-compatible diagnostic, not a pass',()=>{
+ const partial=create({runner:'ubuntu-24.04',archiveSha256,
+  host:host('enabled','permission-denied'),baselineMapped:true,
+  outcomes:['GNOME','KDE'].map(d=>({...entry(d,false),
+   directControlCategory:'unavailable'}))});
+ const result=compare(older,partial);
+ assert.deepEqual(result.ubuntu24DirectControlByDesktop,[
+  {desktop:'GNOME',category:'unavailable'},
+  {desktop:'KDE',category:'unavailable'}]);
+ assert.equal(result.directControlProvesSandbox,false);
+ assert.equal(result.electronSandboxCertified,false);
+ assert.equal(result.ubuntu24NativeWindowsVerified,false);
 });
