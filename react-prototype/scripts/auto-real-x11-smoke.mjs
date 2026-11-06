@@ -343,7 +343,8 @@ try{
    }));
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess,
-    triageClassification,earlyNativeKernel:observed.earlyNativeKernel});
+    triageClassification,earlyNativeKernel:observed.earlyNativeKernel,
+    identityCaptureSource:observed.identityCaptureSource});
    if(found&&!failed)
     console.log('PASS_NATIVE_AUTO_X11_'+desktop+'_MAPPED_WINDOW_READ_ONLY_BUILD');
   }finally{

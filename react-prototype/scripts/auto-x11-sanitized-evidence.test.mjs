@@ -9,16 +9,18 @@ const mainKernel=earlyKernel(
  'Name:\tOMSI\nState:\tS\nSeccomp:\t0\nNoNewPrivs:\t0\n','unconfined\n');
 const outcomes=[
  {desktop:'GNOME',mapped:false,failed:true,windowOwned:false,nativeProcess:true,
-  triageClassification:'shared-electron-sandbox-startup-suspected',earlyNativeKernel:mainKernel},
+  triageClassification:'shared-electron-sandbox-startup-suspected',earlyNativeKernel:mainKernel,
+  identityCaptureSource:'polling'},
  {desktop:'KDE',mapped:false,failed:true,windowOwned:false,nativeProcess:true,
-  triageClassification:'shared-electron-sandbox-startup-suspected',earlyNativeKernel:mainKernel}
+  triageClassification:'shared-electron-sandbox-startup-suspected',earlyNativeKernel:mainKernel,
+  identityCaptureSource:'spawn-callback'}
 ];
 const sample=(changes={})=>({
  runner:'ubuntu-24.04',archiveSha256,host,baselineMapped:true,outcomes,...changes
 });
 test('records the 24.04 SIGTRAP investigation with no certification or secrets',()=>{
  const evidence=create(sample());
- assert.equal(evidence.schema,'AUTO_X11_HOST_EVIDENCE_V3');
+ assert.equal(evidence.schema,'AUTO_X11_HOST_EVIDENCE_V4');
  assert.equal(evidence.host.userNamespaceProbe,'permission-denied');
  assert.equal(evidence.allNativeWindowsVerified,false);
  assert.equal(evidence.windows[0].startupClassification,
@@ -129,9 +131,32 @@ test('missing, forged, contradictory and private kernel snapshots are refused',(
  assert.throws(()=>create(sample({outcomes:cannotObserve})));
  const noProcess=outcomes.map(o=>({...o}));
  noProcess[0]={...noProcess[0],nativeProcess:false,
-  earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
+  identityCaptureSource:'unobserved',earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
   triageClassification:'shared-native-electron-startup-undetermined'};
  const record=create(sample({outcomes:noProcess}));
  assert.equal(record.windows[0].earlyNativeKernel.seccompMode,'unknown');
  assert.equal(record.windows[0].earlyNativeKernel.apparmorLabelCategory,'unavailable');
+});
+
+test('verified process identity source remains restricted to three safe categories',()=>{
+ const validated=create(sample());
+ assert.deepEqual(validated.windows.map(w=>w.identityCaptureSource),['polling','spawn-callback']);
+ const cases=[null,{},'unverified','/home/private/token','SPAWN',false,''];
+ for(const identityCaptureSource of cases){
+  assert.throws(()=>create(sample({outcomes:[
+   {...outcomes[0],identityCaptureSource},outcomes[1]
+  ]})),/^Error: AUTO_X11_EVIDENCE_REFUSED$/);
+ }
+ assert.throws(()=>create(sample({outcomes:[
+  {...outcomes[0],identityCaptureSource:'unobserved'},outcomes[1]
+ ]})));
+ const noProc=create(sample({outcomes:[
+  {...outcomes[0],nativeProcess:false,identityCaptureSource:'unobserved',
+   earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
+   triageClassification:'shared-native-electron-startup-undetermined'},
+  outcomes[1]
+ ]}));
+ assert.equal(noProc.windows[0].identityCaptureSource,'unobserved');
+ assert.equal(noProc.windows[0].nativeWindowVerified,false);
+ assert.equal(noProc.electronSandboxCertified,false);
 });

@@ -14,7 +14,8 @@ const mainKernel=earlyKernel(
  'Name:\tOMSI\nState:\tS\nSeccomp:\t0\nNoNewPrivs:\t0\n','unconfined\n');
 const entry=(desktop,success)=>({
  desktop,mapped:success,failed:!success,windowOwned:success,
- nativeProcess:true,earlyNativeKernel:mainKernel,triageClassification:success?
+ nativeProcess:true,earlyNativeKernel:mainKernel,
+ identityCaptureSource:'polling',triageClassification:success?
   'native-auto-window-mapped':'shared-electron-sandbox-startup-suspected'
 });
 const record=(runner,restriction,probe,success)=>create({
@@ -42,7 +43,12 @@ test('compares two real-shaped records without asserting AppArmor causality',()=
  assert.equal(comparison.packageSignatureVerified,false);
  assert.equal(comparison.earlyMainKernelComparison,'matched-observed');
  assert.equal(comparison.earlyMainKernelIsRendererProof,false);
- assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V4');
+ assert.equal(comparison.identityCaptureSourceProvesSandbox,false);
+ assert.deepEqual(comparison.identityCaptureByDesktop,[
+  {desktop:'GNOME',ubuntu22CaptureSource:'polling',ubuntu24CaptureSource:'polling'},
+  {desktop:'KDE',ubuntu22CaptureSource:'polling',ubuntu24CaptureSource:'polling'}
+ ]);
+ assert.equal(comparison.schema,'AUTO_X11_CROSS_RUNNER_COMPARISON_V5');
  assert.deepEqual(comparison.earlyMainKernelByDesktop,[
   {desktop:'GNOME',comparison:'matched-observed'},
   {desktop:'KDE',comparison:'matched-observed'}
@@ -62,7 +68,7 @@ test('refuses malformed, secret-bearing, swapped and contradictory evidence',()=
   good.replace('nativeWindowVerified":true','nativeWindowVerified":false'),
   good.replace('electronSandboxCertified":false','electronSandboxCertified":true'),
   good.replace('readOnlyEvidence":true','readOnlyEvidence":false'),
-  good.replace('AUTO_X11_HOST_EVIDENCE_V3',secret),
+  good.replace('AUTO_X11_HOST_EVIDENCE_V4',secret),
   good.replace('"schema":','"privatePath":"'+secret+'","schema":'),
   good.replace('"GNOME"','"KDE"'),
   good.replace('native-auto-window-mapped','native-auto-window-exit-observed'),
@@ -131,7 +137,11 @@ test('cross-runner loader refuses edited kernel statuses and forged sandbox proo
    '"apparmorLabelCategory":"/home/private/secret"'),
   orig.replace('"rendererSandboxCertified":false',
    '"rendererSandboxCertified":true'),
-  orig.replace('"AUTO_X11_HOST_EVIDENCE_V3"','"AUTO_X11_HOST_EVIDENCE_V2"')
+  orig.replace('"AUTO_X11_HOST_EVIDENCE_V4"','"AUTO_X11_HOST_EVIDENCE_V3"'),
+  orig.replace('"identityCaptureSource":"polling"',
+   '"identityCaptureSource":"/home/private/secret"'),
+  orig.replace('"identityCaptureSource":"polling"',
+   '"identityCaptureSource":"unobserved"')
  ]){
   assert.throws(()=>parse(altered,'ubuntu-24.04'),
    /^Error: AUTO_X11_CROSS_RUNNER_REFUSED$/);
@@ -145,6 +155,7 @@ test('early GNOME equality survives a missing KDE process without claiming a com
   outcomes:[
    entry('GNOME',false),
    {...entry('KDE',false),nativeProcess:false,
+    identityCaptureSource:'unobserved',
     earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
     triageClassification:'shared-native-electron-startup-undetermined'}
   ]
@@ -172,6 +183,7 @@ test('a real observed difference is kept per label even if the other label is mi
   outcomes:[
    {...entry('GNOME',false),earlyNativeKernel:different},
    {...entry('KDE',false),nativeProcess:false,
+    identityCaptureSource:'unobserved',
     earlyNativeKernel:EARLY_NATIVE_UNAVAILABLE,
     triageClassification:'shared-native-electron-startup-undetermined'}
   ]
@@ -184,4 +196,25 @@ test('a real observed difference is kept per label even if the other label is mi
  assert.equal(result.earlyMainKernelComparison,'insufficient-data');
  assert.equal(result.apparmorCausalityProven,false);
  assert.equal(result.packageSignatureVerified,false);
+});
+
+test('per-label capture source persists without claiming sandbox or causality',()=>{
+ const newerSpawn=create({runner:'ubuntu-24.04',archiveSha256,
+  host:host('enabled','permission-denied'),baselineMapped:true,
+  outcomes:[
+   {...entry('GNOME',false),identityCaptureSource:'spawn-callback'},
+   entry('KDE',false)
+  ]});
+ const result=compare(older,newerSpawn);
+ assert.deepEqual(result.identityCaptureByDesktop,[
+  {desktop:'GNOME',ubuntu22CaptureSource:'polling',
+   ubuntu24CaptureSource:'spawn-callback'},
+  {desktop:'KDE',ubuntu22CaptureSource:'polling',
+   ubuntu24CaptureSource:'polling'}
+ ]);
+ assert.equal(result.identityCaptureSourceProvesSandbox,false);
+ assert.equal(result.electronSandboxCertified,false);
+ assert.equal(result.apparmorCausalityProven,false);
+ assert.ok(Object.isFrozen(result.identityCaptureByDesktop));
+ assert.ok(Object.isFrozen(result.identityCaptureByDesktop[0]));
 });

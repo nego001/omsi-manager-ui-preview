@@ -11,6 +11,7 @@ const classifications=new Set([
  'shared-native-electron-startup-undetermined','display-baseline-unverified'
 ]);
 const desktops=['GNOME','KDE'];
+const sources=new Set(['spawn-callback','polling','unobserved']);
 const kernelModes=new Set(['off','strict','filter','unknown']);
 const privilegeModes=new Set(['enabled','disabled','unknown']);
 const labels=new Set(['unconfined','enforce-label-observed',
@@ -60,6 +61,9 @@ export function createSanitizedX11Evidence(input){
      typeof entry.windowOwned!=='boolean'||typeof entry.nativeProcess!=='boolean'||
      !classifications.has(entry.triageClassification))refusal();
   const earlyNativeKernel=canonicalEarlyKernel(entry.earlyNativeKernel);
+  if(!sources.has(entry.identityCaptureSource)||
+     (entry.nativeProcess&&entry.identityCaptureSource==='unobserved')||
+     (!entry.nativeProcess&&entry.identityCaptureSource!=='unobserved'))refusal();
   if(!entry.nativeProcess&&(
     earlyNativeKernel.seccompMode!=='unknown'||
     earlyNativeKernel.noNewPrivs!=='unknown'||
@@ -76,12 +80,13 @@ export function createSanitizedX11Evidence(input){
    desktop:entry.desktop,nativeProcessObserved:entry.nativeProcess,
    windowOwned:entry.windowOwned,windowMapped:entry.mapped,
    startupClassification:entry.triageClassification,
+   identityCaptureSource:entry.identityCaptureSource,
    earlyNativeKernel,
    nativeWindowVerified:verified
   });
  });
  return Object.freeze({
-  schema:'AUTO_X11_HOST_EVIDENCE_V3',runner:input.runner,
+  schema:'AUTO_X11_HOST_EVIDENCE_V4',runner:input.runner,
   archiveSha256:input.archiveSha256,
   host:Object.freeze({
    apparmorRestriction:host.apparmorRestriction,

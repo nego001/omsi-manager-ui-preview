@@ -544,3 +544,19 @@ A origem vai para o log sanitizado de diagnóstico X11, sem alterar
 a prova de janela, a classificação de causalidade, o artefato de
 integridade ou o requisito de sandbox estrito. O evento `spawn`
 sozinho continua sem valor probatório de identidade.
+
+## Fonte de identidade em artefatos sanitizados, não apenas nos logs
+
+A versão `AUTO_X11_HOST_EVIDENCE_V4` armazena
+`identityCaptureSource` por etiqueta X11, nos valores fechados
+`spawn-callback`, `polling` ou `unobserved`. Valores positivos
+exigem identidade nativa observada e uma categoria `unobserved`
+é incompatível com identidade confirmada. Isso registra a origem
+da prova sem divulgar PIDs, nomes de perfis ou caminhos.
+
+A comparação `AUTO_X11_CROSS_RUNNER_COMPARISON_V5` agora traz
+`identityCaptureByDesktop`, com fontes de ambos os runners em
+cada etiqueta simulada. O campo `identityCaptureSourceProvesSandbox`
+continua sempre falso: fonte de observação não é prova de sandbox.
+Ambos os rótulos GNOME/KDE são ambientes simulados Xvfb, não
+sessões gráficas reais. A falha Ubuntu 24.04 permanece bloqueante.

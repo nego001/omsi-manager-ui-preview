@@ -10,7 +10,7 @@ export function parseSanitizedX11Record(raw,expectedRunner){
  let parsed;
  try{parsed=JSON.parse(raw);}catch{refuse();}
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed)||
-    parsed.schema!=='AUTO_X11_HOST_EVIDENCE_V3'||
+    parsed.schema!=='AUTO_X11_HOST_EVIDENCE_V4'||
     parsed.runner!==expectedRunner||!Array.isArray(parsed.windows)||
     parsed.windows.length!==2)refuse();
  let reconstructed;
@@ -22,6 +22,7 @@ export function parseSanitizedX11Record(raw,expectedRunner){
     failed:w?.nativeWindowVerified===false,
     windowOwned:w?.windowOwned,nativeProcess:w?.nativeProcessObserved,
     triageClassification:w?.startupClassification,
+    identityCaptureSource:w?.identityCaptureSource,
     earlyNativeKernel:w?.earlyNativeKernel
    }))
   });
@@ -79,7 +80,7 @@ export function compareSanitizedX11Records(older,newer){
   right.windows.every(w=>w.startupClassification===
    'shared-electron-sandbox-startup-suspected');
  const result={
-  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V4',
+  schema:'AUTO_X11_CROSS_RUNNER_COMPARISON_V5',
   archiveSha256:left.archiveSha256,
   sameArchiveSha256ReportedByBothRunners:true,
   packageSignatureVerified:false,
@@ -90,6 +91,12 @@ export function compareSanitizedX11Records(older,newer){
   ubuntu24ApparmorRestriction:right.host.apparmorRestriction,
   earlyMainKernelComparison:summarizeEarlyMainKernel(earlyByDesktop),
   earlyMainKernelByDesktop:earlyByDesktop,
+  identityCaptureByDesktop:Object.freeze(left.windows.map((w,i)=>Object.freeze({
+   desktop:w.desktop,
+   ubuntu22CaptureSource:w.identityCaptureSource,
+   ubuntu24CaptureSource:right.windows[i].identityCaptureSource
+  }))),
+  identityCaptureSourceProvesSandbox:false,
   earlyMainKernelIsRendererProof:false,
   classification:typical?'namespace-restriction-correlated-with-startup-failure':
    left.allNativeWindowsVerified&&right.allNativeWindowsVerified?
