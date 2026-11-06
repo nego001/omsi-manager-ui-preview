@@ -581,3 +581,24 @@ o controle não retornou as categorias SIGTRAP previstas.
 
 A falha no Ubuntu 24.04 continua bloqueante. Não há alterações
 nas políticas AppArmor, namespaces do host ou sandbox Electron.
+
+## Entrega de revisão administrativa no CI (relatório V1, sem aprovação)
+
+O job de comparação X11 gera, além de `host-comparison.json`,
+um artefato separado `admin-handoff.json` sob o nome
+`native-x11-administrator-handoff`. O gerador
+`auto-x11-admin-handoff.mjs` consome somente a comparação
+sanitizada V6, com validação de schemas, enums, hashes e
+marcadores obrigatórios de **não certificação**. A saída registra:
+
+- se a janela X11 no Ubuntu 24.04 continua bloqueada;
+- qual etiqueta Xvfb tem dados de identidade insuficientes;
+- se ambos os controles diretos apresentam `SIGTRAP` com identidade observada;
+- o próximo passo de revisão independente em host descartável autorizado.
+
+O relatório **nunca** declara versão pronta:
+`fullReleaseAuthorized:false`, `rendererSandboxCertified:false`,
+`apparmorCausalityProven:false` e `nativeCIWaived:false` são
+invariantes. Evidência correlacionada não demonstra causalidade.
+A exportação é somente leitura e não modifica sistema, AppArmor,
+política global, permissões ou sandbox.

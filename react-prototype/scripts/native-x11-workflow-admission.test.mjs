@@ -201,3 +201,17 @@ test('spawn-edge witness tests stay mandatory for both build and native matrix',
    /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });
+
+test('operator handoff tests and artifact upload stay mandatory in guarded workflow',()=>{
+ const snippets=[
+  'node --test scripts/auto-x11-admin-handoff.test.mjs',
+  'node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs',
+  'name: native-x11-administrator-handoff',
+  'path: x11-diff-output/admin-handoff.json'
+ ];
+ for(const snippet of snippets){
+  assert.ok(original.includes(snippet));
+  assert.throws(()=>verify(original.replace(snippet,'echo omitted')),
+   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
+});

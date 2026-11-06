@@ -96,6 +96,8 @@ jobs:
         run: node --test scripts/auto-x11-sanitized-evidence.test.mjs
       - name: Cross-runner X11 evidence comparison refusal contracts
         run: node --test scripts/auto-x11-evidence-diff.test.mjs
+      - name: Read-only operator handoff refusal contracts
+        run: node --test scripts/auto-x11-admin-handoff.test.mjs
       - name: Controlled Ubuntu 24.04 administrator pilot comparison (synthetic only)
         run: node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs
       - name: Controlled Ubuntu 24.04 A-B-A rollback comparison (synthetic only)
@@ -225,6 +227,8 @@ jobs:
           node-version: '22'
       - name: Validate cross-runner comparison contracts (synthetic only)
         run: node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs
+      - name: Validate read-only operator handoff contracts (synthetic only)
+        run: node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs
       - uses: actions/download-artifact@v4
         with:
           name: native-x11-evidence-ubuntu-22.04
@@ -241,6 +245,13 @@ jobs:
         with:
           name: native-x11-cross-runner-comparison
           path: x11-diff-output/host-comparison.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload read-only administrator handoff (not an approval)
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-x11-administrator-handoff
+          path: x11-diff-output/admin-handoff.json
           if-no-files-found: error
           retention-days: 14
       # This runs even after the Ubuntu 24.04 test fails; it never waives that failure.

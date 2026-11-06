@@ -32,6 +32,7 @@ export function validateNativeX11Workflow(source){
     !build.includes('node --test scripts/auto-x11-early-native-kernel.test.mjs')||
     !build.includes('node --test scripts/auto-x11-spawn-witness.test.mjs')||
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-admin-handoff.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-aba.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
@@ -98,6 +99,9 @@ export function validateNativeX11Workflow(source){
   'runs-on: ubuntu-24.04',
   'contents: read',
   'node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs',
+  'node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs',
+  'name: native-x11-administrator-handoff',
+  'path: x11-diff-output/admin-handoff.json',
   'name: native-x11-evidence-ubuntu-22.04',
   'name: native-x11-evidence-ubuntu-24.04',
   'node react-prototype/scripts/auto-x11-evidence-diff-ci.mjs',
