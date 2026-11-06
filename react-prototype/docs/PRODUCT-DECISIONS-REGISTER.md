@@ -408,3 +408,16 @@ Os cartões continuam explicando apenas o JSON local: nenhuma identificação
 real de arquivo, instalação ou compatibilidade é inferida. Não há
 consultas externas. Três testes Playwright cobrem ID, versão, ambos,
 ausência do aviso, seleção da Biblioteca, retorno de Detalhes e 390 px.
+
+### Consulta por ID a partir da linha do tempo de dependências
+
+Em Detalhes, cada etapa **direta ou indireta** que existe no catálogo
+validado agora tem um atalho "Localizar ID no Catálogo" nos dados
+declarados. Esse atalho apenas abre a busca pelo ID local, limpa filtros
+do Catálogo que impediriam o resultado e posiciona foco no campo de
+pesquisa. Não instala, detecta, lê, valida ou modifica o mod. A busca
+por ID continua sendo uma consulta a metadados, sem afirmar presença
+ou compatibilidade real. IDs ausentes e a etapa do mod selecionado não
+ganham atalhos fictícios. Filtros da Biblioteca permanecem inalterados.
+Três testes Playwright exercitam dependência indireta, seleção via teclado
+e foco, viewport 390px e ciclo com referência ausente.

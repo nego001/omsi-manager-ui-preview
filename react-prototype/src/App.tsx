@@ -404,6 +404,7 @@ export default function App(){
  const focusCardAfterDetails=useRef<string|null>(null);
  const focusFirstLibraryCardAfterReset=useRef(false);
  const focusLibraryBatchAfterDetails=useRef(false);
+ const focusCatalogSearchAfterDependencyJump=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
  const focusCatalogChipIndexAfterRemoval=useRef<number|null>(null);
  const focusLibraryChipIndexAfterRemoval=useRef<number|null>(null);
@@ -444,6 +445,14 @@ export default function App(){
   if(detailOrigin!=='library'||activeBatch.length===0)return;
   focusLibraryBatchAfterDetails.current=true;
   goto('library');
+ }
+ function locateDeclaredDependencyInCatalog(modId:string){
+  // Only local validated catalog records, never actual installed files.
+  if(!catalogMods.some(mod=>mod.id===modId))return;
+  setSelectedGame('all');setCategory('Todos');
+  setSearch(modId);setCatalogSort('catalog');
+  focusCatalogSearchAfterDependencyJump.current=true;
+  goto('catalog');
  }
  function stepDetails(nextId:string){
   if(!detailCandidates.some(mod=>mod.id===nextId))return;
@@ -521,6 +530,11 @@ export default function App(){
   if(screen!=='library'||!focusLibraryBatchAfterDetails.current)return;
   focusLibraryBatchAfterDetails.current=false;
   document.getElementById('library-batch')?.focus({preventScroll:true});
+ },[screen]);
+ useEffect(()=>{
+  if(screen!=='catalog'||!focusCatalogSearchAfterDependencyJump.current)return;
+  focusCatalogSearchAfterDependencyJump.current=false;
+  document.querySelector<HTMLInputElement>('input[aria-label="Buscar mods"]')?.focus({preventScroll:true});
  },[screen]);
  useEffect(()=>{
   if(!focusFirstCatalogCardAfterReset.current||screen!=='catalog'||filtered.length===0)return;
@@ -785,6 +799,12 @@ export default function App(){
        <summary>Ver dados declarados</summary>
        <p>Categoria: {stage.category} · Versão declarada: {stage.version} · Jogo: {games[stage.game as GameId].title}.</p>
        <p>Presença, versão instalada, ativação e integridade deste componente não verificadas.</p>
+       {stage.role!=='selected'&&catalogMods.some(mod=>mod.id===stage.id)&&
+        <button type="button" className="relation-stage-catalog-jump"
+         aria-label={'Localizar dependência '+stage.title+' (ID '+stage.id+') no Catálogo'}
+         onClick={()=>locateDeclaredDependencyInCatalog(stage.id)}>
+         Localizar ID no Catálogo <ChevronRight size={14} aria-hidden="true"/>
+        </button>}
       </details>
     </div>
    </li>)}</ol>

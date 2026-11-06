@@ -1152,3 +1152,13 @@
  border-radius:7px;max-width:100%;min-width:0;overflow-wrap:anywhere}
 .mod-search-evidence>span{font-size:10px;line-height:1.6;color:#d0e2f8}
 .mod-search-evidence strong{font-size:10px;color:#f1f6ff;font-weight:700;word-break:break-word}
+
+/* Find a declared dependency locally without reading its files or treating it as installed. */
+.relation-stage-catalog-jump{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ min-height:42px;max-width:100%;margin:5px 0 3px;padding:9px 13px;
+ border:1px solid #6987a6;border-radius:8px;background:#293d54;
+ color:#edf4fd;font-size:11px;font-weight:700;text-align:left;cursor:pointer;white-space:normal;
+ overflow-wrap:anywhere}
+.relation-stage-catalog-jump:hover{background:#35516e;border-color:#9cc0e6}
+.relation-stage-catalog-jump:focus-visible{outline:3px solid #b4d5ff;outline-offset:3px}
+@media(max-width:480px){.relation-stage-catalog-jump{min-height:44px;width:100%}}
