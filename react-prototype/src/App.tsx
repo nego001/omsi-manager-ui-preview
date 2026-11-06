@@ -395,6 +395,7 @@ export default function App(){
  const focusMainAfterNavigation=useRef(false);
  const focusCardAfterDetails=useRef<string|null>(null);
  const focusFirstLibraryCardAfterReset=useRef(false);
+ const focusLibraryBatchAfterDetails=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
  const focusCatalogChipIndexAfterRemoval=useRef<number|null>(null);
  const focusLibraryChipIndexAfterRemoval=useRef<number|null>(null);
@@ -430,6 +431,11 @@ export default function App(){
   // Restore the exact card when possible; filtered-out cards fall back to main.
   focusCardAfterDetails.current=selected.id;
   goto(detailOrigin);
+ }
+ function reviewLibrarySelectionFromDetails(){
+  if(detailOrigin!=='library'||activeBatch.length===0)return;
+  focusLibraryBatchAfterDetails.current=true;
+  goto('library');
  }
  function stepDetails(nextId:string){
   if(!detailCandidates.some(mod=>mod.id===nextId))return;
@@ -502,6 +508,11 @@ export default function App(){
    if(card instanceof HTMLButtonElement){card.focus();return;}
   }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
+ },[screen]);
+ useEffect(()=>{
+  if(screen!=='library'||!focusLibraryBatchAfterDetails.current)return;
+  focusLibraryBatchAfterDetails.current=false;
+  document.getElementById('library-batch')?.focus({preventScroll:true});
  },[screen]);
  useEffect(()=>{
   if(!focusFirstCatalogCardAfterReset.current||screen!=='catalog'||filtered.length===0)return;
@@ -646,7 +657,7 @@ export default function App(){
     </div>
    </div>}
    {favoriteMods.length>0&&<div className="library-declared-alerts" role="note"><AlertTriangle size={16}/><div className="library-alert-content"><span><strong>{libraryAlerts.blocking} com bloqueios</strong> · {libraryAlerts.attention} com avisos no catálogo entre todos os {favoriteMods.length} favoritos.{libraryMods.length!==favoriteMods.length&&<span className="library-visible-alerts">Na visualização filtrada: bloqueios {visibleLibraryAlerts.blocking} · avisos {visibleLibraryAlerts.attention}.</span>} Ausência de alertas declarados não comprova compatibilidade nem instalação.</span><div className="library-alert-actions" role="group" aria-label="Atalhos de alertas declarados"><button type="button" aria-pressed={libraryDeclaredStatus==='blocking'} disabled={libraryAlerts.blocking===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='blocking'?'all':'blocking')}>Ver bloqueios declarados</button><button type="button" aria-pressed={libraryDeclaredStatus==='attention'} disabled={libraryAlerts.attention===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='attention'?'all':'attention')}>Ver avisos declarados</button></div></div></div>}
- {favoriteMods.length>0&&<section className="library-batch" aria-label="Análise conjunta declarativa">
+ {favoriteMods.length>0&&<section id="library-batch" tabIndex={-1} className="library-batch" aria-label="Análise conjunta declarativa">
  <div><h2>Analisar vários mods</h2><p>Escolha os favoritos nos cartões. A análise cruza dependências e conflitos do catálogo, separando OMSI 2, ETS2 e ATS. Nenhum pacote é aberto ou instalado.</p></div>
  <div className="library-batch-actions"><span role="status">{activeBatch.length} selecionado(s){hiddenBatchCount>0?` · ${hiddenBatchCount} fora dos filtros atuais`:''}</span><button className="btn secondary" disabled={libraryMods.length===0||libraryMods.every(m=>activeBatch.includes(m.id))} onClick={()=>{setBatchSelected(ids=>[...new Set([...ids,...libraryMods.map(m=>m.id)])]);setBatchOpen(false)}}>Marcar favoritos exibidos</button>{visibleBatchCount>0&&<button className="btn secondary" type="button" onClick={()=>{setBatchSelected(ids=>ids.filter(id=>!visibleLibraryIds.has(id)));setBatchOpen(false)}}>Desmarcar exibidos ({visibleBatchCount})</button>}{hiddenBatchCount>0&&<button className="btn secondary" type="button" onClick={()=>{setBatchSelected(ids=>ids.filter(id=>visibleLibraryIds.has(id)));setBatchOpen(false)}}>Desmarcar ocultos ({hiddenBatchCount})</button>}<button className="btn primary" disabled={activeBatch.length===0} onClick={()=>setBatchOpen(true)}>Analisar seleção</button><button className="btn secondary" disabled={activeBatch.length===0} onClick={()=>{setBatchSelected([]);setBatchOpen(false)}}>Limpar seleção</button></div>
   {selectionByGame.length>0&&<div className="library-batch-selection-summary" role="status" aria-label="Seleção por simulador">
@@ -719,6 +730,8 @@ export default function App(){
       }}/>
      Incluir este favorito na análise conjunta
     </label>
+    {activeBatch.length>0&&<button type="button" className="btn secondary detail-review-selection"
+     onClick={reviewLibrarySelectionFromDetails}>Revisar seleção na Biblioteca ({activeBatch.length})</button>}
     <p>Somente metadados declarados do catálogo. Marcar não lê nem instala mods.
      Se o filtro "Só selecionados" estiver ativo, desmarcar pode ocultar este mod da lista.</p>
    </section>}

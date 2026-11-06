@@ -370,3 +370,16 @@ inventar um vizinho. A interface continua somente com metadados e
 instalação/remoção seguem bloqueadas. Quatro testes Playwright cobrem
 passagem anterior/próximo, estado compartilhado, saída de filtro, perda
 de favorito, refavoritar, escopo Catalog vs Biblioteca e viewport 390 px.
+
+### Detalhes → Biblioteca: atalho para revisar seleção declarativa
+
+Quando Detalhes tem origem na Biblioteca e existe algum favorito
+selecionado, o botão `Revisar seleção na Biblioteca (N)` volta
+ao painel existente da Biblioteca e posiciona o foco de teclado
+nele. Os filtros e seleções são preservados. O atalho não
+abre a análise automaticamente, não salva relatórios e não
+lê/instala/edita arquivos de mods. Sem seleção ou com origem
+Catálogo/Destaques, o atalho não aparece. O painel de destino
+ganha um ID estável e `tabIndex=-1`; três testes Playwright
+cobrem foco, preservação, ausência de análise automática,
+Enter e largura de 390 px.
