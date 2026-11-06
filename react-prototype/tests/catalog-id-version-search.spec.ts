@@ -7,7 +7,7 @@ const mods=[
   category:'Caminhões',version:'1.99',description:'Somente uma ficha de teste.',size:'150 MB'},
  {id:'map_alpha',title:'Serra Exemplo',game:'omsi',
   category:'Mapas',version:'1.3.0',description:'Somente uma ficha de teste.',size:'100 MB'}
-];
+] as const;
 async function imported(page:Page){
  await page.goto('/');
  const nav=page.getByRole('navigation',{name:'Navegação principal'});
