@@ -10,14 +10,14 @@ export function normalizeCatalogSearch(value:string):string{
 }
 
 export function matchesCatalogSearch(
- mod:Pick<CatalogMod,'title'|'category'>,
+ mod:Pick<CatalogMod,'title'|'category'> & Partial<Pick<CatalogMod,'id'|'version'>>,
  gameTitle:string,
  query:string
 ):boolean{
  const terms=normalizeCatalogSearch(query);
  if(!terms)return true;
  const haystack=normalizeCatalogSearch(
-  [mod.title,mod.category,gameTitle].join(' ')
+  [mod.title,mod.category,gameTitle,mod.id??'',mod.version??''].join(' ')
  );
  // Independent terms tolerate reordered words without losing game/category.
  return terms.split(' ').every(term=>haystack.includes(term));

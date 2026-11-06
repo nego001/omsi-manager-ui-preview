@@ -1142,3 +1142,6 @@
  min-height:44px;max-width:100%;margin-top:9px;white-space:normal;text-align:center}
 #library-batch:focus-visible{outline:3px solid #b6d6ff;outline-offset:4px}
 @media(max-width:480px){.detail-review-selection{width:100%}}
+
+/* An imported metadata ID is visible and readable even at its 64-char limit. */
+.properties .mod-declared-id{display:block;overflow-wrap:anywhere;word-break:break-word;max-width:100%}

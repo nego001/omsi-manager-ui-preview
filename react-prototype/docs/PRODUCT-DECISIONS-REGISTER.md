@@ -383,3 +383,16 @@ Catálogo/Destaques, o atalho não aparece. O painel de destino
 ganha um ID estável e `tabIndex=-1`; três testes Playwright
 cobrem foco, preservação, ausência de análise automática,
 Enter e largura de 390 px.
+
+### Busca por ID e versão declarados nos metadados do catálogo
+
+As pesquisas locais de Catálogo e Biblioteca também consideram `id`
+e `version` da ficha JSON, além de título, categoria e nome do jogo.
+A normalização existente de acentos, caixa e termos independentes é
+preservada. O ID é exibido nos Detalhes com o rótulo explícito
+**ID declarado no catálogo**, distinto de um ID real instalado.
+Isso permite conferir referências de dependências sem abrir arquivos
+de mod, pastas de jogo, rede ou instaladores. O ID de até 64 caracteres
+quebra linhas para telas móveis e não afeta filtros, favoritos nem seleção.
+Três testes Playwright cobrem busca por ID/versão, origem declarada,
+navegação Anterior/Próximo, limites operacionais e viewport de 390 px.
