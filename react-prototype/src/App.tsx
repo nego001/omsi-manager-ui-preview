@@ -168,6 +168,11 @@ export default function App(){
   catch{/* private-mode storage can be unavailable; keep session state */}
  },[favorites,sidebar,dense]);
  const selected=catalogMods.find(m=>m.id===selectedMod)??catalogMods[0];
+ const selectedDeclaredBytes=declaredSizeBytes(selected.size);
+ const selectedDeclaredLabel=selectedDeclaredBytes===null?'Formato não reconhecido':
+  selectedDeclaredBytes===0?'Zero declarado':'Tamanho reconhecido';
+ const selectedDeclaredDisplay=selectedDeclaredBytes!==null?
+  summarizeDeclaredSizes([selected]).subtotal:null;
  const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
@@ -674,6 +679,18 @@ export default function App(){
   <span aria-live="polite">{detailPosition>=0?`${detailPosition+1} de ${detailCandidates.length}`:'Fora dos filtros atuais'} · {detailOrigin==='library'?'Biblioteca':detailOrigin==='home'?'Destaques':'Catálogo'}</span>
   <button type="button" className="btn secondary" disabled={!detailNext} aria-label={detailNext?`Próximo mod: ${detailNext.title}`:'Sem próximo mod'} onClick={()=>detailNext&&stepDetails(detailNext.id)}>Próximo</button>
  </nav><div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
+  <div className="detail-size-evidence" role="note" aria-label="Qualidade do tamanho declarado">
+   <div className="detail-size-evidence-head">
+    <strong>{selectedDeclaredLabel}</strong>
+    <span>{catalogSource==='Demonstração'?'Exemplo fictício':'Informado no JSON importado'}</span>
+   </div>
+   <p>{selectedDeclaredBytes===null?
+    'Não foi possível converter este formato para comparação. Desconhecido não significa 0 B.':
+    selectedDeclaredBytes===0?
+    'O catálogo declarou 0 B. Isso não comprova que o pacote esteja vazio ou instalado.':
+    'Equivalência decimal aproximada informada pelo catálogo: '+selectedDeclaredDisplay+'.'}</p>
+   <small>Sem medição de disco, abertura de pacote, verificação de integridade ou instalação.</small>
+  </div>
  <section className="detail-checklist" aria-label="Etapas de verificação do mod">
   <div className="detail-checklist-heading"><div><span className="eyebrow">ESTADO DA ANÁLISE</span><h2>O que já sabemos sobre este mod</h2></div><span className="detail-checklist-mode"><LockKeyhole size={14}/> Somente leitura</span></div>
   <div className="detail-checklist-grid">

@@ -1108,3 +1108,16 @@
 .library-size-filter-actions button:focus-visible{outline:3px solid #c2ddff;outline-offset:3px}
 @media(max-width:480px){.library-size-filter-actions{width:100%;flex-direction:column}
  .library-size-filter-actions button{width:100%;min-height:44px}}
+
+/* Per-mod catalog size evidence. Never claims filesystem measurement. */
+.detail-size-evidence{min-width:0;margin:14px 0 19px;padding:13px 15px;
+ border:1px solid #4a5e74;border-radius:10px;background:#1e2935;
+ overflow-wrap:anywhere}
+.detail-size-evidence-head{display:flex;flex-wrap:wrap;justify-content:space-between;
+ align-items:baseline;gap:5px 12px}
+.detail-size-evidence-head strong{font-size:13px;color:#edf3fc}
+.detail-size-evidence-head span{font-size:11px;color:#bacde2}
+.detail-size-evidence p{font-size:12px;line-height:1.6;color:#e0e9f6;margin:8px 0}
+.detail-size-evidence small{display:block;font-size:11px;line-height:1.6;color:#bccbdc}
+@media(max-width:480px){.detail-size-evidence{padding:12px}
+ .detail-size-evidence-head{flex-direction:column;align-items:flex-start}}

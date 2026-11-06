@@ -339,3 +339,16 @@ Importar catálogo ou restaurar demonstração limpa esse filtro, sem alterar
 favoritos indevidamente. Testes Playwright incluem zero vs. desconhecido,
 combinação com outros filtros, navegação por teclado, Detalhes e tela de 390 px.
 Nenhum conteúdo de jogo/mod é aberto, instalado ou alterado.
+
+### Detalhes: procedência e interpretação de tamanho declarado
+
+O painel Detalhes apresenta a interpretação do tamanho fornecido no catálogo:
+**reconhecido**, **formato não reconhecido** ou **zero explicitamente declarado**.
+Um valor ausente ou inválido não é tratado como 0 B. Quando reconhecido e
+positivo, a equivalência arredondada em unidades decimais aparece com ≈; 
+continua sendo apenas metadado, não medição do pacote nem do disco. O
+indicador identifica se o valor veio do catálogo demonstrativo ou de JSON
+importado e atualiza ao navegar Anterior/Próximo. Não abre pacotes, mede disco,
+certifica compatibilidade, nem permite instalação/remoção.
+Três testes Playwright exercitam troca de mod, zero/unknown, modelo
+demonstrativo, navegação filtrada pela Biblioteca, foco e largura de 390 px.
