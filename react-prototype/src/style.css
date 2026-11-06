@@ -1067,3 +1067,10 @@
 .library-size-sort-note{min-width:0;max-width:100%;margin:-8px 0 20px;padding:11px 13px;
  border:1px solid #4f6178;border-radius:9px;background:#222d3b;
  color:#dae7f7;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+
+/* Declared catalog sizes only, never filesystem disk usage. */
+.library-declared-size-summary{min-width:0;margin:0 0 19px;padding:12px 15px;
+ display:flex;flex-direction:column;gap:5px;border:1px solid #475566;
+ border-radius:9px;background:#1c252e;overflow-wrap:anywhere}
+.library-declared-size-summary strong{color:#ebf2fa;font-size:13px;line-height:1.5}
+.library-declared-size-summary span{color:#c0ccd9;font-size:12px;line-height:1.6}

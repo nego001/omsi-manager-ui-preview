@@ -300,3 +300,15 @@ As ações de limpar filtros e remover apenas o chip de ordenação
 voltam à ordem original sem apagar favoritos nem seleção de análise.
 Nenhuma operação de arquivo, instalação, medição de disco ou alteração
 do sandbox é efetuada.
+
+### Subtotal de tamanhos declarados dos favoritos visíveis
+
+A Biblioteca soma somente os **tamanhos declarados dos favoritos exibidos**
+segundo os filtros atuais. A ordem não altera os resultados. Valores incertos
+são excluídos com contagem explícita; zero valores reconhecidos não produz
+um falso valor de espaço. O subtotal usa BigInt para evitar transbordamento
+da soma de metadados seguros, com apresentação arredondada e marcada ≈,
+em unidades decimais. O texto explica que **não se trata de espaço em disco
+nem de instalação verificada**. A implementação não lê nem altera mods, jogos,
+sistema de arquivos ou sandbox. Testes cobrem metadados mistos, filtros,
+ordenação, dados desconhecidos, agregados grandes e 390 px.
