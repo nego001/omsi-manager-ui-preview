@@ -622,3 +622,23 @@ como `matched-observed` é recusada como contraditória.
 
 Esses critérios não modificam a CI de janela, o host ou o
 sandbox e não autorizam, por si, nenhum piloto administrativo.
+
+## Acompanhamento humano em Markdown, sem mudar o gate
+
+O job de comparação passa a publicar **dois arquivos** no artefato
+`native-x11-administrator-handoff`: `admin-handoff.json`
+(contrato máquina) e `admin-handoff.md` (revisão humana).
+O Markdown deriva exclusivamente dos enums categóricos de
+`AUTO_X11_ADMIN_HANDOFF_V1` após revalidar todo o comparador.
+Sua tabela separa a evidência do launcher Auto, o estado inicial do
+kernel e o controle Electron direto por etiqueta Xvfb.
+
+O estado permanece `BLOQUEADO` enquanto a janela Auto no
+Ubuntu 24.04 não for aprovada. Se ambas as janelas forem
+encontradas, o documento ainda informa `PENDENTE` até
+comprovação independente do sandbox do renderizador e dos
+compositores reais. Não há links de download externo, PIDs,
+stderr bruto, caminhos pessoais ou texto de usuário na saída.
+Os testes validam a recusa de dados falsificados e o guard do
+workflow exige ambos os arquivos no upload. Isso **não**
+autoriza alterações da política AppArmor ou publicação.

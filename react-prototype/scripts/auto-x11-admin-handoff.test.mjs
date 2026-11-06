@@ -1,6 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createX11AdminHandoff as handoff}
+import {createX11AdminHandoff as handoff,
+ renderX11AdminHandoffMarkdown as markdown}
  from './auto-x11-admin-handoff.mjs';
 import {createSanitizedX11Evidence as create}
  from './auto-x11-sanitized-evidence.mjs';
@@ -138,4 +139,43 @@ test('forged comparisons, contradictory schemas, secret paths and positive flags
  assert.equal(s.includes('/home/private'),false);
  assert.equal(s.includes('rawStderr'),false);
  assert.equal(s.includes('linuxProfile'),false);
+});
+
+
+test('human handoff is readable but does not upgrade blocked Ubuntu24',()=>{
+ const out=markdown(comparison());
+ assert.match(out,/Estado de homologação:\*\* BLOQUEADO no Ubuntu 24.04/);
+ assert.match(out,/Etiqueta Xvfb/);
+ assert.match(out,/SIGTRAP, identidade confirmada na inicialização/);
+ assert.match(out,/Solicitar revisão independente com administrador/);
+ assert.match(out,/sem prova causal do AppArmor/);
+ assert.match(out,/sem autorização de release/);
+ assert.doesNotMatch(out,/\/home\/|\/proc\/|--no-sandbox|habilitar globalmente/i);
+ assert.equal(out.endsWith('\n'),true);
+ assert.equal(out.length<4096,true);
+});
+test('partial Auto identity demands collection before any policy pilot',()=>{
+ const x=compare(older,runner('ubuntu-24.04',false,{missingKde:true}));
+ const out=markdown(x);
+ assert.match(out,/dados insuficientes/);
+ assert.match(out,/não confirmada/);
+ assert.match(out,/Coletar evidências ausentes do launcher Auto/);
+ assert.doesNotMatch(out,/Solicitar revisão independente com administrador/);
+});
+test('mapped windows cannot imply release approval or renderer certification',()=>{
+ const out=markdown(compare(older,runner('ubuntu-24.04',true)));
+ assert.match(out,/PENDENTE de validação de segurança independente/);
+ assert.match(out,/sem certificação de sandbox/);
+ assert.match(out,/sem autorização de release/);
+});
+test('Markdown refuses forged schema and excludes arbitrary source properties',()=>{
+ const good=comparison();
+ assert.throws(()=>markdown({...good,electronSandboxCertified:true}),
+  /^Error: AUTO_X11_ADMIN_HANDOFF_REFUSED$/);
+ assert.throws(()=>markdown({...good,archiveSha256:'/home/private/key'}),
+  /^Error: AUTO_X11_ADMIN_HANDOFF_REFUSED$/);
+ const out=markdown({...good,privateStderr:'credential /home/private',rawPid:54321});
+ assert.equal(out.includes('/home/private'),false);
+ assert.equal(out.includes('privateStderr'),false);
+ assert.equal(out.includes('54321'),false);
 });

@@ -101,7 +101,8 @@ export function validateNativeX11Workflow(source){
   'node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs',
   'node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs',
   'name: native-x11-administrator-handoff',
-  'path: x11-diff-output/admin-handoff.json',
+  'x11-diff-output/admin-handoff.json',
+  'x11-diff-output/admin-handoff.md',
   'name: native-x11-evidence-ubuntu-22.04',
   'name: native-x11-evidence-ubuntu-24.04',
   'node react-prototype/scripts/auto-x11-evidence-diff-ci.mjs',
@@ -109,6 +110,18 @@ export function validateNativeX11Workflow(source){
   'path: x11-diff-output/host-comparison.json',
   'if-no-files-found: error'
  ])if(!compareActive.includes(required))refusal();
+ const handoffUpload=[
+  '      - name: Upload read-only administrator handoff (not an approval)',
+  '        uses: actions/upload-artifact@v4',
+  '        with:',
+  '          name: native-x11-administrator-handoff',
+  '          path: |',
+  '            x11-diff-output/admin-handoff.json',
+  '            x11-diff-output/admin-handoff.md',
+  '          if-no-files-found: error',
+  '          retention-days: 14'
+ ].join('\n');
+ if(compareActive.split(handoffUpload).length!==2)refusal();
  if(compareActive.split('if: ${{ always() }}').length!==2||
     /\bcontinue-on-error\s*:/i.test(compareActive)||
     /--no-sandbox|ELECTRON_DISABLE_SANDBOX/i.test(compareActive)||

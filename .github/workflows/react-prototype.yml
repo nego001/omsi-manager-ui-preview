@@ -251,7 +251,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: native-x11-administrator-handoff
-          path: x11-diff-output/admin-handoff.json
+          path: |
+            x11-diff-output/admin-handoff.json
+            x11-diff-output/admin-handoff.md
           if-no-files-found: error
           retention-days: 14
       # This runs even after the Ubuntu 24.04 test fails; it never waives that failure.

@@ -117,3 +117,65 @@ export function createX11AdminHandoff(value){
   readOnly:true
  });
 }
+
+
+// Human-readable companion for CI reviewers. All interpolated strings are
+// restricted to the validated handoff enums and a fixed-format SHA-256.
+// It cannot claim release approval even if both simulated X11 windows map.
+export function renderX11AdminHandoffMarkdown(comparison){
+ const h=createX11AdminHandoff(comparison);
+ const labels={
+  'spawn-callback':'confirmada na inicialização',
+  'polling':'confirmada na verificação posterior',
+  'unobserved':'não confirmada',
+  'matched-observed':'iguais nos estados observados',
+  'different-observed':'diferentes nos estados observados',
+  'insufficient-data':'dados insuficientes',
+  'not-run':'não executado',
+  'unavailable':'indisponível',
+  'sigtrap-cmdline-spawn':'SIGTRAP, identidade confirmada na inicialização',
+  'sigtrap-cmdline-polling':'SIGTRAP, identidade confirmada posteriormente',
+  'sigtrap-no-cmdline':'SIGTRAP, identidade não confirmada',
+  'other-result':'outro resultado; não é aprovação'
+ };
+ const next={
+  'request-independent-app-specific-policy-review-on-approved-disposable-host':
+   'Solicitar revisão independente com administrador em host descartável autorizado, sem aplicar política automaticamente.',
+  'collect-missing-evidence-and-review-startup-before-policy-experiment':
+   'Coletar evidências ausentes do launcher Auto antes de considerar qualquer teste de política.',
+  'verify-independent-renderer-sandbox-and-real-desktop-before-release':
+   'Comprovar separadamente sandbox do renderizador e sessões gráficas reais antes de cogitar lançamento.'
+ };
+ const rows=h.byDesktop.map(d=>
+  '| '+d.desktop+' | '+labels[d.ubuntu24AutoIdentitySource]+
+  ' | '+labels[d.earlyMainKernelComparison]+
+  ' | '+labels[d.ubuntu24DirectElectronControl]+' |');
+ return [
+  '# OMSI Manager | Revisão X11 automatizada',
+  '',
+  '**Estado de homologação:** '+(h.status==='ubuntu24-native-window-blocked'?
+   'BLOQUEADO no Ubuntu 24.04':'PENDENTE de validação de segurança independente'),
+  '',
+  '**SHA-256 reportado do pacote de CI:** '+h.archiveSha256,
+  '',
+  '| Etiqueta Xvfb | Identidade do Auto (24.04) | Kernel inicial (22.04 × 24.04) | Controle Electron direto (24.04) |',
+  '|---|---|---|---|',
+  ...rows,
+  '',
+  '**Ubuntu 22.04, janela Auto verificada:** '+(h.ubuntu22NativeWindowsVerified?'sim':'não'),
+  '',
+  '**Ubuntu 24.04, janela Auto verificada:** '+(h.ubuntu24NativeWindowsVerified?'sim':'não'),
+  '',
+  '**Cobertura de identidade Auto:** '+h.autoIdentityCoverage,
+  '',
+  '**Evidência correlacionada, sem prova de causalidade:** '+
+   (h.startupCorrelationObserved?'observada':'não estabelecida'),
+  '',
+  '**Próximo passo:** '+next[h.recommendedNextStep],
+  '',
+  '> GNOME e KDE são etiquetas simuladas no Xvfb, não sessões reais. O estado inicial do processo principal não atesta o sandbox do renderizador.',
+  '',
+  '**Limites obrigatórios:** sem prova causal do AppArmor, sem certificação de sandbox, sem autorização de release, sem dispensa da CI X11. Nenhuma política do host foi alterada.',
+  ''
+ ].join('\n');
+}

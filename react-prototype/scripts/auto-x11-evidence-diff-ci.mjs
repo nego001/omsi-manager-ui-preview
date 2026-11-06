@@ -5,7 +5,8 @@ import {constants} from 'node:fs';
 import {resolve} from 'node:path';
 import {parseSanitizedX11Record,compareSanitizedX11Records}
  from './auto-x11-evidence-diff.mjs';
-import {createX11AdminHandoff} from './auto-x11-admin-handoff.mjs';
+import {createX11AdminHandoff,renderX11AdminHandoffMarkdown}
+ from './auto-x11-admin-handoff.mjs';
 if(process.platform!=='linux'||process.getuid?.()===0||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
  throw Error('AUTO_X11_CROSS_RUNNER_CI_ONLY');
@@ -35,6 +36,9 @@ await writeFile('x11-diff-output/host-comparison.json',
  JSON.stringify(comparison)+'\n',{encoding:'utf8',flag:'wx',mode:0o600});
 await writeFile('x11-diff-output/admin-handoff.json',
  JSON.stringify(handoff)+'\n',{encoding:'utf8',flag:'wx',mode:0o600});
+await writeFile('x11-diff-output/admin-handoff.md',
+ renderX11AdminHandoffMarkdown(comparison),
+ {encoding:'utf8',flag:'wx',mode:0o600});
 console.log('AUTO_X11_CROSS_RUNNER_READY',JSON.stringify(comparison));
 console.log('AUTO_X11_ADMIN_HANDOFF_READY',JSON.stringify({
  schema:handoff.schema,status:handoff.status,

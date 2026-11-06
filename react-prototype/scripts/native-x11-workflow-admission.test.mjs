@@ -207,7 +207,8 @@ test('operator handoff tests and artifact upload stay mandatory in guarded workf
   'node --test scripts/auto-x11-admin-handoff.test.mjs',
   'node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs',
   'name: native-x11-administrator-handoff',
-  'path: x11-diff-output/admin-handoff.json'
+  'x11-diff-output/admin-handoff.json',
+  'x11-diff-output/admin-handoff.md'
  ];
  for(const snippet of snippets){
   assert.ok(original.includes(snippet));
