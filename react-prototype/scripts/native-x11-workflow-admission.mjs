@@ -30,6 +30,7 @@ export function validateNativeX11Workflow(source){
     !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
     !build.includes('node --test scripts/electron-renderer-kernel-evidence.test.mjs')||
     !build.includes('node --test scripts/auto-x11-early-native-kernel.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-spawn-witness.test.mjs')||
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-aba.test.mjs'))refusal();
@@ -49,6 +50,7 @@ export function validateNativeX11Workflow(source){
   'node scripts/auto-x11-host-capabilities.mjs',
   'node --test scripts/auto-x11-native-triage.test.mjs',
   'node --test scripts/auto-x11-early-native-kernel.test.mjs',
+  'node --test scripts/auto-x11-spawn-witness.test.mjs',
   'node --test scripts/auto-x11-archive-provenance.test.mjs',
   'node --test scripts/auto-x11-sanitized-evidence.test.mjs',
   'OMSI_NATIVE_X11_RUNNER: ${{ matrix.runner }}',

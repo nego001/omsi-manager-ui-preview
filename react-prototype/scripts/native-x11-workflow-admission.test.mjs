@@ -186,3 +186,18 @@ test('early native kernel witness remains mandatory on build and strict matrix',
  const replacedSecond=split[0]+cmd+split[1]+'echo early-kernel-contract-removed'+split[2];
  assert.throws(()=>verify(replacedSecond),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
 });
+
+test('spawn-edge witness tests stay mandatory for both build and native matrix',()=>{
+ const cmd='node --test scripts/auto-x11-spawn-witness.test.mjs';
+ assert.equal(original.split(cmd).length-1,2);
+ const variants=[
+  original.replace(cmd,'echo spawn-witness-contract-omitted'),
+  original.replace('          '+cmd,
+   '          echo spawn-witness-contract-omitted')
+ ];
+ for(const changed of variants){
+  assert.notEqual(changed,original);
+  assert.throws(()=>verify(changed),
+   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
+});

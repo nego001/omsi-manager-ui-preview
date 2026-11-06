@@ -11,6 +11,7 @@ import {setTimeout as sleep} from 'node:timers/promises';
 import {classifyNativeX11Startup} from './auto-x11-native-triage.mjs';
 import {observeEarlyNativeSecurity,EARLY_NATIVE_UNAVAILABLE}
  from './auto-x11-early-native-kernel.mjs';
+import {captureNativeAtSpawn} from './auto-x11-spawn-witness.mjs';
 import {createSanitizedX11Evidence} from './auto-x11-sanitized-evidence.mjs';
 import {readVerifiedX11ArchiveSha256} from './auto-x11-archive-provenance.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
@@ -96,7 +97,14 @@ async function probeDirectPackagedElectron(desktop,root){
    if(/x11|xserver|display|ozone/i.test(fragment))hints.add('display');
    if(/gpu|egl|mesa|glx/i.test(fragment))hints.add('gpu');
   });
-  child.once('spawn',()=>{seen.spawnEventObserved=true;});
+  child.once('spawn',()=>{
+   seen.spawnEventObserved=true;
+   const sample=captureNativeAtSpawn(child.pid,'x11');
+   if(sample.nativeProcess){
+    seen.nativeProcess=true;
+    seen.earlyNativeKernel=sample.earlyNativeKernel;
+   }
+  });
   child.once('error',()=>{exited=true;hints.add('spawn-error');});
   child.once('exit',(code,signal)=>{
    exited=true;exitCode=code;exitSignal=signal;
@@ -239,7 +247,15 @@ try{
     ];
     for(const [label,re] of patterns)if(re.test(text))startupHints.add(label);
    });
-   child.once('spawn',()=>{observed.spawnEventObserved=true;});
+   child.once('spawn',()=>{
+    observed.spawnEventObserved=true;
+    const sample=captureNativeAtSpawn(child.pid,'x11');
+    if(sample.nativeProcess){
+     observed.nativeProcess=true;
+     observed.earlyNativeKernel=sample.earlyNativeKernel;
+     checkpoint='window-search';
+    }
+   });
    child.once('error',()=>{failed=true;startupHints.add('spawn-error');});
    child.once('exit',(code,signal)=>{failed=true;exitCode=code;exitSignal=signal;});
    for(let i=0;i<70;i++){

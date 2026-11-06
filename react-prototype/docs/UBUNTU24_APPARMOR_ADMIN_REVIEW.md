@@ -510,3 +510,22 @@ a prova do sandbox ou o resultado bloqueante do Ubuntu 24.04.
 Esses nomes GNOME/KDE são **etiquetas simuladas em Xvfb**, não testes
 em compositores GNOME ou KDE reais. Nenhum PID, caminho ou perfil
 AppArmor bruto entra no novo campo.
+
+## Observação imediata em `spawn` para subprocessos Electron muito curtos
+
+O teste X11 agora tenta ler imediatamente o `/proc/<pid>/cmdline` no
+callback `spawn` (apenas no runner Linux descartável), antes das
+consultas de janela X11. A prova de identidade exige o comando exato do
+executável Electron com `--ozone-platform=x11`. Se o callback encontrar
+o wrapper anterior ao `exec`, PID desaparecido ou parâmetro inesperado,
+a observação é recusada, sem log bruto; o laço assíncrono antigo continua
+tentando depois. Se o comando for verificado, a mesma amostragem
+sanitizada de `Seccomp`, `NoNewPrivs` e AppArmor é feita antes da busca
+por janela. Erros de leitura do kernel retornam `unknown` ou
+`unavailable`, nunca estados positivos inventados.
+
+Esta é uma mitigação de **corrida de observação**, não uma correção do
+`SIGTRAP` nem prova de causalidade ou de sandbox. Um `spawn`
+sozinho não identifica a imagem executada. Não há mudança de AppArmor,
+configuração de kernel, privilégios ou flags de sandbox. A janela real
+continua exigida nos dois rótulos Xvfb e Ubuntu 24.04 segue bloqueante.
