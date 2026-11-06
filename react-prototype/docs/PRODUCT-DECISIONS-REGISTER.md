@@ -352,3 +352,21 @@ importado e atualiza ao navegar Anterior/Próximo. Não abre pacotes, mede disco
 certifica compatibilidade, nem permite instalação/remoção.
 Três testes Playwright exercitam troca de mod, zero/unknown, modelo
 demonstrativo, navegação filtrada pela Biblioteca, foco e largura de 390 px.
+
+### Seleção para análise conjunta diretamente nos Detalhes da Biblioteca
+
+A tela Detalhes, **quando aberta a partir da Biblioteca e o mod ainda é
+favorito**, permite marcar/desmarcar esse mod para a análise declarativa
+conjunta. É o mesmo estado dos checkboxes da Biblioteca, sem cópia paralela
+ou alteração de favoritos. Alterações fecham relatórios de seleção em aberto
+para não exibir resultados obsoletos. A quantidade de favoritos marcados na
+sessão permanece visível. A opção não aparece ao abrir Detalhes pelo Catálogo
+ou pelos Destaques, nem para itens removidos dos favoritos; remoção de
+favorito também elimina a seleção antiga, sem restaurá-la ao favoritar de novo.
+
+Com filtro "Só selecionados", desmarcar um item pode removê-lo da lista
+atual; a navegação passa a informar "Fora dos filtros atuais" em vez de
+inventar um vizinho. A interface continua somente com metadados e
+instalação/remoção seguem bloqueadas. Quatro testes Playwright cobrem
+passagem anterior/próximo, estado compartilhado, saída de filtro, perda
+de favorito, refavoritar, escopo Catalog vs Biblioteca e viewport 390 px.

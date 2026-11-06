@@ -700,7 +700,29 @@ export default function App(){
    <div className="detail-check-item"><span className="detail-check-icon pending"><LockKeyhole size={17}/></span><div><strong>Compatibilidade com o jogo</strong><p>Não verificada. {diagnostic.blockers>0?diagnostic.blockers+' inconsistência(s) declarada(s) no catálogo.':'Sem comprovação de funcionamento no simulador.'}</p></div></div>
   </div>
   <div className="detail-checklist-actions"><a className="detail-report-link" href="#relatorio-consolidado">Consultar evidências e limitações <ChevronRight size={15}/></a><button className="btn secondary" type="button" onClick={()=>goto('games')}>Inspecionar pasta manualmente <ChevronRight size={15}/></button></div>
- </section><div className="detail-actions"><button className="btn disabled-action" disabled title="Instalação desativada"><Download size={17}/> Instalar (bloqueado)</button><button className="btn disabled-action" disabled title="Desinstalação desativada"><Trash2 size={17}/> Remover (bloqueado)</button><button className="btn secondary" onClick={()=>toggleFavorite(selected.id)}>{favorites.includes(selected.id)?'Remover dos favoritos':'Adicionar aos favoritos'}</button></div><p className="lock-note"><LockKeyhole size={16}/> Nenhum mod será aplicado enquanto o pipeline de testes não estiver liberado.</p>
+ </section><div className="detail-actions"><button className="btn disabled-action" disabled title="Instalação desativada"><Download size={17}/> Instalar (bloqueado)</button><button className="btn disabled-action" disabled title="Desinstalação desativada"><Trash2 size={17}/> Remover (bloqueado)</button><button className="btn secondary" onClick={()=>toggleFavorite(selected.id)}>{favorites.includes(selected.id)?'Remover dos favoritos':'Adicionar aos favoritos'}</button></div>
+  {detailOrigin==='library'&&favorites.includes(selected.id)&&<section
+   className="detail-batch-selection" aria-label="Seleção declarativa nos Detalhes">
+    <div className="detail-batch-heading">
+     <strong>Seleção para análise conjunta</strong>
+     <span>{activeBatch.length} {activeBatch.length===1?'favorito selecionado':'favoritos selecionados'} nesta sessão</span>
+    </div>
+    <label className="detail-batch-checkbox">
+     <input type="checkbox" aria-label={'Selecionar '+selected.title+' para análise conjunta nos Detalhes'}
+      checked={activeBatch.includes(selected.id)}
+      onChange={event=>{
+       const checked=event.target.checked;
+       setBatchSelected(ids=>checked?
+        (ids.includes(selected.id)?ids:[...ids,selected.id]):
+        ids.filter(id=>id!==selected.id));
+       setBatchOpen(false);
+      }}/>
+     Incluir este favorito na análise conjunta
+    </label>
+    <p>Somente metadados declarados do catálogo. Marcar não lê nem instala mods.
+     Se o filtro "Só selecionados" estiver ativo, desmarcar pode ocultar este mod da lista.</p>
+   </section>}
+  <p className="lock-note"><LockKeyhole size={16}/> Nenhum mod será aplicado enquanto o pipeline de testes não estiver liberado.</p>
  <section id="relacoes-declaradas" tabIndex={-1} className="relation-panel" aria-label="Simulação de dependências">
   <h2>Dependências e conflitos · simulação</h2>
   <label className="version-simulator"><strong>Versão hipotética do jogo</strong><input aria-label="Versão hipotética do jogo" placeholder="Ex.: 1.52.0 (opcional)" value={hypotheticalGameVersion} onChange={e=>setHypotheticalGameVersion(e.target.value.slice(0,30))}/><small>Valor digitado por você. Não detectamos a versão instalada no computador.</small></label>

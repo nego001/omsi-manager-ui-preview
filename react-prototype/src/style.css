@@ -1121,3 +1121,18 @@
 .detail-size-evidence small{display:block;font-size:11px;line-height:1.6;color:#bccbdc}
 @media(max-width:480px){.detail-size-evidence{padding:12px}
  .detail-size-evidence-head{flex-direction:column;align-items:flex-start}}
+
+/* Manage library-origin selection only; no data is read from mods or disks. */
+.detail-batch-selection{min-width:0;margin:16px 0 18px;padding:14px 16px;
+ border:1px solid #50647d;border-radius:11px;background:#202b38;overflow-wrap:anywhere}
+.detail-batch-heading{display:flex;justify-content:space-between;gap:6px 12px;
+ align-items:baseline;flex-wrap:wrap;margin-bottom:12px}
+.detail-batch-heading strong{font-size:13px;color:#edf3fc}
+.detail-batch-heading span{font-size:11px;color:#c7d7e9}
+.detail-batch-checkbox{display:flex;align-items:center;gap:10px;min-height:44px;
+ font-size:13px;color:#f1f6fd;cursor:pointer;font-weight:600}
+.detail-batch-checkbox input{width:19px;height:19px;flex:0 0 auto;accent-color:#9dc7ff}
+.detail-batch-checkbox:focus-within{outline:2px solid #a9cdff;outline-offset:2px;border-radius:5px}
+.detail-batch-selection p{font-size:11px;line-height:1.6;color:#c2d0e1;margin:9px 0 0}
+@media(max-width:480px){.detail-batch-selection{padding:12px}
+ .detail-batch-heading{flex-direction:column;align-items:flex-start}}
