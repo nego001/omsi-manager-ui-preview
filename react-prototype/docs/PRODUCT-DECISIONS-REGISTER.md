@@ -508,3 +508,16 @@ compatibilidade nem instalação. A escolha convive com filtros, chips,
 limpeza de filtros e Anterior/Próximo em Detalhes vindo da Biblioteca.
 Três testes Playwright verificam a contagem de não favoritos, a
 ordem determinística, 390px, filtros, retorno e operações bloqueadas.
+
+### Filtro por referências diretas recebidas no JSON
+
+Na Biblioteca, os filtros rápidos `Só favoritos com referências
+recebidas` e `Só favoritos sem referências recebidas` usam somente
+declarações diretas em `requires` e `conflictsWith` do catálogo
+validado completo. Consideram outros registros não favoritos e de
+outros jogos; não confundem ausência de referência com compatibilidade.
+O resumo dos totais usa todos os favoritos, mesmo que outros filtros
+estejam ativos. Ao importar novo catálogo ou restaurar a demonstração,
+o filtro é zerado. Botões, chips e Limpar filtros são reversíveis.
+Três testes Playwright sintéticos cobrem teclado, tela 390px, filtros
+combinados, retorno de Detalhes e reinicialização ao importar JSON.

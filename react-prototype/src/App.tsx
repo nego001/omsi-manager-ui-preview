@@ -122,6 +122,7 @@ export default function App(){
  const [libraryCategory,setLibraryCategory]=useState<Category>('Todos');
  const [libraryDeclaredStatus,setLibraryDeclaredStatus]=useState<DeclaredStatusKind|'all'>('all');
  const [librarySizeFilter,setLibrarySizeFilter]=useState<'all'|'known'|'unknown'>('all');
+ const [libraryIncomingFilter,setLibraryIncomingFilter]=useState<'all'|'with'|'without'>('all');
  const [libraryOnlySelected,setLibraryOnlySelected]=useState(false);
  const [librarySearch,setLibrarySearch]=useState('');
  const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'|'incoming'>('catalog');
@@ -216,6 +217,13 @@ export default function App(){
    a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id));
  },[catalogMods,selectedGame,category,search,catalogSort,dependencyLookup]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
+ const favoriteIncomingCounts=useMemo(()=>favoriteMods.reduce((counts,mod)=>{
+  const links=incomingById.get(mod.id);
+  if((links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0)
+   counts.withReferences++;
+  else counts.withoutReferences++;
+  return counts;
+ },{withReferences:0,withoutReferences:0}),[favoriteMods,incomingById]);
  const activeBatch=useMemo(()=>batchSelected.filter(id=>
   favorites.includes(id)&&catalogMods.some(m=>m.id===id)),[batchSelected,favorites,catalogMods]);
  // Group counts are computed cheaply; dependency analysis is on demand.
@@ -238,11 +246,16 @@ export default function App(){
  },{blocking:0,attention:0}),[favoriteMods,declaredStatuses]);
  const libraryMods=useMemo(()=>{
   // Search never changes the underlying favorites or declared status.
+  const hasIncoming=(id:string)=>{
+   const links=incomingById.get(id);
+   return (links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0;
+  };
   const list=favoriteMods.filter(m=>
    (libraryGame==='all'||m.game===libraryGame)&&
    (libraryCategory==='Todos'||m.category===libraryCategory)&&
    (libraryDeclaredStatus==='all'||declaredStatuses.get(m.id)?.kind===libraryDeclaredStatus)&&
     (librarySizeFilter==='all'||(declaredSizeBytes(m.size)!==null)===(librarySizeFilter==='known'))&&
+   (libraryIncomingFilter==='all'||hasIncoming(m.id)===(libraryIncomingFilter==='with'))&&
    (!libraryOnlySelected||activeBatch.includes(m.id))&&
    matchesCatalogSearch(m,games[m.game].title,librarySearch)
   );
@@ -278,7 +291,7 @@ export default function App(){
    return [...list].sort((a,b)=>order[a.game]-order[b.game]||a.title.localeCompare(b.title,'pt-BR'));
   }
   return list;
- },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,activeBatch,librarySearch,librarySort,librarySizeFilter,declaredStatuses,incomingById]);
+ },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,activeBatch,librarySearch,librarySort,librarySizeFilter,libraryIncomingFilter,declaredStatuses,incomingById]);
  const librarySizeSummary=useMemo(()=>summarizeDeclaredSizes(libraryMods),[libraryMods]);
  const allFavoritesSizeSummary=useMemo(()=>summarizeDeclaredSizes(favoriteMods),[favoriteMods]);
  const libraryGameSummary=useMemo(()=>(['omsi','ets2','ats'] as GameId[])
@@ -305,13 +318,13 @@ export default function App(){
  const visibleBatchCount=activeBatch.length-hiddenBatchCount;
  const activeLibraryControlCount=[
   libraryGame!=='all',libraryCategory!=='Todos',
-  libraryDeclaredStatus!=='all',librarySizeFilter!=='all',libraryOnlySelected,librarySearch.trim().length>0,
+  libraryDeclaredStatus!=='all',librarySizeFilter!=='all',libraryIncomingFilter!=='all',libraryOnlySelected,librarySearch.trim().length>0,
   librarySort!=='catalog'
  ].filter(Boolean).length;
  function resetLibraryControls(){
   setLibraryGame('all');setLibraryCategory('Todos');
-  setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');
-  setLibrarySort('catalog');
+  setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');
+  setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function saveBatchToSession(){
   if(!batchReport||!batchOpen)return;
@@ -542,7 +555,7 @@ export default function App(){
    setCatalogError('');
    setSelectedMod(next[0].id);
    setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
    setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
   }catch(error){
    if(generation!==catalogReadGeneration.current)return;
@@ -565,7 +578,7 @@ export default function App(){
   ++reviewReadGeneration.current;
   setCatalogMods(mods);setHypotheticalGameVersion('');setDependencyLookup(null);setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
-  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
   // A removed favorite must not silently rejoin an earlier batch if favorited again.
@@ -752,6 +765,7 @@ export default function App(){
   {libraryCategory!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryCategory('Todos'))}>Categoria: {libraryCategory} <span aria-hidden="true">×</span></button>}
   {libraryDeclaredStatus!=='all'&&<button type="button" aria-label="Remover filtro de alertas" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryDeclaredStatus('all'))}>Alertas: {{blocking:'Bloqueios declarados',attention:'Avisos declarados','no-issues':'Sem alertas declarados'}[libraryDeclaredStatus]} <span aria-hidden="true">×</span></button>}
   {librarySizeFilter!=='all'&&<button type="button" aria-label="Remover filtro de tamanho declarado" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySizeFilter('all'))}>Tamanho: {librarySizeFilter==='known'?'reconhecido':'desconhecido'} <span aria-hidden="true">×</span></button>}
+  {libraryIncomingFilter!=='all'&&<button type="button" aria-label="Remover filtro de referências recebidas" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryIncomingFilter('all'))}>Referências recebidas: {libraryIncomingFilter==='with'?'com referências':'sem referências'} <span aria-hidden="true">×</span></button>}
    {libraryOnlySelected&&<button type="button" aria-label="Remover filtro de selecionados" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryOnlySelected(false))}>Seleção: só marcados <span aria-hidden="true">×</span></button>}
   {librarySearch.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySearch(''))}>Busca: {librarySearch.trim()} <span aria-hidden="true">×</span></button>}
   {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySort('catalog'))}>Ordem: {librarySort==='title'?'Nome (A–Z)':librarySort==='game'?'Jogo e nome':librarySort==='alerts'?'Alertas declarados':librarySort==='incoming'?'Referências recebidas no JSON':librarySort==='size-desc'?'Tamanho declarado (maior primeiro)':'Tamanho declarado (menor primeiro)'} <span aria-hidden="true">×</span></button>}
@@ -769,6 +783,19 @@ export default function App(){
       onClick={()=>setLibrarySizeFilter(value=>value==='known'?'all':'known')}>Só tamanhos reconhecidos</button>
      <button type="button" aria-pressed={librarySizeFilter==='unknown'} disabled={allFavoritesSizeSummary.unknown===0}
       onClick={()=>setLibrarySizeFilter(value=>value==='unknown'?'all':'unknown')}>Só tamanhos desconhecidos</button>
+    </div>
+   </div>}
+   {favoriteMods.length>0&&<div className="library-size-quick-filters library-incoming-quick-filters" role="group" aria-label="Filtrar por referências recebidas">
+    <div><strong>Referências recebidas no catálogo</strong>
+     <small>Entre todos os {favoriteMods.length} {favoriteMods.length===1?'favorito':'favoritos'}: {favoriteIncomingCounts.withReferences} mencionado(s) e {favoriteIncomingCounts.withoutReferences} sem referências diretas de outros registros do JSON. Não significa instalação ou compatibilidade.</small>
+    </div>
+    <div className="library-size-filter-actions">
+     <button type="button" aria-pressed={libraryIncomingFilter==='with'}
+      disabled={favoriteIncomingCounts.withReferences===0}
+      onClick={()=>setLibraryIncomingFilter(v=>v==='with'?'all':'with')}>Só favoritos com referências recebidas</button>
+     <button type="button" aria-pressed={libraryIncomingFilter==='without'}
+      disabled={favoriteIncomingCounts.withoutReferences===0}
+      onClick={()=>setLibraryIncomingFilter(v=>v==='without'?'all':'without')}>Só favoritos sem referências recebidas</button>
     </div>
    </div>}
    {favoriteMods.length>0&&<div className="library-declared-alerts" role="note"><AlertTriangle size={16}/><div className="library-alert-content"><span><strong>{libraryAlerts.blocking} com bloqueios</strong> · {libraryAlerts.attention} com avisos no catálogo entre todos os {favoriteMods.length} favoritos.{libraryMods.length!==favoriteMods.length&&<span className="library-visible-alerts">Na visualização filtrada: bloqueios {visibleLibraryAlerts.blocking} · avisos {visibleLibraryAlerts.attention}.</span>} Ausência de alertas declarados não comprova compatibilidade nem instalação.</span><div className="library-alert-actions" role="group" aria-label="Atalhos de alertas declarados"><button type="button" aria-pressed={libraryDeclaredStatus==='blocking'} disabled={libraryAlerts.blocking===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='blocking'?'all':'blocking')}>Ver bloqueios declarados</button><button type="button" aria-pressed={libraryDeclaredStatus==='attention'} disabled={libraryAlerts.attention===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='attention'?'all':'attention')}>Ver avisos declarados</button></div></div></div>}
