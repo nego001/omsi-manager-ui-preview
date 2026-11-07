@@ -84,7 +84,11 @@ export function createX11AdminHandoff(value){
  // Never suggest a host-policy experiment while the Auto process itself
  // is still unobserved in either Xvfb label. Direct Electron witnesses
  // are a separate control and cannot fill missing Auto identity.
- const correlated=blocked&&autoIdentityCoverage==='complete'&&
+ const correlated=blocked&&
+  // A set of matching host flags alone cannot override an inconclusive
+  // comparison of native startup classifications across both Xvfb labels.
+  x.classification==='namespace-restriction-correlated-with-startup-failure'&&
+  autoIdentityCoverage==='complete'&&
   x.ubuntu22NativeWindowsVerified&&
   x.ubuntu22NamespaceProbe==='allowed'&&
   x.ubuntu24NamespaceProbe==='permission-denied'&&
@@ -173,6 +177,8 @@ export function renderX11AdminHandoffMarkdown(comparison){
    ['A identidade do launcher Auto não foi confirmada em todas as etiquetas Xvfb.']:[]),
   ...(!h.ubuntu24NativeWindowsVerified&&!h.directElectronSigtrapWitnessComplete?
    ['O controle Electron direto não tem testemunha SIGTRAP completa nas duas etiquetas.']:[]),
+  ...(!h.ubuntu24NativeWindowsVerified&&!h.startupCorrelationObserved?
+   ['A classificação conjunta da inicialização ainda não sustenta revisão de política específica do aplicativo.']:[]),
   ...(['unknown','unavailable'].includes(h.ubuntu24UserNamespaceProbe)?
    ['A sonda independente de user namespace permanece indeterminada.']:[]),
   ...(['unknown','unavailable'].includes(h.ubuntu24ApparmorRestriction)?

@@ -237,3 +237,46 @@ test('missing Auto identities and unavailable namespace facts appear as unresolv
  assert.match(out,/sem prova causal do AppArmor/);
  assert.match(out,/sem autorização de release/);
 });
+
+test('a categorical V6 inconclusive result cannot suggest AppArmor review from host flags alone',()=>{
+ // Same source labels, probes, process identity and direct SIGTRAP categories,
+ // but one native startup has a different diagnosis. The V6 comparator must
+ // own the overall classification, not the handoff guessing from host fields.
+ const conflicting=create({runner:'ubuntu-24.04',
+  archiveSha256:sha,baselineMapped:true,
+  host:{apparmorModuleState:'enabled',apparmorRestriction:'enabled',
+   userNamespaceProbe:'permission-denied'},
+  outcomes:['GNOME','KDE'].map((desktop,i)=>({
+   desktop,mapped:false,failed:true,windowOwned:false,nativeProcess:true,
+   triageClassification:i===0?'shared-electron-sandbox-startup-suspected':
+    'auto-launcher-specific-suspected',
+   earlyNativeKernel:snapshot,identityCaptureSource:'polling',
+   directControlCategory:'sigtrap-cmdline-spawn'
+  }))
+ });
+ const diff=compare(older,conflicting);
+ assert.equal(diff.classification,'inconclusive');
+ const h=handoff(diff);
+ assert.equal(h.autoIdentityCoverage,'complete');
+ assert.equal(h.directElectronSigtrapWitnessComplete,true);
+ assert.equal(h.startupCorrelationObserved,false);
+ assert.equal(h.recommendedNextStep,
+  'collect-missing-evidence-and-review-startup-before-policy-experiment');
+ const out=markdown(diff);
+ assert.match(out,/classificação conjunta da inicialização ainda não sustenta revisão/);
+ assert.doesNotMatch(out,/Solicitar revisão independente com administrador/);
+ assert.match(out,/Coletar evidências ausentes do launcher Auto/);
+ assert.match(out,/sem prova causal do AppArmor/);
+ assert.match(out,/sem autorização de release/);
+});
+test('positive V6 classification remains only a request for independent review',()=>{
+ const h=handoff(comparison());
+ assert.equal(h.startupCorrelationObserved,true);
+ assert.equal(h.administratorApprovalForHostChangesRequired,true);
+ assert.equal(h.policyChangeRequestedByThisReport,false);
+ assert.equal(h.apparmorCausalityProven,false);
+ assert.equal(h.nativeCIWaived,false);
+ assert.equal(h.fullReleaseAuthorized,false);
+ const out=markdown(comparison());
+ assert.doesNotMatch(out,/classificação conjunta da inicialização ainda não sustenta revisão/);
+});

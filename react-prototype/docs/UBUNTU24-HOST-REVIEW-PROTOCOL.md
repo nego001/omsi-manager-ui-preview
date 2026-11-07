@@ -64,3 +64,16 @@ com janelas Xvfb mapeadas, seguem pendentes **prova independente do
 sandbox do renderizador, validação em sessões gráficas reais e
 autenticidade do pacote**. A lógica é apenas descritiva, não altera
 o status de bloqueio, não abre exceção de merge e não acessa o host.
+
+## Consistência obrigatória entre comparador e relatório humano
+
+O handoff V1 **não pode recomendar uma revisão de política por
+aplicativo só porque as sondas do host e os controles Electron coincidem**.
+Também exige que o comparador sanitizado V6 classifique o conjunto
+como `namespace-restriction-correlated-with-startup-failure`. Se a
+classificação conjunta for `inconclusive`, mesmo com todos os processos
+identificados e controle direto reportando SIGTRAP, o documento indica
+que falta revisar a divergência de inicialização. Nenhum status de
+causalidade, certificação ou release é inferido. Testes sintéticos cobrem
+a divergência entre etiquetas Xvfb e preservam a recomendação somente
+de revisão humana, nunca de aplicação automática.
