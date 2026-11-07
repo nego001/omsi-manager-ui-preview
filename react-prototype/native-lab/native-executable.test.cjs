@@ -38,11 +38,34 @@ async function syntheticTemp(){
 function tempEnv(parent){
  return {...process.env,TMP:parent,TEMP:parent};
 }
+// Node's default execFile rejection includes the FULL argument string
+// (temporary fixture path and nonce). Never put that rejection in CI logs.
+// Preserve only bounded public categories and the exact known refusal token.
+// The 15s fail-closed native timeout and all test assertions stay unchanged.
+function sanitizeNativeExecError(err){
+ const code=err&&typeof err.code==='number'&&Number.isSafeInteger(err.code)?
+  err.code:null;
+ const killed=err?.killed===true;
+ const failure=new Error(killed?'NATIVE_LAB_EXECUTION_TIMED_OUT':
+  'NATIVE_LAB_EXECUTION_FAILED');
+ failure.code=code;
+ failure.killed=killed;
+ failure.signal=err?.signal==='SIGTERM'?'SIGTERM':err?.signal==='SIGKILL'?'SIGKILL':null;
+ failure.stdout=err?.stdout===''?'':'NATIVE_LAB_STDOUT_REDACTED';
+ failure.stderr=typeof err?.stderr==='string'&&
+  err.stderr.trim()==='Temporary standalone native directory lab refused.'?
+  'Temporary standalone native directory lab refused.\n':'NATIVE_LAB_STDERR_REDACTED';
+ return failure;
+}
 async function invoke(f,extra=[],tempParent=null){
- return execAsync(exe,['--root',f.root,'--nonce',f.nonce,...extra],{
-  shell:false,windowsHide:true,timeout:15000,maxBuffer:4096,
-  ...(tempParent===null?{}:{env:tempEnv(tempParent)})
- });
+ try{
+  return await execAsync(exe,['--root',f.root,'--nonce',f.nonce,...extra],{
+   shell:false,windowsHide:true,timeout:15000,maxBuffer:4096,
+   ...(tempParent===null?{}:{env:tempEnv(tempParent)})
+  });
+ }catch(err){
+  throw sanitizeNativeExecError(err);
+ }
 }
 async function denied(f,extra=[],tempParent=null){
  await assert.rejects(invoke(f,extra,tempParent),err=>{
@@ -2123,4 +2146,45 @@ test('synthetic ledger refuses invalid nonce and duplicate witness creation',
    {code:'EEXIST'});
  }finally{await ledger.close();}
  assert.equal((await fs.readFile(join(f.root,MARKER),'utf8')),f.nonce);
+});
+
+test('failed native exec categorizes deadline without exposing fixture path or nonce',()=>{
+ const privateRoot='C:\\Private\\sensitive-recovery-fixture';
+ const secret='defc1bea246599a0eecb050f5460a857';
+ const failed=Object.assign(
+  new Error('Command failed: OmsiNativeDirectoryLab.exe --root '+privateRoot+' --nonce '+secret),
+  {code:'ETIMEDOUT',killed:true,signal:'SIGTERM',stdout:'private '+secret,stderr:'private '+privateRoot}
+ );
+ const clean=sanitizeNativeExecError(failed);
+ assert.equal(clean.message,'NATIVE_LAB_EXECUTION_TIMED_OUT');
+ assert.equal(clean.killed,true);
+ assert.equal(clean.signal,'SIGTERM');
+ assert.equal(clean.code,null);
+ assert.equal(clean.stdout,'NATIVE_LAB_STDOUT_REDACTED');
+ assert.equal(clean.stderr,'NATIVE_LAB_STDERR_REDACTED');
+ const visible=JSON.stringify({
+  message:clean.message,stack:clean.stack,code:clean.code,
+  stdout:clean.stdout,stderr:clean.stderr,signal:clean.signal
+ });
+ assert.equal(visible.includes(privateRoot),false);
+ assert.equal(visible.includes(secret),false);
+ assert.equal(visible.includes('Command failed'),false);
+});
+test('native refusal keeps only exact generic stderr and numeric exit, never raw output',()=>{
+ const f=sanitizeNativeExecError(Object.assign(new Error('private path'),{
+  code:3,killed:false,stderr:'Temporary standalone native directory lab refused.\r\n',
+  stdout:''
+ }));
+ assert.equal(f.message,'NATIVE_LAB_EXECUTION_FAILED');
+ assert.equal(f.code,3);
+ assert.equal(f.stderr,'Temporary standalone native directory lab refused.\n');
+ assert.equal(f.stdout,'');
+ const falseRefusal=sanitizeNativeExecError(Object.assign(new Error('secret'),{
+  code:13,stderr:'Temporary standalone native directory lab refused. secret data',
+  stdout:'secret data'
+ }));
+ assert.equal(falseRefusal.code,13);
+ assert.equal(falseRefusal.stderr,'NATIVE_LAB_STDERR_REDACTED');
+ assert.equal(falseRefusal.stdout,'NATIVE_LAB_STDOUT_REDACTED');
+ assert.equal(JSON.stringify(falseRefusal).includes('secret data'),false);
 });

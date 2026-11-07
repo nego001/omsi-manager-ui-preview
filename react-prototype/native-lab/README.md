@@ -932,3 +932,24 @@ O novo `synthetic-linux-principal-lab.py` testa em **runner GitHub Actions desca
 O **socket de laboratório** é intencionalmente acessível para conexão por ambos os clientes, a fim de testar recusa na validação de credencial do kernel. Isso **não** constitui uma recomendação de socket público para implantação. O orquestrador requer declaração explícita `github-hosted`, `GITHUB_ACTIONS=true` e `RUNNER_TEMP`; ele recusa a execução administrativa em computadores pessoais e runners self-hosted. A fixture de laboratório usa uma subpasta aleatória de `/tmp` na VM hospedada, porque o `RUNNER_TEMP` privado não pode ser atravessado por outros UIDs. A pasta da chave permanece `0700` e o arquivo `0600`. As contas criadas são removidas no encerramento. Nenhum pacote, usuário, serviço ou permissão é instalado no computador do usuário; somente a VM efêmera da CI recebe essas fixtures.
 
 O teste **não implementa serviço real**, não guarda a chave do gerenciador, não mexe em jogos e não valida tokens do Windows, grupos/ACLs de produção, sandbox ou proteção contra administradores/root. Consulte `SERVICE_ISOLATION_THREAT_MODEL.md` para as condições de segurança pendentes. Na PR, as operações com mods reais permanecem desativadas e nenhum código desse laboratório entra no Electron.
+
+## Proteção dos logs quando o executável de teste falha
+
+Um erro padrão de `execFile` inclui os parâmetros da chamada,
+incluindo o caminho da pasta temporária e o nonce da fixture. Isso
+foi observado num teste de Windows que encerrou após ~15 segundos na
+run #42384796729, apesar de o mesmo job ter passado na execução
+gêmea. O laboratório agora substitui o erro não tratado por códigos
+genéricos e informação restrita: categoria de timeout versus falha,
+código de saída numérico quando existente, sinal de término de
+lista fixa, stderr de recusa **somente** se coincidir exatamente
+com a mensagem pública esperada; quaisquer stdout/stderr inesperados
+são ocultados.
+
+O timeout de 15 segundos e o limite de saída de 4096 bytes
+**não foram aumentados**. Falhas continuam a reprovar o job, e
+asserções de recusa mantêm os códigos 3/4/13 exigidos.
+Dois testes de contrato injetam strings particulares e verificam
+que nem mensagens nem serializações de erro divulgam argumentos.
+Essa medida não diagnostica a causa do atraso nem certifica o
+executável sob um host adversarial.
