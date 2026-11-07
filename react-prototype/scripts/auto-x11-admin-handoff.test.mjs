@@ -150,13 +150,13 @@ test('human handoff is readable but does not upgrade blocked Ubuntu24',()=>{
  assert.match(out,/Solicitar revisão independente com administrador/);
  assert.match(out,/sem prova causal do AppArmor/);
  assert.match(out,/sem autorização de release/);
- assert.match(out,/Namespace não privilegiado no Ubuntu 24\\.04:\\*\\* permissão negada/);
- assert.match(out,/Restrição AppArmor de user namespaces no Ubuntu 24\\.04:\\*\\* restrição ativa/);
- assert.match(out,/Controle Electron direto SIGTRAP observado nas duas etiquetas:\\*\\* sim/);
+ assert.match(out,/Namespace não privilegiado no Ubuntu 24\.04:\*\* permissão negada/);
+ assert.match(out,/Restrição AppArmor de user namespaces no Ubuntu 24\.04:\*\* restrição ativa/);
+ assert.match(out,/Controle Electron direto SIGTRAP observado nas duas etiquetas:\*\* sim/);
  assert.match(out,/Condições obrigatórias para revisão humana/);
- assert.match(out,/A\\/B\\/A do mesmo artefato/);
+ assert.match(out,/A\/B\/A do mesmo artefato/);
  assert.match(out,/nova CI obrigatória completa/);
- assert.doesNotMatch(out,/sudo |sysctl -w|echo 0 \\||chmod 4755/);
+ assert.doesNotMatch(out,/sudo |sysctl -w|echo 0 \||chmod 4755/);
  assert.doesNotMatch(out,/\/home\/|\/proc\/|--no-sandbox|habilitar globalmente/i);
  assert.equal(out.endsWith('\n'),true);
  assert.equal(out.length<4096,true);
@@ -167,7 +167,7 @@ test('partial Auto identity demands collection before any policy pilot',()=>{
  assert.match(out,/dados insuficientes/);
  assert.match(out,/não confirmada/);
  assert.match(out,/Coletar evidências ausentes do launcher Auto/);
- assert.match(out,/Controle Electron direto SIGTRAP observado nas duas etiquetas:\\*\\* sim/);
+ assert.match(out,/Controle Electron direto SIGTRAP observado nas duas etiquetas:\*\* sim/);
  assert.doesNotMatch(out,/Solicitar revisão independente com administrador/);
 });
 test('mapped windows cannot imply release approval or renderer certification',()=>{
