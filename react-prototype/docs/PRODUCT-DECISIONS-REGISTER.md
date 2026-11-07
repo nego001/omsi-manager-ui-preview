@@ -521,3 +521,23 @@ estejam ativos. Ao importar novo catálogo ou restaurar a demonstração,
 o filtro é zerado. Botões, chips e Limpar filtros são reversíveis.
 Três testes Playwright sintéticos cobrem teclado, tela 390px, filtros
 combinados, retorno de Detalhes e reinicialização ao importar JSON.
+
+### Índice de referências recebidas (consulta em passagem única)
+
+Para os catálogos JSON validáveis de até 200 mods (até 20 referências
+por lista), a Biblioteca deixou de procurar `requires` e
+`conflictsWith` em todos os registros **para cada favorito**.
+O novo `indexIncomingDeclaredRelations` cria o índice uma vez
+a partir dos registros e de suas arestas declaradas. Detalhes,
+contagens, filtros e ordenação reutilizam o mesmo índice.
+
+A ordem de origem do catálogo, o sentido da declaração,
+a detecção estritamente declarativa de reciprocidade,
+os avisos entre jogos e os alvos ausentes/autorreferências
+preservam a semântica anterior. O algoritmo continua
+somente em memória sobre metadados JSON, sem leitura
+dos diretórios dos jogos. Testes de contrato confrontam
+as consultas, preservação de ordem, IDs inexistentes e
+um catálogo sintético válido com 200 registros e 4.000
+arestas diretas declaradas. O ganho é redução do trabalho
+repetido, não homologação de desempenho em máquinas reais.

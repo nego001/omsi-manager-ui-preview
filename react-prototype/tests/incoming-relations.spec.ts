@@ -2,7 +2,7 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {parseCatalogManifest} from '../src/catalog';
-import {collectIncomingDeclaredRelations as incoming} from '../src/incoming-relations';
+import {collectIncomingDeclaredRelations as incoming,indexIncomingDeclaredRelations as indexIncoming} from '../src/incoming-relations';
 const example=readFileSync(resolve('examples/catalog.dependencies.example.json'),'utf8');
 const parsed=parseCatalogManifest(example);
 const panel=(page:Page)=>page.getByRole('region',{name:'Referências recebidas no catálogo'});
@@ -115,4 +115,51 @@ test('reciprocal conflict and cross-game warnings remain readable at 390px',asyn
  await expect(section.locator('li').first()).toContainText('Referência entre jogos diferentes · somente JSON');
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('single index matches direct lookup, including cycles, missing IDs, cross-game and reciprocity',()=>{
+ const exampleIndex=indexIncoming(parsed);
+ expect([...exampleIndex.keys()]).toEqual(parsed.map(mod=>mod.id));
+ for(const mod of parsed)expect(exampleIndex.get(mod.id)).toEqual(incoming(parsed,mod.id));
+ expect(exampleIndex.get('nonexistent')).toBeUndefined();
+ const fixture=parseCatalogManifest(JSON.stringify({schemaVersion:1,mods:[
+  {id:'target',title:'Alvo',game:'omsi',category:'Ônibus',version:'1',description:'Demo',size:'1 MB',
+   requires:['target'],conflictsWith:['source']},
+  {id:'source',title:'Outro jogo',game:'ats',category:'Sons',version:'1',description:'Demo',size:'1 MB',
+   requires:['target','missing'],conflictsWith:['target']},
+  {id:'silent',title:'Sem arestas',game:'omsi',category:'Gráficos',version:'1',description:'Demo',size:'1 MB'}
+ ]}));
+ const byId=indexIncoming(fixture);
+ expect(byId.get('target')?.requiredBy.map(x=>[x.id,x.differentGame])).toEqual([['source',true]]);
+ expect(byId.get('target')?.conflictDeclaredBy.map(x=>[x.id,x.reciprocalDeclaration]))
+  .toEqual([['source',true]]);
+ expect(byId.get('silent')?.requiredBy).toEqual([]);
+ expect(byId.get('silent')?.conflictDeclaredBy).toEqual([]);
+ expect(byId.size).toBe(3);
+ expect(byId.get('target')?.realInstallationVerified).toBe(false);
+});
+test('index preserves source catalog order instead of grouping by reference target',()=>{
+ const parsedSource=parseCatalogManifest(JSON.stringify({schemaVersion:1,mods:[
+  {id:'z',title:'Z',game:'omsi',category:'Sons',version:'1',description:'D',size:'1 MB',requires:['base'],conflictsWith:['base']},
+  {id:'base',title:'Base',game:'omsi',category:'Sons',version:'1',description:'D',size:'1 MB'},
+  {id:'a',title:'A',game:'omsi',category:'Sons',version:'1',description:'D',size:'1 MB',requires:['base'],conflictsWith:['base']}
+ ]}));
+ const indexed=indexIncoming(parsedSource).get('base');
+ expect(indexed?.requiredBy.map(mod=>mod.id)).toEqual(['z','a']);
+ expect(indexed?.conflictDeclaredBy.map(mod=>mod.id)).toEqual(['z','a']);
+ expect(indexed?.conflictDeclaredBy.every(mod=>mod.reciprocalDeclaration===false)).toBe(true);
+});
+test('index handles 200 validated catalog entries and 4000 declared edges without duplicate or missing targets',()=>{
+ const mods=Array.from({length:200},(_,i)=>({
+  id:'mod-'+i,title:'Registro '+i,game:'omsi',category:'Sons',
+  version:'1',description:'Dados fictícios',size:'1 MB',
+  requires:Array.from({length:20},(_,j)=>'mod-'+((i+j+1)%200))
+ }));
+ const catalog=parseCatalogManifest(JSON.stringify({schemaVersion:1,mods}));
+ const index=indexIncoming(catalog);
+ expect(index.size).toBe(200);
+ expect([...index.values()].reduce((count,x)=>count+x.requiredBy.length,0)).toBe(4000);
+ expect(index.get('mod-0')?.requiredBy).toHaveLength(20);
+ expect(index.get('mod-0')?.requiredBy.every(x=>x.id!=='mod-0')).toBe(true);
+ expect([...index.values()].every(x=>x.realInstallationVerified===false)).toBe(true);
 });

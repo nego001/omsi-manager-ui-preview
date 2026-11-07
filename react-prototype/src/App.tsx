@@ -12,7 +12,7 @@ import {parseDeclaredSessionReview,compareReviewedDeclaredReports,serializeRevie
 import {parseDeclaredComparisonReview,type ReviewedComparisonFile} from './session-comparison-review';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
-import {collectIncomingDeclaredRelations} from './incoming-relations';
+import {collectIncomingDeclaredRelations,indexIncomingDeclaredRelations} from './incoming-relations';
 import {consolidateDiagnostic} from './diagnostic-report';
 import SyntheticDiagnosticPreview from './SyntheticDiagnosticPreview';
 import SyntheticGateLab from './SyntheticGateLab';
@@ -194,12 +194,11 @@ export default function App(){
  const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
- const incomingRelations=useMemo(()=>collectIncomingDeclaredRelations(catalogMods,selected.id),[catalogMods,selected.id]);
- // Read-only reverse-reference summaries across the entire validated catalog,
- // not just favorites and never actual installed package relationships.
- const incomingById=useMemo(()=>new Map(catalogMods.map(mod=>[
-  mod.id,collectIncomingDeclaredRelations(catalogMods,mod.id)
- ])),[catalogMods]);
+ // Build a single index of direct incoming edges for the whole JSON catalog.
+ // The selected record, Library cards, filters and sort share that same index.
+ const incomingById=useMemo(()=>indexIncomingDeclaredRelations(catalogMods),[catalogMods]);
+ const incomingRelations=incomingById.get(selected.id)??
+  collectIncomingDeclaredRelations(catalogMods,selected.id);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>{
   // Exact target ID for a dependency jump; editing the query restores fuzzy search.
