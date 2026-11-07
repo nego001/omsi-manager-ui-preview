@@ -25,7 +25,8 @@ type Screen='home'|'games'|'catalog'|'library'|'details'|'queue'|'history'|'sett
 type Category='Todos'|'Ônibus'|'Mapas'|'Caminhões'|'Sons'|'Gráficos';
 type Mod=CatalogMod;
 type DependencyLookupContext={
- sourceId:string;sourceTitle:string;origin:'home'|'catalog'|'library';
+ sourceId:string;sourceTitle:string;targetId:string;
+ origin:'home'|'catalog'|'library';
  hypotheticalVersion:string;
  previousGame:GameId|'all';previousCategory:Category;
  previousSearch:string;previousSort:'catalog'|'title'|'game';
@@ -193,10 +194,12 @@ export default function App(){
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>{
+  // Exact target ID for a dependency jump; editing the query restores fuzzy search.
+  const targetId=dependencyLookup?.targetId===search?dependencyLookup.targetId:null;
   const matching=catalogMods.filter(m=>
    (selectedGame==='all'||m.game===selectedGame)&&
    (category==='Todos'||m.category===category)&&
-   matchesCatalogSearch(m,games[m.game].title,search));
+   (targetId!==null?m.id===targetId:matchesCatalogSearch(m,games[m.game].title,search)));
   if(catalogSort==='catalog')return matching;
   if(catalogSort==='title')return [...matching].sort((a,b)=>
    a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id));
@@ -204,7 +207,7 @@ export default function App(){
   return [...matching].sort((a,b)=>
    order[a.game]-order[b.game]||
    a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id));
- },[catalogMods,selectedGame,category,search,catalogSort]);
+ },[catalogMods,selectedGame,category,search,catalogSort,dependencyLookup]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
  const activeBatch=useMemo(()=>batchSelected.filter(id=>
   favorites.includes(id)&&catalogMods.some(m=>m.id===id)),[batchSelected,favorites,catalogMods]);
@@ -477,7 +480,7 @@ export default function App(){
   // Only local validated catalog records, never actual installed files.
   if(!catalogMods.some(mod=>mod.id===modId))return;
   setDependencyLookup({
-   sourceId:selected.id,sourceTitle:selected.title,origin:detailOrigin,
+   sourceId:selected.id,sourceTitle:selected.title,targetId:modId,origin:detailOrigin,
    hypotheticalVersion:hypotheticalGameVersion,
    previousGame:selectedGame,previousCategory:category,
    previousSearch:search,previousSort:catalogSort
@@ -664,6 +667,10 @@ export default function App(){
    <p>Você veio do diagnóstico de <b>{dependencyLookup.sourceTitle}</b>.
     A pesquisa foi ajustada para localizar um registro do catálogo, sem
     verificar arquivos nem instalações.</p>
+   {search===dependencyLookup.targetId&&<small className="catalog-lookup-exact" role="status">
+    Correspondência exata do ID declarado: <strong>{dependencyLookup.targetId}</strong>.
+    Edite a pesquisa para voltar à busca comum.
+   </small>}
   </div>
   <div className="catalog-dependency-return-actions">
    <button type="button" className="btn secondary"

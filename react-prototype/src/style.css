@@ -1174,3 +1174,8 @@
 .catalog-dependency-return-actions .btn{min-height:44px;white-space:normal;text-align:center}
 @media(max-width:540px){.catalog-dependency-return-actions{width:100%;flex-direction:column}
  .catalog-dependency-return-actions .btn{width:100%}}
+
+/* Unique declared-ID lookup differs from ordinary substring search. */
+.catalog-lookup-exact{display:block;margin-top:8px;font-size:11px;line-height:1.6;
+ color:#d4e8ff;overflow-wrap:anywhere}
+.catalog-lookup-exact strong{color:#f6faff;word-break:break-word}

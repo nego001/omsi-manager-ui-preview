@@ -436,3 +436,17 @@ instalações, pacotes, nem leem arquivos locais. Importar um JSON válido ou
 restaurar a demonstração invalida o contexto para impedir retorno a
 IDs de um catálogo antigo. Três testes Playwright exercitam ida e volta,
 teclado em 390px e descarte de contexto em troca de catálogo.
+
+### Localização de dependência por ID exato (sem colisões por prefixo)
+
+O atalho "Localizar ID no Catálogo" ativa uma correspondência
+**exata** enquanto o campo contém o mesmo ID de destino declarado.
+Assim, `dep` não traz automaticamente `dep-extra`. O aviso no
+contexto indica quando o ID exato está ativo. Ao editar a
+pesquisa, o usuário volta ao comportamento normal de termos e
+substrings; ao digitar novamente o ID exato, o alvo é isolado.
+Retornar ao diagnóstico, cancelar a consulta ou trocar o catálogo
+remove o contexto. A verificação é apenas no JSON validado,
+nunca em arquivos reais, versões instaladas ou compatibilidade.
+Três testes Playwright cobrem colisão de prefixo, alternância
+de modo, retorno, teclado e viewport 390 px.
