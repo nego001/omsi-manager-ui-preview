@@ -138,6 +138,18 @@ export function renderX11AdminHandoffMarkdown(comparison){
   'sigtrap-no-cmdline':'SIGTRAP, identidade não confirmada',
   'other-result':'outro resultado; não é aprovação'
  };
+ const hostNamespace={
+  'allowed':'permitida no teste independente',
+  'permission-denied':'permissão negada no teste independente',
+  'unavailable':'teste indisponível',
+  'unknown':'sem informação suficiente'
+ };
+ const hostApparmor={
+  'enabled':'restrição ativa',
+  'disabled':'restrição desativada',
+  'unavailable':'indisponível',
+  'unknown':'não determinada'
+ };
  const next={
   'request-independent-app-specific-policy-review-on-approved-disposable-host':
    'Solicitar revisão independente com administrador em host descartável autorizado, sem aplicar política automaticamente.',
@@ -168,10 +180,24 @@ export function renderX11AdminHandoffMarkdown(comparison){
   '',
   '**Cobertura de identidade Auto:** '+h.autoIdentityCoverage,
   '',
+  '**Namespace não privilegiado no Ubuntu 24.04:** '+hostNamespace[h.ubuntu24UserNamespaceProbe],
+  '',
+  '**Restrição AppArmor de user namespaces no Ubuntu 24.04:** '+hostApparmor[h.ubuntu24ApparmorRestriction],
+  '',
+  '**Controle Electron direto SIGTRAP observado nas duas etiquetas:** '+(h.directElectronSigtrapWitnessComplete?'sim':'não comprovado'),
+  '',
   '**Evidência correlacionada, sem prova de causalidade:** '+
    (h.startupCorrelationObserved?'observada':'não estabelecida'),
   '',
   '**Próximo passo:** '+next[h.recommendedNextStep],
+  '',
+  '### Condições obrigatórias para revisão humana',
+  '',
+  '- [ ] Confirmar consentimento administrativo em host descartável e caminho de rollback antes de qualquer proposta de política específica do aplicativo.',
+  '- [ ] Registrar A/B/A do mesmo artefato com estados de namespace e testemunhas de ambos os processos. Resultado favorável não prova causalidade.',
+  '- [ ] Verificar separadamente o sandbox do renderizador e a integridade da distribuição, sem confiar no estado inicial do processo principal.',
+  '- [ ] Validar janelas reais nos ambientes GNOME e KDE; Xvfb sozinho não é homologação de desktop.',
+  '- [ ] Exigir nova CI obrigatória completa, incluindo Ubuntu 24.04, antes de qualquer decisão de merge ou distribuição.',
   '',
   '> GNOME e KDE são etiquetas simuladas no Xvfb, não sessões reais. O estado inicial do processo principal não atesta o sandbox do renderizador.',
   '',
