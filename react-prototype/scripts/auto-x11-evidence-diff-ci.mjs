@@ -1,12 +1,14 @@
 // GitHub Actions only: compare two exact same-workflow diagnostic artifacts.
 // Do not read arbitrary paths or print artifact contents. No policy edits.
-import {open,mkdir,writeFile} from 'node:fs/promises';
+import {open,mkdir,writeFile,lstat} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {resolve} from 'node:path';
 import {parseSanitizedX11Record,compareSanitizedX11Records}
  from './auto-x11-evidence-diff.mjs';
 import {createX11AdminHandoff,renderX11AdminHandoffMarkdown}
  from './auto-x11-admin-handoff.mjs';
+import {verifyX11HandoffOutputs}
+ from './auto-x11-handoff-output-integrity.mjs';
 if(process.platform!=='linux'||process.getuid?.()===0||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
  throw Error('AUTO_X11_CROSS_RUNNER_CI_ONLY');
@@ -39,6 +41,32 @@ await writeFile('x11-diff-output/admin-handoff.json',
 await writeFile('x11-diff-output/admin-handoff.md',
  renderX11AdminHandoffMarkdown(comparison),
  {encoding:'utf8',flag:'wx',mode:0o600});
+// Read back the three real files before saying the CI output is ready.
+// No arbitrary filenames, no symlinks, no privileged changes, no raw output.
+const outputDir=await lstat('x11-diff-output');
+if(!outputDir.isDirectory()||outputDir.isSymbolicLink()||
+ (outputDir.mode&0o077)!==0)throw Error('AUTO_X11_HANDOFF_OUTPUT_REFUSED');
+async function readProduced(name){
+ let handle;
+ try{
+  handle=await open(resolve('x11-diff-output',name),
+   constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
+  const stats=await handle.stat();
+  if(!stats.isFile()||stats.size<=0||stats.size>8192||
+   (stats.mode&0o777)!==0o600)throw Error('AUTO_X11_HANDOFF_OUTPUT_REFUSED');
+  const content=await handle.readFile({encoding:'utf8'});
+  if(Buffer.byteLength(content,'utf8')!==stats.size)
+   throw Error('AUTO_X11_HANDOFF_OUTPUT_REFUSED');
+  return content;
+ }catch{throw Error('AUTO_X11_HANDOFF_OUTPUT_REFUSED');}
+ finally{await handle?.close();}
+}
+const verified=verifyX11HandoffOutputs(comparison,{
+ comparisonJson:await readProduced('host-comparison.json'),
+ handoffJson:await readProduced('admin-handoff.json'),
+ handoffMarkdown:await readProduced('admin-handoff.md')
+});
+console.log('AUTO_X11_HANDOFF_OUTPUT_INTEGRITY',JSON.stringify(verified));
 console.log('AUTO_X11_CROSS_RUNNER_READY',JSON.stringify(comparison));
 console.log('AUTO_X11_ADMIN_HANDOFF_READY',JSON.stringify({
  schema:handoff.schema,status:handoff.status,

@@ -93,3 +93,21 @@ Uma categoria não comprova causalidade nem certifica sandbox. Nenhuma
 categoria autoriza alteração da política do host, instalação de mods,
 merge, exceção de CI ou lançamento. Testes sintéticos verificam que
 todas as categorias presentes no JSON aparecem no Markdown correspondente.
+
+## Auditoria de integridade dos três arquivos publicados
+
+A comparação de CI agora confirma, **após escrita no disco**, a igualdade
+exata dos bytes dos três arquivos com o resultado sanitizado que a própria
+execução acabou de produzir: `host-comparison.json`, `admin-handoff.json`
+e `admin-handoff.md`. A verificação usa nomes fixos, recusa links
+simbólicos e modos de arquivo inesperados, exige limites de tamanho
+e falha se dados estruturados ou redação do relatório forem alterados,
+truncados, estiverem desatualizados ou contiverem campos adicionais.
+A CI não publica o sinal de prontidão se essa leitura de volta falhar.
+
+O verificador não opera sobre diretórios de jogos, não inspeciona mods,
+não modifica políticas do host e não prova autenticidade de pacotes,
+causalidade AppArmor ou sandbox do renderizador. Testes sintéticos
+tentam injetar falsas aprovações, remover pendências, alterar a formatação
+e misturar evidências de execuções diferentes. O workflow exige a
+execução do contrato tanto no build quanto no job comparador.

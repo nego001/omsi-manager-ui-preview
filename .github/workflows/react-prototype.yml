@@ -98,6 +98,8 @@ jobs:
         run: node --test scripts/auto-x11-evidence-diff.test.mjs
       - name: Read-only operator handoff refusal contracts
         run: node --test scripts/auto-x11-admin-handoff.test.mjs
+      - name: Cross-runner output parity contracts (synthetic only)
+        run: node --test scripts/auto-x11-handoff-output-integrity.test.mjs
       - name: Controlled Ubuntu 24.04 administrator pilot comparison (synthetic only)
         run: node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs
       - name: Controlled Ubuntu 24.04 A-B-A rollback comparison (synthetic only)
@@ -229,6 +231,8 @@ jobs:
         run: node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs
       - name: Validate read-only operator handoff contracts (synthetic only)
         run: node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs
+      - name: Validate actual output parity contract (synthetic only)
+        run: node --test react-prototype/scripts/auto-x11-handoff-output-integrity.test.mjs
       - uses: actions/download-artifact@v4
         with:
           name: native-x11-evidence-ubuntu-22.04

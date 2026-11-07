@@ -216,3 +216,14 @@ test('operator handoff tests and artifact upload stay mandatory in guarded workf
    /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });
+
+test('cross-runner output parity tests must remain in build and comparison jobs',()=>{
+ const build='node --test scripts/auto-x11-handoff-output-integrity.test.mjs';
+ const compare='node --test react-prototype/scripts/auto-x11-handoff-output-integrity.test.mjs';
+ assert.ok(original.includes(build));
+ assert.ok(original.includes(compare));
+ for(const cmd of [build,compare]){
+  assert.throws(()=>verify(original.replace(cmd,'echo parity-check-skipped')),
+   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
+});
