@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "mods": [
+    {
+      "id": "omsi-example-bus-1721",
+      "title": "Ônibus urbano OF-1721",
+      "game": "omsi",
+      "category": "Ônibus",
+      "version": "1.0.0",
+      "description": "Registro de exemplo importado. Nenhum veículo ou arquivo real está incluído.",
+      "size": "225 MB"
+    },
+    {
+      "id": "ets2-example-engine",
+      "title": "Pacote de som de motor",
+      "game": "ets2",
+      "category": "Sons",
+      "version": "2.1",
+      "description": "Exemplo para testar filtros ETS2 e informações de mod.",
+      "size": "88 MB"
+    },
+    {
+      "id": "ats-example-map",
+      "title": "Mapa rodoviário demonstrativo",
+      "game": "ats",
+      "category": "Mapas",
+      "version": "0.4",
+      "description": "Exemplo de manifesto apenas com metadados, sem conteúdo do jogo.",
+      "size": "600 MB"
+    }
+  ]
+}

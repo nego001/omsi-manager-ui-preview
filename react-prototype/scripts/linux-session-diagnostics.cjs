@@ -1,0 +1,195 @@
+'use strict';
+// Opt-in, read-only Linux session diagnostics for the unsigned preview.
+// Reports coarse states only: never print paths, PIDs, filenames, usernames,
+// environment dumps, or the output of a D-Bus command.
+const fs=require('node:fs/promises');
+const path=require('node:path');
+const {spawnSync}=require('node:child_process');
+
+const NAME='omsi-manager-linux-session-diagnostics';
+const statuses=Object.freeze(['available','not-configured','invalid-location','unsafe-runtime','missing','not-a-socket','inaccessible']);
+function safeSocketName(value){
+ return typeof value==='string'&&value.length>0&&value.length<=108&&
+  /^(?!\.\.?$)[A-Za-z0-9_.-]+$/.test(value);
+}
+function chooseSocket(runtime,display){
+ if(typeof runtime!=='string'||!path.isAbsolute(runtime)||runtime===path.parse(runtime).root||
+    /[\u0000-\u001f\u007f]/u.test(runtime))return null;
+ if(typeof display!=='string'||display==='')return {status:'not-configured'};
+ // Wayland permits absolute socket names. Inspect only a direct child of
+ // the declared XDG runtime directory, never an arbitrary user path.
+ const name=path.isAbsolute(display)
+  ? (path.dirname(display)===runtime?path.basename(display):null)
+  : display;
+ if(!safeSocketName(name))return {status:'invalid-location'};
+ return {socket:path.join(runtime,name)};
+}
+async function inspectSocket(env=process.env,{lstat=fs.lstat,getuid=process.getuid?.bind(process)}={}){
+ const runtime=env.XDG_RUNTIME_DIR;
+ const choice=chooseSocket(runtime,env.WAYLAND_DISPLAY);
+ if(!choice)return 'invalid-location';
+ if(choice.status)return choice.status;
+ try{
+  const stat=await lstat(runtime);
+  if(!stat.isDirectory()||stat.isSymbolicLink()||(stat.mode&0o077)!==0||
+    (typeof getuid==='function'&&stat.uid!==getuid()))return 'unsafe-runtime';
+ }catch{return 'inaccessible';}
+ try{
+  const sock=await lstat(choice.socket);
+  if(sock.isSymbolicLink()||!sock.isSocket())return 'not-a-socket';
+  if(typeof getuid==='function'&&sock.uid!==getuid())return 'inaccessible';
+  return 'available';
+ }catch(error){return error?.code==='ENOENT'?'missing':'inaccessible';}
+}
+// Read only three fixed /proc switches. Values are reduced to known categories
+// and cannot echo arbitrary kernel text, paths, usernames or environment data.
+// These hints do not execute unshare() or certify Electron's OS sandbox.
+async function probeElectronUserNamespacePrerequisites(read=fs.readFile){
+ async function readSwitch(file){
+  try{
+   const value=await read(file,'utf8');
+   if(typeof value!=='string'||value.length>32)return 'unknown';
+   const normalized=value.trim();
+   return normalized==='1'?'enabled':normalized==='0'?'disabled':'unknown';
+  }catch{return 'unavailable';}
+ }
+ async function readCapacity(){
+  try{
+   const value=await read('/proc/sys/user/max_user_namespaces','utf8');
+   if(typeof value!=='string'||value.length>32)return 'unknown';
+   const normalized=value.trim();
+   if(!/^[0-9]{1,18}$/.test(normalized))return 'unknown';
+   return BigInt(normalized)===0n?'zero':'positive';
+  }catch{return 'unavailable';}
+ }
+ const [apparmor,userns,capacity]=await Promise.all([
+  readSwitch('/proc/sys/kernel/apparmor_restrict_unprivileged_userns'),
+  readSwitch('/proc/sys/kernel/unprivileged_userns_clone'),
+  readCapacity()
+ ]);
+ const restriction=apparmor==='enabled'||userns==='disabled'||capacity==='zero';
+ const clear=apparmor==='disabled'&&userns==='enabled'&&capacity==='positive';
+ return {
+  apparmorUsernsRestriction:apparmor,
+  unprivilegedUsernsSwitch:userns,
+  usernsCapacity:capacity,
+  userNamespacePolicyHint:restriction?'restriction-indicated':
+   clear?'no-obvious-restriction':'undetermined',
+  userNamespaceCreationVerified:false,
+  electronSandboxVerified:false,
+  hostSecurityPolicyChanged:false
+ };
+}
+
+function probePortalName(){
+ // NameHasOwner queries the existing session bus; it does not activate the
+ // portal or open a chooser. A registered name is NOT a FileChooser test.
+ try{
+  const cmd=spawnSync('dbus-send',[
+   '--session','--type=method_call','--print-reply',
+   '--dest=org.freedesktop.DBus','/org/freedesktop/DBus',
+   'org.freedesktop.DBus.NameHasOwner','string:org.freedesktop.portal.Desktop'
+  ],{encoding:'utf8',timeout:2000,maxBuffer:4096,windowsHide:true});
+  if(cmd.status!==0||typeof cmd.stdout!=='string')return 'unknown';
+  if(/\bboolean true\b/u.test(cmd.stdout))return 'registered';
+  if(/\bboolean false\b/u.test(cmd.stdout))return 'not-running';
+ }catch{}
+ return 'unknown';
+}
+
+function parseFileChooserVersion(output){
+ if(typeof output!=='string'||output.length>4096)return null;
+ // dbus-send Properties.Get returns one variant containing an unsigned
+ // 32-bit version. Reject absent, ambiguous or implausible values.
+ const matches=[...output.matchAll(/^[ \t]*variant[ \t]+uint32[ \t]+([0-9]{1,3})[ \t]*$/gmu)];
+ if(matches.length!==1)return null;
+ const number=Number(matches[0][1]);
+ return Number.isInteger(number)&&number>=1&&number<=999?number:null;
+}
+function probeFileChooserVersion(run=spawnSync){
+ // Called only after NameHasOwner returned true. Properties.Get inspects a
+ // passive interface property; it does not invoke OpenFile/SaveFile.
+ try{
+  const cmd=run('dbus-send',[
+   '--session','--type=method_call','--print-reply',
+   '--dest=org.freedesktop.portal.Desktop','/org/freedesktop/portal/desktop',
+   'org.freedesktop.DBus.Properties.Get',
+   'string:org.freedesktop.portal.FileChooser','string:version'
+  ],{encoding:'utf8',timeout:2000,maxBuffer:4096,windowsHide:true});
+  if(cmd.status!==0||typeof cmd.stdout!=='string')return null;
+  return parseFileChooserVersion(cmd.stdout);
+ }catch{return null;}
+}
+
+// Explain host hints without executing Electron, attempting namespace creation,
+// changing AppArmor or diagnosing a real user-specific launch failure.
+function classifyElectronStartupRisk(report){
+ const hint=report&&typeof report==='object'&&!Array.isArray(report)
+  ?report.userNamespacePolicyHint:null;
+ const category=hint==='restriction-indicated'?'host-policy-restriction-indicated'
+  :hint==='no-obvious-restriction'?'no-obvious-host-restriction':'undetermined';
+ return Object.freeze({
+  category,
+  nextAction:category==='host-policy-restriction-indicated'
+   ?'review-read-only-findings-with-system-administrator'
+   :'verify-native-window-with-strict-sandbox',
+  electronLaunchVerified:false,
+  apparmorCausalityProven:false,
+  securityBypassSuggested:false,
+  hostPolicyChanged:false
+ });
+}
+
+// Do not report raw XDG_CURRENT_DESKTOP values; they can contain private text.
+// Accept one recognized family only; conflicting tokens are never attributed
+// to a tested compositor. The environment alone is NOT a compatibility proof.
+function detectDesktop(value){
+ if(typeof value!=='string'||value.length>256)return 'unknown';
+ const tokens=value.toLowerCase().split(':').map(x=>x.trim());
+ const hits=new Set();
+ for(const token of tokens){
+  if(token==='hyprland')hits.add('hyprland');
+  else if(token==='kde'||token==='plasma')hits.add('kde');
+  else if(token==='gnome'||token==='gnome-classic')hits.add('gnome');
+ }
+ if(hits.size>1)return 'ambiguous';
+ return hits.values().next().value||'unknown';
+}
+async function diagnose(env=process.env,{platform=process.platform,portalProbe=probePortalName,inspect=inspectSocket,fileChooserProbe=probeFileChooserVersion,sandboxProbe=probeElectronUserNamespacePrerequisites}={}){
+ if(platform!=='linux')return {name:NAME,scope:'read-only',supported:false};
+ const kind=String(env.XDG_SESSION_TYPE||'').toLowerCase();
+ const session=['wayland','x11','tty'].includes(kind)?kind:'unknown';
+ const desktop=detectDesktop(env.XDG_CURRENT_DESKTOP);
+ const portal=portalProbe();
+ const portalState=['registered','not-running','unknown'].includes(portal)?portal:'unknown';
+ // Do not make a Properties.Get call if no portal service owns the name.
+ const reportedVersion=portalState==='registered'?fileChooserProbe():null;
+ const chooserVersion=Number.isInteger(reportedVersion)&&reportedVersion>=1&&reportedVersion<=999
+  ?reportedVersion:null;
+ const socketState=session==='wayland'?await inspect(env):'not-applicable';
+ const electronPrerequisites=await sandboxProbe();
+ return {
+  name:NAME,scope:'read-only',supported:true,
+  session,desktopFamily:desktop,
+  hyprlandReported:desktop==='hyprland',
+  kdeReported:desktop==='kde',
+  gnomeReported:desktop==='gnome',
+  nativeWaylandRequested:env.OMSI_MANAGER_NATIVE_WAYLAND==='1',
+  waylandSocket:socketState==='not-applicable'?'not-applicable':(statuses.includes(socketState)?socketState:'inaccessible'),
+  portalService:portalState,
+  portalFileChooserInterface:chooserVersion===null?'unknown':'advertised',
+  portalFileChooserVersion:chooserVersion,
+  portalPickerVerified:false,
+  hyprlandCompatibilityVerified:false,
+  electronUserNamespacePrerequisites:electronPrerequisites,
+  electronStartupRisk:classifyElectronStartupRisk(electronPrerequisites),
+  note:'An advertised FileChooser interface is not proof that the graphical picker works in Hyprland, KDE or GNOME.'
+ };
+}
+async function main(argv=process.argv.slice(2)){
+ if(argv.length!==0){process.stderr.write('Usage: node OMSI-Manager-Linux-Diagnostics.cjs\n');process.exitCode=2;return;}
+ const info=await diagnose();
+ process.stdout.write(JSON.stringify(info,null,2)+'\n');
+}
+if(require.main===module)main().catch(()=>{process.stderr.write('Linux session diagnostics unavailable\n');process.exitCode=3;});
+module.exports={diagnose,detectDesktop,inspectSocket,chooseSocket,probePortalName,parseFileChooserVersion,probeFileChooserVersion,safeSocketName,probeElectronUserNamespacePrerequisites,classifyElectronStartupRisk};
