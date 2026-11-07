@@ -77,3 +77,19 @@ que falta revisar a divergência de inicialização. Nenhum status de
 causalidade, certificação ou release é inferido. Testes sintéticos cobrem
 a divergência entre etiquetas Xvfb e preservam a recomendação somente
 de revisão humana, nunca de aplicação automática.
+
+## Pendências estruturadas no relatório JSON (fonte única)
+
+O `admin-handoff.json` inclui agora `pendingEvidence`, uma lista
+imutável de categorias fixas e não sensíveis. O `admin-handoff.md`
+transforma **essa mesma lista** em descrições para revisão humana,
+em vez de recalcular suas próprias condições de bloqueio. Estão
+cobertas as ausências de janela, identidade de processo, testemunha
+Electron direta, classificação conjunta, sonda de namespace,
+estado de AppArmor, sandbox do renderizador, desktop real e prova
+de autenticidade do pacote.
+
+Uma categoria não comprova causalidade nem certifica sandbox. Nenhuma
+categoria autoriza alteração da política do host, instalação de mods,
+merge, exceção de CI ou lançamento. Testes sintéticos verificam que
+todas as categorias presentes no JSON aparecem no Markdown correspondente.

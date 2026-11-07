@@ -97,6 +97,22 @@ export function createX11AdminHandoff(value){
   'request-independent-app-specific-policy-review-on-approved-disposable-host':
   blocked?'collect-missing-evidence-and-review-startup-before-policy-experiment':
   'verify-independent-renderer-sandbox-and-real-desktop-before-release';
+ // One categorical source for both machine-readable and human handoffs.
+ // No path, stderr, PID, credentials, host mutation or release approval.
+ const pendingEvidence=Object.freeze([
+  ...(!x.ubuntu22NativeWindowsVerified?['ubuntu22-window-unverified']:[]),
+  ...(blocked?['ubuntu24-window-blocked']:[]),
+  ...(autoIdentityCoverage!=='complete'?['auto-identity-incomplete']:[]),
+  ...(blocked&&!directSigtraps?['electron-direct-witness-incomplete']:[]),
+  ...(blocked&&!correlated?['startup-classification-insufficient']:[]),
+  ...(['unknown','unavailable'].includes(x.ubuntu24NamespaceProbe)?
+   ['namespace-probe-indeterminate']:[]),
+  ...(['unknown','unavailable'].includes(x.ubuntu24ApparmorRestriction)?
+   ['apparmor-userns-state-indeterminate']:[]),
+  'renderer-sandbox-proof-required',
+  'real-desktop-proof-required',
+  'package-authenticity-proof-required'
+ ]);
  return Object.freeze({
   schema:'AUTO_X11_ADMIN_HANDOFF_V1',
   archiveSha256:x.archiveSha256,
@@ -109,7 +125,7 @@ export function createX11AdminHandoff(value){
   autoIdentityCoverage,
   directElectronSigtrapWitnessComplete:directSigtraps,
   startupCorrelationObserved:correlated,
-  recommendedNextStep,
+  recommendedNextStep,pendingEvidence,
   source:'sanitized-same-workflow-ubuntu-comparison',
   administratorApprovalForHostChangesRequired:true,
   policyChangeRequestedByThisReport:false,
@@ -166,27 +182,21 @@ export function renderX11AdminHandoffMarkdown(comparison){
   '| '+d.desktop+' | '+labels[d.ubuntu24AutoIdentitySource]+
   ' | '+labels[d.earlyMainKernelComparison]+
   ' | '+labels[d.ubuntu24DirectElectronControl]+' |');
- // Explicit unresolved evidence, including when the simple X11 window maps.
- // These are only categorical reasons for human validation, never approval.
- const unresolved=[
-  ...(!h.ubuntu22NativeWindowsVerified?
-   ['A referência nativa Ubuntu 22.04 não verificou todas as janelas X11.']:[]),
-  ...(!h.ubuntu24NativeWindowsVerified?
-   ['A janela nativa Ubuntu 24.04 permanece bloqueada.']:[]),
-  ...(h.autoIdentityCoverage!=='complete'?
-   ['A identidade do launcher Auto não foi confirmada em todas as etiquetas Xvfb.']:[]),
-  ...(!h.ubuntu24NativeWindowsVerified&&!h.directElectronSigtrapWitnessComplete?
-   ['O controle Electron direto não tem testemunha SIGTRAP completa nas duas etiquetas.']:[]),
-  ...(!h.ubuntu24NativeWindowsVerified&&!h.startupCorrelationObserved?
-   ['A classificação conjunta da inicialização ainda não sustenta revisão de política específica do aplicativo.']:[]),
-  ...(['unknown','unavailable'].includes(h.ubuntu24UserNamespaceProbe)?
-   ['A sonda independente de user namespace permanece indeterminada.']:[]),
-  ...(['unknown','unavailable'].includes(h.ubuntu24ApparmorRestriction)?
-   ['O estado da restrição AppArmor de user namespace permanece indeterminado.']:[]),
-  'A proteção do sandbox do renderizador ainda não foi certificada independentemente.',
-  'As etiquetas Xvfb não substituem janelas verificadas em sessões GNOME/KDE reais.',
-  'A autenticidade/assinatura do artefato distribuível não foi comprovada.'
- ];
+ // Map fixed machine-readable evidence codes to human text without
+ // recomputing the decision criteria separately in the Markdown renderer.
+ const evidenceText={
+  'ubuntu22-window-unverified':'A referência nativa Ubuntu 22.04 não verificou todas as janelas X11.',
+  'ubuntu24-window-blocked':'A janela nativa Ubuntu 24.04 permanece bloqueada.',
+  'auto-identity-incomplete':'A identidade do launcher Auto não foi confirmada em todas as etiquetas Xvfb.',
+  'electron-direct-witness-incomplete':'O controle Electron direto não tem testemunha SIGTRAP completa nas duas etiquetas.',
+  'startup-classification-insufficient':'A classificação conjunta da inicialização ainda não sustenta revisão de política específica do aplicativo.',
+  'namespace-probe-indeterminate':'A sonda independente de user namespace permanece indeterminada.',
+  'apparmor-userns-state-indeterminate':'O estado da restrição AppArmor de user namespace permanece indeterminado.',
+  'renderer-sandbox-proof-required':'A proteção do sandbox do renderizador ainda não foi certificada independentemente.',
+  'real-desktop-proof-required':'As etiquetas Xvfb não substituem janelas verificadas em sessões GNOME/KDE reais.',
+  'package-authenticity-proof-required':'A autenticidade/assinatura do artefato distribuível não foi comprovada.'
+ };
+ const unresolved=h.pendingEvidence.map(code=>evidenceText[code]);
  return [
   '# OMSI Manager | Revisão X11 automatizada',
   '',

@@ -38,6 +38,13 @@ test('handoff preserves blocked status and no sandbox claim despite correlated e
  assert.equal(hand.schema,'AUTO_X11_ADMIN_HANDOFF_V1');
  assert.equal(hand.status,'ubuntu24-native-window-blocked');
  assert.equal(hand.startupCorrelationObserved,true);
+ assert.deepEqual(hand.pendingEvidence,[
+  'ubuntu24-window-blocked',
+  'renderer-sandbox-proof-required',
+  'real-desktop-proof-required',
+  'package-authenticity-proof-required'
+ ]);
+ assert.ok(Object.isFrozen(hand.pendingEvidence));
  assert.equal(hand.autoIdentityCoverage,'complete');
  assert.equal(hand.directElectronSigtrapWitnessComplete,true);
  assert.equal(hand.recommendedNextStep,
@@ -279,4 +286,50 @@ test('positive V6 classification remains only a request for independent review',
  assert.equal(h.fullReleaseAuthorized,false);
  const out=markdown(comparison());
  assert.doesNotMatch(out,/classificação conjunta da inicialização ainda não sustenta revisão/);
+});
+
+test('structured JSON evidence and human Markdown list share each pending category',()=>{
+ const x=comparison(),h=handoff(x),out=markdown(x);
+ const labels={
+  'ubuntu22-window-unverified':'A referência nativa Ubuntu 22.04 não verificou',
+  'ubuntu24-window-blocked':'A janela nativa Ubuntu 24.04 permanece bloqueada.',
+  'auto-identity-incomplete':'A identidade do launcher Auto não foi confirmada',
+  'electron-direct-witness-incomplete':'O controle Electron direto não tem testemunha',
+  'startup-classification-insufficient':'A classificação conjunta da inicialização ainda não sustenta',
+  'namespace-probe-indeterminate':'A sonda independente de user namespace permanece indeterminada.',
+  'apparmor-userns-state-indeterminate':'O estado da restrição AppArmor de user namespace permanece indeterminado.',
+  'renderer-sandbox-proof-required':'A proteção do sandbox do renderizador ainda não foi certificada',
+  'real-desktop-proof-required':'As etiquetas Xvfb não substituem janelas verificadas',
+  'package-authenticity-proof-required':'A autenticidade/assinatura do artefato distribuível não foi comprovada.'
+ };
+ for(const code of h.pendingEvidence){
+  assert.ok(Object.hasOwn(labels,code),code);
+  assert.ok(out.includes(labels[code]),code);
+ }
+ assert.ok(Object.isFrozen(h.pendingEvidence));
+ assert.equal(h.fullReleaseAuthorized,false);
+ assert.equal(h.nativeCIWaived,false);
+ assert.equal(h.readOnly,true);
+});
+test('unknown host categories are pending in JSON and cannot be omitted by Markdown',()=>{
+ const unavailable=create({runner:'ubuntu-24.04',archiveSha256:sha,
+  baselineMapped:true,host:{apparmorModuleState:'enabled',
+   apparmorRestriction:'unknown',userNamespaceProbe:'unavailable'},
+  outcomes:['GNOME','KDE'].map(desktop=>({
+   desktop,mapped:false,failed:true,windowOwned:false,nativeProcess:false,
+   triageClassification:'shared-native-electron-startup-undetermined',
+   earlyNativeKernel:early(null,null),identityCaptureSource:'unobserved',
+   directControlCategory:'unavailable'
+  }))
+ });
+ const diff=compare(older,unavailable),h=handoff(diff),out=markdown(diff);
+ for(const code of [
+  'auto-identity-incomplete','electron-direct-witness-incomplete',
+  'startup-classification-insufficient','namespace-probe-indeterminate',
+  'apparmor-userns-state-indeterminate'
+ ])assert.ok(h.pendingEvidence.includes(code),code);
+ assert.match(out,/A sonda independente de user namespace permanece indeterminada/);
+ assert.match(out,/O estado da restrição AppArmor de user namespace permanece indeterminado/);
+ assert.equal(h.startupCorrelationObserved,false);
+ assert.equal(h.fullReleaseAuthorized,false);
 });
