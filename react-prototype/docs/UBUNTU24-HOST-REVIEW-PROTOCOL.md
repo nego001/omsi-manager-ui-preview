@@ -111,3 +111,19 @@ causalidade AppArmor ou sandbox do renderizador. Testes sintéticos
 tentam injetar falsas aprovações, remover pendências, alterar a formatação
 e misturar evidências de execuções diferentes. O workflow exige a
 execução do contrato tanto no build quanto no job comparador.
+
+## Exclusividade do diretório de saída antes de qualquer gravação
+
+O gerador do comparador passou a exigir que `x11-diff-output` seja
+**criado do zero**, sob o workspace descartável da CI, com modo 0700.
+Qualquer diretório preexistente, link simbólico ou arquivo no lugar
+provoca falha **antes de escrever os três relatórios**. O job reconfere
+a identidade do diretório (dispositivo/inode) e suas permissões
+após a gravação e leitura de volta. Testes isolados usam diretórios
+temporários artificiais e recusam redirecionamento por symlink,
+resíduos de execuções anteriores e permissões alteradas.
+
+Essa barreira reduz aceitação acidental de conteúdo herdado; não é
+prova de proteção completa contra corrida de substituição concorrente
+do workspace, nem altera o sandbox Electron. A CI continua proibida
+de aplicar perfis de host ou dispensar o gate nativo Ubuntu 24.04.

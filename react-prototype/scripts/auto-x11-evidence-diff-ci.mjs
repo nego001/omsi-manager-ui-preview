@@ -1,6 +1,6 @@
 // GitHub Actions only: compare two exact same-workflow diagnostic artifacts.
 // Do not read arbitrary paths or print artifact contents. No policy edits.
-import {open,mkdir,writeFile,lstat} from 'node:fs/promises';
+import {open,writeFile} from 'node:fs/promises';
 import {constants} from 'node:fs';
 import {resolve} from 'node:path';
 import {parseSanitizedX11Record,compareSanitizedX11Records}
@@ -9,6 +9,8 @@ import {createX11AdminHandoff,renderX11AdminHandoffMarkdown}
  from './auto-x11-admin-handoff.mjs';
 import {verifyX11HandoffOutputs}
  from './auto-x11-handoff-output-integrity.mjs';
+import {prepareFreshX11OutputDirectory,verifyX11OutputDirectoryIdentity}
+ from './auto-x11-output-directory.mjs';
 if(process.platform!=='linux'||process.getuid?.()===0||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
  throw Error('AUTO_X11_CROSS_RUNNER_CI_ONLY');
@@ -33,23 +35,21 @@ const [older,newer]=await Promise.all([
 ]);
 const comparison=compareSanitizedX11Records(older,newer);
 const handoff=createX11AdminHandoff(comparison);
-await mkdir('x11-diff-output',{mode:0o700,recursive:true});
-await writeFile('x11-diff-output/host-comparison.json',
+const output=await prepareFreshX11OutputDirectory(process.cwd());
+await writeFile(resolve(output.path,'host-comparison.json'),
  JSON.stringify(comparison)+'\n',{encoding:'utf8',flag:'wx',mode:0o600});
-await writeFile('x11-diff-output/admin-handoff.json',
+await writeFile(resolve(output.path,'admin-handoff.json'),
  JSON.stringify(handoff)+'\n',{encoding:'utf8',flag:'wx',mode:0o600});
-await writeFile('x11-diff-output/admin-handoff.md',
+await writeFile(resolve(output.path,'admin-handoff.md'),
  renderX11AdminHandoffMarkdown(comparison),
  {encoding:'utf8',flag:'wx',mode:0o600});
 // Read back the three real files before saying the CI output is ready.
 // No arbitrary filenames, no symlinks, no privileged changes, no raw output.
-const outputDir=await lstat('x11-diff-output');
-if(!outputDir.isDirectory()||outputDir.isSymbolicLink()||
- (outputDir.mode&0o077)!==0)throw Error('AUTO_X11_HANDOFF_OUTPUT_REFUSED');
+await verifyX11OutputDirectoryIdentity(output);
 async function readProduced(name){
  let handle;
  try{
-  handle=await open(resolve('x11-diff-output',name),
+  handle=await open(resolve(output.path,name),
    constants.O_RDONLY|constants.O_NOFOLLOW|constants.O_NONBLOCK);
   const stats=await handle.stat();
   if(!stats.isFile()||stats.size<=0||stats.size>8192||
@@ -61,11 +61,13 @@ async function readProduced(name){
  }catch{throw Error('AUTO_X11_HANDOFF_OUTPUT_REFUSED');}
  finally{await handle?.close();}
 }
+await verifyX11OutputDirectoryIdentity(output);
 const verified=verifyX11HandoffOutputs(comparison,{
  comparisonJson:await readProduced('host-comparison.json'),
  handoffJson:await readProduced('admin-handoff.json'),
  handoffMarkdown:await readProduced('admin-handoff.md')
 });
+await verifyX11OutputDirectoryIdentity(output);
 console.log('AUTO_X11_HANDOFF_OUTPUT_INTEGRITY',JSON.stringify(verified));
 console.log('AUTO_X11_CROSS_RUNNER_READY',JSON.stringify(comparison));
 console.log('AUTO_X11_ADMIN_HANDOFF_READY',JSON.stringify({

@@ -227,3 +227,15 @@ test('cross-runner output parity tests must remain in build and comparison jobs'
    /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });
+
+test('fresh exclusive output directory contracts cannot be skipped in build or compare',()=>{
+ const commands=[
+  'node --test scripts/auto-x11-output-directory.test.mjs',
+  'node --test react-prototype/scripts/auto-x11-output-directory.test.mjs'
+ ];
+ for(const command of commands){
+  assert.ok(original.includes(command));
+  assert.throws(()=>verify(original.replace(command,'echo output-safety-omitted')),
+   /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
+});

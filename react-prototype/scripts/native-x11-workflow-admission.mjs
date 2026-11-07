@@ -34,6 +34,7 @@ export function validateNativeX11Workflow(source){
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
     !build.includes('node --test scripts/auto-x11-admin-handoff.test.mjs')||
     !build.includes('node --test scripts/auto-x11-handoff-output-integrity.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-output-directory.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-compare.test.mjs')||
     !build.includes('node --test scripts/ubuntu24-controlled-pilot-aba.test.mjs'))refusal();
  // Only operative workflow lines matter; comments are not executed.
@@ -102,6 +103,7 @@ export function validateNativeX11Workflow(source){
   'node --test react-prototype/scripts/auto-x11-evidence-diff.test.mjs',
   'node --test react-prototype/scripts/auto-x11-admin-handoff.test.mjs',
   'node --test react-prototype/scripts/auto-x11-handoff-output-integrity.test.mjs',
+  'node --test react-prototype/scripts/auto-x11-output-directory.test.mjs',
   'name: native-x11-administrator-handoff',
   'x11-diff-output/admin-handoff.json',
   'x11-diff-output/admin-handoff.md',
