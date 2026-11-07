@@ -124,7 +124,7 @@ export default function App(){
  const [librarySizeFilter,setLibrarySizeFilter]=useState<'all'|'known'|'unknown'>('all');
  const [libraryOnlySelected,setLibraryOnlySelected]=useState(false);
  const [librarySearch,setLibrarySearch]=useState('');
- const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'>('catalog');
+ const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'|'incoming'>('catalog');
  const [detailOrigin,setDetailOrigin]=useState<'home'|'catalog'|'library'>('catalog');
  const [detailFocus,setDetailFocus]=useState<'overview'|'relations'|'incoming'>('overview');
  const [dependencyLookup,setDependencyLookup]=useState<DependencyLookupContext|null>(null);
@@ -246,6 +246,20 @@ export default function App(){
    (!libraryOnlySelected||activeBatch.includes(m.id))&&
    matchesCatalogSearch(m,games[m.game].title,librarySearch)
   );
+  if(librarySort==='incoming'){
+   // Count direct incoming edges across the whole validated catalog;
+   // not popularity, severity, compatibility or installed state.
+   const count=(id:string)=>{
+    const entry=incomingById.get(id);
+    return {total:(entry?.requiredBy.length??0)+(entry?.conflictDeclaredBy.length??0),
+     required:entry?.requiredBy.length??0};
+   };
+   return [...list].sort((a,b)=>{
+    const x=count(a.id),y=count(b.id);
+    return y.total-x.total||y.required-x.required||
+     a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id);
+   });
+  }
   if(librarySort==='alerts'){
    // Priority is based on declared metadata only: it never authenticates mod state.
    const rank:Record<DeclaredStatusKind,number>={blocking:0,attention:1,'no-issues':2};
@@ -264,7 +278,7 @@ export default function App(){
    return [...list].sort((a,b)=>order[a.game]-order[b.game]||a.title.localeCompare(b.title,'pt-BR'));
   }
   return list;
- },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,activeBatch,librarySearch,librarySort,librarySizeFilter,declaredStatuses]);
+ },[favoriteMods,libraryGame,libraryCategory,libraryDeclaredStatus,libraryOnlySelected,activeBatch,librarySearch,librarySort,librarySizeFilter,declaredStatuses,incomingById]);
  const librarySizeSummary=useMemo(()=>summarizeDeclaredSizes(libraryMods),[libraryMods]);
  const allFavoritesSizeSummary=useMemo(()=>summarizeDeclaredSizes(favoriteMods),[favoriteMods]);
  const libraryGameSummary=useMemo(()=>(['omsi','ets2','ats'] as GameId[])
@@ -731,7 +745,7 @@ export default function App(){
     </button>)}
    </div>
   </section>}
-  {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option><option value="alerts">Alertas declarados (bloqueios primeiro)</option><option value="size-desc">Tamanho declarado (maior primeiro)</option><option value="size-asc">Tamanho declarado (menor primeiro)</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryFiltersWithFocus}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
+  {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'|'incoming')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option><option value="alerts">Alertas declarados (bloqueios primeiro)</option><option value="incoming">Referências recebidas no JSON (mais primeiro)</option><option value="size-desc">Tamanho declarado (maior primeiro)</option><option value="size-asc">Tamanho declarado (menor primeiro)</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryFiltersWithFocus}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
  {favoriteMods.length>0&&activeLibraryControlCount>0&&<div className="library-active-filters" role="group" aria-label="Filtros ativos da biblioteca">
   <span>Filtros ativos:</span>
   {libraryGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryGame('all'))}>Jogo: {games[libraryGame].title} <span aria-hidden="true">×</span></button>}
@@ -740,9 +754,10 @@ export default function App(){
   {librarySizeFilter!=='all'&&<button type="button" aria-label="Remover filtro de tamanho declarado" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySizeFilter('all'))}>Tamanho: {librarySizeFilter==='known'?'reconhecido':'desconhecido'} <span aria-hidden="true">×</span></button>}
    {libraryOnlySelected&&<button type="button" aria-label="Remover filtro de selecionados" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryOnlySelected(false))}>Seleção: só marcados <span aria-hidden="true">×</span></button>}
   {librarySearch.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySearch(''))}>Busca: {librarySearch.trim()} <span aria-hidden="true">×</span></button>}
-  {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySort('catalog'))}>Ordem: {librarySort==='title'?'Nome (A–Z)':librarySort==='game'?'Jogo e nome':librarySort==='alerts'?'Alertas declarados':librarySort==='size-desc'?'Tamanho declarado (maior primeiro)':'Tamanho declarado (menor primeiro)'} <span aria-hidden="true">×</span></button>}
+  {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySort('catalog'))}>Ordem: {librarySort==='title'?'Nome (A–Z)':librarySort==='game'?'Jogo e nome':librarySort==='alerts'?'Alertas declarados':librarySort==='incoming'?'Referências recebidas no JSON':librarySort==='size-desc'?'Tamanho declarado (maior primeiro)':'Tamanho declarado (menor primeiro)'} <span aria-hidden="true">×</span></button>}
  </div>}
  {(librarySort==='size-asc'||librarySort==='size-desc')&&favoriteMods.length>0&&<p className="library-size-sort-note" role="note">Ordem baseada apenas no tamanho declarado do catálogo, não em espaço ocupado no disco. Unidades desconhecidas ficam por último. Nenhum mod foi inspecionado.</p>}
+  {librarySort==='incoming'&&favoriteMods.length>0&&<p className="library-size-sort-note library-incoming-sort-note" role="note">Ordenação pelas referências diretas recebidas no JSON inteiro, mesmo quando o registro que cita não é favorito. Empates: dependências recebidas primeiro e depois nome. Não mede popularidade, instalação, qualidade nem compatibilidade real.</p>}
  {favoriteMods.length>0&&<div className="library-declared-size-summary" role="note" aria-label="Resumo dos tamanhos declarados dos favoritos exibidos">
    <strong>{librarySizeSummary.known>0?(librarySizeSummary.unknown>0?'Subtotal declarado':'Soma declarada')+' dos exibidos: '+librarySizeSummary.subtotal:'Nenhum tamanho reconhecido nos favoritos exibidos'}</strong>
    <span>{librarySizeSummary.known} de {libraryMods.length} com tamanho interpretável.{librarySizeSummary.unknown>0?' '+librarySizeSummary.unknown+' tamanho(s) desconhecido(s) não somado(s).':''} São apenas metadados do catálogo: não é espaço ocupado no disco, nem prova de instalação.</span>

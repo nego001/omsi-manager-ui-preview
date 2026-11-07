@@ -494,3 +494,17 @@ Testes Playwright: contagem dependência/conflito recebida, separação
 dos alertas, navegação por teclado e foco em 390px, retorno com filtros
 e recálculo após troca de catálogo. O trabalho permanece na etapa
 visual Biblioteca/Detalhes.
+
+### Biblioteca: ordenação por referências diretas recebidas no catálogo
+
+A ordenação **Referências recebidas no JSON (mais primeiro)** usa
+somente a soma das referências diretas `requires` e `conflictsWith`
+recebidas de outros registros do catálogo completo, inclusive não
+favoritos ou registros ocultos pelos filtros. Empates são resolvidos
+pelo número de dependências recebidas, depois título e ID.
+
+Essa ordenação não mede popularidade, severidade, funcionamento,
+compatibilidade nem instalação. A escolha convive com filtros, chips,
+limpeza de filtros e Anterior/Próximo em Detalhes vindo da Biblioteca.
+Três testes Playwright verificam a contagem de não favoritos, a
+ordem determinística, 390px, filtros, retorno e operações bloqueadas.
