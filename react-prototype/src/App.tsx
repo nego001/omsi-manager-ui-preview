@@ -126,7 +126,7 @@ export default function App(){
  const [librarySearch,setLibrarySearch]=useState('');
  const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'>('catalog');
  const [detailOrigin,setDetailOrigin]=useState<'home'|'catalog'|'library'>('catalog');
- const [detailFocus,setDetailFocus]=useState<'overview'|'relations'>('overview');
+ const [detailFocus,setDetailFocus]=useState<'overview'|'relations'|'incoming'>('overview');
  const [dependencyLookup,setDependencyLookup]=useState<DependencyLookupContext|null>(null);
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
@@ -194,6 +194,11 @@ export default function App(){
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
  const incomingRelations=useMemo(()=>collectIncomingDeclaredRelations(catalogMods,selected.id),[catalogMods,selected.id]);
+ // Read-only reverse-reference summaries across the entire validated catalog,
+ // not just favorites and never actual installed package relationships.
+ const incomingById=useMemo(()=>new Map(catalogMods.map(mod=>[
+  mod.id,collectIncomingDeclaredRelations(catalogMods,mod.id)
+ ])),[catalogMods]);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>{
   // Exact target ID for a dependency jump; editing the query restores fuzzy search.
@@ -500,6 +505,12 @@ export default function App(){
   setDetailFocus('overview');
  }
  function openDeclaredDiagnostic(id:string){setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
+ function openIncomingFromLibrary(id:string){
+  if(!catalogMods.some(mod=>mod.id===id))return;
+  setHypotheticalGameVersion('');
+  setDetailOrigin('library');setSelectedMod(id);setDetailFocus('incoming');
+  goto('details');
+ }
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
  async function importCatalogFile(event:React.ChangeEvent<HTMLInputElement>){
   const file=event.currentTarget.files?.[0];
@@ -550,7 +561,15 @@ export default function App(){
   }
   setFavorites(ids=>ids.includes(modId)?ids.filter(id=>id!==modId):[...ids,modId]);
  }
- const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <><span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>{status&&status.issueCount>0&&<button type="button" className="library-diagnostic-link" aria-label={'Ver diagnóstico de '+m.title} onClick={()=>openDeclaredDiagnostic(m.id)}><AlertTriangle size={13}/><span>Consultar {status.issueCount} {status.issueCount===1?'alerta declarado':'alertas declarados'}</span><ChevronRight size={13}/></button>}</>})()}<button className="text-button" id={`mod-title-${m.id}`} onClick={()=>detail(m.id)}>{m.title}</button>{(screen==='catalog'||screen==='library')&&<DeclaredSearchEvidence mod={m} query={screen==='library'?librarySearch:search}/>}{screen==='library'&&<label className="library-batch-select"><input type="checkbox" aria-label={'Selecionar '+m.title+' para análise conjunta'} checked={activeBatch.includes(m.id)} onChange={e=>{setBatchSelected(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id));setBatchOpen(false)}}/>Incluir na análise conjunta</label>}<div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} aria-describedby={`mod-title-${m.id}`} onClick={()=>toggleFavorite(m.id)}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
+ const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <><span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>{status&&status.issueCount>0&&<button type="button" className="library-diagnostic-link" aria-label={'Ver diagnóstico de '+m.title} onClick={()=>openDeclaredDiagnostic(m.id)}><AlertTriangle size={13}/><span>Consultar {status.issueCount} {status.issueCount===1?'alerta declarado':'alertas declarados'}</span><ChevronRight size={13}/></button>}
+ {(()=>{const incoming=incomingById.get(m.id);const dependents=incoming?.requiredBy.length??0;const conflicts=incoming?.conflictDeclaredBy.length??0;
+ return dependents+conflicts>0?<div className="library-incoming-references" role="note">
+ <small>Outros registros do JSON mencionam este ID:</small>
+ <span>{dependents} dependência(s) recebida(s) · {conflicts} conflito(s) declarado(s) por outros</span>
+ <button type="button" className="library-incoming-button" aria-label={'Consultar referências recebidas de '+m.title} onClick={()=>openIncomingFromLibrary(m.id)}>
+ Ver referências recebidas <ChevronRight size={13} aria-hidden="true"/>
+ </button>
+ </div>:null;})()}</>})()}<button className="text-button" id={`mod-title-${m.id}`} onClick={()=>detail(m.id)}>{m.title}</button>{(screen==='catalog'||screen==='library')&&<DeclaredSearchEvidence mod={m} query={screen==='library'?librarySearch:search}/>}{screen==='library'&&<label className="library-batch-select"><input type="checkbox" aria-label={'Selecionar '+m.title+' para análise conjunta'} checked={activeBatch.includes(m.id)} onChange={e=>{setBatchSelected(ids=>e.target.checked?[...ids,m.id]:ids.filter(id=>id!==m.id));setBatchOpen(false)}}/>Incluir na análise conjunta</label>}<div className="mod-bottom"><small>v{m.version} · {m.size}</small><button className="icon-btn" aria-label={favorites.includes(m.id)?'Retirar dos favoritos':'Favoritar'} aria-describedby={`mod-title-${m.id}`} onClick={()=>toggleFavorite(m.id)}>{favorites.includes(m.id)?'♥':'♡'}</button></div></div></article>)}</div>;
  useEffect(()=>{
   if(!focusMainAfterNavigation.current)return;
   focusMainAfterNavigation.current=false;
@@ -612,8 +631,9 @@ export default function App(){
   document.getElementById('detail-mod-title')?.focus({preventScroll:true});
  },[screen,selectedMod]);
  useEffect(()=>{
-  if(screen!=='details'||detailFocus!=='relations')return;
-  const target=document.getElementById('relacoes-declaradas');
+  if(screen!=='details'||detailFocus==='overview')return;
+  const target=document.getElementById(detailFocus==='incoming'?
+   'relacoes-recebidas':'relacoes-declaradas');
   if(target){target.scrollIntoView({block:'start'});target.focus({preventScroll:true})}
   setDetailFocus('overview');
  },[screen,detailFocus,selectedMod]);
@@ -866,7 +886,7 @@ export default function App(){
       </details>
     </div>
    </li>)}</ol>
-  <section className="relation-incoming" aria-label="Referências recebidas no catálogo">
+  <section id="relacoes-recebidas" tabIndex={-1} className="relation-incoming" aria-label="Referências recebidas no catálogo">
    <h3>Quem menciona este mod no catálogo?</h3>
    <p>São declarações diretas do JSON. Não inclui dependências indiretas,
     não comprova compatibilidade, instalação nem conflito real.</p>

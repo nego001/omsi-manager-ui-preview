@@ -476,3 +476,21 @@ Nenhuma relação transitiva ou simétrica é inferida.
 Dois testes adicionais cobrem a mistura de conflitos recíprocos e
 unilaterais, referência entre jogos diferentes, ações bloqueadas e
 viewport 390px.
+
+### Biblioteca: avisos separados de referências recebidas
+
+Os cartões de favoritos apresentam, quando houver, uma área neutra
+indicando quantos **outros registros do catálogo completo** declaram
+depender diretamente daquele ID ou conflito com ele. Essas contagens
+não se misturam aos bloqueios e avisos da análise declarativa do
+próprio mod; a ausência de uma referência não é comprovação de
+compatibilidade. A ação **Ver referências recebidas** abre Detalhes,
+foca a seção correspondente e permite voltar ao mesmo cartão e
+filtros da Biblioteca. A seção não executa leitura, instalação,
+inspeção real ou deduções de relações transitivas. Ao importar outro
+catálogo, as contagens são recalculadas pelo JSON validado.
+
+Testes Playwright: contagem dependência/conflito recebida, separação
+dos alertas, navegação por teclado e foco em 390px, retorno com filtros
+e recálculo após troca de catálogo. O trabalho permanece na etapa
+visual Biblioteca/Detalhes.

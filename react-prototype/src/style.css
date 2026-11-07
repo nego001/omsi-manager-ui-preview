@@ -1204,3 +1204,20 @@
  display:block;color:#e2d8b7;font-size:11px;line-height:1.5;
  overflow-wrap:anywhere;
 }
+
+/* These are OTHER catalog records referring to an ID, not issue severity. */
+.library-incoming-references{display:grid;gap:4px;margin:9px 0 4px;
+ padding:10px;border:1px solid #52677d;border-radius:8px;
+ background:#223243;min-width:0;overflow-wrap:anywhere}
+.library-incoming-references small{font-size:10px;color:#c8d7e9;line-height:1.5}
+.library-incoming-references span{font-size:11px;color:#e7f0ff;line-height:1.5}
+.library-incoming-button{display:inline-flex;align-items:center;justify-content:space-between;
+ gap:8px;padding:8px 10px;min-height:40px;max-width:100%;
+ border:1px solid #738fad;border-radius:7px;
+ background:#324761;color:#f2f7ff;font-size:11px;font-weight:650;
+ cursor:pointer;text-align:left;overflow-wrap:anywhere}
+.library-incoming-button:hover{background:#3e5774}
+.library-incoming-button:focus-visible{outline:3px solid #afd1ff;outline-offset:3px}
+.library-incoming-button svg{flex-shrink:0}
+#relacoes-recebidas:focus-visible{outline:3px solid #b6d6ff;outline-offset:4px}
+@media(max-width:480px){.library-incoming-button{width:100%;min-height:44px}}
