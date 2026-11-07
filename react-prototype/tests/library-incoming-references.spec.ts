@@ -44,7 +44,8 @@ test('library incoming link opens right section with keyboard focus and preserve
  await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
  await expect(search).toHaveValue('omsi-core');
  await expect(page.getByText('1 favorito exibido')).toBeVisible();
- await expect(button).toBeFocused();
+ // Existing Details back behavior restores focus to the originating card title.
+ await expect(page.getByRole('button',{name:'Pacote base OMSI',exact:true})).toBeFocused();
  const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
