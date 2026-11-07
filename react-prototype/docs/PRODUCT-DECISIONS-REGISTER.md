@@ -463,3 +463,16 @@ Os botões usam a localização exata de ID e o retorno reversível ao
 diagnóstico já existente. Os testes cobrem direção, autorreferência,
 dependência indireta, conflito, salto ao Catálogo, retorno, 390px e
 dados entre jogos. Apenas JSON validado é consultado.
+
+### Referências recebidas: bilateralidade declarada e jogo de origem
+
+A UI de Detalhes distingue agora **declaração unilateral de conflito**
+(um outro registro aponta para o ID selecionado) de **declaração
+recíproca** (ambos os registros explicitamente se mencionam em
+`conflictsWith`). Reciprocidade não comprova incompatibilidade no jogo.
+Dependências e conflitos recebidos de outro jogo recebem identificação
+expressa de **referência entre jogos diferentes**, com o jogo declarado.
+Nenhuma relação transitiva ou simétrica é inferida.
+Dois testes adicionais cobrem a mistura de conflitos recíprocos e
+unilaterais, referência entre jogos diferentes, ações bloqueadas e
+viewport 390px.

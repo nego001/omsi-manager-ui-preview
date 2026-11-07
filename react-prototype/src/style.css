@@ -1198,3 +1198,9 @@
 .relation-incoming-empty{padding:12px;border:1px dashed #566c84;border-radius:8px}
 @media(max-width:540px){.relation-incoming li{align-items:stretch;flex-direction:column}
  .relation-incoming .relation-stage-catalog-jump{width:100%;min-height:44px}}
+
+/* Explicit metadata warnings: no inferred conflict status or installed mods. */
+.relation-incoming li .relation-incoming-context{
+ display:block;color:#e2d8b7;font-size:11px;line-height:1.5;
+ overflow-wrap:anywhere;
+}

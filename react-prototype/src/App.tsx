@@ -876,7 +876,8 @@ export default function App(){
      {incomingRelations.requiredBy.length>0&&<div>
       <h4>Declara dependência direta deste ID ({incomingRelations.requiredBy.length})</h4>
       <ul>{incomingRelations.requiredBy.map(mod=><li key={mod.id}>
-       <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small></span>
+       <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small>
+        {mod.differentGame&&<small className="relation-incoming-context">Referência entre jogos diferentes · somente JSON</small>}</span>
        <button className="relation-stage-catalog-jump" type="button"
         aria-label={'Localizar mod que declara depender '+mod.title+' (ID '+mod.id+') no Catálogo'}
         onClick={()=>locateDeclaredDependencyInCatalog(mod.id)}>
@@ -887,7 +888,11 @@ export default function App(){
      {incomingRelations.conflictDeclaredBy.length>0&&<div>
       <h4>Outros registros que declaram conflito com este ID ({incomingRelations.conflictDeclaredBy.length})</h4>
       <ul>{incomingRelations.conflictDeclaredBy.map(mod=><li key={mod.id}>
-       <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small></span>
+       <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small>
+        <small className="relation-incoming-context">{mod.reciprocalDeclaration?
+         'Ambos os registros declaram conflito no JSON':
+         'Declaração unilateral: apenas este outro registro indica conflito'}</small>
+        {mod.differentGame&&<small className="relation-incoming-context">Referência entre jogos diferentes · somente JSON</small>}</span>
        <button className="relation-stage-catalog-jump" type="button"
         aria-label={'Localizar mod que declara conflito '+mod.title+' (ID '+mod.id+') no Catálogo'}
         onClick={()=>locateDeclaredDependencyInCatalog(mod.id)}>
