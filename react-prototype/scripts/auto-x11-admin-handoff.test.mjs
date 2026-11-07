@@ -154,6 +154,11 @@ test('human handoff is readable but does not upgrade blocked Ubuntu24',()=>{
  assert.match(out,/Restrição AppArmor de user namespaces no Ubuntu 24\.04:\*\* restrição ativa/);
  assert.match(out,/Controle Electron direto SIGTRAP observado nas duas etiquetas:\*\* sim/);
  assert.match(out,/Condições obrigatórias para revisão humana/);
+ assert.match(out,/Evidências ainda pendentes ou insuficientes/);
+ assert.match(out,/janela nativa Ubuntu 24\.04 permanece bloqueada/);
+ assert.match(out,/sandbox do renderizador ainda não foi certificada/);
+ assert.match(out,/autenticidade\/assinatura do artefato/);
+ assert.doesNotMatch(out,/identidade do launcher Auto não foi confirmada/);
  assert.match(out,/A\/B\/A do mesmo artefato/);
  assert.match(out,/nova CI obrigatória completa/);
  assert.doesNotMatch(out,/sudo |sysctl -w|echo 0 \||chmod 4755/);
@@ -167,6 +172,7 @@ test('partial Auto identity demands collection before any policy pilot',()=>{
  assert.match(out,/dados insuficientes/);
  assert.match(out,/não confirmada/);
  assert.match(out,/Coletar evidências ausentes do launcher Auto/);
+ assert.match(out,/identidade do launcher Auto não foi confirmada/);
  assert.match(out,/Controle Electron direto SIGTRAP observado nas duas etiquetas:\*\* sim/);
  assert.doesNotMatch(out,/Solicitar revisão independente com administrador/);
 });
@@ -176,6 +182,9 @@ test('mapped windows cannot imply release approval or renderer certification',()
  assert.match(out,/sem certificação de sandbox/);
  assert.match(out,/sem autorização de release/);
  assert.match(out,/validar janelas reais/i);
+ assert.doesNotMatch(out,/janela nativa Ubuntu 24\.04 permanece bloqueada/);
+ assert.match(out,/sandbox do renderizador ainda não foi certificada/);
+ assert.match(out,/autenticidade\/assinatura do artefato/);
 });
 test('Markdown refuses forged schema and excludes arbitrary source properties',()=>{
  const good=comparison();
@@ -187,4 +196,44 @@ test('Markdown refuses forged schema and excludes arbitrary source properties',(
  assert.equal(out.includes('/home/private'),false);
  assert.equal(out.includes('privateStderr'),false);
  assert.equal(out.includes('54321'),false);
+});
+
+
+test('unavailable independent Electron witness is shown as missing instead of silently approved',()=>{
+ const unavailable=create({runner:'ubuntu-24.04',archiveSha256:sha,baselineMapped:true,
+  host:{apparmorModuleState:'enabled',apparmorRestriction:'enabled',
+   userNamespaceProbe:'permission-denied'},
+  outcomes:['GNOME','KDE'].map(desktop=>({
+   desktop,mapped:false,failed:true,windowOwned:false,nativeProcess:true,
+   triageClassification:'shared-electron-sandbox-startup-suspected',
+   earlyNativeKernel:snapshot,identityCaptureSource:'polling',
+   directControlCategory:'unavailable'
+  }))
+ });
+ const out=markdown(compare(older,unavailable));
+ assert.match(out,/controle Electron direto não tem testemunha SIGTRAP completa/);
+ assert.match(out,/A janela nativa Ubuntu 24\.04 permanece bloqueada/);
+ assert.doesNotMatch(out,/Solicitar revisão independente com administrador/);
+ assert.match(out,/Coletar evidências ausentes do launcher Auto/);
+ assert.doesNotMatch(out,/--no-sandbox|habilitar globalmente/);
+});
+test('missing Auto identities and unavailable namespace facts appear as unresolved',()=>{
+ const unobserved=runner('ubuntu-24.04',false,{missingAll:true});
+ const ambiguous=create({runner:'ubuntu-24.04',archiveSha256:sha,baselineMapped:true,
+  host:{apparmorModuleState:'enabled',apparmorRestriction:'unknown',
+   userNamespaceProbe:'unavailable'},
+  outcomes:unobserved.windows.map(w=>({
+   desktop:w.desktop,mapped:false,failed:true,windowOwned:false,
+   nativeProcess:false,triageClassification:'shared-native-electron-startup-undetermined',
+   earlyNativeKernel:early(null,null),identityCaptureSource:'unobserved',
+   directControlCategory:'unavailable'
+  }))
+ });
+ const out=markdown(compare(older,ambiguous));
+ assert.match(out,/identidade do launcher Auto não foi confirmada/);
+ assert.match(out,/A sonda independente de user namespace permanece indeterminada/);
+ assert.match(out,/restrição AppArmor de user namespace permanece indeterminado/);
+ assert.match(out,/controle Electron direto não tem testemunha SIGTRAP completa/);
+ assert.match(out,/sem prova causal do AppArmor/);
+ assert.match(out,/sem autorização de release/);
 });

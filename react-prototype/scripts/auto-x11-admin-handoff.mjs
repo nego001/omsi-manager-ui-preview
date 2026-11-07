@@ -162,6 +162,25 @@ export function renderX11AdminHandoffMarkdown(comparison){
   '| '+d.desktop+' | '+labels[d.ubuntu24AutoIdentitySource]+
   ' | '+labels[d.earlyMainKernelComparison]+
   ' | '+labels[d.ubuntu24DirectElectronControl]+' |');
+ // Explicit unresolved evidence, including when the simple X11 window maps.
+ // These are only categorical reasons for human validation, never approval.
+ const unresolved=[
+  ...(!h.ubuntu22NativeWindowsVerified?
+   ['A referência nativa Ubuntu 22.04 não verificou todas as janelas X11.']:[]),
+  ...(!h.ubuntu24NativeWindowsVerified?
+   ['A janela nativa Ubuntu 24.04 permanece bloqueada.']:[]),
+  ...(h.autoIdentityCoverage!=='complete'?
+   ['A identidade do launcher Auto não foi confirmada em todas as etiquetas Xvfb.']:[]),
+  ...(!h.ubuntu24NativeWindowsVerified&&!h.directElectronSigtrapWitnessComplete?
+   ['O controle Electron direto não tem testemunha SIGTRAP completa nas duas etiquetas.']:[]),
+  ...(['unknown','unavailable'].includes(h.ubuntu24UserNamespaceProbe)?
+   ['A sonda independente de user namespace permanece indeterminada.']:[]),
+  ...(['unknown','unavailable'].includes(h.ubuntu24ApparmorRestriction)?
+   ['O estado da restrição AppArmor de user namespace permanece indeterminado.']:[]),
+  'A proteção do sandbox do renderizador ainda não foi certificada independentemente.',
+  'As etiquetas Xvfb não substituem janelas verificadas em sessões GNOME/KDE reais.',
+  'A autenticidade/assinatura do artefato distribuível não foi comprovada.'
+ ];
  return [
   '# OMSI Manager | Revisão X11 automatizada',
   '',
@@ -190,6 +209,10 @@ export function renderX11AdminHandoffMarkdown(comparison){
    (h.startupCorrelationObserved?'observada':'não estabelecida'),
   '',
   '**Próximo passo:** '+next[h.recommendedNextStep],
+  '',
+  '### Evidências ainda pendentes ou insuficientes',
+  '',
+  ...unresolved.map(item=>'- '+item),
   '',
   '### Condições obrigatórias para revisão humana',
   '',

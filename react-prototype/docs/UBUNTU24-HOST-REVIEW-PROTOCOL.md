@@ -52,3 +52,15 @@ não uma autorização para instalar, iniciar como root ou alterar políticas.
 O caminho preferencial é revisão **por aplicativo**, não alteração de
 restrições globais ou abandono do sandbox. Este arquivo não inclui
 receitas executáveis e não aplica nenhuma configuração.
+
+## Registro de lacunas no handoff gerado
+
+A saída humana `admin-handoff.md` agora inclui uma seção explícita
+**Evidências ainda pendentes ou insuficientes**. A seção muda de acordo
+com as categorias sanitizadas observadas, incluindo falta de janela
+Ubuntu 24.04, testemunha Electron direta incompleta, identidade Auto
+parcial/ausente ou sonda de namespace/AppArmor indeterminada. Mesmo
+com janelas Xvfb mapeadas, seguem pendentes **prova independente do
+sandbox do renderizador, validação em sessões gráficas reais e
+autenticidade do pacote**. A lógica é apenas descritiva, não altera
+o status de bloqueio, não abre exceção de merge e não acessa o host.
