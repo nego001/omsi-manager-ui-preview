@@ -20,6 +20,27 @@ const exe=process.env.OMSI_NATIVE_LAB_EXE;
 const ready=windows&&typeof exe==='string'&&exe.length>0;
 const roots=new Set();
 const execAsync=promisify(execFile);
+let nativeInvocationOrdinal=0;
+// Coarse, path-free telemetry for the first REAL native invocation of a
+// disposable fixture. Never send raw command, stderr or nonce to CI.
+function nativeElapsedBucket(elapsedMs){
+ if(!Number.isFinite(elapsedMs)||elapsedMs<0)return 'unavailable';
+ if(elapsedMs<2000)return 'under-2s';
+ if(elapsedMs<5000)return '2-to-5s';
+ if(elapsedMs<10000)return '5-to-10s';
+ if(elapsedMs<15000)return '10-to-15s';
+ return '15s-or-more';
+}
+function nativeFirstInvocationEvidence(elapsedMs,outcome){
+ return Object.freeze({
+  schema:'NATIVE_WIN32_FIRST_INVOCATION_TIMING_V1',
+  elapsedBucket:nativeElapsedBucket(elapsedMs),
+  outcome:['completed','failed','process-killed'].includes(outcome)?outcome:'failed',
+  timeoutBudgetMs:15000,syntheticFixtureOnly:true,
+  commandLineLogged:false,fixturePathLogged:false,nonceLogged:false,
+  hostPolicyChanged:false,realGameInspected:false
+ });
+}
 
 async function fixtureAt(parent){
  const root=await fs.mkdtemp(join(parent,PREFIX));
@@ -58,13 +79,26 @@ function sanitizeNativeExecError(err){
  return failure;
 }
 async function invoke(f,extra=[],tempParent=null){
+ const isFirst=++nativeInvocationOrdinal===1;
+ const start=process.hrtime.bigint();
+ let outcome='failed';
  try{
-  return await execAsync(exe,['--root',f.root,'--nonce',f.nonce,...extra],{
+  const output=await execAsync(exe,['--root',f.root,'--nonce',f.nonce,...extra],{
    shell:false,windowsHide:true,timeout:15000,maxBuffer:4096,
    ...(tempParent===null?{}:{env:tempEnv(tempParent)})
   });
+  outcome='completed';
+  return output;
  }catch(err){
+  outcome=err?.killed===true?'process-killed':'failed';
   throw sanitizeNativeExecError(err);
+ }finally{
+  if(isFirst){
+   const elapsedMs=Number(process.hrtime.bigint()-start)/1_000_000;
+   // JSON has only fixed codes and boolean safety claims; no test arguments.
+   console.log('NATIVE_WIN32_FIRST_INVOCATION_TIMING',
+    JSON.stringify(nativeFirstInvocationEvidence(elapsedMs,outcome)));
+  }
  }
 }
 async function denied(f,extra=[],tempParent=null){
@@ -2187,4 +2221,33 @@ test('native refusal keeps only exact generic stderr and numeric exit, never raw
  assert.equal(falseRefusal.stderr,'NATIVE_LAB_STDERR_REDACTED');
  assert.equal(falseRefusal.stdout,'NATIVE_LAB_STDOUT_REDACTED');
  assert.equal(JSON.stringify(falseRefusal).includes('secret data'),false);
+});
+
+test('first invocation telemetry is coarse, bounded, privacy-safe and never proof of host sandbox',()=>{
+ const buckets=[[0,'under-2s'],[1999,'under-2s'],
+  [2000,'2-to-5s'],[4999,'2-to-5s'],[5000,'5-to-10s'],
+  [9999,'5-to-10s'],[10000,'10-to-15s'],
+  [14999,'10-to-15s'],[15000,'15s-or-more'],
+  [18000,'15s-or-more'],[NaN,'unavailable'],
+  [-1,'unavailable'],[Infinity,'unavailable']];
+ for(const [value,expected] of buckets){
+  const proof=nativeFirstInvocationEvidence(value,'completed');
+  assert.equal(proof.elapsedBucket,expected);
+  assert.equal(proof.timeoutBudgetMs,15000);
+  assert.equal(proof.syntheticFixtureOnly,true);
+  assert.equal(proof.realGameInspected,false);
+  assert.equal(proof.commandLineLogged,false);
+  assert.equal(proof.fixturePathLogged,false);
+  assert.equal(proof.nonceLogged,false);
+  assert.equal(Object.isFrozen(proof),true);
+ }
+ for(const value of ['completed','failed','process-killed','unknown']){
+  const proof=nativeFirstInvocationEvidence(15000,value);
+  assert.equal(proof.outcome,value==='unknown'?'failed':value);
+  const displayed=JSON.stringify(proof);
+  assert.equal(displayed.includes('C:\\\\Private'),false);
+  assert.equal(displayed.includes('--nonce'),false);
+  assert.equal(displayed.includes('defc1bea246599a0eecb050f5460a857'),false);
+  assert.equal(displayed.includes('ETIMEDOUT'),false);
+ }
 });

@@ -953,3 +953,24 @@ Dois testes de contrato injetam strings particulares e verificam
 que nem mensagens nem serializações de erro divulgam argumentos.
 Essa medida não diagnostica a causa do atraso nem certifica o
 executável sob um host adversarial.
+
+## Diagnóstico de tempo na primeira invocação nativa de fixture
+
+A primeira chamada efetiva ao executável Win32 da fixture passa a
+emitir **uma única linha** `NATIVE_WIN32_FIRST_INVOCATION_TIMING`
+com formato V1: faixa de duração (<2 s, 2–5 s, 5–10 s,
+10–15 s, ≥15 s ou indisponível), resultado
+`completed`, `failed` ou `process-killed`, e sinalizadores
+fixos de privacidade. A duração é medida por relógio monotônico
+somente no processo de teste. O evento não fornece nomes,
+caminhos, IDs, nonce, linha de comando, stdout ou stderr.
+`process-killed` **não é automaticamente classificado como
+timeout ou causa raiz**.
+
+Esse dado serve para comparar cold starts em runs de CI diferentes
+e isolar uma falha observada próxima ao timeout. A linha não é
+prova de sandbox, estabilidade de produção, inspeção real nem
+concessão de acesso a jogos. O tempo máximo de 15 segundos,
+`maxBuffer` e o tratamento de erro seguro continuam inalterados.
+Um teste de contrato exercita fronteiras de todas as faixas,
+valores inválidos e saída redigida.
