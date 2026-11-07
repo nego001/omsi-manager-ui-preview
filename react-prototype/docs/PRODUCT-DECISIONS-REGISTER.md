@@ -450,3 +450,16 @@ remove o contexto. A verificação é apenas no JSON validado,
 nunca em arquivos reais, versões instaladas ou compatibilidade.
 Três testes Playwright cobrem colisão de prefixo, alternância
 de modo, retorno, teclado e viewport 390 px.
+
+### Referências recebidas por um mod (arestas reversas diretas do catálogo)
+
+A seção "Quem menciona este mod no catálogo?" em Detalhes mostra outros
+registros que declaram diretamente o ID selecionado em `requires` ou
+`conflictsWith`. Cada grupo é **unilateral**, não inferindo versões,
+arestas transitivas, conflitos recíprocos nem instalações. Preserva
+referências entre jogos diferentes para que as inconsistências sejam
+visíveis, e distingue estado vazio de qualquer alegação de compatibilidade.
+Os botões usam a localização exata de ID e o retorno reversível ao
+diagnóstico já existente. Os testes cobrem direção, autorreferência,
+dependência indireta, conflito, salto ao Catálogo, retorno, 390px e
+dados entre jogos. Apenas JSON validado é consultado.

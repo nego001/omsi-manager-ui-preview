@@ -12,6 +12,7 @@ import {parseDeclaredSessionReview,compareReviewedDeclaredReports,serializeRevie
 import {parseDeclaredComparisonReview,type ReviewedComparisonFile} from './session-comparison-review';
 import {explainRelationIssue,summarizeRelationIssues} from './relation-guidance';
 import {buildRelationTimeline} from './relation-timeline';
+import {collectIncomingDeclaredRelations} from './incoming-relations';
 import {consolidateDiagnostic} from './diagnostic-report';
 import SyntheticDiagnosticPreview from './SyntheticDiagnosticPreview';
 import SyntheticGateLab from './SyntheticGateLab';
@@ -192,6 +193,7 @@ export default function App(){
  const relationAnalysis=useMemo(()=>analyzeModRelations(catalogMods,selected.id,hypotheticalGameVersion),[catalogMods,selected.id,hypotheticalGameVersion]);
  const relationSummary=summarizeRelationIssues(relationAnalysis.issues);
  const relationTimeline=useMemo(()=>buildRelationTimeline(relationAnalysis,selected.id),[relationAnalysis,selected.id]);
+ const incomingRelations=useMemo(()=>collectIncomingDeclaredRelations(catalogMods,selected.id),[catalogMods,selected.id]);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>{
   // Exact target ID for a dependency jump; editing the query restores fuzzy search.
@@ -864,6 +866,38 @@ export default function App(){
       </details>
     </div>
    </li>)}</ol>
+  <section className="relation-incoming" aria-label="Referências recebidas no catálogo">
+   <h3>Quem menciona este mod no catálogo?</h3>
+   <p>São declarações diretas do JSON. Não inclui dependências indiretas,
+    não comprova compatibilidade, instalação nem conflito real.</p>
+   {incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length===0?
+    <p className="relation-incoming-empty">Nenhuma referência recebida nesses campos do catálogo.</p>:
+    <div className="relation-incoming-groups">
+     {incomingRelations.requiredBy.length>0&&<div>
+      <h4>Declara dependência direta deste ID ({incomingRelations.requiredBy.length})</h4>
+      <ul>{incomingRelations.requiredBy.map(mod=><li key={mod.id}>
+       <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small></span>
+       <button className="relation-stage-catalog-jump" type="button"
+        aria-label={'Localizar mod que declara depender '+mod.title+' (ID '+mod.id+') no Catálogo'}
+        onClick={()=>locateDeclaredDependencyInCatalog(mod.id)}>
+        Localizar ID no Catálogo <ChevronRight size={14} aria-hidden="true"/>
+       </button>
+      </li>)}</ul>
+     </div>}
+     {incomingRelations.conflictDeclaredBy.length>0&&<div>
+      <h4>Outros registros que declaram conflito com este ID ({incomingRelations.conflictDeclaredBy.length})</h4>
+      <ul>{incomingRelations.conflictDeclaredBy.map(mod=><li key={mod.id}>
+       <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small></span>
+       <button className="relation-stage-catalog-jump" type="button"
+        aria-label={'Localizar mod que declara conflito '+mod.title+' (ID '+mod.id+') no Catálogo'}
+        onClick={()=>locateDeclaredDependencyInCatalog(mod.id)}>
+        Localizar ID no Catálogo <ChevronRight size={14} aria-hidden="true"/>
+       </button>
+      </li>)}</ul>
+     </div>}
+    </div>}
+   <small>Declarações de outros registros do catálogo atual. Não foram inspecionados arquivos ou versões instaladas.</small>
+  </section>
   {relationAnalysis.issues.length>0?<><h3>O que significam os alertas</h3><ul className="relation-issues">{relationAnalysis.issues.map((issue,index)=>{
    const guide=explainRelationIssue(issue);
    return <li key={issue.code+index} className={issue.severity}>

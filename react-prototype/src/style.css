@@ -1179,3 +1179,22 @@
 .catalog-lookup-exact{display:block;margin-top:8px;font-size:11px;line-height:1.6;
  color:#d4e8ff;overflow-wrap:anywhere}
 .catalog-lookup-exact strong{color:#f6faff;word-break:break-word}
+
+/* Only explicit reverse declarations, never real installed dependencies. */
+.relation-incoming{margin:18px 0;padding:16px;border:1px solid #4e657d;border-radius:12px;
+ background:#1a2938;overflow-wrap:anywhere}
+.relation-incoming h3{margin:0 0 8px;font-size:15px;color:#f0f5fc}
+.relation-incoming>p{margin:0 0 14px;color:#cbd8e7;font-size:12px;line-height:1.6}
+.relation-incoming h4{font-size:12px;color:#e0ebfa;margin:0 0 10px}
+.relation-incoming-groups{display:grid;gap:16px}
+.relation-incoming ul{padding:0;margin:0;list-style:none;display:grid;gap:8px}
+.relation-incoming li{display:flex;align-items:center;justify-content:space-between;
+ gap:12px;padding:11px 12px;border:1px solid #43566a;border-radius:9px;min-width:0}
+.relation-incoming li span{display:grid;gap:4px;min-width:0}
+.relation-incoming li strong{font-size:12px;color:#f0f5fc}
+.relation-incoming li small,.relation-incoming>small{font-size:11px;color:#b7c9db}
+.relation-incoming>small{display:block;margin-top:12px;line-height:1.6}
+.relation-incoming .relation-stage-catalog-jump{flex-shrink:0}
+.relation-incoming-empty{padding:12px;border:1px dashed #566c84;border-radius:8px}
+@media(max-width:540px){.relation-incoming li{align-items:stretch;flex-direction:column}
+ .relation-incoming .relation-stage-catalog-jump{width:100%;min-height:44px}}
