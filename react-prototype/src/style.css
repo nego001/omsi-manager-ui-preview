@@ -1162,3 +1162,15 @@
 .relation-stage-catalog-jump:hover{background:#35516e;border-color:#9cc0e6}
 .relation-stage-catalog-jump:focus-visible{outline:3px solid #b4d5ff;outline-offset:3px}
 @media(max-width:480px){.relation-stage-catalog-jump{min-height:44px;width:100%}}
+
+/* A reversible metadata-only lookup never changes installations or game files. */
+.catalog-dependency-return{display:flex;align-items:center;justify-content:space-between;
+ flex-wrap:wrap;gap:13px;min-width:0;margin-bottom:20px;padding:14px 16px;
+ border:1px solid #617e9d;border-radius:10px;background:#213247;overflow-wrap:anywhere}
+.catalog-dependency-return>div:first-child{flex:1 1 260px;min-width:0}
+.catalog-dependency-return strong{font-size:13px;color:#eff6ff}
+.catalog-dependency-return p{font-size:11px;line-height:1.6;color:#d1dfee;margin:6px 0 0}
+.catalog-dependency-return-actions{display:flex;gap:8px;flex-wrap:wrap;min-width:0}
+.catalog-dependency-return-actions .btn{min-height:44px;white-space:normal;text-align:center}
+@media(max-width:540px){.catalog-dependency-return-actions{width:100%;flex-direction:column}
+ .catalog-dependency-return-actions .btn{width:100%}}

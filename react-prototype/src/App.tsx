@@ -24,6 +24,12 @@ type GameId='omsi'|'ets2'|'ats';
 type Screen='home'|'games'|'catalog'|'library'|'details'|'queue'|'history'|'settings'|'security';
 type Category='Todos'|'Ônibus'|'Mapas'|'Caminhões'|'Sons'|'Gráficos';
 type Mod=CatalogMod;
+type DependencyLookupContext={
+ sourceId:string;sourceTitle:string;origin:'home'|'catalog'|'library';
+ hypotheticalVersion:string;
+ previousGame:GameId|'all';previousCategory:Category;
+ previousSearch:string;previousSort:'catalog'|'title'|'game';
+};
 type SessionBatchRecord={
  id:number;selectedIds:string[];selectedTitles:string[];selectedCount:number;
  games:GameId[];blockers:number;notices:number;
@@ -119,6 +125,7 @@ export default function App(){
  const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'>('catalog');
  const [detailOrigin,setDetailOrigin]=useState<'home'|'catalog'|'library'>('catalog');
  const [detailFocus,setDetailFocus]=useState<'overview'|'relations'>('overview');
+ const [dependencyLookup,setDependencyLookup]=useState<DependencyLookupContext|null>(null);
  const [category,setCategory]=useState<Category>('Todos');
  const [search,setSearch]=useState('');
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
@@ -446,9 +453,35 @@ export default function App(){
   focusLibraryBatchAfterDetails.current=true;
   goto('library');
  }
+ function restoreCatalogBeforeDependencyLookup(context:DependencyLookupContext){
+  setSelectedGame(context.previousGame);setCategory(context.previousCategory);
+  setSearch(context.previousSearch);setCatalogSort(context.previousSort);
+ }
+ function returnToOriginalDependencyDiagnostic(){
+  if(!dependencyLookup)return;
+  const context=dependencyLookup;
+  setDependencyLookup(null);
+  restoreCatalogBeforeDependencyLookup(context);
+  if(!catalogMods.some(mod=>mod.id===context.sourceId))return;
+  setSelectedMod(context.sourceId);setDetailOrigin(context.origin);
+  setHypotheticalGameVersion(context.hypotheticalVersion);
+  setDetailFocus('relations');goto('details');
+ }
+ function dismissDependencyLookup(){
+  if(!dependencyLookup)return;
+  restoreCatalogBeforeDependencyLookup(dependencyLookup);
+  setDependencyLookup(null);
+  document.querySelector<HTMLInputElement>('input[aria-label="Buscar mods"]')?.focus({preventScroll:true});
+ }
  function locateDeclaredDependencyInCatalog(modId:string){
   // Only local validated catalog records, never actual installed files.
   if(!catalogMods.some(mod=>mod.id===modId))return;
+  setDependencyLookup({
+   sourceId:selected.id,sourceTitle:selected.title,origin:detailOrigin,
+   hypotheticalVersion:hypotheticalGameVersion,
+   previousGame:selectedGame,previousCategory:category,
+   previousSearch:search,previousSort:catalogSort
+  });
   setSelectedGame('all');setCategory('Todos');
   setSearch(modId);setCatalogSort('catalog');
   focusCatalogSearchAfterDependencyJump.current=true;
@@ -474,7 +507,7 @@ export default function App(){
    if(generation!==catalogReadGeneration.current)return;
    const next=parseCatalogManifest(raw);
    ++reviewReadGeneration.current;
-   setCatalogMods(next);setHypotheticalGameVersion('');
+   setCatalogMods(next);setHypotheticalGameVersion('');setDependencyLookup(null);
    setCatalogSource('Importado: '+file.name.slice(0,85));
    setCatalogError('');
    setSelectedMod(next[0].id);
@@ -500,7 +533,7 @@ export default function App(){
  function restoreDemo(){
   ++catalogReadGeneration.current;
   ++reviewReadGeneration.current;
-  setCatalogMods(mods);setHypotheticalGameVersion('');setCatalogSource('Demonstração');setCatalogError('');
+  setCatalogMods(mods);setHypotheticalGameVersion('');setDependencyLookup(null);setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
@@ -624,7 +657,23 @@ export default function App(){
        {inspections[id]?.status==='error'&&<p className="inspection-error" role="alert">{inspections[id]?.status==='error'?inspections[id].message:''}</p>}</div>)}</div>
       <p className="inspection-note">No ETS2/ATS, escolha a própria pasta mod ou a pasta acima dela, geralmente nos Documentos do jogo, não necessariamente na Steam. Contagens são apenas pistas de estrutura, nunca prova de instalação, ativação ou compatibilidade. Não enviamos caminhos completos nem nomes de arquivos à interface. Instalar e remover seguem bloqueados.</p>
      </section></>}
-    {screen==='catalog'&&<><div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select><label className="catalog-sort-control">Ordenar<select aria-label="Ordenar catálogo" value={catalogSort} onChange={e=>setCatalogSort(e.target.value as 'catalog'|'title'|'game')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option></select></label></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
+    {screen==='catalog'&&<>{dependencyLookup&&<section className="catalog-dependency-return"
+ aria-label="Consulta de dependência declarada">
+  <div>
+   <strong>Consulta temporária de ID declarado</strong>
+   <p>Você veio do diagnóstico de <b>{dependencyLookup.sourceTitle}</b>.
+    A pesquisa foi ajustada para localizar um registro do catálogo, sem
+    verificar arquivos nem instalações.</p>
+  </div>
+  <div className="catalog-dependency-return-actions">
+   <button type="button" className="btn secondary"
+    onClick={returnToOriginalDependencyDiagnostic}>
+    Voltar ao diagnóstico original
+   </button>
+   <button type="button" className="btn secondary"
+    onClick={dismissDependencyLookup}>Restaurar filtros do Catálogo</button>
+  </div>
+ </section>}<div className="page-heading"><span className="eyebrow">EXPLORAR CONTEÚDO</span><h1>Catálogo de mods</h1><p>Explore os exemplos ou importe um JSON de metadados. Instalação desativada.</p></div><div className="toolbar"><div className="tabs">{(['all','omsi','ets2','ats'] as const).map(id=><button key={id} className={selectedGame===id?'selected':''} onClick={()=>setSelectedGame(id)}>{id==='all'?'Todos os jogos':games[id].title}</button>)}</div><select value={category} onChange={e=>setCategory(e.target.value as Category)} aria-label="Filtrar categoria">{categories.map(c=><option key={c}>{c}</option>)}</select><label className="catalog-sort-control">Ordenar<select aria-label="Ordenar catálogo" value={catalogSort} onChange={e=>setCatalogSort(e.target.value as 'catalog'|'title'|'game')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option></select></label></div><div className="catalog-import-bar"><div className="catalog-source"><strong>Origem: {catalogSource}</strong><span>Somente metadados JSON. Sem varredura ou instalação.</span></div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
  { (selectedGame!=='all'||category!=='Todos'||search.trim().length>0||catalogSort!=='catalog')&&<div className="catalog-active-filters" role="group" aria-label="Filtros ativos do catálogo">
   <span>Filtros ativos:</span>
   {selectedGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setSelectedGame('all'))}>Jogo: {games[selectedGame].title} <span aria-hidden="true">×</span></button>}

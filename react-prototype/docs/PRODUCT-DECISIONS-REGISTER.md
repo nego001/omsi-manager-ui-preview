@@ -421,3 +421,18 @@ ou compatibilidade real. IDs ausentes e a etapa do mod selecionado não
 ganham atalhos fictícios. Filtros da Biblioteca permanecem inalterados.
 Três testes Playwright exercitam dependência indireta, seleção via teclado
 e foco, viewport 390px e ciclo com referência ausente.
+
+### Consulta reversível de dependência com retorno ao diagnóstico
+
+O atalho "Localizar ID no Catálogo" passa a mostrar um contexto temporário
+que informa de qual mod/diagnóstico veio a consulta. O botão **Voltar ao
+diagnóstico original** restaura os quatro controles anteriores do Catálogo
+(jogo, categoria, pesquisa e ordem) e retorna ao Detalhes original, com
+a hipótese de versão preservada e foco na seção de relações. O botão
+**Restaurar filtros do Catálogo** encerra a consulta e reconstitui apenas os
+controles anteriores, com foco no campo de busca. Os dois caminhos são
+explicitamente reversíveis: não modificam favoritos, seleção conjunta,
+instalações, pacotes, nem leem arquivos locais. Importar um JSON válido ou
+restaurar a demonstração invalida o contexto para impedir retorno a
+IDs de um catálogo antigo. Três testes Playwright exercitam ida e volta,
+teclado em 390px e descarte de contexto em troca de catálogo.
