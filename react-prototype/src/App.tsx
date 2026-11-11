@@ -542,6 +542,13 @@ export default function App(){
   setSelectedGame('all');setCategory('Todos');setSearch('');
  }
  function goto(id:Screen,preserveInputFocus=false){
+  if(screen==='catalog'&&id!=='catalog'){
+   // Consent and file reads are scoped to the catalog screen. Leaving it
+   // cancels unconfirmed proposals and makes late File.text() results inert.
+   ++catalogReadGeneration.current;
+   setPendingCatalogReplacement(null);
+   focusCatalogReplacementPrompt.current=false;
+  }
   if(id!==screen&&!preserveInputFocus)focusMainAfterNavigation.current=true;
   setScreen(id);setToast('');
  }
