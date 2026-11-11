@@ -446,7 +446,10 @@ export default function App(){
   const skipped=record.selectedIds.length-eligible.length;
   setBatchSelected(eligible);
   setBatchOpen(eligible.length>0);
-  setScreen('library');
+  // The History button unmounts as Library mounts. Restore keyboard context
+  // to the read-only batch section, or to its empty-state action.
+  focusLibraryBatchAfterNavigation.current=true;
+  goto('library');
   setToast(eligible.length?
    `Seleção declarada restaurada: ${eligible.length} favorito(s)${skipped?` · ${skipped} indisponível(is)`:''}. Nada foi instalado.`:
    'Nenhum favorito deste resumo está disponível na biblioteca. Nenhum mod foi instalado.');
@@ -457,7 +460,7 @@ export default function App(){
  // Removing a visible favorite unmounts its button. Restore focus after React
  // updates the filtered cards instead of leaving keyboard users on <body>.
  const focusAfterFavoriteRemoval=useRef<{nextId:string|null}|null>(null);
- const focusLibraryBatchAfterDetails=useRef(false);
+ const focusLibraryBatchAfterNavigation=useRef(false);
  const focusCatalogSearchAfterDependencyJump=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
  const focusCatalogChipIndexAfterRemoval=useRef<number|null>(null);
@@ -497,7 +500,7 @@ export default function App(){
  }
  function reviewLibrarySelectionFromDetails(){
   if(detailOrigin!=='library'||activeBatch.length===0)return;
-  focusLibraryBatchAfterDetails.current=true;
+  focusLibraryBatchAfterNavigation.current=true;
   goto('library');
  }
  function restoreCatalogBeforeDependencyLookup(context:DependencyLookupContext){
@@ -648,9 +651,15 @@ export default function App(){
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
  useEffect(()=>{
-  if(screen!=='library'||!focusLibraryBatchAfterDetails.current)return;
-  focusLibraryBatchAfterDetails.current=false;
-  document.getElementById('library-batch')?.focus({preventScroll:true});
+  if(screen!=='library'||!focusLibraryBatchAfterNavigation.current)return;
+  focusLibraryBatchAfterNavigation.current=false;
+  const batch=document.getElementById('library-batch');
+  if(batch){batch.focus({preventScroll:true});return;}
+  const emptyAction=document.querySelector<HTMLButtonElement>(
+   '.library-empty-filter button, .library-empty button'
+  );
+  if(emptyAction){emptyAction.focus({preventScroll:true});return;}
+  document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
  useEffect(()=>{
   if(screen!=='catalog'||!focusCatalogSearchAfterDependencyJump.current)return;
