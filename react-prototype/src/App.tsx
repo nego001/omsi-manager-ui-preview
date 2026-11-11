@@ -425,6 +425,11 @@ export default function App(){
   event.currentTarget.value='';
   if(!file)return;
   const generation=++reviewReadGeneration.current;
+  // A new selection supersedes the prior untrusted JSON preview immediately.
+  // If this file is malformed, oversized or unsupported, never display the
+  // previous file's data next to the rejection message.
+  setReviewedFile(null);setReviewedComparisonFile(null);
+  setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');
   try{
    if(file.size>MAX_SESSION_REVIEW_BYTES)throw Error('SESSION_REVIEW_TOO_LARGE');
    const raw=await file.text();
