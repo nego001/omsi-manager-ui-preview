@@ -49,7 +49,9 @@ test('Detalhes respeita favoritos e filtros da Biblioteca, inclusive remoção e
  await expect(scope.getByRole('button',{name:'Sem mod anterior'})).toBeDisabled();
  await expect(scope.getByRole('button',{name:'Sem próximo mod'})).toBeDisabled();
  await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
- await expect(page.locator('#conteudo-principal')).toBeFocused();
+ // The removed mod has no card to restore. Keyboard focus now returns to the
+ // first still-visible favorite instead of the generic main container.
+ await expect(bus).toBeFocused();
  await expect(filter).toHaveValue('omsi');
  await expect(page.getByText('1 favorito exibido')).toBeVisible();
  await expect(bus).toBeVisible();
