@@ -50,7 +50,7 @@ test('consulta local rejeita campos extras, resultados adulterados e limites',()
  expect(()=>parseDeclaredSessionReview('x'.repeat(MAX_SESSION_REVIEW_BYTES+1)))
   .toThrow('SESSION_REVIEW_TOO_LARGE');
 });
-test('Histórico consulta exportação local sem criar favoritos nem atividades e preserva resultado após rejeição',async({page})=>{
+test('Histórico consulta exportação local sem criar favoritos nem atividades e descarta prévia após rejeição',async({page})=>{
  await page.setViewportSize({width:390,height:820});
  await page.goto('/');
  const nav=page.getByRole('navigation',{name:'Navegação principal'});
@@ -67,12 +67,12 @@ test('Histórico consulta exportação local sem criar favoritos nem atividades 
   ...JSON.parse(serializeDeclaredSessionReport(base)),installationVerified:true
  })));
  await expect(section.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
- await expect(section).toContainText('Arquivo consultado: 2 resumo(s) declarado(s)');
+ await expect(section).not.toContainText('Arquivo consultado');
+ await expect(section.getByRole('button',{name:'Descartar consulta'})).toHaveCount(0);
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(0);
  await nav.getByRole('button',{name:'Histórico'}).click();
- await section.getByRole('button',{name:'Descartar consulta'}).click();
- await expect(section).not.toContainText('Arquivo consultado');
+ await expect(section.getByRole('button',{name:'Descartar consulta'})).toHaveCount(0);
  await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
  await expect(section).toContainText('Arquivo consultado: 1 resumo(s) declarado(s)');
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
@@ -139,13 +139,12 @@ test('Histórico compara coleção JSON na largura de 390 px, sem criar atividad
   ...JSON.parse(serializeDeclaredSessionReport(base)),installationVerified:true
  })));
  await expect(section.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
- await expect(comparison).toBeVisible();
+ await expect(comparison).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(0);
  await nav.getByRole('button',{name:'Histórico'}).click();
- await section.getByRole('button',{name:'Descartar consulta'}).click();
  await expect(comparison).toHaveCount(0);
  await input.setInputFiles(upload(serializeDeclaredSessionReport(base)));
  await expect(comparison).toHaveCount(0);
@@ -262,7 +261,7 @@ test('rejeita comparação JSON adulterada, contagens falsas, caminhos, IDs repe
   .toThrow('COMPARISON_REVIEW_TOO_LARGE');
 });
 
-test('Histórico consulta comparação JSON sem importar atividades e preserva consulta após erro em 390 px',async({page})=>{
+test('Histórico consulta comparação JSON sem importar atividades e limpa prévia após erro em 390 px',async({page})=>{
  await page.setViewportSize({width:390,height:820});
  await page.goto('/');
  const nav=page.getByRole('navigation',{name:'Navegação principal'});
@@ -280,7 +279,7 @@ test('Histórico consulta comparação JSON sem importar atividades e preserva c
   ...JSON.parse(serializeDeclaredSessionComparison(base,next)),installationVerified:true
  })));
  await expect(section.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
- await expect(comparison).toBeVisible();
+ await expect(comparison).toHaveCount(0);
  await input.setInputFiles(upload(serializeDeclaredSessionComparison(base,next)));
  await expect(comparison).toContainText('Origem exportação de sessão não autenticada');
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
