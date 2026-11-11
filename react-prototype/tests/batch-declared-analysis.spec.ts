@@ -122,6 +122,9 @@ test('restaurar demonstração limpa seleção e histórico da fonte importada',
  await page.getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(consent).toBeVisible();
+ await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
