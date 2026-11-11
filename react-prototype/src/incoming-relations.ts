@@ -50,6 +50,45 @@ export function indexIncomingDeclaredRelations(
  return byId;
 }
 
+// A bounded, deterministic explanation for cross-simulator references in
+// the visual Library. Count declared edges, not unique authoring mods.
+// Does NOT infer support, conversion, a real conflict, or installation.
+export type CrossGameIncomingSummary={
+ total:number;dependencies:number;conflicts:number;
+ byGame:ReadonlyArray<{
+  game:CatalogMod['game'];dependencies:number;conflicts:number;total:number;
+ }>;
+ source:'catalog-json-only';compatibilityVerified:false;
+};
+export function summarizeCrossGameIncoming(
+ incoming:IncomingDeclaredRelations|undefined
+):CrossGameIncomingSummary{
+ type Game=CatalogMod['game'];
+ type Count={game:Game;dependencies:number;conflicts:number;total:number};
+ const byGame=new Map<Game,Count>();
+ const count=(ref:IncomingDeclaredReference,kind:'dependencies'|'conflicts')=>{
+  if(!ref.differentGame)return;
+  let current=byGame.get(ref.game);
+  if(!current){
+   current={game:ref.game,dependencies:0,conflicts:0,total:0};
+   byGame.set(ref.game,current);
+  }
+  current[kind]++;
+  current.total++;
+ };
+ for(const ref of incoming?.requiredBy??[])count(ref,'dependencies');
+ for(const ref of incoming?.conflictDeclaredBy??[])count(ref,'conflicts');
+ const order:Record<Game,number>={omsi:0,ets2:1,ats:2};
+ const entries=[...byGame.values()].sort((a,b)=>order[a.game]-order[b.game]);
+ return {
+  total:entries.reduce((sum,x)=>sum+x.total,0),
+  dependencies:entries.reduce((sum,x)=>sum+x.dependencies,0),
+  conflicts:entries.reduce((sum,x)=>sum+x.conflicts,0),
+  byGame:entries,
+  source:'catalog-json-only',compatibilityVerified:false
+ };
+}
+
 // Kept as a small API for one-off detail and test queries. The Library uses
 // indexIncomingDeclaredRelations once for the entire validated catalog.
 export function collectIncomingDeclaredRelations(
