@@ -1,4 +1,5 @@
 import {test,expect,type Page} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 
 // The History stores only temporary JSON catalog summaries, never actual installs.
 const nav=(page:Page)=>page.getByRole('navigation',{name:'Navegação principal'});
@@ -122,4 +123,47 @@ test('clearing all also invalidates pending single-summary undo',async({page})=>
  await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toHaveCount(0);
+});
+
+test('discarding an exported report returns focus to the JSON picker without modifying session history',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await savedExample(page);
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar resumo 1 em JSON'}).click()
+ ]);
+ const buffer=await readFile(await download.path());
+ const picker=page.getByLabel('Arquivo JSON de resumos exportados');
+ await picker.setInputFiles({name:download.suggestedFilename(),mimeType:'application/json',buffer});
+ await expect(page.getByText('Arquivo consultado: 1 resumo(s) declarado(s)')).toBeVisible();
+ await page.getByRole('button',{name:'Descartar consulta'}).click();
+ await expect(picker).toBeFocused();
+ await expect(page.getByText('Arquivo consultado: 1 resumo(s) declarado(s)')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await picker.setInputFiles({name:'novamente.json',mimeType:'application/json',buffer});
+ await expect(page.getByText('Arquivo consultado: 1 resumo(s) declarado(s)')).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('discarding an exported comparison restores the same JSON picker focus',async({page})=>{
+ await savedExample(page);
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar comparação em JSON'}).click()
+ ]);
+ const buffer=await readFile(await download.path());
+ const picker=page.getByLabel('Arquivo JSON de resumos exportados');
+ await picker.setInputFiles({name:download.suggestedFilename(),mimeType:'application/json',buffer});
+ await expect(page.getByRole('region',{name:'Consulta de comparação JSON exportada'})).toBeVisible();
+ await page.getByRole('button',{name:'Descartar comparação consultada'}).click();
+ await expect(picker).toBeFocused();
+ await expect(page.getByRole('region',{name:'Consulta de comparação JSON exportada'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toBeVisible();
 });
