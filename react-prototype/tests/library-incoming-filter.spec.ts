@@ -88,7 +88,11 @@ test('cross-simulator incoming mentions remain metadata-only, reversible and res
   has:page.getByRole('button',{name:'Sem Declaração',exact:true})
  });
  await expect(crossCard.locator('.library-cross-game-warning'))
-  .toHaveText('1 referência(s) de outro simulador no JSON. Não comprova conversão nem compatibilidade.');
+  .toContainText('1 referência(s) de outro simulador no JSON.');
+ await expect(crossCard.locator('.library-cross-game-warning'))
+  .toContainText('Origem declarada: Euro Truck Simulator 2 (0 dependência(s), 1 conflito(s))');
+ await expect(crossCard.locator('.library-cross-game-warning'))
+  .toContainText('Não comprova conversão nem compatibilidade.');
  const sameGameCard=page.locator('.mod-card').filter({
   has:page.getByRole('button',{name:'Pacote Base',exact:true})
  });
