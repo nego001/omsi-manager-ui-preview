@@ -92,6 +92,10 @@ test('manifesto rejeita chaves extras na raiz e não perde o histórico após im
  await expect(history).toContainText('Ônibus Urbano Clássico');
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(catalogPath);
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(consent).toBeVisible();
+ await expect(page.getByText('Origem: Demonstração')).toBeVisible();
+ await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await expect(page.getByText('Importado: catalog.example.json')).toBeVisible();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(history).toHaveCount(0);
@@ -113,6 +117,9 @@ test('manifesto rejeita chaves extras na raiz e não perde o histórico após im
  await expect(history).not.toContainText('Ônibus Urbano Clássico');
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ const restoreConsent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(restoreConsent).toBeVisible();
+ await restoreConsent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(history).toHaveCount(0);
  await expect(page.getByRole('heading',{name:'Sem atividades registradas'})).toBeVisible();
