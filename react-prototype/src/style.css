@@ -13,6 +13,7 @@
 .catalog-source{display:flex;flex-direction:column;min-width:0;gap:6px}
 .catalog-source strong{font-size:13px;overflow-wrap:anywhere}
 .catalog-source span{color:#a5abba;font-size:11px;line-height:1.6}
+.catalog-source .catalog-replacement-warning{display:block;color:#f3ce9b;font-size:12px;line-height:1.55;max-width:660px;overflow-wrap:anywhere;border-left:3px solid #b88d55;padding-left:11px}
 .catalog-import-actions{display:flex;gap:9px;flex-wrap:wrap}
 .import-control{cursor:pointer;position:relative}
 .import-control input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
