@@ -2,7 +2,7 @@ import {test,expect,type Page} from '@playwright/test';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {parseCatalogManifest} from '../src/catalog';
-import {collectIncomingDeclaredRelations as incoming,indexIncomingDeclaredRelations as indexIncoming} from '../src/incoming-relations';
+import {collectIncomingDeclaredRelations as incoming,indexIncomingDeclaredRelations as indexIncoming,summarizeCrossGameIncoming} from '../src/incoming-relations';
 const example=readFileSync(resolve('examples/catalog.dependencies.example.json'),'utf8');
 const parsed=parseCatalogManifest(example);
 const panel=(page:Page)=>page.getByRole('region',{name:'Referências recebidas no catálogo'});
@@ -162,4 +162,29 @@ test('index handles 200 validated catalog entries and 4000 declared edges withou
  expect(index.get('mod-0')?.requiredBy).toHaveLength(20);
  expect(index.get('mod-0')?.requiredBy.every(x=>x.id!=='mod-0')).toBe(true);
  expect([...index.values()].every(x=>x.realInstallationVerified===false)).toBe(true);
+});
+
+test('cross-game summary preserves origin, edge types, order and JSON-only trust state',()=>{
+ const fixtures=parseCatalogManifest(JSON.stringify({schemaVersion:1,mods:[
+  {id:'target',title:'Alvo',game:'omsi',category:'Ônibus',version:'1',size:'1 MB',description:'Demo'},
+  {id:'ets-src',title:'ETS',game:'ets2',category:'Caminhões',version:'1',size:'1 MB',
+   description:'Demo',requires:['target'],conflictsWith:['target']},
+  {id:'ats-src',title:'ATS',game:'ats',category:'Caminhões',version:'1',size:'1 MB',
+   description:'Demo',requires:['target']},
+  {id:'same-src',title:'OMSI',game:'omsi',category:'Sons',version:'1',size:'1 MB',
+   description:'Demo',requires:['target'],conflictsWith:['target']}
+ ]}));
+ const summary=summarizeCrossGameIncoming(indexIncoming(fixtures).get('target'));
+ expect(summary).toEqual({
+  total:3,dependencies:2,conflicts:1,
+  byGame:[
+   {game:'ets2',dependencies:1,conflicts:1,total:2},
+   {game:'ats',dependencies:1,conflicts:0,total:1}
+  ],source:'catalog-json-only',compatibilityVerified:false
+ });
+ expect(summarizeCrossGameIncoming(undefined)).toEqual({
+  total:0,dependencies:0,conflicts:0,byGame:[],
+  source:'catalog-json-only',compatibilityVerified:false
+ });
+ expect(summarizeCrossGameIncoming(indexIncoming(fixtures).get('same-src')).total).toBe(0);
 });
