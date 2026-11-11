@@ -154,6 +154,7 @@ export default function App(){
  const [reviewedFile,setReviewedFile]=useState<ReviewedDeclaredFile|null>(null);
  const [reviewedComparisonFile,setReviewedComparisonFile]=useState<ReviewedComparisonFile|null>(null);
  const [reviewError,setReviewError]=useState('');
+ const [reviewReading,setReviewReading]=useState(false);
  const [reviewBeforeId,setReviewBeforeId]=useState<number|null>(null);
  const [reviewAfterId,setReviewAfterId]=useState<number|null>(null);
  // Reviewed exports are never promoted to the session history.
@@ -430,6 +431,7 @@ export default function App(){
   // previous file's data next to the rejection message.
   setReviewedFile(null);setReviewedComparisonFile(null);
   setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');
+  setReviewReading(true);
   try{
    if(file.size>MAX_SESSION_REVIEW_BYTES)throw Error('SESSION_REVIEW_TOO_LARGE');
    const raw=await file.text();
@@ -454,12 +456,23 @@ export default function App(){
    setReviewError(code==='SESSION_REVIEW_TOO_LARGE'?
     'Arquivo excede o limite de 128 KiB.':
     'Arquivo incompatível ou adulterado. Apenas resumos, coleções e comparações JSON declarativas são aceitos.');
+  }finally{
+   if(generation===reviewReadGeneration.current)setReviewReading(false);
   }
+ }
+ function cancelPendingReviewRead(){
+  // Never resurrect an obsolete read, even if its File.text() resolves later.
+  ++reviewReadGeneration.current;
+  setReviewReading(false);
+  document.querySelector<HTMLInputElement>(
+   'input[aria-label="Arquivo JSON de resumos exportados"]'
+  )?.focus({preventScroll:true});
  }
  function discardReviewedHistoryFile(kind:'reports'|'comparison'){
   // The discard button unmounts; the file picker is a stable keyboard
   // destination to continue the read-only review workflow.
   ++reviewReadGeneration.current;
+  setReviewReading(false);
   if(kind==='reports'){
    setReviewedFile(null);
    setReviewBeforeId(null);
@@ -597,6 +610,7 @@ export default function App(){
    if(generation!==catalogReadGeneration.current)return;
    const next=parseCatalogManifest(raw);
    ++reviewReadGeneration.current;
+   setReviewReading(false);
    setCatalogMods(next);setHypotheticalGameVersion('');setDependencyLookup(null);
    setCatalogSource('Importado: '+file.name.slice(0,85));
    setCatalogError('');
@@ -623,6 +637,7 @@ export default function App(){
  function restoreDemo(){
   ++catalogReadGeneration.current;
   ++reviewReadGeneration.current;
+  setReviewReading(false);
   setCatalogMods(mods);setHypotheticalGameVersion('');setDependencyLookup(null);setCatalogSource('Demonstração');setCatalogError('');
   setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
@@ -1130,6 +1145,7 @@ export default function App(){
   <h2>Consultar JSON exportado</h2>
   <p>Abra um resumo, coleção ou comparação JSON exportada anteriormente. Consulta local e temporária: não importa para o Histórico, não altera favoritos nem verifica instalações.</p>
   <label className="session-import-picker">Arquivo JSON de resumos exportados<input type="file" aria-label="Arquivo JSON de resumos exportados" accept=".json,application/json" onChange={openDeclaredExport}/></label>
+  {reviewReading&&<div className="session-import-reading" role="status">Lendo arquivo JSON selecionado… <button type="button" className="btn secondary" onClick={cancelPendingReviewRead}>Cancelar leitura de JSON</button></div>}
   {reviewError&&<p role="alert" className="session-import-error">{reviewError}</p>}
   {reviewedComparisonFile&&<section className="session-comparison-review" aria-label="Consulta de comparação JSON exportada">
    <div className="session-import-summary">
