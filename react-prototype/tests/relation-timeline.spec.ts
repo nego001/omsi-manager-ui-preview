@@ -107,3 +107,22 @@ test('linha do tempo não corta conteúdo em larguras 390/850/1440',async({page}
   }
  }
 });
+
+test('timeline lookup returns to outgoing dependency section, not incoming declarations',async({page})=>{
+ await page.goto('/');
+ await page.getByRole('navigation',{name:'Navegação principal'})
+  .getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(uploaded(example));
+ await page.getByRole('button',{name:'Sons do OF-1721 (exemplo)',exact:true}).click();
+ const region=page.getByRole('region',{name:'Simulação de dependências'});
+ const firstStage=region.locator('ol.relation-timeline > li').first();
+ await firstStage.getByText('Ver dados declarados').click();
+ await firstStage.getByRole('button',{name:/Localizar dependência Pacote base OMSI/}).click();
+ await expect(page.getByRole('textbox',{name:'Buscar mods'})).toHaveValue('omsi-core');
+ await page.getByRole('region',{name:'Consulta de dependência declarada'})
+  .getByRole('button',{name:'Voltar ao diagnóstico original'}).click();
+ await expect(page.getByRole('heading',{name:'Sons do OF-1721 (exemplo)',exact:true})).toBeVisible();
+ await expect(region).toBeFocused();
+ await expect(page.getByRole('region',{name:'Referências recebidas no catálogo'})).not.toBeFocused();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+});
