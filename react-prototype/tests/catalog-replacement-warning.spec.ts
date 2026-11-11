@@ -79,3 +79,68 @@ test('saved session history alone triggers catalog-replacement warning after fav
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
 });
+
+test('restoring demonstration requires explicit consent when favorites or reports would be erased',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'imported.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeVisible();
+ await page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Exemplo de importação',exact:true})
+ }).getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Exemplo de importação para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await expect(confirm).toContainText('Restaurar a demonstração');
+ await confirm.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await expect(confirm).toBeVisible();
+ await confirm.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('invalid replacement cancels earlier unconfirmed valid import without touching favorites',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await picker.setInputFiles({
+  name:'first-valid.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await expect(confirm).toBeVisible();
+ await picker.setInputFiles({
+  name:'invalid-after-valid.json',mimeType:'application/json',buffer:Buffer.from('not-json')
+ });
+ await expect(page.getByRole('alert')).toBeVisible();
+ await expect(confirm).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+});
