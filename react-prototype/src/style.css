@@ -1086,6 +1086,12 @@
 .library-declared-size-summary span{color:#c0ccd9;font-size:12px;line-height:1.6}
 
 /* All-favorites-by-game overview. Values come only from catalog metadata. */
+.library-inventory-export{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 17px;padding:15px 17px;background:#202a31;border:1px solid #4b5e68;border-radius:12px}
+.library-inventory-export>div{flex:1 1 250px;min-width:0}
+.library-inventory-export strong{display:block;color:#edf4f8;font-size:13px;margin-bottom:6px}
+.library-inventory-export p{margin:0;color:#bfced9;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.library-inventory-export button{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;max-width:100%;white-space:normal;text-align:center}
+@media(max-width:480px){.library-inventory-export button{width:100%}}
 .library-by-game{min-width:0;margin:0 0 19px}
 .library-by-game-heading{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin:0 0 10px}
 .library-by-game-heading strong{color:#edf2f8;font-size:14px}
