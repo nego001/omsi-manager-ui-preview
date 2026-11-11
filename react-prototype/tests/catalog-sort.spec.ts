@@ -62,6 +62,11 @@ test('ordenação alfabética e busca filtrada preservam JSON importado e favori
  await expect(page.getByText('Origem: Importado: catalog.example.json')).toBeVisible();
  await expect(favorite.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
  await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(resolve('examples/catalog.example.json'));
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(consent).toBeVisible();
+ await expect(sort).toHaveValue('title');
+ await expect(favorite.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await expect(sort).toHaveValue('catalog');
  expect(await titles(page)).toEqual(['Ônibus urbano OF-1721','Pacote de som de motor','Mapa rodoviário demonstrativo']);
  await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toHaveCount(0);
