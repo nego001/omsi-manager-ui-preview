@@ -48,6 +48,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Acessibilidade da Biblioteca ao retirar favorito:** quando um cartão visível é removido, o foco do teclado deve ir para o próximo cartão na ordem filtrada, senão para o anterior; se não restar nenhum visível, a ação «Mostrar todos os favoritos» ou «Explorar catálogo» recebe o foco. **Também ao voltar dos Detalhes:** caso o favorito tenha sido removido ali, tentar focar seu cartão desaparecido deve acionar fallback para o primeiro favorito ainda visível ou o botão correspondente ao estado vazio. Preservar filtros sem trocar jogo ou reincluir o favorito. Testes Playwright em tela estreita e estados com coleção vazia, filtrada e não filtrada; nada altera jogos ou conteúdo dos mods.
 
+- **Acessibilidade ao rever relatório da sessão:** ao usar «Rever seleção» no Histórico, retornar à Biblioteca com o foco no painel **Análise conjunta declarativa**, que mostra o resultado do JSON somente leitura. Se os favoritos do relatório já foram retirados e a coleção ficou vazia, focar «Explorar catálogo» em vez de deixar o foco no botão do Histórico que desapareceu. Não ressuscitar favoritos nem substituir filtros ativos; tornar explícitos os selecionados que continuam ocultos. Isso não restaura instalações, arquivos ou compatibilidade.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
