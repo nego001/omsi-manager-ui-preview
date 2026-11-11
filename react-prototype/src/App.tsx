@@ -122,7 +122,7 @@ export default function App(){
  const [libraryCategory,setLibraryCategory]=useState<Category>('Todos');
  const [libraryDeclaredStatus,setLibraryDeclaredStatus]=useState<DeclaredStatusKind|'all'>('all');
  const [librarySizeFilter,setLibrarySizeFilter]=useState<'all'|'known'|'unknown'>('all');
- const [libraryIncomingFilter,setLibraryIncomingFilter]=useState<'all'|'with'|'without'>('all');
+ const [libraryIncomingFilter,setLibraryIncomingFilter]=useState<'all'|'with'|'without'|'cross-game'>('all');
  const [libraryOnlySelected,setLibraryOnlySelected]=useState(false);
  const [librarySearch,setLibrarySearch]=useState('');
  const [librarySort,setLibrarySort]=useState<'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'|'incoming'>('catalog');
@@ -221,8 +221,12 @@ export default function App(){
   if((links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0)
    counts.withReferences++;
   else counts.withoutReferences++;
+  // Cross-game mentions are JSON metadata, never a compatibility verdict.
+  if(links?.requiredBy.some(ref=>ref.differentGame)||
+     links?.conflictDeclaredBy.some(ref=>ref.differentGame))
+   counts.crossGame++;
   return counts;
- },{withReferences:0,withoutReferences:0}),[favoriteMods,incomingById]);
+ },{withReferences:0,withoutReferences:0,crossGame:0}),[favoriteMods,incomingById]);
  const activeBatch=useMemo(()=>batchSelected.filter(id=>
   favorites.includes(id)&&catalogMods.some(m=>m.id===id)),[batchSelected,favorites,catalogMods]);
  // Group counts are computed cheaply; dependency analysis is on demand.
@@ -245,16 +249,21 @@ export default function App(){
  },{blocking:0,attention:0}),[favoriteMods,declaredStatuses]);
  const libraryMods=useMemo(()=>{
   // Search never changes the underlying favorites or declared status.
-  const hasIncoming=(id:string)=>{
+  const matchesIncomingFilter=(id:string)=>{
+   if(libraryIncomingFilter==='all')return true;
    const links=incomingById.get(id);
-   return (links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0;
+   if(libraryIncomingFilter==='cross-game')
+    return Boolean(links?.requiredBy.some(ref=>ref.differentGame)||
+     links?.conflictDeclaredBy.some(ref=>ref.differentGame));
+   const hasIncoming=(links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0;
+   return hasIncoming===(libraryIncomingFilter==='with');
   };
   const list=favoriteMods.filter(m=>
    (libraryGame==='all'||m.game===libraryGame)&&
    (libraryCategory==='Todos'||m.category===libraryCategory)&&
    (libraryDeclaredStatus==='all'||declaredStatuses.get(m.id)?.kind===libraryDeclaredStatus)&&
     (librarySizeFilter==='all'||(declaredSizeBytes(m.size)!==null)===(librarySizeFilter==='known'))&&
-   (libraryIncomingFilter==='all'||hasIncoming(m.id)===(libraryIncomingFilter==='with'))&&
+   matchesIncomingFilter(m.id)&&
    (!libraryOnlySelected||activeBatch.includes(m.id))&&
    matchesCatalogSearch(m,games[m.game].title,librarySearch)
   );
@@ -764,7 +773,7 @@ export default function App(){
   {libraryCategory!=='Todos'&&<button type="button" aria-label="Remover filtro de categoria" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryCategory('Todos'))}>Categoria: {libraryCategory} <span aria-hidden="true">×</span></button>}
   {libraryDeclaredStatus!=='all'&&<button type="button" aria-label="Remover filtro de alertas" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryDeclaredStatus('all'))}>Alertas: {{blocking:'Bloqueios declarados',attention:'Avisos declarados','no-issues':'Sem alertas declarados'}[libraryDeclaredStatus]} <span aria-hidden="true">×</span></button>}
   {librarySizeFilter!=='all'&&<button type="button" aria-label="Remover filtro de tamanho declarado" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySizeFilter('all'))}>Tamanho: {librarySizeFilter==='known'?'reconhecido':'desconhecido'} <span aria-hidden="true">×</span></button>}
-  {libraryIncomingFilter!=='all'&&<button type="button" aria-label="Remover filtro de referências recebidas" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryIncomingFilter('all'))}>Referências recebidas: {libraryIncomingFilter==='with'?'com referências':'sem referências'} <span aria-hidden="true">×</span></button>}
+  {libraryIncomingFilter!=='all'&&<button type="button" aria-label="Remover filtro de referências recebidas" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryIncomingFilter('all'))}>Referências recebidas: {libraryIncomingFilter==='cross-game'?'de outro simulador':libraryIncomingFilter==='with'?'com referências':'sem referências'} <span aria-hidden="true">×</span></button>}
    {libraryOnlySelected&&<button type="button" aria-label="Remover filtro de selecionados" onClick={event=>removeLibraryFilterChip(event,()=>setLibraryOnlySelected(false))}>Seleção: só marcados <span aria-hidden="true">×</span></button>}
   {librarySearch.trim().length>0&&<button type="button" aria-label="Remover filtro de pesquisa" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySearch(''))}>Busca: {librarySearch.trim()} <span aria-hidden="true">×</span></button>}
   {librarySort!=='catalog'&&<button type="button" aria-label="Remover filtro de ordenação" onClick={event=>removeLibraryFilterChip(event,()=>setLibrarySort('catalog'))}>Ordem: {librarySort==='title'?'Nome (A–Z)':librarySort==='game'?'Jogo e nome':librarySort==='alerts'?'Alertas declarados':librarySort==='incoming'?'Referências recebidas no JSON':librarySort==='size-desc'?'Tamanho declarado (maior primeiro)':'Tamanho declarado (menor primeiro)'} <span aria-hidden="true">×</span></button>}
@@ -786,7 +795,7 @@ export default function App(){
    </div>}
    {favoriteMods.length>0&&<div className="library-size-quick-filters library-incoming-quick-filters" role="group" aria-label="Filtrar por referências recebidas">
     <div><strong>Referências recebidas no catálogo</strong>
-     <small>Entre todos os {favoriteMods.length} {favoriteMods.length===1?'favorito':'favoritos'}: {favoriteIncomingCounts.withReferences} mencionado(s) e {favoriteIncomingCounts.withoutReferences} sem referências diretas de outros registros do JSON. Não significa instalação ou compatibilidade.</small>
+     <small>Entre todos os {favoriteMods.length} {favoriteMods.length===1?'favorito':'favoritos'}: {favoriteIncomingCounts.withReferences} mencionado(s) e {favoriteIncomingCounts.withoutReferences} sem referências diretas de outros registros do JSON; {favoriteIncomingCounts.crossGame} com menção de outro simulador. Não demonstra conversão, instalação ou compatibilidade.</small>
     </div>
     <div className="library-size-filter-actions">
      <button type="button" aria-pressed={libraryIncomingFilter==='with'}
@@ -795,6 +804,9 @@ export default function App(){
      <button type="button" aria-pressed={libraryIncomingFilter==='without'}
       disabled={favoriteIncomingCounts.withoutReferences===0}
       onClick={()=>setLibraryIncomingFilter(v=>v==='without'?'all':'without')}>Só favoritos sem referências recebidas</button>
+     <button type="button" aria-pressed={libraryIncomingFilter==='cross-game'}
+      disabled={favoriteIncomingCounts.crossGame===0}
+      onClick={()=>setLibraryIncomingFilter(v=>v==='cross-game'?'all':'cross-game')}>Só favoritos mencionados por outro simulador</button>
     </div>
    </div>}
    {favoriteMods.length>0&&<div className="library-declared-alerts" role="note"><AlertTriangle size={16}/><div className="library-alert-content"><span><strong>{libraryAlerts.blocking} com bloqueios</strong> · {libraryAlerts.attention} com avisos no catálogo entre todos os {favoriteMods.length} favoritos.{libraryMods.length!==favoriteMods.length&&<span className="library-visible-alerts">Na visualização filtrada: bloqueios {visibleLibraryAlerts.blocking} · avisos {visibleLibraryAlerts.attention}.</span>} Ausência de alertas declarados não comprova compatibilidade nem instalação.</span><div className="library-alert-actions" role="group" aria-label="Atalhos de alertas declarados"><button type="button" aria-pressed={libraryDeclaredStatus==='blocking'} disabled={libraryAlerts.blocking===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='blocking'?'all':'blocking')}>Ver bloqueios declarados</button><button type="button" aria-pressed={libraryDeclaredStatus==='attention'} disabled={libraryAlerts.attention===0} onClick={()=>setLibraryDeclaredStatus(current=>current==='attention'?'all':'attention')}>Ver avisos declarados</button></div></div></div>}
