@@ -86,6 +86,8 @@ test('novo catálogo aceito invalida consulta JSON ainda em leitura',async({page
  await picker.setInputFiles(jsonUpload(serializeDeclaredSessionReport(second),'delayed-review.json'));
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(resolve('examples/catalog.example.json'));
+ await expect(page.getByRole('region',{name:'Confirmar substituição do catálogo'})).toBeVisible();
+ await page.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await expect(page.getByText('Importado: catalog.example.json')).toBeVisible();
  await finishDeferredRead(page);
  await nav.getByRole('button',{name:'Histórico'}).click();
