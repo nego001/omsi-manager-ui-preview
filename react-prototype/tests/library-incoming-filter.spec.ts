@@ -74,7 +74,33 @@ test('new isolated catalog resets incoming filter and disables unavailable filte
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(group(page)).toContainText('1 favorito: 0 mencionado(s) e 1 sem referências');
  await expect(group(page).getByRole('button',{name:'Só favoritos com referências recebidas'})).toBeDisabled();
+ await expect(group(page).getByRole('button',{name:'Só favoritos mencionados por outro simulador'})).toBeDisabled();
  await expect(group(page).getByRole('button',{name:'Só favoritos sem referências recebidas'})).toHaveAttribute('aria-pressed','false');
  await expect(page.getByRole('button',{name:'Limpar filtros da biblioteca'})).toHaveCount(0);
  expect(await titles(page)).toEqual(['Registro Único']);
+});
+
+test('cross-simulator incoming mentions remain metadata-only, reversible and responsive',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await setup(page);
+ await expect(group(page)).toContainText('1 com menção de outro simulador');
+ const cross=group(page).getByRole('button',{name:'Só favoritos mencionados por outro simulador'});
+ await cross.focus();
+ await page.keyboard.press('Enter');
+ await expect(cross).toHaveAttribute('aria-pressed','true');
+ // The declaration comes from an ETS2 record not in favorites, targeting OMSI.
+ expect(await titles(page)).toEqual(['Sem Declaração']);
+ const chip=page.getByRole('group',{name:'Filtros ativos da biblioteca'});
+ await expect(chip).toContainText('Referências recebidas: de outro simulador');
+ await page.getByRole('button',{name:'Consultar referências recebidas de Sem Declaração'}).click();
+ await expect(page.getByRole('region',{name:'Referências recebidas no catálogo'}))
+  .toContainText('Referência entre jogos diferentes · somente JSON');
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(cross).toHaveAttribute('aria-pressed','true');
+ await chip.getByRole('button',{name:'Remover filtro de referências recebidas'}).click();
+ expect(await titles(page)).toEqual(favorites);
+ const over=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(over).toBeLessThanOrEqual(3);
 });
