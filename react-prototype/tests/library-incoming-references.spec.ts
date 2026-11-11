@@ -58,6 +58,9 @@ test('incoming references follow the validated imported catalog, not cached prio
  ]});
  await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
   name:'single-only.json',mimeType:'application/json',buffer:Buffer.from(newSource)});
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(consent).toBeVisible();
+ await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await favoriteCard(page,'Registro único').getByRole('button',{name:'Favoritar'}).click();
  await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.locator('.library-incoming-references')).toHaveCount(0);
