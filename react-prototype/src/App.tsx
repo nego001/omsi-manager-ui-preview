@@ -454,6 +454,9 @@ export default function App(){
  const focusMainAfterNavigation=useRef(false);
  const focusCardAfterDetails=useRef<string|null>(null);
  const focusFirstLibraryCardAfterReset=useRef(false);
+ // Removing a visible favorite unmounts its button. Restore focus after React
+ // updates the filtered cards instead of leaving keyboard users on <body>.
+ const focusAfterFavoriteRemoval=useRef<{nextId:string|null}|null>(null);
  const focusLibraryBatchAfterDetails=useRef(false);
  const focusCatalogSearchAfterDependencyJump=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
@@ -588,6 +591,14 @@ export default function App(){
   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
  }
  function toggleFavorite(modId:string){
+  // The last focused card disappears on removal in the Library. Prefer the
+  // following visible card; otherwise the previous one or the empty-state CTA.
+  if(screen==='library'&&favorites.includes(modId)){
+   const index=libraryMods.findIndex(mod=>mod.id===modId);
+   if(index>=0)focusAfterFavoriteRemoval.current={
+    nextId:(libraryMods[index+1]??libraryMods[index-1])?.id??null
+   };
+  }
   // A removed favorite must not silently rejoin an earlier batch if favorited again.
   if(favorites.includes(modId)){
    setBatchSelected(ids=>ids.filter(id=>id!==modId));
@@ -654,6 +665,22 @@ export default function App(){
   if(!focusFirstLibraryCardAfterReset.current||screen!=='library'||libraryMods.length===0)return;
   focusFirstLibraryCardAfterReset.current=false;
   document.getElementById('mod-title-'+libraryMods[0].id)?.focus({preventScroll:true});
+ },[screen,libraryMods]);
+ useEffect(()=>{
+  if(screen!=='library'||focusAfterFavoriteRemoval.current===null)return;
+  const {nextId}=focusAfterFavoriteRemoval.current;
+  focusAfterFavoriteRemoval.current=null;
+  const nextCard=(nextId&&document.getElementById('mod-title-'+nextId))||
+   (libraryMods[0]&&document.getElementById('mod-title-'+libraryMods[0].id));
+  if(nextCard instanceof HTMLButtonElement){
+   nextCard.focus({preventScroll:true});
+   return;
+  }
+  const emptyAction=document.querySelector<HTMLButtonElement>(
+   '.library-empty-filter button, .library-empty button'
+  );
+  if(emptyAction){emptyAction.focus({preventScroll:true});return;}
+  document.querySelector<HTMLSelectElement>('.library-toolbar select')?.focus({preventScroll:true});
  },[screen,libraryMods]);
  useEffect(()=>{
   if(focusLibraryChipIndexAfterRemoval.current===null||screen!=='library')return;
@@ -840,7 +867,7 @@ export default function App(){
  {batchReadiness&&<details className="library-cooperative-review"><summary>O que o analisador cooperativo precisará verificar?</summary><p>Nenhum especialista executado. Esta é uma lista das verificações necessárias, não um diagnóstico dos arquivos.</p><ol aria-label="Verificações cooperativas pendentes">{batchReadiness.specialists.map(step=><li key={step.id}><strong>{step.label}</strong><span>{step.purpose}</span><small>Não executado · {step.phase==='gate'?'antes de qualquer leitura':'após aprovação do gate de segurança'}</small></li>)}</ol><p>Sem hash real, conteúdo lido, compatibilidade confirmada ou autorização para instalar.</p></details>}
  <p className="library-batch-disclaimer"><LockKeyhole size={15}/> Não verificado: arquivos reais, versões instaladas, integridade e funcionamento dos mods. Instalação e remoção continuam bloqueadas.</p><button className="btn secondary" type="button" onClick={saveBatchToSession}>Guardar resumo nesta sessão</button></div>}
  </section>}
- {favoriteMods.length===0?<div className="empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui, separados por jogo e categoria.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>:libraryMods.length?modCards(libraryMods):<div className="empty library-empty-filter"><Library size={28}/><h3>Nenhum favorito nesses filtros</h3><p>Seus favoritos continuam salvos. Ajuste os filtros ou mostre a coleção completa.</p><button type="button" className="btn secondary" onClick={resetLibraryFiltersWithFocus}>Mostrar todos os favoritos</button></div>}
+ {favoriteMods.length===0?<div className="empty library-empty"><Library size={32}/><h3>Biblioteca vazia</h3><p>Adicione mods aos favoritos no catálogo. Eles aparecerão aqui, separados por jogo e categoria.</p><button className="btn secondary" onClick={()=>goto('catalog')}>Explorar catálogo</button></div>:libraryMods.length?modCards(libraryMods):<div className="empty library-empty-filter"><Library size={28}/><h3>Nenhum favorito nesses filtros</h3><p>Seus favoritos continuam salvos. Ajuste os filtros ou mostre a coleção completa.</p><button type="button" className="btn secondary" onClick={resetLibraryFiltersWithFocus}>Mostrar todos os favoritos</button></div>}
  <SyntheticGateLab/>
  <FixtureCrossPackageLab/>
  </>}
