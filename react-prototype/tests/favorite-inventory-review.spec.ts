@@ -43,6 +43,13 @@ test('exported favorite inventory is reviewed as exact changed and missing witho
  await expect(review).toContainText('1 coincidem · 1 mudaram · 1 ausentes');
  await expect(review.getByText('Coincidem: 1')).toBeVisible();
  await expect(review.getByText('Mudaram: 1')).toBeVisible();
+ const changed=review.locator('.library-inventory-result-group').filter({
+  has:review.getByText('Mudaram: 1')
+ });
+ await expect(changed).toContainText('Versão:');
+ await expect(changed).toContainText('Exportado: 0.9');
+ await expect(changed).toContainText('Atual: 2.0');
+ await expect(changed).not.toContainText('Nome:');
  await expect(review.getByText('Ausentes: 1')).toBeVisible();
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
  await review.getByRole('button',{name:'Descartar conferência da lista'}).click();
@@ -84,4 +91,46 @@ test('malformed, altered and oversized favorite lists fail closed without adding
  await nav(page).getByRole('button',{name:'Jogos'}).click();
  await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(review).toHaveCount(0);
+});
+
+test('favorite inventory details show all changed fields as inert text, without altering favorites',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
+ const unsafeTitle='<img src=x onerror=window.hacked=true>';
+ const payload={
+  schema:'omsi-manager-declared-favorites-list-v1',
+  source:'catalog-declarations',
+  compatibilityVerified:false,installationVerified:false,
+  restorableByPreview:false,
+  items:[{id:'omsi-bus',title:unsafeTitle,game:'ets2',
+   category:'Sons',version:'9.0'}]
+ };
+ await page.getByLabel('Arquivo JSON da lista de favoritos').setInputFiles({
+  name:'changed-fields.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(payload))
+ });
+ const result=page.getByRole('region',{name:'Resultado da conferência de favoritos'});
+ await expect(result).toContainText('0 coincidem · 1 mudaram · 0 ausentes');
+ const changed=result.locator('.library-inventory-result-group').filter({
+  has:result.getByText('Mudaram: 1')
+ });
+ await expect(changed).toContainText('Nome:');
+ await expect(changed).toContainText('Exportado: '+unsafeTitle);
+ await expect(changed).toContainText('Atual: Ônibus Urbano Clássico');
+ await expect(changed).toContainText('Jogo:');
+ await expect(changed).toContainText('Exportado: ets2');
+ await expect(changed).toContainText('Atual: omsi');
+ await expect(changed).toContainText('Categoria:');
+ await expect(changed).toContainText('Exportado: Sons');
+ await expect(changed).toContainText('Atual: Ônibus');
+ await expect(changed).toContainText('Versão:');
+ await expect(changed).toContainText('Exportado: 9.0');
+ await expect(changed).toContainText('Atual: 1.0');
+ await expect(changed.locator('img')).toHaveCount(0);
+ expect(await page.evaluate(()=>('hacked' in window))).toBe(false);
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
 });
