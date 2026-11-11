@@ -50,6 +50,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Acessibilidade ao rever relatório da sessão:** ao usar «Rever seleção» no Histórico, retornar à Biblioteca com o foco no painel **Análise conjunta declarativa**, que mostra o resultado do JSON somente leitura. Se os favoritos do relatório já foram retirados e a coleção ficou vazia, focar «Explorar catálogo» em vez de deixar o foco no botão do Histórico que desapareceu. Não ressuscitar favoritos nem substituir filtros ativos; tornar explícitos os selecionados que continuam ocultos. Isso não restaura instalações, arquivos ou compatibilidade.
 
+- **Acessibilidade da exclusão de resumos temporários no Histórico:** depois de «Excluir este resumo», o botão do registro deixa de existir. O foco deve ir para **Desfazer exclusão**; depois de desfazer, o botão **Rever seleção** do registro restaurado recebe o foco. Os outros resumos continuam intactos. Essa exclusão/recuperação opera apenas a lista efêmera de metadados da sessão, sem afetar favoritos, histórico real, jogos ou arquivos. Testes de teclado incluem um e vários resumos em largura estreita.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
