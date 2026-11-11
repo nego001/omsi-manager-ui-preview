@@ -377,7 +377,19 @@ try{
   {id:'audio-engine',title:'Som de motor fictício',game:'ets2',category:'Sons',version:'2.0',size:'60 MB',description:'Dependência simulada e versão abaixo da exigida.',requires:['audio-base'],requiresMinVersions:[{id:'audio-base',minVersion:'2.0'}]}
  ]}),'utf8');
  await navigate('Catálogo de mods','Catálogo de mods');
- await window.getByLabel('Arquivo JSON do catálogo').setInputFiles(alertFixture);
+ const catalogPicker=window.getByLabel('Arquivo JSON do catálogo');
+ const replacementPrompt=window.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await catalogPicker.setInputFiles(alertFixture);
+ // Favorites saved earlier require explicit consent even in the native EXE.
+ await replacementPrompt.waitFor({timeout:12000});
+ assert.equal(await window.locator('.mod-card').count(),7,
+  'Validated replacement must not silently overwrite the original catalog');
+ await replacementPrompt.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ assert.equal(await window.locator('.mod-card').count(),7,
+  'Cancel must preserve the original catalog and favorites');
+ await catalogPicker.setInputFiles(alertFixture);
+ await replacementPrompt.waitFor({timeout:12000});
+ await replacementPrompt.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  const engine=window.locator('.mod-card').filter({has:window.getByRole('button',{name:'Som de motor fictício',exact:true})});
  await engine.getByRole('button',{name:'Favoritar'}).click();
  await navigate('Minha biblioteca','Minha biblioteca');
