@@ -1,6 +1,7 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {serializeDeclaredFavoriteList} from './favorite-list-export';
+import {parseFavoriteInventory,compareFavoriteInventory,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
 import {summarizeDeclaredSizes} from './declared-size-summary';
@@ -160,6 +161,9 @@ export default function App(){
  const [reviewedComparisonFile,setReviewedComparisonFile]=useState<ReviewedComparisonFile|null>(null);
  const [reviewError,setReviewError]=useState('');
  const [reviewReading,setReviewReading]=useState(false);
+ const [favoriteInventoryReview,setFavoriteInventoryReview]=useState<FavoriteInventoryReview|null>(null);
+ const [favoriteInventoryError,setFavoriteInventoryError]=useState('');
+ const [favoriteInventoryReading,setFavoriteInventoryReading]=useState(false);
  const [reviewBeforeId,setReviewBeforeId]=useState<number|null>(null);
  const [reviewAfterId,setReviewAfterId]=useState<number|null>(null);
  // Reviewed exports are never promoted to the session history.
@@ -177,6 +181,7 @@ export default function App(){
  const focusAfterCatalogReplacement=useRef(false);
  // Invalidate stale asynchronous File.text() completions after a new choice/reset.
  const reviewReadGeneration=useRef(0);
+ const favoriteInventoryReadGeneration=useRef(0);
  const catalogReadGeneration=useRef(0);
  // Automatically choose the two most recent *distinct* stored reports.
  // Explicit selections remain stable while their reports exist.
@@ -226,6 +231,9 @@ export default function App(){
    a.title.localeCompare(b.title,'pt-BR')||a.id.localeCompare(b.id));
  },[catalogMods,selectedGame,category,search,catalogSort,dependencyLookup]);
  const favoriteMods=useMemo(()=>catalogMods.filter(m=>favorites.includes(m.id)),[catalogMods,favorites]);
+ const favoriteInventoryComparison=useMemo(()=>favoriteInventoryReview?
+  compareFavoriteInventory(favoriteInventoryReview.entries,catalogMods):null,
+  [favoriteInventoryReview,catalogMods]);
  const favoriteIncomingCounts=useMemo(()=>favoriteMods.reduce((counts,mod)=>{
   const links=incomingById.get(mod.id);
   if((links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0)
@@ -400,6 +408,37 @@ export default function App(){
    throw Error('DECLARED_SESSION_DOWNLOAD_FAILED');
   }
  }
+ async function reviewFavoriteInventoryFile(event:React.ChangeEvent<HTMLInputElement>){
+  const file=event.currentTarget.files?.[0];
+  event.currentTarget.value='';
+  if(!file)return;
+  const generation=++favoriteInventoryReadGeneration.current;
+  setFavoriteInventoryReview(null);
+  setFavoriteInventoryError('');
+  setFavoriteInventoryReading(true);
+  try{
+   if(file.size>MAX_FAVORITE_LIST_REVIEW_BYTES)throw Error('INVENTORY_TOO_LARGE');
+   const raw=await file.text();
+   if(generation!==favoriteInventoryReadGeneration.current)return;
+   setFavoriteInventoryReview(parseFavoriteInventory(raw));
+  }catch(error){
+   if(generation!==favoriteInventoryReadGeneration.current)return;
+   setFavoriteInventoryError(error instanceof Error&&error.message==='INVENTORY_TOO_LARGE'?
+    'Arquivo excede o limite de 128 KiB. Nenhum favorito foi alterado.':
+    'Lista de favoritos incompatível ou adulterada. Nenhum favorito foi alterado.');
+  }finally{
+   if(generation===favoriteInventoryReadGeneration.current)setFavoriteInventoryReading(false);
+  }
+ }
+ function discardFavoriteInventoryReview(){
+  ++favoriteInventoryReadGeneration.current;
+  setFavoriteInventoryReading(false);
+  setFavoriteInventoryReview(null);
+  setFavoriteInventoryError('');
+  document.querySelector<HTMLInputElement>(
+   'input[aria-label="Arquivo JSON da lista de favoritos"]'
+  )?.focus({preventScroll:true});
+ }
  function exportFavoriteInventory(){
   if(favoriteMods.length===0)return;
   try{
@@ -550,6 +589,12 @@ export default function App(){
   setSelectedGame('all');setCategory('Todos');setSearch('');
  }
  function goto(id:Screen,preserveInputFocus=false){
+  if(screen==='library'&&id!=='library'){
+   ++favoriteInventoryReadGeneration.current;
+   setFavoriteInventoryReview(null);
+   setFavoriteInventoryError('');
+   setFavoriteInventoryReading(false);
+  }
   if(screen==='catalog'&&id!=='catalog'){
    // Consent and file reads are scoped to the catalog screen. Leaving it
    // cancels unconfirmed proposals and makes late File.text() results inert.
@@ -636,6 +681,10 @@ export default function App(){
   // explicit confirmation of a previously validated replacement.
   ++catalogReadGeneration.current;
   ++reviewReadGeneration.current;
+  ++favoriteInventoryReadGeneration.current;
+  setFavoriteInventoryReview(null);
+  setFavoriteInventoryError('');
+  setFavoriteInventoryReading(false);
   setReviewReading(false);
   setPendingCatalogReplacement(null);
   focusAfterCatalogReplacement.current=true;
@@ -975,6 +1024,29 @@ export default function App(){
    <div><strong>Guardar referência dos favoritos</strong><p>Baixe apenas IDs, títulos, simuladores, categorias e versões declaradas, de toda a coleção, mesmo com filtros ativos. Não inclui arquivos dos jogos, não prova instalação e não pode ser restaurado automaticamente neste protótipo.</p></div>
    <button type="button" className="btn secondary" onClick={exportFavoriteInventory}><Download size={16} aria-hidden="true"/> Exportar lista de favoritos em JSON</button>
   </div>}
+  <section className="library-inventory-review" aria-label="Conferir lista de favoritos exportada">
+   <strong>Conferir uma lista de favoritos exportada</strong>
+   <p>Compare metadados do JSON exportado com o catálogo aberto. A consulta não altera favoritos e não restaura arquivos ou instalações.</p>
+   <label className="session-import-picker">Arquivo JSON da lista de favoritos<input type="file" aria-label="Arquivo JSON da lista de favoritos" accept=".json,application/json" onChange={reviewFavoriteInventoryFile}/></label>
+   {favoriteInventoryReading&&<div role="status">Lendo a lista de favoritos… <button type="button" className="btn secondary" onClick={discardFavoriteInventoryReview}>Cancelar leitura da lista</button></div>}
+   {favoriteInventoryError&&<p className="session-import-error" role="alert">{favoriteInventoryError}</p>}
+   {favoriteInventoryComparison&&<div className="library-inventory-result" role="region" aria-label="Resultado da conferência de favoritos">
+    <strong>Resultado da conferência: {favoriteInventoryReview?.entries.length??0} registro(s) declarado(s)</strong>
+    <p>{favoriteInventoryComparison.exact.length} coincidem · {favoriteInventoryComparison.changed.length} mudaram · {favoriteInventoryComparison.missing.length} ausentes no catálogo atual.</p>
+    <p>Coincidência significa somente mesmos ID, título, jogo, categoria e versão no JSON. Não comprova instalação, integridade nem compatibilidade.</p>
+    {([
+      ['Coincidem',favoriteInventoryComparison.exact],
+      ['Mudaram',favoriteInventoryComparison.changed],
+      ['Ausentes',favoriteInventoryComparison.missing]
+     ] as const).map(([name,entries])=><div key={name} className="library-inventory-result-group">
+      <strong>{name}: {entries.length}</strong>
+      {entries.length>0&&<ul>{entries.slice(0,20).map(item=>
+       <li key={item.id}>{item.title} ({item.id}) · {games[item.game].title} · {item.version}</li>)}</ul>}
+      {entries.length>20&&<small>Exibindo os 20 primeiros desta categoria.</small>}
+     </div>)}
+    <button type="button" className="btn secondary" onClick={discardFavoriteInventoryReview}>Descartar conferência da lista</button>
+   </div>}
+  </section>
   {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'|'incoming')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option><option value="alerts">Alertas declarados (bloqueios primeiro)</option><option value="incoming">Referências recebidas no JSON (mais primeiro)</option><option value="size-desc">Tamanho declarado (maior primeiro)</option><option value="size-asc">Tamanho declarado (menor primeiro)</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryFiltersWithFocus}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
  {favoriteMods.length>0&&activeLibraryControlCount>0&&<div className="library-active-filters" role="group" aria-label="Filtros ativos da biblioteca">
   <span>Filtros ativos:</span>
