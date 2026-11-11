@@ -54,6 +54,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Limpeza integral dos resumos no Histórico:** «Limpar resumos da sessão» descarta **todas** as cópias temporárias, inclusive qualquer exclusão individual ainda pendente de desfazer. Não preservar uma cópia oculta de resumos limpos; favoritos e arquivos de mods/jogos permanecem intocados. Como o botão que iniciou a limpeza desaparece, mover o foco para o título «Histórico», acessível via teclado. O desfazer é exclusivo da exclusão **individual**; a limpeza integral não é recuperável. Testes verificam limpeza total, foco e impossibilidade de restaurar registros antigos, incluindo tela estreita.
 
+- **Acessibilidade da consulta de exportações JSON no Histórico:** quando o usuário descarta a consulta de um resumo/coleção ou de uma comparação, o botão de descarte desaparece. Devolver o foco ao seletor **Arquivo JSON de resumos exportados** que permanece visível, permitindo abrir outra consulta sem perder contexto. Ação apenas na análise transitória do arquivo escolhido; não altera resumos salvos na sessão, favoritos nem dados de jogos. Testes Playwright fazem a rodada real de exportar → reabrir → descartar, inclusive comparação de dois resumos, com foco e layout a 390 px.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
