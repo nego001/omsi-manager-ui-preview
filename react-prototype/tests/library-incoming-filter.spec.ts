@@ -69,6 +69,9 @@ test('new isolated catalog resets incoming filter and disables unavailable filte
    version:'1',size:'1 MB',description:'Exemplo sem referências'
   }]}))
  });
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(consent).toBeVisible();
+ await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await page.locator('.mod-card').filter({has:page.getByRole('button',{name:'Registro Único',exact:true})})
   .getByRole('button',{name:'Favoritar'}).click();
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
