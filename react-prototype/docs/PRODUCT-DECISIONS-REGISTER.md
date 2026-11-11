@@ -52,6 +52,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Acessibilidade da exclusão de resumos temporários no Histórico:** depois de «Excluir este resumo», o botão do registro deixa de existir. O foco deve ir para **Desfazer exclusão**; depois de desfazer, o botão **Rever seleção** do registro restaurado recebe o foco. Os outros resumos continuam intactos. Essa exclusão/recuperação opera apenas a lista efêmera de metadados da sessão, sem afetar favoritos, histórico real, jogos ou arquivos. Testes de teclado incluem um e vários resumos em largura estreita.
 
+- **Limpeza integral dos resumos no Histórico:** «Limpar resumos da sessão» descarta **todas** as cópias temporárias, inclusive qualquer exclusão individual ainda pendente de desfazer. Não preservar uma cópia oculta de resumos limpos; favoritos e arquivos de mods/jogos permanecem intocados. Como o botão que iniciou a limpeza desaparece, mover o foco para o título «Histórico», acessível via teclado. O desfazer é exclusivo da exclusão **individual**; a limpeza integral não é recuperável. Testes verificam limpeza total, foco e impossibilidade de restaurar registros antigos, incluindo tela estreita.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
