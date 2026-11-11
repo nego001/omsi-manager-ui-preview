@@ -188,3 +188,34 @@ test('cross-game summary preserves origin, edge types, order and JSON-only trust
  });
  expect(summarizeCrossGameIncoming(indexIncoming(fixtures).get('same-src')).total).toBe(0);
 });
+
+test('Details groups cross-game incoming references by source simulator at 390px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ const raw=JSON.stringify({schemaVersion:1,mods:[
+  {id:'target',title:'Alvo OMSI',game:'omsi',category:'Ônibus',version:'1',
+   size:'1 MB',description:'Exemplo'},
+  {id:'ets',title:'Fonte ETS2',game:'ets2',category:'Caminhões',version:'1',
+   size:'1 MB',description:'Exemplo',requires:['target'],conflictsWith:['target']},
+  {id:'ats',title:'Fonte ATS',game:'ats',category:'Sons',version:'1',
+   size:'1 MB',description:'Exemplo',requires:['target']},
+  {id:'same',title:'Fonte OMSI',game:'omsi',category:'Sons',version:'1',
+   size:'1 MB',description:'Exemplo',requires:['target']}
+ ]});
+ await setup(page,raw);
+ await page.getByRole('button',{name:'Alvo OMSI',exact:true}).click();
+ const summary=panel(page).getByRole('note',{name:'Resumo de referências recebidas de outros simuladores'});
+ await expect(summary).toContainText('3 referência(s) diretas recebidas de outros simuladores no JSON');
+ await expect(summary).toContainText('Euro Truck Simulator 2');
+ await expect(summary).toContainText('1 dependência(s) · 1 conflito(s) declarado(s)');
+ await expect(summary).toContainText('American Truck Simulator');
+ await expect(summary).toContainText('1 dependência(s) · 0 conflito(s) declarado(s)');
+ await expect(summary).not.toContainText('Fonte OMSI');
+ await expect(summary).toContainText('não de mods instalados nem de compatibilidade ou conversão confirmada');
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+ const overflow=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+ await page.getByRole('button',{name:'Voltar ao catálogo'}).click();
+ await page.getByRole('button',{name:'Fonte ETS2',exact:true}).click();
+ await expect(panel(page).getByRole('note',{name:'Resumo de referências recebidas de outros simuladores'})).toHaveCount(0);
+});
