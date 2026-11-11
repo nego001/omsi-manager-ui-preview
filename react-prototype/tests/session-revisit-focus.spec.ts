@@ -28,7 +28,7 @@ test('reopening a saved selection from History returns keyboard focus to the bat
  await expect(batch).toBeFocused();
  await expect(batch).toContainText('1 selecionado(s)');
  await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
- await expect(page.getByRole('status')).toContainText('Nada foi instalado.');
+ await expect(page.locator('.toast[role="status"]')).toContainText('Nada foi instalado.');
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
@@ -42,7 +42,7 @@ test('reopening a saved selection with no remaining favorites focuses the empty 
  await page.getByRole('button',{name:'Rever seleção do resumo 1'}).click();
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Explorar catálogo'})).toBeFocused();
- await expect(page.getByRole('status')).toContainText('Nenhum favorito deste resumo está disponível');
+ await expect(page.locator('.toast[role="status"]')).toContainText('Nenhum favorito deste resumo está disponível');
 });
 
 test('reopening a saved selection preserves filters and identifies hidden items',async({page})=>{
