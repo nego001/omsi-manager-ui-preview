@@ -167,3 +167,61 @@ test('discarding an exported comparison restores the same JSON picker focus',asy
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toBeVisible();
 });
+
+test('invalid JSON selection clears prior valid reviewed report without erasing session summaries',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await savedExample(page);
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar resumo 1 em JSON'}).click()
+ ]);
+ const valid=await readFile(await download.path());
+ const picker=page.getByLabel('Arquivo JSON de resumos exportados');
+ await picker.setInputFiles({name:'valid.json',mimeType:'application/json',buffer:valid});
+ await expect(page.getByText('Arquivo consultado: 1 resumo(s) declarado(s)')).toBeVisible();
+ await picker.setInputFiles({
+  name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{invalid json')
+ });
+ await expect(page.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
+ await expect(page.getByText('Arquivo consultado: 1 resumo(s) declarado(s)')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Descartar consulta'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await picker.setInputFiles({name:'valid-again.json',mimeType:'application/json',buffer:valid});
+ await expect(page.getByText('Arquivo consultado: 1 resumo(s) declarado(s)')).toBeVisible();
+ await expect(page.getByRole('alert')).toHaveCount(0);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('rejected comparison and oversized replacement never leave old comparison visible',async({page})=>{
+ await savedExample(page);
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  page.getByRole('button',{name:'Exportar comparação em JSON'}).click()
+ ]);
+ const valid=await readFile(await download.path());
+ const picker=page.getByLabel('Arquivo JSON de resumos exportados');
+ const comparison=page.getByRole('region',{name:'Consulta de comparação JSON exportada'});
+ await picker.setInputFiles({name:'valid-comparison.json',mimeType:'application/json',buffer:valid});
+ await expect(comparison).toBeVisible();
+ await picker.setInputFiles({
+  name:'rejected-comparison.json',mimeType:'application/json',
+  buffer:Buffer.from('{"schema":"omsi-manager-declared-comparison-v1","installationVerified":true}')
+ });
+ await expect(page.getByRole('alert')).toContainText('Arquivo incompatível ou adulterado');
+ await expect(comparison).toHaveCount(0);
+ await picker.setInputFiles({name:'valid-again.json',mimeType:'application/json',buffer:valid});
+ await expect(comparison).toBeVisible();
+ await picker.setInputFiles({
+  name:'too-large.json',mimeType:'application/json',buffer:Buffer.alloc(131073,0x20)
+ });
+ await expect(page.getByRole('alert')).toContainText('Arquivo excede o limite de 128 KiB');
+ await expect(comparison).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toBeVisible();
+});
