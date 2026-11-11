@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
@@ -609,6 +609,12 @@ export default function App(){
   favorites.length>0||batchSelected.length>0||batchHistory.length>0||
   lastRemovedReport!==null||reviewedFile!==null||
   reviewedComparisonFile!==null||reviewReading;
+ // File.text() resolves asynchronously. Consult the latest committed UI state,
+ // not the stale boolean captured when the user first selected a file.
+ const catalogReplacementRiskRef=useRef(catalogReplacementWouldDiscardData);
+ useLayoutEffect(()=>{
+  catalogReplacementRiskRef.current=catalogReplacementWouldDiscardData;
+ },[catalogReplacementWouldDiscardData]);
  function applyCatalogReplacement(next:Mod[],source:string){
   // This is the only place allowed to discard local catalog-bound state.
   // It is called immediately only when nothing would be lost, or from an
@@ -652,7 +658,7 @@ export default function App(){
    if(generation!==catalogReadGeneration.current)return;
    const next=parseCatalogManifest(raw);
    setCatalogError('');
-   if(catalogReplacementWouldDiscardData){
+   if(catalogReplacementRiskRef.current){
     focusCatalogReplacementPrompt.current=true;
     setPendingCatalogReplacement({kind:'import',catalog:next,filename:file.name.slice(0,85)});
    }else applyCatalogReplacement(next,'Importado: '+file.name.slice(0,85));
