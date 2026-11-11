@@ -47,6 +47,7 @@ test('reverse direct dependency has exact ID link and reversible diagnostic',asy
  await page.getByRole('region',{name:'Consulta de dependência declarada'})
   .getByRole('button',{name:'Voltar ao diagnóstico original'}).click();
  await expect(page.getByRole('heading',{name:'Pacote base OMSI',exact:true})).toBeVisible();
+ await expect(panel(page)).toBeFocused();
  await expect(panel(page)).toContainText('Ônibus OF-1721 (exemplo)');
 });
 test('reverse conflict is unilateral and 390px layout remains readable',async({page})=>{
@@ -218,4 +219,34 @@ test('Details groups cross-game incoming references by source simulator at 390px
  await page.getByRole('button',{name:'Voltar ao catálogo'}).click();
  await page.getByRole('button',{name:'Fonte ETS2',exact:true}).click();
  await expect(panel(page).getByRole('note',{name:'Resumo de referências recebidas de outros simuladores'})).toHaveCount(0);
+});
+
+test('incoming lookup from a filtered Library restores incoming focus, favorites and filters',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await setup(page);
+ const favorite=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Pacote base OMSI',exact:true})
+ });
+ await favorite.getByRole('button',{name:'Favoritar'}).click();
+ const nav=page.getByRole('navigation',{name:'Navegação principal'});
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'}).selectOption('omsi');
+ await page.getByRole('textbox',{name:'Buscar favoritos'}).fill('base');
+ await page.getByRole('button',{name:'Consultar referências recebidas de Pacote base OMSI'}).click();
+ await expect(panel(page)).toBeFocused();
+ await panel(page).getByRole('button',{name:/Localizar mod que declara depender Ônibus OF-1721/}).click();
+ await expect(page.getByRole('textbox',{name:'Buscar mods'})).toHaveValue('omsi-bus-1721');
+ await page.getByRole('region',{name:'Consulta de dependência declarada'})
+  .getByRole('button',{name:'Voltar ao diagnóstico original'}).click();
+ await expect(page.getByRole('heading',{name:'Pacote base OMSI',exact:true})).toBeVisible();
+ await expect(panel(page)).toBeFocused();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await expect(page.getByRole('button',{name:'Remover (bloqueado)'})).toBeDisabled();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(page.getByRole('textbox',{name:'Buscar favoritos'})).toHaveValue('base');
+ await expect(page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'})).toHaveValue('omsi');
+ await expect(page.getByRole('button',{name:'Pacote base OMSI',exact:true})).toHaveCount(1);
+ await expect(page.getByRole('button',{name:'Retirar dos favoritos'})).toHaveCount(1);
+ const over=await page.evaluate(()=>Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(over).toBeLessThanOrEqual(3);
 });
