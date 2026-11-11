@@ -58,6 +58,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Substituição de consultas JSON externas no Histórico deve falhar fechada:** quando outro arquivo é escolhido, invalidar a prévia do arquivo anterior **antes** de ler o novo. JSON inválido, estrutura adulterada ou tamanho superior a 128 KiB não podem deixar um resultado anterior exibido lado a lado com o erro do arquivo novo. Uma seleção válida posterior deve voltar a exibir apenas sua própria consulta; resumos temporários realmente guardados na sessão permanecem intocados. Testes cobrem resumo válido → JSON inválido → resumo válido, comparação válida → JSON adulterado → comparação válida → arquivo grande demais. Nenhum arquivo de jogo é aberto.
 
+- **Aviso prévio à substituição do catálogo:** importar um JSON válido ou restaurar o catálogo demonstrativo reinicia favoritos, seleção em lote, resumos temporários e consultas externas. Quando existir qualquer um desses dados, mostrar um aviso **antes** do seletor do novo JSON, inclusive se os favoritos já foram retirados mas ainda restam resumos no Histórico. Orientar exportar os resumos antes da troca. Um arquivo JSON rejeitado não deve apagar os dados anteriores. O aviso é preventivo, não equivale a backup nem a uma confirmação de segurança; a importação continua somente de metadados. Testes Playwright verificam erro sem perda e substituição válida, inclusive viewport estreita.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
