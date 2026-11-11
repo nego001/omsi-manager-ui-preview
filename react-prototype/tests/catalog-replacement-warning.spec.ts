@@ -144,3 +144,40 @@ test('invalid replacement cancels earlier unconfirmed valid import without touch
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
 });
+
+test('favorite added while catalog JSON is still reading cannot be erased without consent',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.evaluate(()=>{
+  const original=File.prototype.text;
+  const gate=new Promise<void>(resolve=>{
+   window.addEventListener('finish-delayed-catalog-review',()=>resolve(),{once:true});
+  });
+  File.prototype.text=function(this:File){
+   return this.name==='delayed-catalog.json'?gate.then(()=>original.call(this)):
+    original.call(this);
+  };
+ });
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ await picker.setInputFiles({name:'delayed-catalog.json',
+  mimeType:'application/json',buffer:Buffer.from(JSON.stringify(freshCatalog))});
+ const card=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await expect(page.getByRole('note',{name:warningName})).toBeVisible();
+ await page.evaluate(()=>window.dispatchEvent(new Event('finish-delayed-catalog-review')));
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(confirm).toBeVisible();
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await confirm.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
