@@ -68,6 +68,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Confirmação e leituras do Catálogo expiram ao sair da tela:** um JSON validado ainda não confirmado não é uma autorização persistente. Navegar de Catálogo para Biblioteca, Jogos ou outra área deve cancelar a proposta de substituição e invalidar uma leitura `File.text()` pendente. Retornar ao Catálogo mantém o catálogo ativo e os favoritos sem mostrar uma confirmação antiga: é preciso selecionar novamente o arquivo para iniciar outra proposta. Testes Playwright cobrem navegação com proposta válida e leitura atrasada liberada após sair da tela. Nenhum dado de mod real é acessado.
 
+- **Inventário exportável da Biblioteca, sem alegar backup restaurável:** quando há favoritos, oferecer **Exportar lista de favoritos em JSON** com todos os registros ativos da coleção, independentemente dos filtros da Biblioteca. O arquivo contém apenas `id`, `title`, `game`, `category`, `version` e declara `schema: omsi-manager-declared-favorites-list-v1`, `source: catalog-declarations`, `compatibilityVerified: false`, `installationVerified: false`, `restorableByPreview: false`. Não exportar caminhos, conteúdo de mods, comandos nem prova de instalação. Este inventário é uma referência externa legível para consulta, **não** substitui a exportação dos resumos do Histórico e **não** é aceito como novo manifesto do Catálogo nem como restauração automática. Testes Playwright usam download real, filtros por jogo em 390 px, verificam os campos exatos e demonstram que uma tentativa de importar o próprio inventário é rejeitada sem apagar favoritos.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
