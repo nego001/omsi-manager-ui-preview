@@ -181,3 +181,73 @@ test('favorite added while catalog JSON is still reading cannot be erased withou
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('leaving the Catalog expires a validated replacement proposal and preserves favorites',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const original=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await original.getByRole('button',{name:'Favoritar'}).click();
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ await picker.setInputFiles({
+  name:'proposed.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ const pending=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(pending).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await expect(pending).toHaveCount(0);
+ await expect(page.getByText('Origem: Demonstração')).toBeVisible();
+ await expect(original.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toHaveCount(0);
+ await picker.setInputFiles({
+  name:'reproposed.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await expect(pending).toBeVisible();
+ await pending.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(original.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('leaving the Catalog invalidates a delayed JSON read before it can replace the catalog',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.evaluate(()=>{
+  const original=File.prototype.text;
+  const gate=new Promise<void>(resolve=>{
+   window.addEventListener('release-catalog-read-after-navigation',()=>resolve(),{once:true});
+  });
+  File.prototype.text=function(this:File){
+   if(this.name!=='late-catalog.json')return original.call(this);
+   return gate.then(async()=>{
+    const contents=await original.call(this);
+    document.documentElement.dataset.lateCatalogReadFinished='yes';
+    return contents;
+   });
+  };
+ });
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'late-catalog.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await nav.getByRole('button',{name:'Jogos'}).click();
+ await page.evaluate(()=>window.dispatchEvent(new Event('release-catalog-read-after-navigation')));
+ await page.waitForFunction(()=>
+  document.documentElement.dataset.lateCatalogReadFinished==='yes');
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>
+  requestAnimationFrame(()=>resolve()))));
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await expect(page.getByText('Origem: Demonstração')).toBeVisible();
+ await expect(page.getByRole('region',{name:'Confirmar substituição do catálogo'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toHaveCount(0);
+});
