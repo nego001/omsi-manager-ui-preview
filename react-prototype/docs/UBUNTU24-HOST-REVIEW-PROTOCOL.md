@@ -128,9 +128,9 @@ prova de proteção completa contra corrida de substituição concorrente
 do workspace, nem altera o sandbox Electron. A CI continua proibida
 de aplicar perfis de host ou dispensar o gate nativo Ubuntu 24.04.
 
-## Atualização auditada: commit \`d2124b9\`, duas execuções independentes
+## Atualização auditada: commit `d2124b9`, duas execuções independentes
 
-**Referência histórica:** a seção de evidência do commit \`0b35383\` acima
+**Referência histórica:** a seção de evidência do commit `0b35383` acima
 permanece como registro anterior, não como o resultado mais recente.
 
 - [Run #42385770942](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/42385770942):
@@ -142,15 +142,15 @@ permanece como registro anterior, não como o resultado mais recente.
   ignorou **3**; a primeira invocação sintética terminou em menos de 2 segundos.
   O timeout antigo de 15.075 ms **não foi reproduzido**, sem causa ainda
   demonstrada; manter 15 segundos e não acrescentar retentativas.
-- No Ubuntu 24.04, em **ambas** as execuções: o \`xmessage\` mapeou;
-  nas etiquetas de teste GNOME/KDE, tanto \`OMSI-Manager-Auto\` quanto o
-  Electron direto terminaram em \`SIGTRAP\` antes de uma janela válida.
+- No Ubuntu 24.04, em **ambas** as execuções: o `xmessage` mapeou;
+  nas etiquetas de teste GNOME/KDE, tanto `OMSI-Manager-Auto` quanto o
+  Electron direto terminaram em `SIGTRAP` antes de uma janela válida.
   O módulo AppArmor e a restrição de user namespace estavam ativos;
-  a tentativa independente de namespace recebeu \`permission-denied\`.
-  O diagnóstico continua \`shared-electron-sandbox-startup-suspected\`,
+  a tentativa independente de namespace recebeu `permission-denied`.
+  O diagnóstico continua `shared-electron-sandbox-startup-suspected`,
   com pedido **somente** de revisão administrativa por aplicativo.
 - A coexistência desses sinais **não prova** que AppArmor provocou
-  o \`SIGTRAP\`, nem certifica renderizadores, sessões GNOME/KDE reais,
+  o `SIGTRAP`, nem certifica renderizadores, sessões GNOME/KDE reais,
   autenticidade do artefato ou compatibilidade de uma instalação real.
 
 ### Próxima evidência decisiva (externa à CI comum)
@@ -177,5 +177,5 @@ segurança do renderizador.
 com janela mapeada e pertencente ao processo; sandbox do Electron/Chromium
 atestado separadamente; sessões gráficas reais; assinatura/autenticidade
 adequadas; revisão humana e testes de operações reais em fase futura.
-Não permitir \`--no-sandbox\`, \`--disable-setuid-sandbox\`, root,
+Não permitir `--no-sandbox`, `--disable-setuid-sandbox`, root,
 alteração global de AppArmor/sysctl, instalação/remoção de mods ou merge da PR #1.
