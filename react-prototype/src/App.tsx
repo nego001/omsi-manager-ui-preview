@@ -27,6 +27,9 @@ type GameId='omsi'|'ets2'|'ats';
 type Screen='home'|'games'|'catalog'|'library'|'details'|'queue'|'history'|'settings'|'security';
 type Category='Todos'|'Ônibus'|'Mapas'|'Caminhões'|'Sons'|'Gráficos';
 type Mod=CatalogMod;
+const favoriteInventoryFieldNames={
+ title:'Nome',game:'Jogo',category:'Categoria',version:'Versão'
+} as const;
 type PendingCatalogReplacement=
  |{kind:'import';catalog:Mod[];filename:string}
  |{kind:'demo'};
@@ -1041,7 +1044,15 @@ export default function App(){
      ] as const).map(([name,entries])=><div key={name} className="library-inventory-result-group">
       <strong>{name}: {entries.length}</strong>
       {entries.length>0&&<ul>{entries.slice(0,20).map(item=>
-       <li key={item.id}>{item.title} ({item.id}) · {games[item.game].title} · {item.version}</li>)}</ul>}
+       <li key={item.id}>{item.title} ({item.id}) · {games[item.game].title} · {item.version}
+        {name==='Mudaram'&&favoriteInventoryComparison.changedDetails
+         .find(change=>change.id===item.id)?.differences.map(difference=>
+         <div className="library-inventory-change" key={difference.field}>
+          <strong>{favoriteInventoryFieldNames[difference.field]}:</strong>
+          <span>Exportado: {difference.exported}</span>
+          <span>Atual: {difference.current}</span>
+         </div>)}
+       </li>)}</ul>}
       {entries.length>20&&<small>Exibindo os 20 primeiros desta categoria.</small>}
      </div>)}
     <button type="button" className="btn secondary" onClick={discardFavoriteInventoryReview}>Descartar conferência da lista</button>
