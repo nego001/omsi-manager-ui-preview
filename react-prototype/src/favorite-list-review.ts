@@ -8,10 +8,18 @@ export type DeclaredFavoriteEntry={
 export type FavoriteInventoryReview={
  entries:DeclaredFavoriteEntry[];
 };
+export type FavoriteInventoryDifference={
+ field:'title'|'game'|'category'|'version';
+ exported:string;current:string;
+};
+export type FavoriteInventoryChange={
+ id:string;differences:FavoriteInventoryDifference[];
+};
 export type FavoriteInventoryComparison={
  exact:DeclaredFavoriteEntry[];
  changed:DeclaredFavoriteEntry[];
  missing:DeclaredFavoriteEntry[];
+ changedDetails:FavoriteInventoryChange[];
 };
 const rootKeys=['schema','source','compatibilityVerified',
  'installationVerified','restorableByPreview','items'];
@@ -67,14 +75,20 @@ export function compareFavoriteInventory(
  entries:readonly DeclaredFavoriteEntry[],catalog:readonly CatalogMod[]
 ):FavoriteInventoryComparison{
  const byId=new Map(catalog.map(mod=>[mod.id,mod]));
- const comparison:FavoriteInventoryComparison={exact:[],changed:[],missing:[]};
+ const comparison:FavoriteInventoryComparison={exact:[],changed:[],missing:[],changedDetails:[]};
  for(const item of entries){
   const mod=byId.get(item.id);
-  if(!mod)comparison.missing.push(item);
-  else if(mod.title===item.title&&mod.game===item.game&&
-          mod.category===item.category&&mod.version===item.version)
-   comparison.exact.push(item);
-  else comparison.changed.push(item);
+  if(!mod){comparison.missing.push(item);continue;}
+  const differences:FavoriteInventoryDifference[]=[];
+  for(const field of ['title','game','category','version'] as const){
+   if(item[field]!==mod[field])
+    differences.push({field,exported:item[field],current:mod[field]});
+  }
+  if(differences.length===0)comparison.exact.push(item);
+  else{
+   comparison.changed.push(item);
+   comparison.changedDetails.push({id:item.id,differences});
+  }
  }
  return comparison;
 }
