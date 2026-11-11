@@ -44,6 +44,7 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 - Nunca disfarçar imagem de IA/placeholder como screenshot autêntica do mod.
 - Biblioteca conectada à análise, à Oficina e futuramente à instalação/atualização; apresentar "Atualizar" ou "Abrir na Oficina" só se evidências e capacidade suportarem.
 - **Implementação atual:** favoritos de catálogo JSON *demonstrativo*, filtros por jogo/categoria e arte ilustrativa rotulada; **não** é inventário instalado ou verificação real.
+- **Etapa visual incremental (filtro entre simuladores):** a Biblioteca pode mostrar apenas favoritos que **recebem referências diretas** `requires` ou `conflictsWith` declaradas por registros de **outro jogo**, usando o índice reverso do catálogo JSON inteiro (inclusive origens não favoritas). O filtro é reversível, combina com jogo/categoria/seleção e não cria arestas transitivas, compatibilidade entre jogos, conversão OMSI↔ETS2/ATS, leitura de arquivos ou qualquer instalação. Botão indisponível quando não existem correspondências. Teste Playwright em 390 px e navegação pelos Detalhes; CI do commit ainda requer homologação.
 
 ## 5. Oficina / Studio de personalização
 
