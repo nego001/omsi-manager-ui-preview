@@ -365,6 +365,14 @@ export default function App(){
    existing:[...existing,report].sort((a,b)=>b.id-a.id).slice(0,10));
   setLastRemovedReport(null);
  }
+ function clearAllSessionReports(){
+  // Clear means discard, not stash a hidden snapshot for later restoration.
+  // The old clear button disappears; move keyboard focus to History heading.
+  focusHistoryAfterReportChange.current='cleared';
+  setBatchHistory([]);
+  setLastRemovedReport(null);
+  setToast('Resumos temporários desta sessão limpos. Nenhum arquivo de jogo foi alterado.');
+ }
  function downloadDeclaredJson(json:string,filename:string){
   // Only this user click may start a local browser download.
   let url:string|null=null;
@@ -465,7 +473,7 @@ export default function App(){
  // updates the filtered cards instead of leaving keyboard users on <body>.
  const focusAfterFavoriteRemoval=useRef<{nextId:string|null}|null>(null);
  const focusLibraryBatchAfterNavigation=useRef(false);
- const focusHistoryAfterReportChange=useRef<'undo'|number|null>(null);
+ const focusHistoryAfterReportChange=useRef<'undo'|'cleared'|number|null>(null);
  const focusCatalogSearchAfterDependencyJump=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
  const focusCatalogChipIndexAfterRemoval=useRef<number|null>(null);
@@ -659,6 +667,10 @@ export default function App(){
   if(screen!=='history'||focusHistoryAfterReportChange.current===null)return;
   const restore=focusHistoryAfterReportChange.current;
   focusHistoryAfterReportChange.current=null;
+  if(restore==='cleared'){
+   document.getElementById('history-heading')?.focus({preventScroll:true});
+   return;
+  }
   const target=restore==='undo'?
    document.querySelector<HTMLButtonElement>(
     '.session-history-undo button[aria-label="Desfazer exclusão do último resumo"]'
@@ -1088,7 +1100,7 @@ export default function App(){
   <p className="report-footnote"><LockKeyhole size={16}/> Este relatório é informativo. Compatibilidade não verificada. Instalar e remover continuam bloqueados.</p>
  </section></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
-    {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
+    {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1 id="history-heading" tabIndex={-1}>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
  <section className="session-import-review" aria-label="Consulta de arquivos exportados">
   <h2>Consultar JSON exportado</h2>
   <p>Abra um resumo, coleção ou comparação JSON exportada anteriormente. Consulta local e temporária: não importa para o Histórico, não altera favoritos nem verifica instalações.</p>
@@ -1150,7 +1162,7 @@ export default function App(){
   </div>}
  </section>
  {lastRemovedReport&&<div className="session-history-undo" role="status"><span>Resumo temporário excluído desta sessão.</span><button type="button" className="btn secondary" aria-label="Desfazer exclusão do último resumo" onClick={undoRemovedSessionReport}>Desfazer exclusão</button></div>}
- {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><div className="session-history-header-actions"><button className="btn secondary" type="button" aria-label="Exportar todos os resumos em JSON" onClick={exportSessionArchive}>Exportar todos JSON</button><button className="btn secondary" type="button" onClick={()=>{setBatchHistory([]);setLastRemovedReport(null)}}>Limpar resumos da sessão</button></div></div>
+ {batchHistory.length>0&&<section className="session-batch-history" aria-label="Análises declarativas desta sessão"><div className="session-history-header"><div><h2>Resumos de metadados desta sessão</h2><p>Até 10 relatórios temporários. Não persistem ao fechar ou recarregar a aplicação; não comprovam instalação ou compatibilidade.</p></div><div className="session-history-header-actions"><button className="btn secondary" type="button" aria-label="Exportar todos os resumos em JSON" onClick={exportSessionArchive}>Exportar todos JSON</button><button className="btn secondary" type="button" onClick={clearAllSessionReports}>Limpar resumos da sessão</button></div></div>
  <ol>{batchHistory.map(record=><li key={record.id}><strong>{record.selectedCount} mod(s) declarados · {record.blockers} bloqueio(s) · {record.notices} aviso(s)</strong><span>{record.games.map(id=>games[id].title).join(' · ')}</span><p>{record.selectedTitles.join(' · ')}</p><small>Somente metadados de catálogo. Instalação e compatibilidade não verificadas.</small><button type="button" className="btn secondary session-history-export" aria-label={`Exportar resumo ${record.id} em JSON`} onClick={()=>exportSessionReport(record)}>Exportar JSON</button><button type="button" className="btn secondary session-history-reopen" aria-label={`Rever seleção do resumo ${record.id}`} onClick={()=>revisitSessionReport(record)}>Rever seleção</button><button type="button" className="btn secondary session-history-remove" aria-label={`Excluir resumo ${record.id} desta sessão`} onClick={()=>removeSessionReport(record)}>Excluir este resumo</button></li>)}</ol></section>}
  {reportComparison&&<section className="session-comparison" aria-label="Comparar resumos declarados da sessão">
   <h2>Comparar resumos declarados</h2>
