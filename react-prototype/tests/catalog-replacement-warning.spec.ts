@@ -35,7 +35,18 @@ test('catalog replacement warns before clearing favorites, and invalid JSON cann
   name:'novo.json',mimeType:'application/json',
   buffer:Buffer.from(JSON.stringify(freshCatalog))
  });
- await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeVisible();
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(confirm).toBeVisible();
+ await expect(confirm.getByRole('heading',{name:'Confirmar substituição do catálogo'})).toBeFocused();
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await confirm.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await picker.setInputFiles({name:'novo.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))});
+ await expect(confirm).toBeVisible();
+ await confirm.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeFocused();
  await expect(warning).toHaveCount(0);
  await nav.getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
