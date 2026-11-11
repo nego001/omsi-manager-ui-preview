@@ -56,6 +56,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Acessibilidade da consulta de exportações JSON no Histórico:** quando o usuário descarta a consulta de um resumo/coleção ou de uma comparação, o botão de descarte desaparece. Devolver o foco ao seletor **Arquivo JSON de resumos exportados** que permanece visível, permitindo abrir outra consulta sem perder contexto. Ação apenas na análise transitória do arquivo escolhido; não altera resumos salvos na sessão, favoritos nem dados de jogos. Testes Playwright fazem a rodada real de exportar → reabrir → descartar, inclusive comparação de dois resumos, com foco e layout a 390 px.
 
+- **Substituição de consultas JSON externas no Histórico deve falhar fechada:** quando outro arquivo é escolhido, invalidar a prévia do arquivo anterior **antes** de ler o novo. JSON inválido, estrutura adulterada ou tamanho superior a 128 KiB não podem deixar um resultado anterior exibido lado a lado com o erro do arquivo novo. Uma seleção válida posterior deve voltar a exibir apenas sua própria consulta; resumos temporários realmente guardados na sessão permanecem intocados. Testes cobrem resumo válido → JSON inválido → resumo válido, comparação válida → JSON adulterado → comparação válida → arquivo grande demais. Nenhum arquivo de jogo é aberto.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
