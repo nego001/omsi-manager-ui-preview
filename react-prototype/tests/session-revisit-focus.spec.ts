@@ -90,3 +90,36 @@ test('undo restores one summary without disturbing a different saved summary',as
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toBeFocused();
  await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
 });
+
+test('clearing the whole History focuses heading and permanently discards session summaries',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await savedExample(page);
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await page.getByRole('button',{name:'Limpar resumos da sessão'}).click();
+ await expect(page.getByRole('heading',{name:'Histórico',exact:true})).toBeFocused();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
+ await expect(page.locator('.toast[role="status"]')).toContainText('Resumos temporários desta sessão limpos');
+ await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('region',{name:'Análises declarativas desta sessão'})).toHaveCount(0);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('clearing all also invalidates pending single-summary undo',async({page})=>{
+ await savedExample(page);
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ await page.getByRole('button',{name:'Excluir resumo 2 desta sessão'}).click();
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await page.getByRole('button',{name:'Limpar resumos da sessão'}).click();
+ await expect(page.getByRole('heading',{name:'Histórico',exact:true})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toHaveCount(0);
+});
