@@ -1,5 +1,6 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
+import {serializeDeclaredFavoriteList} from './favorite-list-export';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
 import {summarizeDeclaredSizes} from './declared-size-summary';
@@ -398,6 +399,13 @@ export default function App(){
    if(url)URL.revokeObjectURL(url);
    throw Error('DECLARED_SESSION_DOWNLOAD_FAILED');
   }
+ }
+ function exportFavoriteInventory(){
+  if(favoriteMods.length===0)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
+    'OMSI-Manager-Lista-de-Favoritos.json');
+  }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
  }
  function exportSessionReport(record:SessionBatchRecord){
   try{
@@ -963,6 +971,10 @@ export default function App(){
     </button>)}
    </div>
   </section>}
+  {favoriteMods.length>0&&<div className="library-inventory-export" role="region" aria-label="Exportação de favoritos declarados">
+   <div><strong>Guardar referência dos favoritos</strong><p>Baixe apenas IDs, títulos, simuladores, categorias e versões declaradas, de toda a coleção, mesmo com filtros ativos. Não inclui arquivos dos jogos, não prova instalação e não pode ser restaurado automaticamente neste protótipo.</p></div>
+   <button type="button" className="btn secondary" onClick={exportFavoriteInventory}><Download size={16} aria-hidden="true"/> Exportar lista de favoritos em JSON</button>
+  </div>}
   {favoriteMods.length>0&&<div className="library-toolbar" aria-label="Filtros da biblioteca"><label>Jogo<select aria-label="Filtrar jogo na biblioteca" value={libraryGame} onChange={e=>setLibraryGame(e.target.value as GameId|'all')}><option value="all">Todos os jogos</option>{(Object.keys(games) as GameId[]).map(id=><option key={id} value={id}>{games[id].title}</option>)}</select></label><label>Categoria<select aria-label="Filtrar categoria na biblioteca" value={libraryCategory} onChange={e=>setLibraryCategory(e.target.value as Category)}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Alertas<select aria-label="Filtrar alertas declarados" value={libraryDeclaredStatus} onChange={e=>setLibraryDeclaredStatus(e.target.value as DeclaredStatusKind|'all')}><option value="all">Todos os estados do catálogo</option><option value="blocking">Bloqueios declarados</option><option value="attention">Avisos declarados</option><option value="no-issues">Sem alertas declarados</option></select></label><label>Ordenação<select aria-label="Ordenar biblioteca" value={librarySort} onChange={e=>setLibrarySort(e.target.value as 'catalog'|'title'|'game'|'alerts'|'size-desc'|'size-asc'|'incoming')}><option value="catalog">Ordem do catálogo</option><option value="title">Nome (A–Z)</option><option value="game">Jogo e nome</option><option value="alerts">Alertas declarados (bloqueios primeiro)</option><option value="incoming">Referências recebidas no JSON (mais primeiro)</option><option value="size-desc">Tamanho declarado (maior primeiro)</option><option value="size-asc">Tamanho declarado (menor primeiro)</option></select></label><label className="library-selected-only"><input type="checkbox" aria-label="Mostrar apenas selecionados para análise" checked={libraryOnlySelected} onChange={e=>setLibraryOnlySelected(e.target.checked)}/>Só selecionados</label><div className="library-filter-results" role="status">{libraryMods.length} {libraryMods.length===1?'favorito exibido':'favoritos exibidos'}</div>{activeLibraryControlCount>0&&<button className="btn secondary library-clear-filters" type="button" aria-label="Limpar filtros da biblioteca" onClick={resetLibraryFiltersWithFocus}>Limpar filtros ({activeLibraryControlCount})</button>}</div>}
  {favoriteMods.length>0&&activeLibraryControlCount>0&&<div className="library-active-filters" role="group" aria-label="Filtros ativos da biblioteca">
   <span>Filtros ativos:</span>
