@@ -79,6 +79,8 @@ test('Histórico consulta exportação local sem criar favoritos nem atividades 
  // Restore exists only after a real (metadata-only) catalog import.
  await expect(page.getByRole('button',{name:'Restaurar demonstração'})).toHaveCount(0);
  await page.getByLabel('Arquivo JSON do catálogo').setInputFiles(resolve('examples/catalog.example.json'));
+ await expect(page.getByRole('region',{name:'Confirmar substituição do catálogo'})).toBeVisible();
+ await page.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await expect(page.getByText('Importado: catalog.example.json')).toBeVisible();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(section).not.toContainText('Arquivo consultado');
@@ -87,6 +89,8 @@ test('Histórico consulta exportação local sem criar favoritos nem atividades 
  await expect(section).toContainText('Arquivo consultado: 1 resumo(s) declarado(s)');
  await nav.getByRole('button',{name:'Catálogo de mods'}).click();
  await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await expect(page.getByRole('region',{name:'Confirmar substituição do catálogo'})).toBeVisible();
+ await page.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
  await expect(page.getByText('Origem: Demonstração')).toBeVisible();
  await nav.getByRole('button',{name:'Histórico'}).click();
  await expect(section).not.toContainText('Arquivo consultado');
