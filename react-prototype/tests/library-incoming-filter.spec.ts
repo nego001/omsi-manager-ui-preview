@@ -84,6 +84,15 @@ test('cross-simulator incoming mentions remain metadata-only, reversible and res
  await page.setViewportSize({width:390,height:820});
  await setup(page);
  await expect(group(page)).toContainText('1 com menção de outro simulador');
+ const crossCard=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Sem Declaração',exact:true})
+ });
+ await expect(crossCard.locator('.library-cross-game-warning'))
+  .toHaveText('1 referência(s) de outro simulador no JSON. Não comprova conversão nem compatibilidade.');
+ const sameGameCard=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Pacote Base',exact:true})
+ });
+ await expect(sameGameCard.locator('.library-cross-game-warning')).toHaveCount(0);
  const cross=group(page).getByRole('button',{name:'Só favoritos mencionados por outro simulador'});
  await cross.focus();
  await page.keyboard.press('Enter');
