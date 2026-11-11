@@ -28,6 +28,7 @@ type Mod=CatalogMod;
 type DependencyLookupContext={
  sourceId:string;sourceTitle:string;targetId:string;
  origin:'home'|'catalog'|'library';
+ returnFocus:'relations'|'incoming';
  hypotheticalVersion:string;
  previousGame:GameId|'all';previousCategory:Category;
  previousSearch:string;previousSort:'catalog'|'title'|'game';
@@ -508,7 +509,7 @@ export default function App(){
   if(!catalogMods.some(mod=>mod.id===context.sourceId))return;
   setSelectedMod(context.sourceId);setDetailOrigin(context.origin);
   setHypotheticalGameVersion(context.hypotheticalVersion);
-  setDetailFocus('relations');goto('details');
+  setDetailFocus(context.returnFocus);goto('details');
  }
  function dismissDependencyLookup(){
   if(!dependencyLookup)return;
@@ -516,12 +517,12 @@ export default function App(){
   setDependencyLookup(null);
   document.querySelector<HTMLInputElement>('input[aria-label="Buscar mods"]')?.focus({preventScroll:true});
  }
- function locateDeclaredDependencyInCatalog(modId:string){
+ function locateDeclaredDependencyInCatalog(modId:string,returnFocus:'relations'|'incoming'='relations'){
   // Only local validated catalog records, never actual installed files.
   if(!catalogMods.some(mod=>mod.id===modId))return;
   setDependencyLookup({
    sourceId:selected.id,sourceTitle:selected.title,targetId:modId,origin:detailOrigin,
-   hypotheticalVersion:hypotheticalGameVersion,
+   returnFocus,hypotheticalVersion:hypotheticalGameVersion,
    previousGame:selectedGame,previousCategory:category,
    previousSearch:search,previousSort:catalogSort
   });
@@ -969,7 +970,7 @@ export default function App(){
         {mod.differentGame&&<small className="relation-incoming-context">Referência entre jogos diferentes · somente JSON</small>}</span>
        <button className="relation-stage-catalog-jump" type="button"
         aria-label={'Localizar mod que declara depender '+mod.title+' (ID '+mod.id+') no Catálogo'}
-        onClick={()=>locateDeclaredDependencyInCatalog(mod.id)}>
+        onClick={()=>locateDeclaredDependencyInCatalog(mod.id,'incoming')}>
         Localizar ID no Catálogo <ChevronRight size={14} aria-hidden="true"/>
        </button>
       </li>)}</ul>
@@ -984,7 +985,7 @@ export default function App(){
         {mod.differentGame&&<small className="relation-incoming-context">Referência entre jogos diferentes · somente JSON</small>}</span>
        <button className="relation-stage-catalog-jump" type="button"
         aria-label={'Localizar mod que declara conflito '+mod.title+' (ID '+mod.id+') no Catálogo'}
-        onClick={()=>locateDeclaredDependencyInCatalog(mod.id)}>
+        onClick={()=>locateDeclaredDependencyInCatalog(mod.id,'incoming')}>
         Localizar ID no Catálogo <ChevronRight size={14} aria-hidden="true"/>
        </button>
       </li>)}</ul>
