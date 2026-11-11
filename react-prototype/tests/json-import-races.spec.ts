@@ -42,7 +42,13 @@ test('consulta descartada não reaparece quando leitura JSON anterior termina at
  await expect(area).toContainText('Arquivo consultado: 1 resumo(s) declarado(s)');
  await deferFileText(page,'delayed-review.json');
  await picker.setInputFiles(jsonUpload(serializeDeclaredSessionArchive([first,second]),'delayed-review.json'));
- await area.getByRole('button',{name:'Descartar consulta'}).click();
+ // A newly selected file clears the previous preview. While its File.text()
+ // remains unresolved, cancellation is a dedicated stable action.
+ await expect(area).not.toContainText('Arquivo consultado');
+ const cancel=area.getByRole('button',{name:'Cancelar leitura de JSON'});
+ await cancel.click();
+ await expect(picker).toBeFocused();
+ await expect(cancel).toHaveCount(0);
  await expect(area).not.toContainText('Arquivo consultado');
  await finishDeferredRead(page);
  await expect(area).not.toContainText('Arquivo consultado');
