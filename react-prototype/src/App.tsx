@@ -451,6 +451,22 @@ export default function App(){
     'Arquivo incompatível ou adulterado. Apenas resumos, coleções e comparações JSON declarativas são aceitos.');
   }
  }
+ function discardReviewedHistoryFile(kind:'reports'|'comparison'){
+  // The discard button unmounts; the file picker is a stable keyboard
+  // destination to continue the read-only review workflow.
+  ++reviewReadGeneration.current;
+  if(kind==='reports'){
+   setReviewedFile(null);
+   setReviewBeforeId(null);
+   setReviewAfterId(null);
+  }else{
+   setReviewedComparisonFile(null);
+  }
+  setReviewError('');
+  document.querySelector<HTMLInputElement>(
+   'input[aria-label="Arquivo JSON de resumos exportados"]'
+  )?.focus({preventScroll:true});
+ }
  function revisitSessionReport(record:SessionBatchRecord){
   // Metadata only. Reuse existing favorites, never re-add removed mods.
   const eligible=record.selectedIds.filter(id=>
@@ -1109,7 +1125,7 @@ export default function App(){
   {reviewedComparisonFile&&<section className="session-comparison-review" aria-label="Consulta de comparação JSON exportada">
    <div className="session-import-summary">
     <strong>Comparação JSON consultada: resumo {reviewedComparisonFile.beforeReportId} → resumo {reviewedComparisonFile.afterReportId}</strong>
-    <button type="button" className="btn secondary" onClick={()=>{++reviewReadGeneration.current;setReviewedComparisonFile(null);setReviewError('')}}>Descartar comparação consultada</button>
+    <button type="button" className="btn secondary" onClick={()=>discardReviewedHistoryFile('comparison')}>Descartar comparação consultada</button>
    </div>
    <p>Origem {reviewedComparisonFile.source==='external-json-unverified'?'comparação externa':'exportação de sessão'} não autenticada. Ordem cronológica não verificada. Não comprova instalação nem compatibilidade.</p>
    <div className="session-import-compare-stats" role="group" aria-label="Diferenças da comparação JSON">
@@ -1126,7 +1142,7 @@ export default function App(){
    <small>Arquivo tratado apenas como dados declarados. Nenhum histórico real, favorito, instalação ou mod foi alterado.</small>
   </section>}
   {reviewedFile&&<div className="session-import-results">
-   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>{++reviewReadGeneration.current;setReviewedFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('')}}>Descartar consulta</button></div>
+   <div className="session-import-summary"><strong>Arquivo consultado: {reviewedFile.reports.length} resumo(s) declarado(s)</strong><button type="button" className="btn secondary" onClick={()=>discardReviewedHistoryFile('reports')}>Descartar consulta</button></div>
    <p>Origem externa não autenticada. Instalação e compatibilidade não verificadas. Estes dados não são atividades do sistema.</p>
    <ol>{reviewedFile.reports.map((record,index)=><li key={index}><strong>Resumo {record.reportId} · {record.selectedCount} mod(s) declarados</strong><span>{record.declaredGames.map(game=>games[game].title).join(' · ')} · {record.declaredBlockers} bloqueio(s) · {record.declaredWarnings} aviso(s)</span><ul>{record.selectedMods.map(mod=><li key={mod.id}>{mod.title}</li>)}</ul></li>)}</ol>
    {reviewedComparison&&<section className="session-import-comparison" aria-label="Comparação de resumos do arquivo consultado">
