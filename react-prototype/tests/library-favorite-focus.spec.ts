@@ -65,3 +65,39 @@ test('filtered Library with hidden favorites focuses the clear-filters action af
  await expect(page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'})).toHaveValue('all');
  expect(await titles(page)).toEqual(['Charlie ETS2']);
 });
+
+test('unfavoriting from Details returns to the first remaining visible Library card',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await setup(page,['Alfa OMSI','Bravo OMSI','Charlie ETS2']);
+ await page.getByRole('button',{name:'Bravo OMSI',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Bravo OMSI',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Remover dos favoritos'}).click();
+ await expect(page.getByRole('button',{name:'Instalar (bloqueado)'})).toBeDisabled();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Alfa OMSI',exact:true})).toBeFocused();
+ expect(await titles(page)).toEqual(['Alfa OMSI','Charlie ETS2']);
+});
+
+test('unfavoriting from Details with hidden favorites focuses the filtered empty action',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await setup(page,['Alfa OMSI','Charlie ETS2']);
+ await page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'}).selectOption('omsi');
+ await page.getByRole('button',{name:'Alfa OMSI',exact:true}).click();
+ await page.getByRole('button',{name:'Remover dos favoritos'}).click();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(page.getByRole('heading',{name:'Nenhum favorito nesses filtros'})).toBeVisible();
+ const reset=page.getByRole('button',{name:'Mostrar todos os favoritos'});
+ await expect(reset).toBeFocused();
+ await reset.click();
+ await expect(page.getByRole('button',{name:'Charlie ETS2',exact:true})).toBeFocused();
+ await expect(page.getByRole('combobox',{name:'Filtrar jogo na biblioteca'})).toHaveValue('all');
+});
+
+test('unfavoriting the sole favorite from Details focuses the empty-Library action',async({page})=>{
+ await setup(page,['Alfa OMSI']);
+ await page.getByRole('button',{name:'Alfa OMSI',exact:true}).click();
+ await page.getByRole('button',{name:'Remover dos favoritos'}).click();
+ await page.getByRole('button',{name:'Voltar à biblioteca'}).click();
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Explorar catálogo'})).toBeFocused();
+});
