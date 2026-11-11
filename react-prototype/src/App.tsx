@@ -631,7 +631,19 @@ export default function App(){
   focusCardAfterDetails.current=null;
   if(cardId!==null){
    const card=document.getElementById('mod-title-'+cardId);
-   if(card instanceof HTMLButtonElement){card.focus();return;}
+   if(card instanceof HTMLButtonElement){card.focus({preventScroll:true});return;}
+   // Details can remove the favorite or filters can hide it. Never leave
+   // keyboard focus on a vanished card or send the user to the wrong screen.
+   if(screen==='library'){
+    const fallback=libraryMods[0]&&document.getElementById('mod-title-'+libraryMods[0].id);
+    if(fallback instanceof HTMLButtonElement){
+     fallback.focus({preventScroll:true});return;
+    }
+    const emptyAction=document.querySelector<HTMLButtonElement>(
+     '.library-empty-filter button, .library-empty button'
+    );
+    if(emptyAction){emptyAction.focus({preventScroll:true});return;}
+   }
   }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
