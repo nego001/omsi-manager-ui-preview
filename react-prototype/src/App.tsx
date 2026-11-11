@@ -598,9 +598,12 @@ export default function App(){
  }
  const modCards=(list:Mod[])=><div className={'mod-grid '+(dense?'compact':'')}>{list.map(m=><article className="mod-card" key={m.id}><button className="mod-art" onClick={()=>detail(m.id)} aria-label={`Ver ${m.title}`}><span>{m.category}</span><ModArtwork mod={m}/></button><div className="mod-info"><span className="meta">{games[m.game].title} · {m.category}</span>{screen==='library'&&(()=>{const status=declaredStatuses.get(m.id);return <><span className={'library-mod-status '+(status?.kind??'no-issues')} title="Metadados do catálogo, não arquivos do mod ou jogo instalado">{status?.label??'Não analisado'} · não verificado</span>{status&&status.issueCount>0&&<button type="button" className="library-diagnostic-link" aria-label={'Ver diagnóstico de '+m.title} onClick={()=>openDeclaredDiagnostic(m.id)}><AlertTriangle size={13}/><span>Consultar {status.issueCount} {status.issueCount===1?'alerta declarado':'alertas declarados'}</span><ChevronRight size={13}/></button>}
  {(()=>{const incoming=incomingById.get(m.id);const dependents=incoming?.requiredBy.length??0;const conflicts=incoming?.conflictDeclaredBy.length??0;
+ const crossGameMentions=(incoming?.requiredBy.filter(ref=>ref.differentGame).length??0)+
+  (incoming?.conflictDeclaredBy.filter(ref=>ref.differentGame).length??0);
  return dependents+conflicts>0?<div className="library-incoming-references" role="note">
  <small>Outros registros do JSON mencionam este ID:</small>
  <span>{dependents} dependência(s) recebida(s) · {conflicts} conflito(s) declarado(s) por outros</span>
+ {crossGameMentions>0&&<small className="library-cross-game-warning">{crossGameMentions} referência(s) de outro simulador no JSON. Não comprova conversão nem compatibilidade.</small>}
  <button type="button" className="library-incoming-button" aria-label={'Consultar referências recebidas de '+m.title} onClick={()=>openIncomingFromLibrary(m.id)}>
  Ver referências recebidas <ChevronRight size={13} aria-hidden="true"/>
  </button>
