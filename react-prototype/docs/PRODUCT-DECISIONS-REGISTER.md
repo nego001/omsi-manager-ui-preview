@@ -66,6 +66,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Proteção contra leitura assíncrona de catálogo e favoritos novos:** se a escolha de JSON ocorre sem dados locais mas `File.text()` só termina depois de alguém favoritar um mod ou criar um resumo, a decisão de exigir confirmação consulta o **estado de interface já atualizado**, não o estado antigo capturado no evento do seletor. Um JSON validado tardiamente não pode apagar o favorito recém-criado. O teste de corrida segura a leitura, favorita durante a espera, libera a leitura e exige proposta de confirmação; cancelar mantém o favorito. A variante empacotada do Windows testa também cancelar e confirmar antes de trocar catálogo de metadados.
 
+- **Confirmação e leituras do Catálogo expiram ao sair da tela:** um JSON validado ainda não confirmado não é uma autorização persistente. Navegar de Catálogo para Biblioteca, Jogos ou outra área deve cancelar a proposta de substituição e invalidar uma leitura `File.text()` pendente. Retornar ao Catálogo mantém o catálogo ativo e os favoritos sem mostrar uma confirmação antiga: é preciso selecionar novamente o arquivo para iniciar outra proposta. Testes Playwright cobrem navegação com proposta válida e leitura atrasada liberada após sair da tela. Nenhum dado de mod real é acessado.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
