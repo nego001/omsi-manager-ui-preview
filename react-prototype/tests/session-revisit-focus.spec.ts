@@ -58,3 +58,35 @@ test('reopening a saved selection preserves filters and identifies hidden items'
  await expect(batch).toContainText('A análise conjunta também incluirá 1 favorito selecionado que não aparece');
  await expect(page.getByRole('region',{name:'Resultado da análise conjunta'})).toBeVisible();
 });
+
+test('deleting a saved summary focuses Undo, then the restored summary',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await savedExample(page);
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ const remove=page.getByRole('button',{name:'Excluir resumo 1 desta sessão'});
+ await remove.focus();
+ await page.keyboard.press('Enter');
+ const undo=page.getByRole('button',{name:'Desfazer exclusão do último resumo'});
+ await expect(undo).toBeFocused();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toHaveCount(0);
+ await undo.click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeFocused();
+ await expect(remove).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('undo restores one summary without disturbing a different saved summary',async({page})=>{
+ await savedExample(page);
+ // Save the same hypothetical selection again as a separate session snapshot.
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav(page).getByRole('button',{name:'Histórico'}).click();
+ await page.getByRole('button',{name:'Excluir resumo 2 desta sessão'}).click();
+ await expect(page.getByRole('button',{name:'Desfazer exclusão do último resumo'})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await page.getByRole('button',{name:'Desfazer exclusão do último resumo'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 2'})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+});
