@@ -351,12 +351,16 @@ export default function App(){
   setToast('Resumo declarado guardado somente nesta sessão. Não representa instalação.');
  }
  function removeSessionReport(record:SessionBatchRecord){
+  // The clicked History button disappears, so move focus to the undo action.
+  focusHistoryAfterReportChange.current='undo';
   setBatchHistory(existing=>existing.filter(item=>item.id!==record.id));
   setLastRemovedReport(record);
  }
  function undoRemovedSessionReport(){
   if(!lastRemovedReport)return;
   const report=lastRemovedReport;
+  // Undo removes its own button. Return focus to the restored report.
+  focusHistoryAfterReportChange.current=report.id;
   setBatchHistory(existing=>existing.some(item=>item.id===report.id)?
    existing:[...existing,report].sort((a,b)=>b.id-a.id).slice(0,10));
   setLastRemovedReport(null);
@@ -461,6 +465,7 @@ export default function App(){
  // updates the filtered cards instead of leaving keyboard users on <body>.
  const focusAfterFavoriteRemoval=useRef<{nextId:string|null}|null>(null);
  const focusLibraryBatchAfterNavigation=useRef(false);
+ const focusHistoryAfterReportChange=useRef<'undo'|number|null>(null);
  const focusCatalogSearchAfterDependencyJump=useRef(false);
  const focusFirstCatalogCardAfterReset=useRef(false);
  const focusCatalogChipIndexAfterRemoval=useRef<number|null>(null);
@@ -650,6 +655,20 @@ export default function App(){
   }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
+ useEffect(()=>{
+  if(screen!=='history'||focusHistoryAfterReportChange.current===null)return;
+  const restore=focusHistoryAfterReportChange.current;
+  focusHistoryAfterReportChange.current=null;
+  const target=restore==='undo'?
+   document.querySelector<HTMLButtonElement>(
+    '.session-history-undo button[aria-label="Desfazer exclusão do último resumo"]'
+   ):
+   document.querySelector<HTMLButtonElement>(
+    '.session-history-reopen[aria-label="Rever seleção do resumo '+restore+'"]'
+   );
+  if(target){target.focus({preventScroll:true});return;}
+  document.getElementById('conteudo-principal')?.focus({preventScroll:true});
+ },[screen,batchHistory,lastRemovedReport]);
  useEffect(()=>{
   if(screen!=='library'||!focusLibraryBatchAfterNavigation.current)return;
   focusLibraryBatchAfterNavigation.current=false;
