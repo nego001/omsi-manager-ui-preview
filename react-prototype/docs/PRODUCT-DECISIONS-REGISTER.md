@@ -60,6 +60,8 @@ Documentos técnicos: [Leitor distribuído](DISTRIBUTED-MOD-READER.md) · [Núcl
 
 - **Aviso prévio à substituição do catálogo:** importar um JSON válido ou restaurar o catálogo demonstrativo reinicia favoritos, seleção em lote, resumos temporários e consultas externas. Quando existir qualquer um desses dados, mostrar um aviso **antes** do seletor do novo JSON, inclusive se os favoritos já foram retirados mas ainda restam resumos no Histórico. Orientar exportar os resumos antes da troca. Um arquivo JSON rejeitado não deve apagar os dados anteriores. O aviso é preventivo, não equivale a backup nem a uma confirmação de segurança; a importação continua somente de metadados. Testes Playwright verificam erro sem perda e substituição válida, inclusive viewport estreita.
 
+- **Cancelar leitura atrasada de JSON no Histórico:** a escolha de outro arquivo invalida imediatamente a prévia não autenticada anterior, inclusive durante `File.text()`. Enquanto a leitura estiver pendente, mostrar **Cancelar leitura de JSON**, que invalida a geração assíncrona, oculta o indicador e devolve o foco ao seletor. Uma resolução tardia nunca deve reconstruir a prévia. O cancelamento não restaura o arquivo anterior: ele já foi substituído como consulta ativa. JSON rejeitado não pode exibir uma prévia anterior. Testes antigos que exigiam preservar resultados após rejeição foram atualizados para o contrato de falha fechada; testes de corrida também verificam cancelamento e a ausência de reentrada de dados. O fluxo permanece somente de metadados, sem instalação, remoção ou leitura de arquivos de jogo.
+
 ## 5. Oficina / Studio de personalização
 
 **Pinturas e skins:**
