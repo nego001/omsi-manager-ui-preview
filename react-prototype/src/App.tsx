@@ -199,6 +199,7 @@ export default function App(){
  const incomingById=useMemo(()=>indexIncomingDeclaredRelations(catalogMods),[catalogMods]);
  const incomingRelations=incomingById.get(selected.id)??
   collectIncomingDeclaredRelations(catalogMods,selected.id);
+ const incomingCrossGameSummary=summarizeCrossGameIncoming(incomingRelations);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>{
   // Exact target ID for a dependency jump; editing the query restores fuzzy search.
@@ -947,6 +948,17 @@ export default function App(){
    <h3>Quem menciona este mod no catálogo?</h3>
    <p>São declarações diretas do JSON. Não inclui dependências indiretas,
     não comprova compatibilidade, instalação nem conflito real.</p>
+   {incomingCrossGameSummary.total>0&&<div className="relation-cross-game-summary" role="note"
+    aria-label="Resumo de referências recebidas de outros simuladores">
+    <strong>{incomingCrossGameSummary.total} referência(s) diretas recebidas de outros simuladores no JSON</strong>
+    <div className="relation-cross-game-breakdown">
+     {incomingCrossGameSummary.byGame.map(source=><div key={source.game}>
+      <span>{games[source.game].title}</span>
+      <small>{source.dependencies} dependência(s) · {source.conflicts} conflito(s) declarado(s)</small>
+     </div>)}
+    </div>
+    <small>Resumo de declarações entre jogos, não de mods instalados nem de compatibilidade ou conversão confirmada.</small>
+   </div>}
    {incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length===0?
     <p className="relation-incoming-empty">Nenhuma referência recebida nesses campos do catálogo.</p>:
     <div className="relation-incoming-groups">
