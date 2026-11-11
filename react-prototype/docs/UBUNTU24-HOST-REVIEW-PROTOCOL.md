@@ -127,3 +127,55 @@ Essa barreira reduz aceitação acidental de conteúdo herdado; não é
 prova de proteção completa contra corrida de substituição concorrente
 do workspace, nem altera o sandbox Electron. A CI continua proibida
 de aplicar perfis de host ou dispensar o gate nativo Ubuntu 24.04.
+
+## Atualização auditada: commit \`d2124b9\`, duas execuções independentes
+
+**Referência histórica:** a seção de evidência do commit \`0b35383\` acima
+permanece como registro anterior, não como o resultado mais recente.
+
+- [Run #42385770942](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/42385770942):
+  **7/8 jobs**, com 895/895 testes Playwright no build. Única reprovação:
+  Ubuntu 24.04 X11 nativo sob sandbox estrito.
+- [Run #42385775843](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/42385775843):
+  **7/8 jobs**, também com Ubuntu 24.04 como único job reprovado.
+- Em **ambas**, o laboratório nativo Windows aprovou **134 testes** e
+  ignorou **3**; a primeira invocação sintética terminou em menos de 2 segundos.
+  O timeout antigo de 15.075 ms **não foi reproduzido**, sem causa ainda
+  demonstrada; manter 15 segundos e não acrescentar retentativas.
+- No Ubuntu 24.04, em **ambas** as execuções: o \`xmessage\` mapeou;
+  nas etiquetas de teste GNOME/KDE, tanto \`OMSI-Manager-Auto\` quanto o
+  Electron direto terminaram em \`SIGTRAP\` antes de uma janela válida.
+  O módulo AppArmor e a restrição de user namespace estavam ativos;
+  a tentativa independente de namespace recebeu \`permission-denied\`.
+  O diagnóstico continua \`shared-electron-sandbox-startup-suspected\`,
+  com pedido **somente** de revisão administrativa por aplicativo.
+- A coexistência desses sinais **não prova** que AppArmor provocou
+  o \`SIGTRAP\`, nem certifica renderizadores, sessões GNOME/KDE reais,
+  autenticidade do artefato ou compatibilidade de uma instalação real.
+
+### Próxima evidência decisiva (externa à CI comum)
+
+| Condição verificada | Interpretação permitida | Decisão |
+|---|---|---|
+| Sem aprovação administrativa/host descartável/rollback | Falta autorização para testar política específica | Manter issue e PR bloqueadas |
+| Baseline Ubuntu 24.04 não reproduzido ou SHA do artefato divergente | Não há comparação A/B/A válida | Encerrar o ensaio sem alegar causa |
+| Fase B sob política **específica**, autorizada e auditada não recupera ambas as janelas | A hipótese não demonstrou recuperação | Investigar outras causas; manter gate |
+| A falha retorna na fase A final após sucesso controlado de B, com o mesmo SHA | Correlação reversível observada | Solicitar análise independente de causalidade; não declarar sandbox certificado |
+| Janelas abrem, mas não há prova independente de isolamento do renderizador | Só GUI provada | Proibir release e merge |
+| Uma CI passou em Ubuntu 22.04, ou um relatório/handoff gerou sucesso | Sem valor para dispensar Ubuntu 24.04 | Continuar exigindo o job Ubuntu 24.04 verde |
+
+O ciclo A/B/A **não** deverá ser executado automaticamente por este projeto:
+exige aprovação explícita do administrador, host descartável e restauração
+verificável. Uma mudança de perfil em VM **não** transforma automaticamente
+o runner hospedado do GitHub em ambiente equivalente. O mesmo pacote deve
+ser confrontado por hash real em cada fase; um SHA somente declarado por
+formulário não é atestação independente. O comparador sintético já existente
+não verifica política carregada, bytes reais, identidade de host nem
+segurança do renderizador.
+
+**Critérios que permanecem bloqueantes:** Ubuntu 24.04 X11 obrigatório,
+com janela mapeada e pertencente ao processo; sandbox do Electron/Chromium
+atestado separadamente; sessões gráficas reais; assinatura/autenticidade
+adequadas; revisão humana e testes de operações reais em fase futura.
+Não permitir \`--no-sandbox\`, \`--disable-setuid-sandbox\`, root,
+alteração global de AppArmor/sysctl, instalação/remoção de mods ou merge da PR #1.
