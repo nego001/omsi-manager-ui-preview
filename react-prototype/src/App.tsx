@@ -25,6 +25,9 @@ type GameId='omsi'|'ets2'|'ats';
 type Screen='home'|'games'|'catalog'|'library'|'details'|'queue'|'history'|'settings'|'security';
 type Category='Todos'|'Ônibus'|'Mapas'|'Caminhões'|'Sons'|'Gráficos';
 type Mod=CatalogMod;
+type PendingCatalogReplacement=
+ |{kind:'import';catalog:Mod[];filename:string}
+ |{kind:'demo'};
 type DependencyLookupContext={
  sourceId:string;sourceTitle:string;targetId:string;
  origin:'home'|'catalog'|'library';
@@ -138,6 +141,7 @@ export default function App(){
  const [catalogMods,setCatalogMods]=useState<Mod[]>(mods);
  const [catalogSource,setCatalogSource]=useState('Demonstração');
  const [catalogError,setCatalogError]=useState('');
+ const [pendingCatalogReplacement,setPendingCatalogReplacement]=useState<PendingCatalogReplacement|null>(null);
  const [inspections,setInspections]=useState<Partial<Record<GameId,FolderInspection>>>({});
  const [inspecting,setInspecting]=useState<GameId|null>(null);
  const inspectorAvailable=typeof window.omsiPreview?.inspectGame==='function';
@@ -168,6 +172,8 @@ export default function App(){
  const [compareAfterId,setCompareAfterId]=useState<number|null>(null);
  const [lastRemovedReport,setLastRemovedReport]=useState<SessionBatchRecord|null>(null);
  const nextSessionReportId=useRef(1);
+ const focusCatalogReplacementPrompt=useRef(false);
+ const focusAfterCatalogReplacement=useRef(false);
  // Invalidate stale asynchronous File.text() completions after a new choice/reset.
  const reviewReadGeneration=useRef(0);
  const catalogReadGeneration=useRef(0);
@@ -599,25 +605,57 @@ export default function App(){
   goto('details');
  }
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
+ const catalogReplacementWouldDiscardData=
+  favorites.length>0||batchSelected.length>0||batchHistory.length>0||
+  lastRemovedReport!==null||reviewedFile!==null||
+  reviewedComparisonFile!==null||reviewReading;
+ function applyCatalogReplacement(next:Mod[],source:string){
+  // This is the only place allowed to discard local catalog-bound state.
+  // It is called immediately only when nothing would be lost, or from an
+  // explicit confirmation of a previously validated replacement.
+  ++catalogReadGeneration.current;
+  ++reviewReadGeneration.current;
+  setReviewReading(false);
+  setPendingCatalogReplacement(null);
+  focusAfterCatalogReplacement.current=true;
+  setCatalogMods(next);setHypotheticalGameVersion('');setDependencyLookup(null);
+  setCatalogSource(source);setCatalogError('');
+  setSelectedMod(next[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
+  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+  setToast(source==='Demonstração'?'Catálogo demonstrativo restaurado. Somente metadados.':
+   next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
+ }
+ function cancelCatalogReplacement(){
+  const origin=pendingCatalogReplacement?.kind;
+  setPendingCatalogReplacement(null);
+  const target=origin==='demo'?
+   document.querySelector<HTMLButtonElement>('.catalog-import-actions button'):
+   document.querySelector<HTMLInputElement>('input[aria-label="Arquivo JSON do catálogo"]');
+  target?.focus({preventScroll:true});
+ }
+ function confirmCatalogReplacement(){
+  const pending=pendingCatalogReplacement;
+  if(!pending)return;
+  applyCatalogReplacement(pending.kind==='demo'?mods:pending.catalog,
+   pending.kind==='demo'?'Demonstração':'Importado: '+pending.filename);
+ }
  async function importCatalogFile(event:React.ChangeEvent<HTMLInputElement>){
   const file=event.currentTarget.files?.[0];
   event.currentTarget.value='';
   if(!file)return;
   const generation=++catalogReadGeneration.current;
+  // A newer choice replaces any unconfirmed proposal, never the active data.
+  setPendingCatalogReplacement(null);
   try{
    if(file.size>MAX_CATALOG_BYTES)throw new Error('Arquivo excede 1 MB.');
    const raw=await file.text();
    if(generation!==catalogReadGeneration.current)return;
    const next=parseCatalogManifest(raw);
-   ++reviewReadGeneration.current;
-   setReviewReading(false);
-   setCatalogMods(next);setHypotheticalGameVersion('');setDependencyLookup(null);
-   setCatalogSource('Importado: '+file.name.slice(0,85));
    setCatalogError('');
-   setSelectedMod(next[0].id);
-   setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
-   setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
-   setToast(next.length+' mods carregados somente como metadados. Nenhum arquivo de jogo foi alterado.');
+   if(catalogReplacementWouldDiscardData){
+    focusCatalogReplacementPrompt.current=true;
+    setPendingCatalogReplacement({kind:'import',catalog:next,filename:file.name.slice(0,85)});
+   }else applyCatalogReplacement(next,'Importado: '+file.name.slice(0,85));
   }catch(error){
    if(generation!==catalogReadGeneration.current)return;
    const message=error instanceof Error?error.message:'Falha ao importar catálogo.';
@@ -635,12 +673,13 @@ export default function App(){
   }finally{setInspecting(null)}
  }
  function restoreDemo(){
+  // A new restore intent invalidates any prior pending imported file read.
   ++catalogReadGeneration.current;
-  ++reviewReadGeneration.current;
-  setReviewReading(false);
-  setCatalogMods(mods);setHypotheticalGameVersion('');setDependencyLookup(null);setCatalogSource('Demonstração');setCatalogError('');
-  setSelectedMod(mods[0].id);setSelectedGame('all');setCategory('Todos');setSearch('');setCatalogSort('catalog');
-  setFavorites([]);setBatchSelected([]);setBatchOpen(false);setBatchHistory([]);setLastRemovedReport(null);setReviewedFile(null);setReviewedComparisonFile(null);setReviewBeforeId(null);setReviewAfterId(null);setReviewError('');setLibraryGame('all');setLibraryCategory('Todos');setLibraryDeclaredStatus('all');setLibrarySizeFilter('all');setLibraryIncomingFilter('all');setLibraryOnlySelected(false);setLibrarySearch('');setLibrarySort('catalog');
+  setPendingCatalogReplacement(null);
+  if(catalogReplacementWouldDiscardData){
+   focusCatalogReplacementPrompt.current=true;
+   setPendingCatalogReplacement({kind:'demo'});
+  }else applyCatalogReplacement(mods,'Demonstração');
  }
  function toggleFavorite(modId:string){
   // The last focused card disappears on removal in the Library. Prefer the
@@ -699,6 +738,16 @@ export default function App(){
   }
   document.getElementById('conteudo-principal')?.focus({preventScroll:true});
  },[screen]);
+ useEffect(()=>{
+  if(!pendingCatalogReplacement||!focusCatalogReplacementPrompt.current||screen!=='catalog')return;
+  focusCatalogReplacementPrompt.current=false;
+  document.getElementById('catalog-replacement-confirm-title')?.focus({preventScroll:true});
+ },[screen,pendingCatalogReplacement]);
+ useEffect(()=>{
+  if(!focusAfterCatalogReplacement.current||screen!=='catalog')return;
+  focusAfterCatalogReplacement.current=false;
+  document.querySelector<HTMLButtonElement>('.mod-grid .mod-card .text-button')?.focus({preventScroll:true});
+ },[screen,catalogMods]);
  useEffect(()=>{
   if(screen!=='history'||focusHistoryAfterReportChange.current===null)return;
   const restore=focusHistoryAfterReportChange.current;
@@ -862,7 +911,17 @@ export default function App(){
  {(favorites.length>0||batchHistory.length>0||lastRemovedReport!==null||batchSelected.length>0||reviewedFile!==null||reviewedComparisonFile!==null)&&
   <span className="catalog-replacement-warning" role="note" aria-label="Aviso sobre substituir o catálogo">
    Atenção: importar outro catálogo ou restaurar a demonstração descarta favoritos, seleções, resumos temporários e consultas JSON desta sessão. Exporte os resumos importantes pelo Histórico antes de trocar. Um JSON inválido não substitui os dados existentes.
-  </span>}</div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>{catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
+  </span>}</div><div className="catalog-import-actions"><label className="btn secondary import-control">Importar catálogo JSON<input type="file" accept=".json,application/json" aria-label="Arquivo JSON do catálogo" onChange={importCatalogFile}/></label>{catalogSource!=='Demonstração'&&<button className="btn secondary" onClick={restoreDemo}>Restaurar demonstração</button>}</div></div>
+ {pendingCatalogReplacement&&<section className="catalog-replacement-confirm" role="region" aria-labelledby="catalog-replacement-confirm-title">
+  <h2 id="catalog-replacement-confirm-title" tabIndex={-1}>Confirmar substituição do catálogo</h2>
+  <p>{pendingCatalogReplacement.kind==='demo'?'Restaurar a demonstração':`Importar ${pendingCatalogReplacement.catalog.length} registro(s) do JSON validado`} apaga os favoritos, seleções, resumos temporários e consultas JSON anteriores desta sessão. Nenhum arquivo de jogo será alterado.</p>
+  <p>Exporte os resumos importantes pelo Histórico antes de confirmar. Esta ação não possui desfazer automático.</p>
+  <div className="catalog-replacement-confirm-actions">
+   <button type="button" className="btn secondary" onClick={cancelCatalogReplacement}>Cancelar substituição do catálogo</button>
+   <button type="button" className="btn primary" onClick={confirmCatalogReplacement}>Confirmar e descartar dados locais</button>
+  </div>
+ </section>}
+ {catalogError&&<div className="catalog-error" role="alert">{catalogError}</div>}<div className="result-count">{filtered.length} {filtered.length===1?'resultado':'resultados'}</div>
  { (selectedGame!=='all'||category!=='Todos'||search.trim().length>0||catalogSort!=='catalog')&&<div className="catalog-active-filters" role="group" aria-label="Filtros ativos do catálogo">
   <span>Filtros ativos:</span>
   {selectedGame!=='all'&&<button type="button" aria-label="Remover filtro de jogo do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setSelectedGame('all'))}>Jogo: {games[selectedGame].title} <span aria-hidden="true">×</span></button>}
