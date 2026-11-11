@@ -979,6 +979,8 @@
 .session-import-picker{display:flex;flex-direction:column;gap:9px;font-size:12px;font-weight:700;color:#e9f1fa;max-width:100%}
 .session-import-picker input{max-width:100%;width:100%;min-height:40px;padding:9px;border:1px solid #53647e;border-radius:9px;background:#222d3c;color:#f0f5ff}
 .session-import-picker input:focus-visible{outline:2px solid #a5c8fb;outline-offset:2px}
+.session-import-reading{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:12px;color:#e9d4a8;font-size:12px;line-height:1.5}
+.session-import-reading button{min-height:36px}
 .session-import-error{color:#ffb7b7!important;font-weight:700}
 .session-import-results{margin-top:16px;border-top:1px solid #46536b;padding-top:15px}
 .session-import-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
