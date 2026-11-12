@@ -43,9 +43,8 @@ test('exported favorite inventory is reviewed as exact changed and missing witho
  await expect(review).toContainText('1 coincidem · 1 mudaram · 1 ausentes');
  await expect(review.getByText('Coincidem: 1')).toBeVisible();
  await expect(review.getByText('Mudaram: 1')).toBeVisible();
- const changed=review.locator('.library-inventory-result-group').filter({
-  has:review.getByText('Mudaram: 1')
- });
+ const changed=review.locator('.library-inventory-result-group')
+  .filter({hasText:'Mudaram: 1'});
  await expect(changed).toContainText('Versão:');
  await expect(changed).toContainText('Exportado: 0.9');
  await expect(changed).toContainText('Atual: 2.0');
@@ -112,9 +111,8 @@ test('favorite inventory details show all changed fields as inert text, without 
  });
  const result=page.getByRole('region',{name:'Resultado da conferência de favoritos'});
  await expect(result).toContainText('0 coincidem · 1 mudaram · 0 ausentes');
- const changed=result.locator('.library-inventory-result-group').filter({
-  has:result.getByText('Mudaram: 1')
- });
+ const changed=result.locator('.library-inventory-result-group')
+  .filter({hasText:'Mudaram: 1'});
  await expect(changed).toContainText('Nome:');
  await expect(changed).toContainText('Exportado: '+unsafeTitle);
  await expect(changed).toContainText('Atual: Ônibus Urbano Clássico');
