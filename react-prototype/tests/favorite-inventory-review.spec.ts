@@ -175,3 +175,92 @@ test('favorite inventory details show all changed fields as inert text, without 
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('favorite review search finds matching entries beyond the initial 20 and leaves JSON complete',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
+ const entries=Array.from({length:26},(_,i)=>({
+  id:'missing_'+String(i).padStart(2,'0'),
+  title:'Pacote Fictício '+String(i).padStart(2,'0'),
+  game:'omsi',category:'Sons',version:'1.0'
+ }));
+ const payload={schema:'omsi-manager-declared-favorites-list-v1',
+  source:'catalog-declarations',compatibilityVerified:false,
+  installationVerified:false,restorableByPreview:false,items:entries};
+ await page.getByLabel('Arquivo JSON da lista de favoritos').setInputFiles({
+  name:'twenty-six-missing.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(payload))
+ });
+ const result=page.getByRole('region',{name:'Resultado da conferência de favoritos'});
+ await expect(result).toContainText('0 coincidem · 0 mudaram · 26 ausentes');
+ const missing=result.locator('.library-inventory-result-group').filter({hasText:'Ausentes: 26'});
+ await expect(missing.getByText(/Pacote Fictício 25/)).toHaveCount(0);
+ const search=page.getByRole('searchbox',{name:'Buscar registros na conferência'});
+ await search.fill('pacote ficticio 25');
+ await expect(result.getByRole('status')).toContainText('1 de 26 registro(s)');
+ await expect(missing.getByText(/Pacote Fictício 25/)).toBeVisible();
+ await expect(missing.getByText(/Pacote Fictício 01/)).toHaveCount(0);
+ await expect(result).toContainText('0 coincidem · 0 mudaram · 26 ausentes');
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  result.getByRole('button',{name:'Exportar conferência em JSON'}).click()
+ ]);
+ const report=JSON.parse(await readFile(await download.path(),'utf8'));
+ expect(report.counts).toEqual({total:26,exact:0,changed:0,missing:26});
+ expect(report.missing).toHaveLength(26);
+ expect(report.missing[25]).toMatchObject({id:'missing_25',title:'Pacote Fictício 25'});
+ await search.fill('not-a-matching-id');
+ await expect(result).toContainText('Nenhum registro corresponde à busca');
+ await expect(result.getByRole('status')).toContainText('0 de 26 registro(s)');
+ await search.fill('');
+ await expect(result.getByRole('status')).toHaveCount(0);
+ await expect(missing.locator('li')).toHaveCount(20);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('favorite review search matches current name and ID, resets on invalid file or navigation',async({page})=>{
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
+ const valid={schema:'omsi-manager-declared-favorites-list-v1',
+  source:'catalog-declarations',compatibilityVerified:false,
+  installationVerified:false,restorableByPreview:false,
+  items:[{id:'omsi-bus',title:'Nome anterior',game:'omsi',
+   category:'Ônibus',version:'1.0'}]};
+ const picker=page.getByLabel('Arquivo JSON da lista de favoritos');
+ await picker.setInputFiles({name:'renamed.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(valid))});
+ const result=page.getByRole('region',{name:'Resultado da conferência de favoritos'});
+ const search=page.getByRole('searchbox',{name:'Buscar registros na conferência'});
+ await expect(result).toContainText('0 coincidem · 1 mudaram · 0 ausentes');
+ await search.fill('ONIBUS URBANO CLASSICO');
+ await expect(result.getByRole('status')).toContainText('1 de 1 registro(s)');
+ await expect(result).toContainText('Nome anterior');
+ await search.fill('omsi-bus');
+ await expect(result.getByRole('status')).toContainText('1 de 1 registro(s)');
+ await search.fill('inexistente');
+ await expect(result).toContainText('Nenhum registro corresponde à busca');
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  result.getByRole('button',{name:'Exportar conferência em JSON'}).click()
+ ]);
+ const report=JSON.parse(await readFile(await download.path(),'utf8'));
+ expect(report.counts).toEqual({total:1,exact:0,changed:1,missing:0});
+ await picker.setInputFiles({name:'broken.json',mimeType:'application/json',
+  buffer:Buffer.from('{')});
+ await expect(result).toHaveCount(0);
+ await expect(page.getByRole('alert')).toContainText('incompatível ou adulterada');
+ await picker.setInputFiles({name:'valid-again.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(valid))});
+ await expect(result).toBeVisible();
+ await expect(search).toHaveValue('');
+ await nav(page).getByRole('button',{name:'Jogos'}).click();
+ await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(result).toHaveCount(0);
+ await picker.setInputFiles({name:'valid-return.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(valid))});
+ await expect(search).toHaveValue('');
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+});
