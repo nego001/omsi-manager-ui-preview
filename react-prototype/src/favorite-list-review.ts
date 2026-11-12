@@ -92,3 +92,33 @@ export function compareFavoriteInventory(
  }
  return comparison;
 }
+
+// A documentary diff, never a manifest, backup, restore plan or installation
+// receipt. The source inventory was already validated and the active catalog
+// is compared in-memory; no filesystem paths or mod payloads are included.
+export function serializeFavoriteInventoryComparison(
+ comparison:FavoriteInventoryComparison
+):string{
+ return JSON.stringify({
+  schema:'omsi-manager-declared-favorites-comparison-v1',
+  source:'catalog-declarations',
+  comparison:'exported-inventory-vs-active-catalog',
+  compatibilityVerified:false,
+  installationVerified:false,
+  restorableByPreview:false,
+  counts:{
+   total:comparison.exact.length+comparison.changed.length+comparison.missing.length,
+   exact:comparison.exact.length,
+   changed:comparison.changed.length,
+   missing:comparison.missing.length
+  },
+  exact:comparison.exact.map(({id,title,game,category,version})=>
+   ({id,title,game,category,version})),
+  changed:comparison.changed.map(({id,title,game,category,version})=>({
+   exported:{id,title,game,category,version},
+   differences:comparison.changedDetails.find(item=>item.id===id)?.differences??[]
+  })),
+  missing:comparison.missing.map(({id,title,game,category,version})=>
+   ({id,title,game,category,version}))
+ },null,2);
+}
