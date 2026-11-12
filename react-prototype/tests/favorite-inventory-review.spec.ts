@@ -50,6 +50,29 @@ test('exported favorite inventory is reviewed as exact changed and missing witho
  await expect(changed).toContainText('Atual: 2.0');
  await expect(changed).not.toContainText('Nome:');
  await expect(review.getByText('Ausentes: 1')).toBeVisible();
+ const [reportDownload]=await Promise.all([
+  page.waitForEvent('download'),
+  review.getByRole('button',{name:'Exportar conferência em JSON'}).click()
+ ]);
+ expect(reportDownload.suggestedFilename()).toBe('OMSI-Manager-Conferencia-de-Favoritos.json');
+ const report=JSON.parse(await readFile(await reportDownload.path(),'utf8'));
+ expect(report.schema).toBe('omsi-manager-declared-favorites-comparison-v1');
+ expect(report.source).toBe('catalog-declarations');
+ expect(report.comparison).toBe('exported-inventory-vs-active-catalog');
+ expect(report).toMatchObject({
+  compatibilityVerified:false,installationVerified:false,restorableByPreview:false,
+  counts:{total:3,exact:1,changed:1,missing:1},
+  exact:[{id:'omsi-bus',version:'1.0'}],
+  changed:[{
+   exported:{id:'omsi-map',version:'0.9'},
+   differences:[{field:'version',exported:'0.9',current:'2.0'}]
+  }],
+  missing:[{id:'ets-truck',version:'2.0'}]
+ });
+ expect(Object.keys(report)).toEqual([
+  'schema','source','comparison','compatibilityVerified','installationVerified',
+  'restorableByPreview','counts','exact','changed','missing'
+ ]);
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
  await review.getByRole('button',{name:'Descartar conferência da lista'}).click();
  await expect(picker).toBeFocused();
@@ -76,6 +99,7 @@ test('malformed, altered and oversized favorite lists fail closed without adding
   buffer:Buffer.from(JSON.stringify({...valid,installationVerified:true}))});
  await expect(page.getByRole('alert')).toContainText('incompatível ou adulterada');
  await expect(review).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Exportar conferência em JSON'})).toHaveCount(0);
  await picker.setInputFiles({name:'extra-field.json',mimeType:'application/json',
   buffer:Buffer.from(JSON.stringify({...valid,items:[{...valid.items[0],path:'C:/fake'}]}))});
  await expect(page.getByRole('alert')).toContainText('incompatível ou adulterada');
@@ -126,6 +150,25 @@ test('favorite inventory details show all changed fields as inert text, without 
  await expect(changed).toContainText('Exportado: 9.0');
  await expect(changed).toContainText('Atual: 1.0');
  await expect(changed.locator('img')).toHaveCount(0);
+ const [reportDownload]=await Promise.all([
+  page.waitForEvent('download'),
+  result.getByRole('button',{name:'Exportar conferência em JSON'}).click()
+ ]);
+ const raw=await readFile(await reportDownload.path(),'utf8');
+ const report=JSON.parse(raw);
+ expect(report).toMatchObject({
+  compatibilityVerified:false,installationVerified:false,restorableByPreview:false,
+  counts:{total:1,exact:0,changed:1,missing:0},
+  changed:[{exported:{id:'omsi-bus',title:unsafeTitle},
+   differences:[
+    {field:'title',exported:unsafeTitle,current:'Ônibus Urbano Clássico'},
+    {field:'game',exported:'ets2',current:'omsi'},
+    {field:'category',exported:'Sons',current:'Ônibus'},
+    {field:'version',exported:'9.0',current:'1.0'}
+   ]}]
+ });
+ expect(raw).not.toContain('modPath');
+ expect(raw).not.toContain('installPath');
  expect(await page.evaluate(()=>('hacked' in window))).toBe(false);
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
  const overflow=await page.evaluate(()=>
