@@ -1100,6 +1100,9 @@
 .library-inventory-change strong{font-size:11px;color:#f1f4ff;min-width:64px}
 .library-inventory-change span{font-size:11px;color:#d8e3ee;min-width:0}
 @media(max-width:480px){.library-inventory-change{flex-direction:column;gap:3px}}
+.library-inventory-result-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.library-inventory-result-actions button{display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+@media(max-width:480px){.library-inventory-result-actions{flex-direction:column;align-items:stretch}.library-inventory-result-actions button{width:100%}}
 .library-inventory-result button,.library-inventory-review button{max-width:100%;min-height:38px;white-space:normal}
 .library-inventory-export{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:0 0 17px;padding:15px 17px;background:#202a31;border:1px solid #4b5e68;border-radius:12px}
 .library-inventory-export>div{flex:1 1 250px;min-width:0}
