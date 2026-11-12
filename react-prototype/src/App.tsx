@@ -168,6 +168,9 @@ export default function App(){
  const [favoriteInventoryError,setFavoriteInventoryError]=useState('');
  const [favoriteInventoryReading,setFavoriteInventoryReading]=useState(false);
  const [favoriteInventorySearch,setFavoriteInventorySearch]=useState('');
+ const [favoriteInventoryVisibleLimits,setFavoriteInventoryVisibleLimits]=useState({
+  exact:20,changed:20,missing:20
+ });
  const [reviewBeforeId,setReviewBeforeId]=useState<number|null>(null);
  const [reviewAfterId,setReviewAfterId]=useState<number|null>(null);
  // Reviewed exports are never promoted to the session history.
@@ -425,6 +428,7 @@ export default function App(){
   const generation=++favoriteInventoryReadGeneration.current;
   setFavoriteInventoryReview(null);
   setFavoriteInventorySearch('');
+  setFavoriteInventoryVisibleLimits({exact:20,changed:20,missing:20});
   setFavoriteInventoryError('');
   setFavoriteInventoryReading(true);
   try{
@@ -446,6 +450,7 @@ export default function App(){
   setFavoriteInventoryReading(false);
   setFavoriteInventoryReview(null);
   setFavoriteInventorySearch('');
+  setFavoriteInventoryVisibleLimits({exact:20,changed:20,missing:20});
   setFavoriteInventoryError('');
   document.querySelector<HTMLInputElement>(
    'input[aria-label="Arquivo JSON da lista de favoritos"]'
@@ -612,6 +617,7 @@ export default function App(){
    ++favoriteInventoryReadGeneration.current;
    setFavoriteInventoryReview(null);
    setFavoriteInventorySearch('');
+  setFavoriteInventoryVisibleLimits({exact:20,changed:20,missing:20});
    setFavoriteInventoryError('');
    setFavoriteInventoryReading(false);
   }
@@ -704,6 +710,7 @@ export default function App(){
   ++favoriteInventoryReadGeneration.current;
   setFavoriteInventoryReview(null);
   setFavoriteInventorySearch('');
+  setFavoriteInventoryVisibleLimits({exact:20,changed:20,missing:20});
   setFavoriteInventoryError('');
   setFavoriteInventoryReading(false);
   setReviewReading(false);
@@ -1057,7 +1064,8 @@ export default function App(){
     <p>Coincidência significa somente mesmos ID, título, jogo, categoria e versão no JSON. Não comprova instalação, integridade nem compatibilidade.</p>
     <label className="library-inventory-search">Buscar por nome ou ID na conferência
      <input type="search" aria-label="Buscar registros na conferência" value={favoriteInventorySearch} maxLength={120}
-      onChange={e=>setFavoriteInventorySearch(e.target.value)}
+      onChange={e=>{setFavoriteInventorySearch(e.target.value);
+       setFavoriteInventoryVisibleLimits({exact:20,changed:20,missing:20});}}
       placeholder="Nome ou ID, exportado ou atual"/>
     </label>
     {favoriteInventorySearch.trim()&&<p className="library-inventory-search-status" role="status">
@@ -1069,23 +1077,33 @@ export default function App(){
       ['Coincidem',favoriteInventoryVisible?.exact??[]],
       ['Mudaram',favoriteInventoryVisible?.changed??[]],
       ['Ausentes',favoriteInventoryVisible?.missing??[]]
-     ] as const).map(([name,entries])=><div key={name} className="library-inventory-result-group">
-      <strong>{name}: {favoriteInventoryComparison[
-       name==='Coincidem'?'exact':name==='Mudaram'?'changed':'missing'
-      ].length}</strong>
-      {favoriteInventorySearch.trim()&&<small>Encontrados na busca: {entries.length}</small>}
-      {entries.length>0&&<ul>{entries.slice(0,20).map(item=>
-       <li key={item.id}>{item.title} ({item.id}) · {games[item.game].title} · {item.version}
-        {name==='Mudaram'&&favoriteInventoryComparison.changedDetails
-         .find(change=>change.id===item.id)?.differences.map(difference=>
-         <div className="library-inventory-change" key={difference.field}>
-          <strong>{favoriteInventoryFieldNames[difference.field]}:</strong>
-          <span>Exportado: {difference.exported}</span>
-          <span>Atual: {difference.current}</span>
-         </div>)}
-       </li>)}</ul>}
-      {entries.length>20&&<small>Exibindo os 20 primeiros desta categoria.</small>}
-     </div>)}
+     ] as const).map(([name,entries])=>{
+      const groupKey=name==='Coincidem'?'exact':name==='Mudaram'?'changed':'missing';
+      const displayed=Math.min(entries.length,favoriteInventoryVisibleLimits[groupKey]);
+      return <div key={name} className="library-inventory-result-group">
+       <strong>{name}: {favoriteInventoryComparison[groupKey].length}</strong>
+       {favoriteInventorySearch.trim()&&<small>Encontrados na busca: {entries.length}</small>}
+       {entries.length>0&&<ul>{entries.slice(0,displayed).map(item=>
+        <li key={item.id}>{item.title} ({item.id}) · {games[item.game].title} · {item.version}
+         {name==='Mudaram'&&favoriteInventoryComparison.changedDetails
+          .find(change=>change.id===item.id)?.differences.map(difference=>
+          <div className="library-inventory-change" key={difference.field}>
+           <strong>{favoriteInventoryFieldNames[difference.field]}:</strong>
+           <span>Exportado: {difference.exported}</span>
+           <span>Atual: {difference.current}</span>
+          </div>)}
+        </li>)}</ul>}
+       {entries.length>displayed&&<>
+        <small>Exibindo {displayed} de {entries.length} registro(s) desta categoria.</small>
+        <button type="button" className="btn secondary library-inventory-more"
+         onClick={()=>setFavoriteInventoryVisibleLimits(previous=>({
+          ...previous,[groupKey]:Math.min(entries.length,previous[groupKey]+20)
+         }))}>
+         Mostrar mais {name.toLowerCase()} ({entries.length-displayed} restantes)
+        </button>
+       </>}
+      </div>;
+     })}
     <p>O relatório JSON é apenas documental: não é backup, instalador nem confirmação de compatibilidade.</p>
     <div className="library-inventory-result-actions">
      <button type="button" className="btn secondary" onClick={exportFavoriteInventoryComparison}><Download size={16} aria-hidden="true"/> Exportar conferência em JSON</button>
