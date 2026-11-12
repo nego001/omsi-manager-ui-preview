@@ -21,6 +21,34 @@ export type FavoriteInventoryComparison={
  missing:DeclaredFavoriteEntry[];
  changedDetails:FavoriteInventoryChange[];
 };
+export type VisibleFavoriteInventoryEntries=Pick<
+ FavoriteInventoryComparison,'exact'|'changed'|'missing'
+>;
+
+// Display filtering never changes the original review or its complete export.
+// Search matches the exported ID/title and the current title when the ID exists.
+export function filterFavoriteInventoryEntries(
+ comparison:FavoriteInventoryComparison,
+ catalog:readonly CatalogMod[],
+ query:string
+):VisibleFavoriteInventoryEntries{
+ const normalize=(value:string)=>value.normalize('NFD')
+  .replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+ const terms=normalize(query.trim()).split(/\s+/).filter(Boolean);
+ if(terms.length===0)return {
+  exact:comparison.exact,changed:comparison.changed,missing:comparison.missing
+ };
+ const currentById=new Map(catalog.map(item=>[item.id,item]));
+ const matches=(item:DeclaredFavoriteEntry)=>{
+  const words=normalize([item.id,item.title,currentById.get(item.id)?.title??''].join(' '));
+  return terms.every(term=>words.includes(term));
+ };
+ return {
+  exact:comparison.exact.filter(matches),
+  changed:comparison.changed.filter(matches),
+  missing:comparison.missing.filter(matches)
+ };
+}
 const rootKeys=['schema','source','compatibilityVerified',
  'installationVerified','restorableByPreview','items'];
 const entryKeys=['id','title','game','category','version'];
