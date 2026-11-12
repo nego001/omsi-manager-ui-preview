@@ -1,7 +1,7 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {serializeDeclaredFavoriteList} from './favorite-list-export';
-import {parseFavoriteInventory,compareFavoriteInventory,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
+import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
 import {summarizeDeclaredSizes} from './declared-size-summary';
@@ -167,6 +167,7 @@ export default function App(){
  const [favoriteInventoryReview,setFavoriteInventoryReview]=useState<FavoriteInventoryReview|null>(null);
  const [favoriteInventoryError,setFavoriteInventoryError]=useState('');
  const [favoriteInventoryReading,setFavoriteInventoryReading]=useState(false);
+ const [favoriteInventorySearch,setFavoriteInventorySearch]=useState('');
  const [reviewBeforeId,setReviewBeforeId]=useState<number|null>(null);
  const [reviewAfterId,setReviewAfterId]=useState<number|null>(null);
  // Reviewed exports are never promoted to the session history.
@@ -237,6 +238,12 @@ export default function App(){
  const favoriteInventoryComparison=useMemo(()=>favoriteInventoryReview?
   compareFavoriteInventory(favoriteInventoryReview.entries,catalogMods):null,
   [favoriteInventoryReview,catalogMods]);
+ const favoriteInventoryVisible=useMemo(()=>favoriteInventoryComparison?
+  filterFavoriteInventoryEntries(favoriteInventoryComparison,catalogMods,favoriteInventorySearch):null,
+  [favoriteInventoryComparison,catalogMods,favoriteInventorySearch]);
+ const favoriteInventoryVisibleCount=favoriteInventoryVisible?
+  favoriteInventoryVisible.exact.length+favoriteInventoryVisible.changed.length+
+  favoriteInventoryVisible.missing.length:0;
  const favoriteIncomingCounts=useMemo(()=>favoriteMods.reduce((counts,mod)=>{
   const links=incomingById.get(mod.id);
   if((links?.requiredBy.length??0)+(links?.conflictDeclaredBy.length??0)>0)
@@ -417,6 +424,7 @@ export default function App(){
   if(!file)return;
   const generation=++favoriteInventoryReadGeneration.current;
   setFavoriteInventoryReview(null);
+  setFavoriteInventorySearch('');
   setFavoriteInventoryError('');
   setFavoriteInventoryReading(true);
   try{
@@ -437,6 +445,7 @@ export default function App(){
   ++favoriteInventoryReadGeneration.current;
   setFavoriteInventoryReading(false);
   setFavoriteInventoryReview(null);
+  setFavoriteInventorySearch('');
   setFavoriteInventoryError('');
   document.querySelector<HTMLInputElement>(
    'input[aria-label="Arquivo JSON da lista de favoritos"]'
@@ -602,6 +611,7 @@ export default function App(){
   if(screen==='library'&&id!=='library'){
    ++favoriteInventoryReadGeneration.current;
    setFavoriteInventoryReview(null);
+   setFavoriteInventorySearch('');
    setFavoriteInventoryError('');
    setFavoriteInventoryReading(false);
   }
@@ -693,6 +703,7 @@ export default function App(){
   ++reviewReadGeneration.current;
   ++favoriteInventoryReadGeneration.current;
   setFavoriteInventoryReview(null);
+  setFavoriteInventorySearch('');
   setFavoriteInventoryError('');
   setFavoriteInventoryReading(false);
   setReviewReading(false);
@@ -1044,12 +1055,25 @@ export default function App(){
     <strong>Resultado da conferência: {favoriteInventoryReview?.entries.length??0} registro(s) declarado(s)</strong>
     <p>{favoriteInventoryComparison.exact.length} coincidem · {favoriteInventoryComparison.changed.length} mudaram · {favoriteInventoryComparison.missing.length} ausentes no catálogo atual.</p>
     <p>Coincidência significa somente mesmos ID, título, jogo, categoria e versão no JSON. Não comprova instalação, integridade nem compatibilidade.</p>
+    <label className="library-inventory-search">Buscar por nome ou ID na conferência
+     <input type="search" aria-label="Buscar registros na conferência" value={favoriteInventorySearch} maxLength={120}
+      onChange={e=>setFavoriteInventorySearch(e.target.value)}
+      placeholder="Nome ou ID, exportado ou atual"/>
+    </label>
+    {favoriteInventorySearch.trim()&&<p className="library-inventory-search-status" role="status">
+     {favoriteInventoryVisibleCount} de {favoriteInventoryReview?.entries.length??0} registro(s) correspondem à busca.
+    </p>}
+    {favoriteInventorySearch.trim()&&favoriteInventoryVisibleCount===0&&
+     <p className="library-inventory-search-empty">Nenhum registro corresponde à busca nesta conferência. O relatório completo continua disponível para exportação.</p>}
     {([
-      ['Coincidem',favoriteInventoryComparison.exact],
-      ['Mudaram',favoriteInventoryComparison.changed],
-      ['Ausentes',favoriteInventoryComparison.missing]
+      ['Coincidem',favoriteInventoryVisible?.exact??[]],
+      ['Mudaram',favoriteInventoryVisible?.changed??[]],
+      ['Ausentes',favoriteInventoryVisible?.missing??[]]
      ] as const).map(([name,entries])=><div key={name} className="library-inventory-result-group">
-      <strong>{name}: {entries.length}</strong>
+      <strong>{name}: {favoriteInventoryComparison[
+       name==='Coincidem'?'exact':name==='Mudaram'?'changed':'missing'
+      ].length}</strong>
+      {favoriteInventorySearch.trim()&&<small>Encontrados na busca: {entries.length}</small>}
       {entries.length>0&&<ul>{entries.slice(0,20).map(item=>
        <li key={item.id}>{item.title} ({item.id}) · {games[item.game].title} · {item.version}
         {name==='Mudaram'&&favoriteInventoryComparison.changedDetails
