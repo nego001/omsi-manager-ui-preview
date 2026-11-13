@@ -27,7 +27,8 @@ test('serializador limita a exportação a declarações e rejeita IDs e campos 
  });
  expect(Object.keys(parsed.selectedMods[0])).toEqual(['id','title','game','category','version']);
  expect(json).not.toContain('unsafePath');
- expect(json).not.toContain('install');
+ expect(json).not.toContain('"run"');
+ expect(json).not.toContain('/private/not-for-export');
  for(const entries of [[],[base,base],[{...base,id:'INVALID'}],
   [{...base,title:''}],[{...base,game:'unknown' as CatalogMod['game']}]]){
   expect(()=>serializeDeclaredBatchSelection(entries)).toThrow('DECLARED_SELECTION_INVALID');
