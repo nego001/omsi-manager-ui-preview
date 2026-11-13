@@ -1093,13 +1093,16 @@ export default function App(){
            <span>Atual: {difference.current}</span>
           </div>)}
         </li>)}</ul>}
-       {entries.length>displayed&&<>
+       {entries.length>20&&<>
         <small>Exibindo {displayed} de {entries.length} registro(s) desta categoria.</small>
         <button type="button" className="btn secondary library-inventory-more"
          onClick={()=>setFavoriteInventoryVisibleLimits(previous=>({
-          ...previous,[groupKey]:Math.min(entries.length,previous[groupKey]+20)
+          ...previous,[groupKey]:displayed<entries.length?
+           Math.min(entries.length,previous[groupKey]+20):20
          }))}>
-         Mostrar mais {name.toLowerCase()} ({entries.length-displayed} restantes)
+         {displayed<entries.length?
+          `Mostrar mais ${name.toLowerCase()} (${entries.length-displayed} restantes)`:
+          `Mostrar menos ${name.toLowerCase()} (voltar a 20)`}
         </button>
        </>}
       </div>;
