@@ -1,6 +1,7 @@
 import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {serializeDeclaredFavoriteList} from './favorite-list-export';
+import {serializeDeclaredBatchSelection} from './batch-selection-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
@@ -480,6 +481,16 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportBatchSelection(){
+  if(activeBatch.length===0)return;
+  const items=activeBatch.map(id=>catalogMods.find(mod=>mod.id===id))
+   .filter((mod):mod is Mod=>mod!==undefined);
+  if(items.length!==activeBatch.length)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredBatchSelection(items),
+    'OMSI-Manager-Selecao-Declarada.json');
+  }catch{setToast('Não foi possível exportar a seleção declarada.');}
  }
  function exportSessionReport(record:SessionBatchRecord){
   try{
@@ -1050,9 +1061,12 @@ export default function App(){
    {' '}{batchHistory.length>0||lastRemovedReport!==null?
     'Baixe também os resumos declarativos abaixo. O último resumo removido, ainda disponível para Desfazer, exige um download separado.':
     'Nenhum resumo temporário disponível para exportação.'}
-   {' '}Os JSONs podem ser consultados posteriormente pelo Histórico, mas não restauram a sessão automaticamente. Esta substituição não possui desfazer automático.</p>
+   {' '}{activeBatch.length>0?'A seleção ativa também pode ser salva como referência declarativa de IDs e versões.':''}
+   {' '}Os JSONs de resumos podem ser consultados posteriormente pelo Histórico; os arquivos exportados não restauram automaticamente a seleção, os favoritos ou a sessão. Esta substituição não possui desfazer automático.</p>
   {favoriteMods.length>0&&<button type="button" className="btn secondary catalog-preflight-favorites"
    onClick={exportFavoriteInventory}><Download size={16} aria-hidden="true"/> Baixar lista de favoritos antes de substituir</button>}
+  {activeBatch.length>0&&<button type="button" className="btn secondary catalog-preflight-reports"
+   onClick={exportBatchSelection}><Download size={16} aria-hidden="true"/> Baixar seleção ativa antes de substituir</button>}
   {batchHistory.length>0&&<button type="button" className="btn secondary catalog-preflight-reports"
    onClick={exportSessionArchive}><Download size={16} aria-hidden="true"/> Baixar resumos da sessão antes de substituir</button>}
   {lastRemovedReport!==null&&<button type="button" className="btn secondary catalog-preflight-reports"
