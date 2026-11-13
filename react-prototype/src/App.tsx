@@ -702,6 +702,15 @@ export default function App(){
   goto('details');
  }
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
+ // Snapshot values are derived from current in-memory metadata, not files on
+ // disk. A stored undoable report also disappears when replacing the catalog.
+ const catalogReplacementImpact={
+  favorites:favorites.length,
+  selected:batchSelected.length,
+  reports:batchHistory.length+(lastRemovedReport===null?0:1),
+  externalReviews:Number(reviewedFile!==null)+Number(reviewedComparisonFile!==null),
+  pendingRead:Number(reviewReading)
+ };
  const catalogReplacementWouldDiscardData=
   favorites.length>0||batchSelected.length>0||batchHistory.length>0||
   lastRemovedReport!==null||reviewedFile!==null||
@@ -1024,6 +1033,17 @@ export default function App(){
  {pendingCatalogReplacement&&<section className="catalog-replacement-confirm" role="region" aria-labelledby="catalog-replacement-confirm-title">
   <h2 id="catalog-replacement-confirm-title" tabIndex={-1}>Confirmar substituição do catálogo</h2>
   <p>{pendingCatalogReplacement.kind==='demo'?'Restaurar a demonstração':`Importar ${pendingCatalogReplacement.catalog.length} registro(s) do JSON validado`} apaga os favoritos, seleções, resumos temporários e consultas JSON anteriores desta sessão. Nenhum arquivo de jogo será alterado.</p>
+  <div className="catalog-replacement-impact" role="group" aria-label="Dados da sessão que serão descartados">
+   <strong>Impacto nos dados temporários</strong>
+   <ul>
+    <li>Favoritos declarados: <strong>{catalogReplacementImpact.favorites}</strong></li>
+    <li>Mods selecionados para análise conjunta: <strong>{catalogReplacementImpact.selected}</strong></li>
+    <li>Resumos temporários, incluindo desfazer: <strong>{catalogReplacementImpact.reports}</strong></li>
+    <li>Consultas externas carregadas: <strong>{catalogReplacementImpact.externalReviews}</strong></li>
+    {catalogReplacementImpact.pendingRead>0&&<li>Leitura externa em andamento: <strong>1</strong></li>}
+   </ul>
+   <small>Contagem da sessão atual. Nenhum mod foi verificado ou instalado; o catálogo ainda não foi substituído.</small>
+  </div>
   <p>{favoriteMods.length>0?
    'Baixe a lista declarativa de favoritos abaixo antes de confirmar, caso queira guardar os IDs e versões. Ela não é um backup restaurável.':
    'Nenhum favorito do catálogo atual para exportar.'}
