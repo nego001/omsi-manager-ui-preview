@@ -3,6 +3,7 @@ import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog'
 import {serializeDeclaredFavoriteList} from './favorite-list-export';
 import {serializeDeclaredBatchSelection} from './batch-selection-export';
 import {compareDeclaredCatalogs,declaredCatalogFieldLabels} from './catalog-replacement-diff';
+import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
@@ -482,6 +483,13 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingCatalogDiff(){
+  if(!pendingCatalogReplacement||!catalogReplacementDiff)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredCatalogDiff(catalogReplacementDiff),
+    'OMSI-Manager-Comparacao-de-Catalogos.json');
+  }catch{setToast('Não foi possível exportar a comparação declarativa dos catálogos.');}
  }
  function exportBatchSelection(){
   if(activeBatch.length===0)return;
@@ -1090,6 +1098,8 @@ export default function App(){
     {catalogReplacementDiff.added.length>5&&<small>Outros {catalogReplacementDiff.added.length-5} IDs adicionados não exibidos.</small>}
    </div>}
    <small>Novos IDs são registros do JSON, não mods instalados. Um ID igual não comprova que seja o mesmo pacote. Esta prévia não representa comparação de arquivos instalados nem preserva favoritos automaticamente.</small>
+   <button type="button" className="btn secondary catalog-preflight-reports"
+    onClick={exportPendingCatalogDiff}><Download size={16} aria-hidden="true"/> Baixar comparação completa em JSON</button>
   </section>}
   <p>{favoriteMods.length>0?
    'Baixe a lista declarativa de favoritos abaixo antes de confirmar, caso queira guardar os IDs e versões. Ela não é um backup restaurável.':
