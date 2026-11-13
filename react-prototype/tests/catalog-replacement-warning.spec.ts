@@ -23,7 +23,9 @@ test('catalog replacement warns before clearing favorites, and invalid JSON cann
  });
  await card.getByRole('button',{name:'Favoritar'}).click();
  await expect(warning).toContainText('descarta favoritos, seleções, resumos temporários');
- await expect(warning).toContainText('Exporte os resumos importantes');
+ await expect(warning).toContainText('Salve uma lista declarativa de favoritos');
+ await expect(warning).toContainText('exporte os resumos importantes pelo Histórico');
+ await expect(warning).toContainText('não é um backup restaurável');
  const picker=page.getByLabel('Arquivo JSON do catálogo');
  await picker.setInputFiles({
   name:'invalido.json',mimeType:'application/json',buffer:Buffer.from('{invalid')
