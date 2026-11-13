@@ -19,6 +19,7 @@ test('the live workflow requires both Ubuntu images, SHA guard, X11 proof and st
  assert.equal(result.adminPilotComparisonContractRequired,true);
  assert.equal(result.abaRollbackComparisonContractRequired,true);
  assert.equal(result.shaBeforeArchiveExtraction,true);
+ assert.equal(result.hostCategoryRepeatabilityContractRequired,true);
  assert.equal(result.sandboxBypassAllowed,false);
  assert.equal(result.realWindowProven,false);
  assert.ok(Object.isFrozen(result));
@@ -237,5 +238,18 @@ test('fresh exclusive output directory contracts cannot be skipped in build or c
   assert.ok(original.includes(command));
   assert.throws(()=>verify(original.replace(command,'echo output-safety-omitted')),
    /^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
+ }
+});
+
+test('host category repeatability contract required in both Linux build and strict X11 matrix',()=>{
+ const command='node --test scripts/auto-x11-host-stability.test.mjs';
+ assert.equal(original.split(command).length-1,2);
+ const changes=[
+  original.replace(command,'echo host-repeatability-skipped'),
+  original.replace('          '+command,'          echo repeatability-skipped')
+ ];
+ for(const source of changes){
+  assert.notEqual(source,original);
+  assert.throws(()=>verify(source),/^Error: NATIVE_X11_WORKFLOW_GUARD_REFUSED$/);
  }
 });

@@ -16,6 +16,7 @@ import {captureNativeAtSpawn,recordVerifiedIdentitySource}
 import {createSanitizedX11Evidence} from './auto-x11-sanitized-evidence.mjs';
 import {readVerifiedX11ArchiveSha256} from './auto-x11-archive-provenance.mjs';
 import {assessApparmorAdminReview} from './ubuntu24-app-profile-review.mjs';
+import {verifyStableX11HostCategories} from './auto-x11-host-stability.mjs';
 import {categorizeUnshareFailure,categorizeApparmorModule} from './auto-x11-host-policy-contract.mjs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  verifyNativeWindowOwner,verifyNativeDesktopResults,
@@ -362,6 +363,15 @@ try{
    }
   }
  }
+ // Recheck the same host categories after both native attempts, rather than
+ // assuming that earlier kernel/AppArmor observations stayed valid.
+ const ending={
+  apparmorRestriction:await readApparmorNamespacePolicyCategory(),
+  apparmorModuleState:await readApparmorModuleCategory(),
+  userNamespaceProbe:await probeCiUserNamespaceCategory()
+ };
+ console.log('AUTO_X11_HOST_CATEGORIES_RECHECK',JSON.stringify(
+  verifyStableX11HostCategories(hostEvidence,ending)));
 }finally{
  await rm(root,{recursive:true,force:true});
 }

@@ -179,3 +179,21 @@ atestado separadamente; sessões gráficas reais; assinatura/autenticidade
 adequadas; revisão humana e testes de operações reais em fase futura.
 Não permitir `--no-sandbox`, `--disable-setuid-sandbox`, root,
 alteração global de AppArmor/sysctl, instalação/remoção de mods ou merge da PR #1.
+
+## Repetição das categorias do host após o teste nativo (novembro/2026)
+
+A matriz estrita X11 passou a repetir ao final das tentativas de janela as
+mesmas três observações obtidas no início: indicador AppArmor de restrição a
+user namespace, estado do módulo AppArmor e resposta categorizada da tentativa
+não privilegiada de criar um namespace descartável. A validação falha se
+qualquer categoria mudar ou ficar indisponível/indeterminada. Não há alteração
+de parâmetros do kernel, comandos privilegiados, instalação de perfis nem
+desativação do sandbox.
+
+O resultado `AUTO_X11_HOST_CATEGORIES_RECHECK` prova somente igualdade das
+**três categorias observadas em dois momentos**, não que todas as políticas do
+host ficaram imutáveis, não que AppArmor causou o SIGTRAP e não que o sandbox
+Electron está certificado. Os testes sintéticos obrigatórios executam no build
+e nas duas imagens Ubuntu; o guard do workflow recusa a remoção de qualquer
+uma dessas verificações. A janela nativa Ubuntu 24.04 segue sendo o gate de
+homologação obrigatório, sem dispensa por resultado diagnóstico.

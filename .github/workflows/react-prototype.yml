@@ -34,6 +34,8 @@ jobs:
         run: node --test scripts/linux-session-diagnostics.test.cjs
       - name: AppArmor host-capability classification contracts (synthetic only)
         run: node --test scripts/auto-x11-host-policy-contract.test.mjs
+      - name: Strict X11 host category repeatability contracts (synthetic only)
+        run: node --test scripts/auto-x11-host-stability.test.mjs
       - name: Native ELF sandbox preflight parser contracts (synthetic only)
         run: node --test scripts/native-sandbox-preflight-contract.test.mjs
       - name: Strict native X11 matrix admission guard
@@ -193,6 +195,7 @@ jobs:
           # Probe host prerequisites without changing the Electron sandbox.
           node --check scripts/auto-real-x11-smoke.mjs
           node --test scripts/auto-x11-host-policy-contract.test.mjs
+          node --test scripts/auto-x11-host-stability.test.mjs
           node --test scripts/auto-x11-native-triage.test.mjs
           node --test scripts/auto-x11-early-native-kernel.test.mjs
           node --test scripts/auto-x11-spawn-witness.test.mjs

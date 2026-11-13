@@ -30,6 +30,7 @@ export function validateNativeX11Workflow(source){
     !build.includes('node --test scripts/auto-x11-sanitized-evidence.test.mjs')||
     !build.includes('node --test scripts/electron-renderer-kernel-evidence.test.mjs')||
     !build.includes('node --test scripts/auto-x11-early-native-kernel.test.mjs')||
+    !build.includes('node --test scripts/auto-x11-host-stability.test.mjs')||
     !build.includes('node --test scripts/auto-x11-spawn-witness.test.mjs')||
     !build.includes('node --test scripts/auto-x11-evidence-diff.test.mjs')||
     !build.includes('node --test scripts/auto-x11-admin-handoff.test.mjs')||
@@ -52,6 +53,7 @@ export function validateNativeX11Workflow(source){
   'node scripts/native-sandbox-preflight-ci.mjs',
   'node scripts/auto-x11-host-capabilities.mjs',
   'node --test scripts/auto-x11-native-triage.test.mjs',
+  'node --test scripts/auto-x11-host-stability.test.mjs',
   'node --test scripts/auto-x11-early-native-kernel.test.mjs',
   'node --test scripts/auto-x11-spawn-witness.test.mjs',
   'node --test scripts/auto-x11-archive-provenance.test.mjs',
@@ -155,6 +157,7 @@ export function validateNativeX11Workflow(source){
   realPackagedRendererKernelContractRequired:true,
   adminPilotComparisonContractRequired:true,
   abaRollbackComparisonContractRequired:true,
+  hostCategoryRepeatabilityContractRequired:true,
   sandboxBypassAllowed:false,
   realWindowProven:false,
   hostPolicyChanged:false
