@@ -63,7 +63,10 @@ test('real X11 CI has both spawn-edge witness hooks and async retry checks',asyn
  const {readFile}=await import('node:fs/promises');
  const content=await readFile(new URL('./auto-real-x11-smoke.mjs',import.meta.url),'utf8');
  assert.equal((content.match(/captureNativeAtSpawn\(child\.pid,'x11'\)/g)||[]).length,3);
- assert.equal((content.match(/captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,2);
+ assert.equal((content.match(/captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,3);
+ // One function declaration + one actual callback per independent native path.
+ assert.equal((content.match(/function captureNativeOnStderr\(child,observed\)/g)||[]).length,1);
+ assert.equal((content.match(/child\.stderr\.on\('data',data=>\{\s*captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,2);
  assert.equal((content.match(/verifyNativeCommandLine\(command,'x11'\)/g)||[]).length,2);
  assert.match(content,/AUTO_X11_SANITIZED_CHECKPOINT/);
  assert.doesNotMatch(content,/--no-sandbox|--disable-setuid-sandbox|ELECTRON_DISABLE_SANDBOX/);
@@ -94,7 +97,8 @@ test('both X11 observation paths record source only after exact process identity
  assert.equal((source.match(/,'spawn-callback',true\)/g)||[]).length,2);
  assert.equal((source.match(/,'polling',true\)/g)||[]).length,2);
  assert.equal((source.match(/,'stderr-callback',true\)/g)||[]).length,1);
- assert.equal((source.match(/captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,2);
+ assert.equal((source.match(/captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,3);
+ assert.equal((source.match(/child\.stderr\.on\('data',data=>\{\s*captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,2);
  assert.equal((source.match(/verifyNativeCommandLine\(command,'x11'\)/g)||[]).length,2);
  assert.ok(source.includes('identityCaptureSource:observed.identityCaptureSource'));
  assert.doesNotMatch(source,/--no-sandbox|--disable-setuid-sandbox|ELECTRON_DISABLE_SANDBOX/);
