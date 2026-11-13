@@ -2,6 +2,7 @@ import {useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {parseCatalogManifest,MAX_CATALOG_BYTES,type CatalogMod} from './catalog';
 import {serializeDeclaredFavoriteList} from './favorite-list-export';
 import {serializeDeclaredBatchSelection} from './batch-selection-export';
+import {compareDeclaredCatalogs,declaredCatalogFieldLabels} from './catalog-replacement-diff';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
@@ -715,6 +716,10 @@ export default function App(){
  function notice(){setToast('Operação bloqueada: protótipo sem acesso a arquivos ou ao instalador.')}
  // Snapshot values are derived from current in-memory metadata, not files on
  // disk. A stored undoable report also disappears when replacing the catalog.
+ const catalogReplacementDiff=useMemo(()=>pendingCatalogReplacement?
+  compareDeclaredCatalogs(catalogMods,pendingCatalogReplacement.kind==='demo'?
+   mods:pendingCatalogReplacement.catalog):null,
+  [catalogMods,pendingCatalogReplacement]);
  const catalogReplacementImpact={
   favorites:favorites.length,
   selected:batchSelected.length,
@@ -1055,6 +1060,37 @@ export default function App(){
    </ul>
    <small>Contagem da sessão atual. Nenhum mod foi verificado ou instalado; o catálogo ainda não foi substituído.</small>
   </div>
+  {catalogReplacementDiff&&<section className="catalog-replacement-diff" role="group"
+   aria-label="Comparação declarativa entre catálogos">
+   <strong>O que muda nos registros do catálogo?</strong>
+   <ul className="catalog-replacement-diff-counts">
+    <li>Registros sem mudanças declaradas: <strong>{catalogReplacementDiff.unchanged}</strong></li>
+    <li>ID mantido com metadados alterados: <strong>{catalogReplacementDiff.changed.length}</strong></li>
+    <li>IDs removidos: <strong>{catalogReplacementDiff.removed.length}</strong></li>
+    <li>IDs adicionados: <strong>{catalogReplacementDiff.added.length}</strong></li>
+   </ul>
+   {catalogReplacementDiff.changed.length>0&&<div>
+    <b>IDs reutilizados com dados diferentes</b>
+    <ul>{catalogReplacementDiff.changed.slice(0,5).map(entry=>
+     <li key={entry.id}><strong>{entry.id}</strong>: {entry.oldTitle} → {entry.newTitle}
+      <small>Campos alterados: {entry.fields.map(field=>declaredCatalogFieldLabels[field]).join(', ')}.</small>
+     </li>)}</ul>
+    {catalogReplacementDiff.changed.length>5&&<small>Outros {catalogReplacementDiff.changed.length-5} IDs alterados não exibidos.</small>}
+   </div>}
+   {catalogReplacementDiff.removed.length>0&&<div>
+    <b>IDs ausentes na proposta</b>
+    <ul>{catalogReplacementDiff.removed.slice(0,5).map(entry=>
+     <li key={entry.id}>{entry.title} <small>ID: {entry.id}</small></li>)}</ul>
+    {catalogReplacementDiff.removed.length>5&&<small>Outros {catalogReplacementDiff.removed.length-5} IDs removidos não exibidos.</small>}
+   </div>}
+   {catalogReplacementDiff.added.length>0&&<div>
+    <b>IDs novos da proposta</b>
+    <ul>{catalogReplacementDiff.added.slice(0,5).map(entry=>
+     <li key={entry.id}>{entry.title} <small>ID: {entry.id}</small></li>)}</ul>
+    {catalogReplacementDiff.added.length>5&&<small>Outros {catalogReplacementDiff.added.length-5} IDs adicionados não exibidos.</small>}
+   </div>}
+   <small>Novos IDs são registros do JSON, não mods instalados. Um ID igual não comprova que seja o mesmo pacote. Esta prévia não representa comparação de arquivos instalados nem preserva favoritos automaticamente.</small>
+  </section>}
   <p>{favoriteMods.length>0?
    'Baixe a lista declarativa de favoritos abaixo antes de confirmar, caso queira guardar os IDs e versões. Ela não é um backup restaurável.':
    'Nenhum favorito do catálogo atual para exportar.'}
