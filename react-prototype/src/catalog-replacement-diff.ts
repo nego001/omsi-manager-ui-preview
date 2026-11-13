@@ -29,7 +29,7 @@ const fields:readonly DeclaredCatalogField[]=[
 function normalized(mod:CatalogMod,field:DeclaredCatalogField):string{
  const value=mod[field];
  if(field==='requires'||field==='conflictsWith')
-  return JSON.stringify([...(value as string[]|undefined??[])].sort());
+  return JSON.stringify([...((value as string[] | undefined) ?? [])].sort());
  if(field==='requiresMinVersions')
   return JSON.stringify([...(mod.requiresMinVersions??[])]
    .map(v=>({id:v.id,minVersion:v.minVersion}))
