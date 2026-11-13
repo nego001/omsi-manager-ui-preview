@@ -24,7 +24,7 @@ test('favoritos não executam instalação',async({page})=>{
  await page.getByRole('button',{name:'Favoritar'}).first().click();
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
- await expect(page.getByText('Os favoritos ficam salvos')).toBeVisible();
+ await expect(page.getByText('Favoritos da demonstração ficam salvos neste navegador.')).toBeVisible();
 });
 test('pesquisa e filtros não atravessam jogos',async({page})=>{
  await page.goto('/');
