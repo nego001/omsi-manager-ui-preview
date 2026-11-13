@@ -5,6 +5,7 @@ import {serializeDeclaredBatchSelection} from './batch-selection-export';
 import {compareDeclaredCatalogs,declaredCatalogFieldLabels} from './catalog-replacement-diff';
 import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
+import {serializeDeclaredFavoriteImpact} from './favorite-impact-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
@@ -484,6 +485,13 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingFavoriteImpact(){
+  if(!pendingCatalogReplacement||!catalogFavoriteImpact||catalogFavoriteImpact.total<1)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredFavoriteImpact(catalogFavoriteImpact),
+    'OMSI-Manager-Impacto-nos-Favoritos.json');
+  }catch{setToast('Não foi possível exportar o impacto declarativo sobre favoritos.');}
  }
  function exportPendingCatalogDiff(){
   if(!pendingCatalogReplacement||!catalogReplacementDiff)return;
@@ -1108,6 +1116,9 @@ export default function App(){
      inclusive os que têm o mesmo ID e metadados iguais. IDs iguais não comprovam
      que sejam os mesmos arquivos. Cancelar mantém seus favoritos; nenhum mod foi
      instalado, removido ou validado.</p>
+    <button type="button" className="btn secondary catalog-preflight-favorites"
+     onClick={exportPendingFavoriteImpact}><Download size={16} aria-hidden="true"/>
+     Baixar impacto completo nos favoritos em JSON</button>
    </section>}
   {catalogReplacementDiff&&<section className="catalog-replacement-diff" role="group"
    aria-label="Comparação declarativa entre catálogos">

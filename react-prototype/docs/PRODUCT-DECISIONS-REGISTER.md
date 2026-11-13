@@ -617,3 +617,30 @@ unitários e Playwright a 390 px cobrem categorias combinadas, atualização
 de proposta, alteração de favorito enquanto o modal está aberto e perda
 somente após confirmação explícita. A CI Ubuntu 24.04 X11 segue como
 bloqueio independente, sem bypass de sandbox e sem merge da PR #1.
+
+## Exportação do impacto completo nos favoritos durante a proposta
+
+No painel de impacto dos favoritos, o usuário pode baixar um JSON
+**somente com a análise completa de seus favoritos do catálogo atual**.
+A listagem visual continua limitada a cinco exemplos por categoria;
+o download contém todos os registros de favoritos alterados, ausentes ou
+com metadados iguais, respeitando o limite de 200 mods, e registra o
+total por categoria. A exportação exige clique explícito, preserva o
+modal e não aplica a proposta nem descarta dados da sessão.
+
+O arquivo `OMSI-Manager-Impacto-nos-Favoritos.json` tem schema
+`omsi-manager-declared-favorite-impact-v1` distinto do manifesto do
+catálogo, com propriedades fixas e validadas. IDs, títulos e campos
+alterados são estritamente validados; campos de origem desconhecida,
+caminhos, scripts e dados privados não são copiados. O relatório assinala
+`proposedCatalogApplied:false`, `restorableByPreview:false`,
+`sourceAuthenticated:false`, `installationVerified:false`,
+`compatibilityVerified:false`, e
+`allFavoritesDiscardedOnConfirmation:true`. Não é backup nem prova
+de identidade/compatibilidade/instalação do mod.
+
+Testes unitários cobrem exportação superior ao limite visual,
+metadados malformados e recusa de IDs duplicados ou flags falsificadas;
+Playwright cobre download móvel, ausência de efeito colateral e troca
+de proposta que reutiliza o mesmo ID. Requisitos de sandbox e
+homologação Ubuntu 24.04 continuam inalterados.
