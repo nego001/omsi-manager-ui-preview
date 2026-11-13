@@ -35,7 +35,7 @@ export function captureNativeAtSpawn(pid,backend,read=readFileSync){
 // verification. The event alone never earns a positive identity source.
 // Preserve the FIRST verified observation, not a later poll that repeats it.
 export function recordVerifiedIdentitySource(previous,source,verified){
- const sources=new Set(['unobserved','spawn-callback','polling']);
+ const sources=new Set(['unobserved','spawn-callback','stderr-callback','polling']);
  if(!sources.has(previous)||!sources.has(source)||
     source==='unobserved'||typeof verified!=='boolean')
   return 'unobserved';

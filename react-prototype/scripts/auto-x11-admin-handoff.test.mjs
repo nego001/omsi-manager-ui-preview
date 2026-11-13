@@ -333,3 +333,32 @@ test('unknown host categories are pending in JSON and cannot be omitted by Markd
  assert.equal(h.startupCorrelationObserved,false);
  assert.equal(h.fullReleaseAuthorized,false);
 });
+
+test('stderr-edge Auto and direct witnesses support only a categorical administrator review',()=>{
+ const from24=create({
+  runner:'ubuntu-24.04',archiveSha256:sha,baselineMapped:true,
+  host:{apparmorModuleState:'enabled',apparmorRestriction:'enabled',
+   userNamespaceProbe:'permission-denied'},
+  outcomes:['GNOME','KDE'].map(desktop=>({
+   desktop,mapped:false,failed:true,windowOwned:false,nativeProcess:true,
+   triageClassification:'shared-electron-sandbox-startup-suspected',
+   earlyNativeKernel:snapshot,identityCaptureSource:'stderr-callback',
+   directControlCategory:'sigtrap-cmdline-stderr'
+  }))
+ });
+ const compared=compare(older,from24);
+ const report=handoff(compared);
+ assert.deepEqual(report.byDesktop.map(x=>x.ubuntu24AutoIdentitySource),
+  ['stderr-callback','stderr-callback']);
+ assert.deepEqual(report.byDesktop.map(x=>x.ubuntu24DirectElectronControl),
+  ['sigtrap-cmdline-stderr','sigtrap-cmdline-stderr']);
+ assert.equal(report.startupCorrelationObserved,true);
+ assert.equal(report.directElectronSigtrapWitnessComplete,true);
+ assert.equal(report.recommendedNextStep,
+  'request-independent-app-specific-policy-review-on-approved-disposable-host');
+ assert.equal(report.fullReleaseAuthorized,false);
+ assert.equal(report.nativeCIWaived,false);
+ assert.equal(report.rendererSandboxCertified,false);
+ assert.equal(report.apparmorCausalityProven,false);
+ assert.match(markdown(compared),/identidade confirmada/);
+});

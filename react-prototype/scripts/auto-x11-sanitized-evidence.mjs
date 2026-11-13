@@ -11,10 +11,10 @@ const classifications=new Set([
  'shared-native-electron-startup-undetermined','display-baseline-unverified'
 ]);
 const desktops=['GNOME','KDE'];
-const sources=new Set(['spawn-callback','polling','unobserved']);
+const sources=new Set(['spawn-callback','stderr-callback','polling','unobserved']);
 const directCategories=new Set([
  'not-run','unavailable','sigtrap-cmdline-spawn',
- 'sigtrap-cmdline-polling','sigtrap-no-cmdline','other-result'
+ 'sigtrap-cmdline-polling','sigtrap-cmdline-stderr','sigtrap-no-cmdline','other-result'
 ]);
 const kernelModes=new Set(['off','strict','filter','unknown']);
 const privilegeModes=new Set(['enabled','disabled','unknown']);

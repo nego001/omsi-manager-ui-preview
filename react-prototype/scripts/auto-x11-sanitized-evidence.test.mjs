@@ -138,7 +138,7 @@ test('missing, forged, contradictory and private kernel snapshots are refused',(
  assert.equal(record.windows[0].earlyNativeKernel.apparmorLabelCategory,'unavailable');
 });
 
-test('verified process identity source remains restricted to three safe categories',()=>{
+test('verified process identity source remains restricted to enumerated safe categories',()=>{
  const validated=create(sample());
  assert.deepEqual(validated.windows.map(w=>w.identityCaptureSource),['polling','spawn-callback']);
  const cases=[null,{},'unverified','/home/private/token','SPAWN',false,''];
@@ -180,4 +180,20 @@ test('direct Electron result is categorical, separate and cannot waive Auto fail
   windowOwned:true,triageClassification:'native-auto-window-mapped'}));
  assert.throws(()=>create(sample({outcomes:good})),
   /^Error: AUTO_X11_EVIDENCE_REFUSED$/);
+});
+
+test('stderr-edge witness remains categorical, never a mapped window or sandbox proof',()=>{
+ const report=create(sample({outcomes:outcomes.map((entry,index)=>index===0?
+  {...entry,identityCaptureSource:'stderr-callback',
+   directControlCategory:'sigtrap-cmdline-stderr'}:entry)}));
+ assert.equal(report.windows[0].identityCaptureSource,'stderr-callback');
+ assert.equal(report.windows[0].directControlCategory,'sigtrap-cmdline-stderr');
+ assert.equal(report.windows[0].nativeWindowVerified,false);
+ assert.equal(report.electronSandboxCertified,false);
+ assert.equal(report.apparmorCausalityProven,false);
+ assert.equal(report.sandboxBypassApplied,false);
+ const secret='/home/private/runner-token';
+ assert.throws(()=>create(sample({outcomes:[
+  {...outcomes[0],directControlCategory:secret},outcomes[1]
+ ]})),/^Error: AUTO_X11_EVIDENCE_REFUSED$/);
 });

@@ -239,3 +239,21 @@ test('unavailable direct control remains a failure-compatible diagnostic, not a 
  assert.equal(result.electronSandboxCertified,false);
  assert.equal(result.ubuntu24NativeWindowsVerified,false);
 });
+
+test('stderr-edge identity survives the two-runner comparison without upgrading X11 or sandbox',()=>{
+ const edge=create({runner:'ubuntu-24.04',archiveSha256,
+  host:host('enabled','permission-denied'),baselineMapped:true,
+  outcomes:['GNOME','KDE'].map(desktop=>({
+   ...entry(desktop,false),identityCaptureSource:'stderr-callback',
+   directControlCategory:'sigtrap-cmdline-stderr'
+  }))});
+ const result=compare(older,edge);
+ assert.equal(result.classification,'namespace-restriction-correlated-with-startup-failure');
+ assert.deepEqual(result.identityCaptureByDesktop.map(x=>x.ubuntu24CaptureSource),
+  ['stderr-callback','stderr-callback']);
+ assert.deepEqual(result.ubuntu24DirectControlByDesktop.map(x=>x.category),
+  ['sigtrap-cmdline-stderr','sigtrap-cmdline-stderr']);
+ assert.equal(result.ubuntu24NativeWindowsVerified,false);
+ assert.equal(result.electronSandboxCertified,false);
+ assert.equal(result.apparmorCausalityProven,false);
+});

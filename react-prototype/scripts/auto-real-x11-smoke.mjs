@@ -23,6 +23,18 @@ import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
  from './auto-real-x11-contract.mjs';
 const execAsync=promisify(execFile);
+// Electron can emit stderr and SIGTRAP before the next async /proc poll.
+// Try one immediate sync identity-checked observation at stderr delivery.
+// The event itself proves nothing, and raw native stderr is never retained.
+function captureNativeOnStderr(child,observed){
+ if(observed.nativeProcess||!child?.pid)return;
+ const sample=captureNativeAtSpawn(child.pid,'x11');
+ if(!sample.nativeProcess||!sample.processImageVerifiedByCmdline)return;
+ observed.nativeProcess=true;
+ observed.earlyNativeKernel=sample.earlyNativeKernel;
+ observed.identityCaptureSource=recordVerifiedIdentitySource(
+  observed.identityCaptureSource,'stderr-callback',true);
+}
 if(process.platform!=='linux'||process.getuid?.()===0||!process.env.DISPLAY||
  process.env.CI!=='true'||process.env.GITHUB_ACTIONS!=='true')
  throw Error('AUTO_X11_CI_REFUSED');
@@ -94,6 +106,7 @@ async function probeDirectPackagedElectron(desktop,root){
    }
   });
   child.stderr.on('data',data=>{
+   captureNativeOnStderr(child,seen);
    // A fixed boolean hint only. Native stderr may contain private paths.
    const fragment=data.toString('utf8').slice(0,4096);
    if(/sandbox|zygote|setuid/i.test(fragment))hints.add('sandbox');
@@ -244,6 +257,7 @@ try{
     }
    });
    child.stderr.on('data',data=>{
+    captureNativeOnStderr(child,observed);
     // Observe only categories, never output raw native stderr, paths or secrets.
     const text=data.toString('utf8').slice(0,4096);
     const patterns=[
@@ -347,7 +361,9 @@ try{
     direct.exitSignal==='SIGTRAP'?
      direct.seen?.nativeProcess===true?
       direct.seen?.identityCaptureSource==='spawn-callback'?
-       'sigtrap-cmdline-spawn':'sigtrap-cmdline-polling':
+       'sigtrap-cmdline-spawn':
+       direct.seen?.identityCaptureSource==='stderr-callback'?
+        'sigtrap-cmdline-stderr':'sigtrap-cmdline-polling':
       'sigtrap-no-cmdline':'other-result';
    outcomes.push({desktop,mapped:found,failed,
     windowOwned:observed.windowOwned,nativeProcess:observed.nativeProcess,

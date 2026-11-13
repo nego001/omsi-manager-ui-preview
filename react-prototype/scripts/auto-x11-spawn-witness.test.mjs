@@ -62,7 +62,8 @@ test('kernel snapshot failure does not forge restrictions after verified identit
 test('real X11 CI has both spawn-edge witness hooks and async retry checks',async()=>{
  const {readFile}=await import('node:fs/promises');
  const content=await readFile(new URL('./auto-real-x11-smoke.mjs',import.meta.url),'utf8');
- assert.equal((content.match(/captureNativeAtSpawn\(child\.pid,'x11'\)/g)||[]).length,2);
+ assert.equal((content.match(/captureNativeAtSpawn\(child\.pid,'x11'\)/g)||[]).length,3);
+ assert.equal((content.match(/captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,2);
  assert.equal((content.match(/verifyNativeCommandLine\(command,'x11'\)/g)||[]).length,2);
  assert.match(content,/AUTO_X11_SANITIZED_CHECKPOINT/);
  assert.doesNotMatch(content,/--no-sandbox|--disable-setuid-sandbox|ELECTRON_DISABLE_SANDBOX/);
@@ -74,6 +75,9 @@ test('source attribution refuses spawn-only events and preserves first verified 
  assert.equal(recordSource('unobserved','spawn-callback','true'),'unobserved');
  assert.equal(recordSource('unobserved','spawn-callback',true),'spawn-callback');
  assert.equal(recordSource('unobserved','polling',true),'polling');
+ assert.equal(recordSource('unobserved','stderr-callback',true),'stderr-callback');
+ assert.equal(recordSource('unobserved','stderr-callback',false),'unobserved');
+ assert.equal(recordSource('stderr-callback','polling',true),'stderr-callback');
  assert.equal(recordSource('spawn-callback','polling',true),'spawn-callback');
  assert.equal(recordSource('polling','spawn-callback',true),'polling');
  for(const input of ['PRIVATE /home/user','unexpected',null,{},'true']){
@@ -86,9 +90,11 @@ test('both X11 observation paths record source only after exact process identity
  const {readFile}=await import('node:fs/promises');
  const source=await readFile(new URL('./auto-real-x11-smoke.mjs',import.meta.url),'utf8');
  assert.equal((source.match(/sample\.nativeProcess&&sample\.processImageVerifiedByCmdline/g)||[]).length,2);
- assert.equal((source.match(/identityCaptureSource=recordVerifiedIdentitySource\(/g)||[]).length,4);
+ assert.equal((source.match(/identityCaptureSource=recordVerifiedIdentitySource\(/g)||[]).length,5);
  assert.equal((source.match(/,'spawn-callback',true\)/g)||[]).length,2);
  assert.equal((source.match(/,'polling',true\)/g)||[]).length,2);
+ assert.equal((source.match(/,'stderr-callback',true\)/g)||[]).length,1);
+ assert.equal((source.match(/captureNativeOnStderr\(child,(?:seen|observed)\)/g)||[]).length,2);
  assert.equal((source.match(/verifyNativeCommandLine\(command,'x11'\)/g)||[]).length,2);
  assert.ok(source.includes('identityCaptureSource:observed.identityCaptureSource'));
  assert.doesNotMatch(source,/--no-sandbox|--disable-setuid-sandbox|ELECTRON_DISABLE_SANDBOX/);

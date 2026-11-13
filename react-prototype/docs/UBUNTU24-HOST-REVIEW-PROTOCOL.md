@@ -197,3 +197,30 @@ Electron está certificado. Os testes sintéticos obrigatórios executam no buil
 e nas duas imagens Ubuntu; o guard do workflow recusa a remoção de qualquer
 uma dessas verificações. A janela nativa Ubuntu 24.04 segue sendo o gate de
 homologação obrigatório, sem dispensa por resultado diagnóstico.
+
+## Testemunha precoce do Electron pela primeira saída de diagnóstico
+
+Na execução [#43446132524](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/43446132524), o Ubuntu 24.04
+manteve duas falhas SIGTRAP com restrição AppArmor e sonda
+independente de namespace negada. Entretanto, a etiqueta KDE registrou
+apenas o evento de spawn do launcher Auto, sem confirmar o
+executável por cmdline antes do término. Por isso sua classificação
+continuou indeterminada. Não se pode contar KDE como testemunha
+independente confirmada nessa execução.
+
+O diagnóstico tenta uma leitura imediata do `/proc/<pid>/cmdline`
+também no primeiro evento de saída de erro do Electron, além da
+captura inicial e da consulta posterior já existentes. Somente
+a identidade verificada pelo comando **exato e sem switches extras**
+pode usar a categoria `stderr-callback`. O conteúdo bruto da saída
+de erro não é registrado; `sigtrap-cmdline-stderr` e
+`stderr-callback` são validados no relatório sanitizado,
+comparador entre runners e handoff humano. Se o processo sair
+antes da leitura válida, a identidade permanece ausente e a
+análise segue inconclusiva.
+
+A oportunidade extra de captura **não é retry**, não prolonga o
+processo, não remove sandbox, não altera o host e não converte
+`SIGTRAP` em sucesso. A homologação ainda exige janela X11 mapeada
+e pertencente ao processo, prova separada de sandbox do renderizador
+e validação em desktops reais.

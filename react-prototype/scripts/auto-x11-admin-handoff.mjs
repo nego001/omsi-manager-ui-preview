@@ -6,9 +6,9 @@ const fail=()=>{throw Error('AUTO_X11_ADMIN_HANDOFF_REFUSED');};
 const isObj=x=>x!==null&&typeof x==='object'&&!Array.isArray(x);
 const enumSet=values=>new Set(values);
 const comparisonModes=enumSet(['matched-observed','different-observed','insufficient-data']);
-const captureSources=enumSet(['spawn-callback','polling','unobserved']);
+const captureSources=enumSet(['spawn-callback','stderr-callback','polling','unobserved']);
 const directModes=enumSet(['not-run','unavailable','sigtrap-cmdline-spawn',
- 'sigtrap-cmdline-polling','sigtrap-no-cmdline','other-result']);
+ 'sigtrap-cmdline-polling','sigtrap-cmdline-stderr','sigtrap-no-cmdline','other-result']);
 const probeModes=enumSet(['allowed','permission-denied','unavailable','unknown']);
 const apparmorModes=enumSet(['enabled','disabled','unknown','unavailable']);
 const classifications=enumSet([
@@ -79,7 +79,7 @@ export function createX11AdminHandoff(value){
  // A successful X11 window test alone cannot certify the renderer sandbox.
  const blocked=!x.ubuntu24NativeWindowsVerified;
  const directSigtraps=byDesktop.every(d=>
-  ['sigtrap-cmdline-spawn','sigtrap-cmdline-polling'].includes(
+  ['sigtrap-cmdline-spawn','sigtrap-cmdline-polling','sigtrap-cmdline-stderr'].includes(
    d.ubuntu24DirectElectronControl));
  // Never suggest a host-policy experiment while the Auto process itself
  // is still unobserved in either Xvfb label. Direct Electron witnesses
@@ -146,6 +146,7 @@ export function renderX11AdminHandoffMarkdown(comparison){
  const h=createX11AdminHandoff(comparison);
  const labels={
   'spawn-callback':'confirmada na inicialização',
+  'stderr-callback':'confirmada após primeiras mensagens do processo',
   'polling':'confirmada na verificação posterior',
   'unobserved':'não confirmada',
   'matched-observed':'iguais nos estados observados',
@@ -155,6 +156,7 @@ export function renderX11AdminHandoffMarkdown(comparison){
   'unavailable':'indisponível',
   'sigtrap-cmdline-spawn':'SIGTRAP, identidade confirmada na inicialização',
   'sigtrap-cmdline-polling':'SIGTRAP, identidade confirmada posteriormente',
+  'sigtrap-cmdline-stderr':'SIGTRAP, identidade confirmada antes do término na saída de diagnóstico',
   'sigtrap-no-cmdline':'SIGTRAP, identidade não confirmada',
   'other-result':'outro resultado; não é aprovação'
  };
