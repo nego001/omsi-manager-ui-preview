@@ -98,19 +98,25 @@ function GameCover({id,large=false}:{id:GameId;large?:boolean}){
   <div className="cover-fallback"><strong>{game.title}</strong><span>{game.publisher}</span></div>
  </div>;
 }
-type SavedPreferences={favorites:string[];sidebar:boolean;dense:boolean};
+type SavedPreferences={favorites:string[];sidebar:boolean;dense:boolean;catalogScope:'demo'};
+
 const PREFS_KEY='omsi-manager-preview:prefs:v1';
 function readPreferences():SavedPreferences{
- const defaults:SavedPreferences={favorites:[],sidebar:true,dense:false};
+ const defaults:SavedPreferences={favorites:[],sidebar:true,dense:false,catalogScope:'demo'};
  try{
   const parsed:unknown=JSON.parse(window.localStorage.getItem(PREFS_KEY)??'null');
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return defaults;
   const obj=parsed as Partial<SavedPreferences>;
   const allowed=new Set(mods.map(m=>m.id));
+  // Legacy entries lack provenance: their IDs may have come from an imported
+  // catalog with IDs reused by the demo. Drop ambiguous favorites fail-closed.
   return {
-   favorites:Array.isArray(obj.favorites)?Array.from(new Set(obj.favorites.filter((id):id is string=>typeof id==='string'&&allowed.has(id)))):[],
+   favorites:obj.catalogScope==='demo'&&Array.isArray(obj.favorites)?
+    Array.from(new Set(obj.favorites.filter((id):id is string=>
+     typeof id==='string'&&allowed.has(id)))):[],
    sidebar:typeof obj.sidebar==='boolean'?obj.sidebar:true,
-   dense:obj.dense===true
+   dense:obj.dense===true,
+   catalogScope:'demo'
   };
  }catch{return defaults}
 }
@@ -203,9 +209,14 @@ export default function App(){
  const [dense,setDense]=useState(initialPrefs.dense);
  const [toast,setToast]=useState('');
  useEffect(()=>{
-  try{window.localStorage.setItem(PREFS_KEY,JSON.stringify({favorites,sidebar,dense}));}
+  // Persist only demo-bound favorites: imported catalogs are intentionally
+  // memory-only and may reuse the same ID with unrelated declared metadata.
+  try{window.localStorage.setItem(PREFS_KEY,JSON.stringify({
+   favorites:catalogSource==='Demonstração'?favorites:[],
+   sidebar,dense,catalogScope:'demo'
+  }));}
   catch{/* private-mode storage can be unavailable; keep session state */}
- },[favorites,sidebar,dense]);
+ },[favorites,sidebar,dense,catalogSource]);
  const selected=catalogMods.find(m=>m.id===selectedMod)??catalogMods[0];
  const selectedDeclaredBytes=declaredSizeBytes(selected.size);
  const selectedDeclaredLabel=selectedDeclaredBytes===null?'Formato não reconhecido':
@@ -1028,7 +1039,10 @@ export default function App(){
   {catalogSort!=='catalog'&&<button type="button" aria-label="Remover ordenação do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setCatalogSort('catalog'))}>Ordem: {catalogSort==='title'?'Nome (A–Z)':'Jogo e nome'} <span aria-hidden="true">×</span></button>}
  </div>}
  {filtered.length?modCards(filtered):<div className="empty catalog-empty-filter"><Search size={28}/><h3>Nenhum mod corresponde aos filtros.</h3><p>Os metadados do catálogo continuam disponíveis. Limpe a pesquisa, o jogo e a categoria para vê-los novamente.</p><button type="button" className="btn secondary" onClick={resetCatalogFiltersWithFocus}>Mostrar todos os mods</button></div>}</>}
-    {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>Os favoritos ficam salvos localmente. Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p></div>
+    {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>{catalogSource==='Demonstração'?
+  'Favoritos da demonstração ficam salvos neste navegador.':
+  'Favoritos do catálogo importado duram apenas esta sessão e não voltam ao reiniciar.'}
+  {' '}Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p></div>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
    <div className="library-by-game-heading">
