@@ -4,6 +4,7 @@ import {serializeDeclaredFavoriteList} from './favorite-list-export';
 import {serializeDeclaredBatchSelection} from './batch-selection-export';
 import {compareDeclaredCatalogs,declaredCatalogFieldLabels} from './catalog-replacement-diff';
 import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
+import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
 import {compareModsByDeclaredSize,declaredSizeBytes} from './declared-size-sort';
@@ -728,6 +729,9 @@ export default function App(){
   compareDeclaredCatalogs(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog):null,
   [catalogMods,pendingCatalogReplacement]);
+ const catalogFavoriteImpact=useMemo(()=>catalogReplacementDiff?
+  summarizeFavoriteCatalogImpact(catalogMods,favorites,catalogReplacementDiff):null,
+  [catalogMods,favorites,catalogReplacementDiff]);
  const catalogReplacementImpact={
   favorites:favorites.length,
   selected:batchSelected.length,
@@ -1068,6 +1072,43 @@ export default function App(){
    </ul>
    <small>Contagem da sessão atual. Nenhum mod foi verificado ou instalado; o catálogo ainda não foi substituído.</small>
   </div>
+  {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
+   <section className="catalog-favorite-impact" role="group"
+    aria-label="Impacto da proposta nos favoritos">
+    <strong>O que muda nos seus favoritos?</strong>
+    <ul className="catalog-favorite-impact-counts">
+     <li>Mesmo ID e dados iguais: <strong>{catalogFavoriteImpact.unchanged.length}</strong></li>
+     <li>Mesmo ID com dados alterados: <strong>{catalogFavoriteImpact.changed.length}</strong></li>
+     <li>Favoritos ausentes na proposta: <strong>{catalogFavoriteImpact.removed.length}</strong></li>
+    </ul>
+    {catalogFavoriteImpact.changed.length>0&&<div>
+     <b>Favoritos com registros alterados</b>
+     <ul>{catalogFavoriteImpact.changed.slice(0,5).map(entry=>
+      <li key={entry.id}><strong>{entry.oldTitle}</strong> → {entry.newTitle}
+       <small>ID: {entry.id} · Campos alterados: {entry.fields.map(field=>declaredCatalogFieldLabels[field]).join(', ')}.</small>
+      </li>)}</ul>
+     {catalogFavoriteImpact.changed.length>5&&
+      <small>Outros {catalogFavoriteImpact.changed.length-5} favoritos alterados não exibidos.</small>}
+    </div>}
+    {catalogFavoriteImpact.removed.length>0&&<div>
+     <b>Favoritos sem registro correspondente</b>
+     <ul>{catalogFavoriteImpact.removed.slice(0,5).map(entry=>
+      <li key={entry.id}>{entry.title} <small>ID: {entry.id}</small></li>)}</ul>
+     {catalogFavoriteImpact.removed.length>5&&
+      <small>Outros {catalogFavoriteImpact.removed.length-5} favoritos ausentes não exibidos.</small>}
+    </div>}
+    {catalogFavoriteImpact.unchanged.length>0&&<div>
+     <b>Favoritos com metadados iguais</b>
+     <ul>{catalogFavoriteImpact.unchanged.slice(0,5).map(entry=>
+      <li key={entry.id}>{entry.title} <small>ID: {entry.id}</small></li>)}</ul>
+     {catalogFavoriteImpact.unchanged.length>5&&
+      <small>Outros {catalogFavoriteImpact.unchanged.length-5} favoritos iguais não exibidos.</small>}
+    </div>}
+    <p>Todos os {catalogFavoriteImpact.total} favoritos serão descartados ao confirmar,
+     inclusive os que têm o mesmo ID e metadados iguais. IDs iguais não comprovam
+     que sejam os mesmos arquivos. Cancelar mantém seus favoritos; nenhum mod foi
+     instalado, removido ou validado.</p>
+   </section>}
   {catalogReplacementDiff&&<section className="catalog-replacement-diff" role="group"
    aria-label="Comparação declarativa entre catálogos">
    <strong>O que muda nos registros do catálogo?</strong>

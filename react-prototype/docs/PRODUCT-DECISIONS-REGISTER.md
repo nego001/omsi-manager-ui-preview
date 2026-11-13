@@ -592,3 +592,28 @@ as consultas, preservação de ordem, IDs inexistentes e
 um catálogo sintético válido com 200 registros e 4.000
 arestas diretas declaradas. O ganho é redução do trabalho
 repetido, não homologação de desempenho em máquinas reais.
+
+## Prévia específica dos favoritos antes de substituir catálogo
+
+O modal de substituição já calculava o diff completo dos IDs e exportava
+JSON. Agora ele mostra também um recorte separado **apenas dos favoritos
+do catálogo atual**: registros com ID e metadados iguais, registros com
+mesmo ID mas campos alterados, e favoritos cujo ID desaparece da proposta.
+A lista exibe até cinco exemplos de cada categoria, com totalizadores
+que consideram todos os favoritos e mudam imediatamente ao favoritar/desfavoritar
+ou importar uma segunda proposta enquanto a confirmação está aberta.
+
+**Consentimento preservado:** a comparação não aplica nada. Mesmo os
+favoritos cujo ID e metadados continuam iguais serão **descartados da
+sessão quando a substituição for confirmada**: não há migração silenciosa
+entre fontes e ID igual não prova identidade de um pacote real. Cancelar
+mantém todos os favoritos e seleções; o botão de exportar favoritos segue
+disponível como lista declarativa não restaurável. Instalação e remoção
+de arquivos de mods seguem desativadas.
+
+O contrato é uma função pura que rejeita favoritos duplicados/desconhecidos
+e um diff contraditório, sem tocar em paths ou arquivos de jogos. Testes
+unitários e Playwright a 390 px cobrem categorias combinadas, atualização
+de proposta, alteração de favorito enquanto o modal está aberto e perda
+somente após confirmação explícita. A CI Ubuntu 24.04 X11 segue como
+bloqueio independente, sem bypass de sandbox e sem merge da PR #1.

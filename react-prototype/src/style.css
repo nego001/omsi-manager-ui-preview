@@ -1308,3 +1308,18 @@
 .library-incoming-button svg{flex-shrink:0}
 #relacoes-recebidas:focus-visible{outline:3px solid #b6d6ff;outline-offset:4px}
 @media(max-width:480px){.library-incoming-button{width:100%;min-height:44px}}
+
+/* Pending catalog replacement: favorite-specific scope is distinct from the
+   full-catalog comparison and never signals restoration or installation. */
+.catalog-favorite-impact{margin:12px 0;padding:13px 14px;border:1px solid #967955;background:#292720;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-favorite-impact>strong{display:block;font-size:13px;color:#fff0d4}
+.catalog-favorite-impact-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;list-style:none;padding:0;margin:12px 0}
+.catalog-favorite-impact-counts li{display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:1.5;color:#e9dcc9;overflow-wrap:anywhere}
+.catalog-favorite-impact-counts strong{font-size:14px;color:#fff6e8}
+.catalog-favorite-impact>div{margin-top:12px}
+.catalog-favorite-impact b{font-size:12px;color:#fff2d8}
+.catalog-favorite-impact>div ul{margin:7px 0;padding-left:19px}
+.catalog-favorite-impact>div li{font-size:12px;line-height:1.5;margin:5px 0;overflow-wrap:anywhere;color:#f0e6d8}
+.catalog-favorite-impact small{display:block;font-size:11px;line-height:1.5;color:#dccbb5}
+.catalog-favorite-impact p{margin:12px 0 0;color:#f5dcbd}
+@media(max-width:640px){.catalog-favorite-impact-counts{grid-template-columns:minmax(0,1fr)}}
