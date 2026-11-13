@@ -216,9 +216,16 @@ test('favorite review search finds matching entries beyond the initial 20 and le
  await search.fill('');
  await expect(result.getByRole('status')).toHaveCount(0);
  await expect(missing.locator('li')).toHaveCount(20);
- await missing.getByRole('button',{name:'Mostrar mais ausentes (6 restantes)'}).click();
+ const showMore=missing.getByRole('button',{name:'Mostrar mais ausentes (6 restantes)'});
+ await showMore.focus();
+ await expect(showMore).toBeFocused();
+ await showMore.press('Enter');
  await expect(missing.locator('li')).toHaveCount(26);
- await expect(missing.getByRole('button',{name:/Mostrar mais ausentes/})).toHaveCount(0);
+ const showLess=missing.getByRole('button',{name:'Mostrar menos ausentes (voltar a 20)'});
+ await expect(showLess).toBeFocused();
+ await showLess.press('Enter');
+ await expect(missing.locator('li')).toHaveCount(20);
+ await expect(showMore).toBeFocused();
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
@@ -295,7 +302,12 @@ test('favorite comparison loads next 20 entries per click and resets on search o
  await missing.getByRole('button',{name:'Mostrar mais ausentes (5 restantes)'}).click();
  await expect(missing.locator('li')).toHaveCount(45);
  await expect(missing.getByText(/Registro de Exemplo 44/)).toBeVisible();
- await expect(missing.getByRole('button',{name:/Mostrar mais ausentes/})).toHaveCount(0);
+ const showLess=missing.getByRole('button',{name:'Mostrar menos ausentes (voltar a 20)'});
+ await expect(showLess).toBeVisible();
+ await showLess.focus();
+ await showLess.press('Enter');
+ await expect(missing.locator('li')).toHaveCount(20);
+ await expect(missing.getByRole('button',{name:'Mostrar mais ausentes (25 restantes)'})).toBeFocused();
  const search=page.getByRole('searchbox',{name:'Buscar registros na conferência'});
  await search.fill('EXEMPLO 44');
  await expect(missing.locator('li')).toHaveCount(1);
