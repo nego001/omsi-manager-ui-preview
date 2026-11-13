@@ -1047,9 +1047,16 @@ export default function App(){
   <p>{favoriteMods.length>0?
    'Baixe a lista declarativa de favoritos abaixo antes de confirmar, caso queira guardar os IDs e versões. Ela não é um backup restaurável.':
    'Nenhum favorito do catálogo atual para exportar.'}
-   {' '}Exporte os resumos importantes pelo Histórico antes de confirmar. Esta ação não possui desfazer automático.</p>
+   {' '}{batchHistory.length>0||lastRemovedReport!==null?
+    'Baixe também os resumos declarativos abaixo. O último resumo removido, ainda disponível para Desfazer, exige um download separado.':
+    'Nenhum resumo temporário disponível para exportação.'}
+   {' '}Os JSONs podem ser consultados posteriormente pelo Histórico, mas não restauram a sessão automaticamente. Esta substituição não possui desfazer automático.</p>
   {favoriteMods.length>0&&<button type="button" className="btn secondary catalog-preflight-favorites"
    onClick={exportFavoriteInventory}><Download size={16} aria-hidden="true"/> Baixar lista de favoritos antes de substituir</button>}
+  {batchHistory.length>0&&<button type="button" className="btn secondary catalog-preflight-reports"
+   onClick={exportSessionArchive}><Download size={16} aria-hidden="true"/> Baixar resumos da sessão antes de substituir</button>}
+  {lastRemovedReport!==null&&<button type="button" className="btn secondary catalog-preflight-reports"
+   onClick={()=>exportSessionReport(lastRemovedReport)}><Download size={16} aria-hidden="true"/> Baixar último resumo removido antes de substituir</button>}
   <div className="catalog-replacement-confirm-actions">
    <button type="button" className="btn secondary" onClick={cancelCatalogReplacement}>Cancelar substituição do catálogo</button>
    <button type="button" className="btn primary" onClick={confirmCatalogReplacement}>Confirmar e descartar dados locais</button>

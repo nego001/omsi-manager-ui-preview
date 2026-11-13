@@ -26,8 +26,8 @@
 .catalog-replacement-impact small{display:block;color:#ded0b9;font-size:11px;line-height:1.5}
 @media(max-width:640px){.catalog-replacement-impact ul{grid-template-columns:minmax(0,1fr)}}
 .catalog-replacement-confirm{margin:12px 0 18px;padding:18px;border:1px solid #b88d55;background:#2b251e;border-radius:12px}
-.catalog-preflight-favorites{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;max-width:100%;margin:2px 0 14px;text-align:center;white-space:normal;overflow-wrap:anywhere}
-@media(max-width:480px){.catalog-preflight-favorites{width:100%}}
+.catalog-preflight-favorites,.catalog-preflight-reports{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:42px;max-width:100%;margin:2px 0 14px;text-align:center;white-space:normal;overflow-wrap:anywhere}
+@media(max-width:480px){.catalog-preflight-favorites,.catalog-preflight-reports{width:100%}}
 .catalog-replacement-confirm h2{color:#ffe5be;font-size:17px;margin:0 0 10px}
 .catalog-replacement-confirm h2:focus{outline:2px solid #f3ce9b;outline-offset:4px}
 .catalog-replacement-confirm p{font-size:12px;color:#f3ddbf;line-height:1.6;margin:7px 0}
