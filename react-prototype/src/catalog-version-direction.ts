@@ -83,12 +83,19 @@ export function summarizeDeclaredConstraintDirections(
  crossGameIds:readonly string[]
 ):ConstraintDirectionSummary{
  if(!summary||typeof summary!=='object'||!Array.isArray(summary.changed)||
-  summary.changed.length>200||!Array.isArray(crossGameIds)||
+  summary.changed.length>200||
+  !Number.isSafeInteger(summary.comparedIds)||summary.comparedIds<0||
+  summary.comparedIds>200||
+  !Number.isSafeInteger(summary.unchangedConstraints)||
+  summary.unchangedConstraints<0||
+  summary.changed.length+summary.unchangedConstraints!==summary.comparedIds||
+  !Array.isArray(crossGameIds)||
   crossGameIds.length>200||summary.installedFilesChecked!==false||
   summary.realCompatibilityVerified!==false)return invalid();
  const cross=new Set<string>();
  for(const key of crossGameIds){
-  if(typeof key!=='string'||!idPattern.test(key)||cross.has(key))return invalid();
+  if(typeof key!=='string'||key.length>64||
+   !idPattern.test(key)||cross.has(key))return invalid();
   cross.add(key);
  }
  const seen=new Set<string>();
@@ -98,11 +105,19 @@ export function summarizeDeclaredConstraintDirections(
   'different-games-not-comparable':0
  };
  const items=summary.changed.map(change=>{
-  if(!change||typeof change.id!=='string'||!idPattern.test(change.id)||
-   seen.has(change.id))return invalid();
+  if(!change||typeof change.id!=='string'||change.id.length>64||
+   !idPattern.test(change.id)||seen.has(change.id))return invalid();
   seen.add(change.id);
-  // Different simulators have no shared version scale in this preview.
-  const category=cross.has(change.id)?'different-games-not-comparable':direction(change);
+  // Validate every constraint even if its associated mod switched games.
+  // A cross-game reference in a changed floor also invalidates numerical
+  // comparisons: an identical dependency ID is not proof of package identity.
+  const analyzed=direction(change);
+  const affectedFloors=[
+   ...change.addedFloors,...change.removedFloors,...change.changedFloors
+  ];
+  const crossGameDependency=affectedFloors.some(floor=>cross.has(floor.id));
+  const category=cross.has(change.id)||crossGameDependency?
+   'different-games-not-comparable':analyzed;
   counts[category]++;
   return Object.freeze({id:change.id,direction:category});
  });

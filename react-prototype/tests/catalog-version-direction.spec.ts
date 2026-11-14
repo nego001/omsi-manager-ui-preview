@@ -76,3 +76,50 @@ test('rejeita entradas incoerentes ou IDs cruzados repetidos',()=>{
  expect(()=>classify({...x,changed:[x.changed[0],x.changed[0]]},[]))
   .toThrow('DECLARED_CONSTRAINT_DIRECTION_INVALID');
 });
+
+test('piso de dependência cujo ID mudou de OMSI para ETS2 não é comparável',()=>{
+ const old=[
+  {...mod('bus'),requires:['engine'],
+   requiresMinVersions:[{id:'engine',minVersion:'1.0'}]},
+  {...mod('engine'),game:'omsi' as const}
+ ];
+ const proposed=[
+  {...old[0],requiresMinVersions:[{id:'engine',minVersion:'2.0'}]},
+  {...old[1],game:'ets2' as const}
+ ];
+ const summary=compare(old,proposed);
+ expect(summary.changed).toMatchObject([{
+  id:'bus',changedFloors:[{
+   id:'engine',oldMinVersion:'1.0',newMinVersion:'2.0'
+  }]
+ }]);
+ const result=classify(summary,['engine']);
+ expect(result.items).toEqual([
+  {id:'bus',direction:'different-games-not-comparable'}
+ ]);
+ expect(result.counts['more-restrictive']).toBe(0);
+ expect(result.counts['different-games-not-comparable']).toBe(1);
+ expect(result.installedVersionsChecked).toBe(false);
+ expect(result.realCompatibilityVerified).toBe(false);
+});
+test('o mesmo piso numericamente maior é restritivo se o jogo da dependência continua igual',()=>{
+ const previous=[{...mod('bus'),requires:['engine'],
+  requiresMinVersions:[{id:'engine',minVersion:'1.0'}]},mod('engine')];
+ const proposed=[{...previous[0],
+  requiresMinVersions:[{id:'engine',minVersion:'2.0'}]},previous[1]];
+ expect(classify(compare(previous,proposed),[]).items).toEqual([
+  {id:'bus',direction:'more-restrictive'}
+ ]);
+});
+test('recusa contadores incoerentes e IDs de jogos trocados inválidos',()=>{
+ const summary=compare(
+  [{...mod('bus'),gameVersionRange:{min:'1.0'}}],
+  [{...mod('bus'),gameVersionRange:{min:'2.0'}}]
+ );
+ expect(()=>classify({...summary,comparedIds:0},[]))
+  .toThrow('DECLARED_CONSTRAINT_DIRECTION_INVALID');
+ expect(()=>classify({...summary,unchangedConstraints:1},[]))
+  .toThrow('DECLARED_CONSTRAINT_DIRECTION_INVALID');
+ expect(()=>classify(summary,['INVALID-CAPS']))
+  .toThrow('DECLARED_CONSTRAINT_DIRECTION_INVALID');
+});

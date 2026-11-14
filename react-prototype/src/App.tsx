@@ -1274,7 +1274,8 @@ export default function App(){
      </small>}
      <p>A direção classifica apenas limites numéricos declarados: elevar mínimos ou reduzir
       máximos é mais restritivo; reduzir mínimos ou elevar máximos é menos restritivo.
-      Mudanças em jogos diferentes não são comparáveis. Não é um teste de compatibilidade.</p>
+      Um mesmo ID de mod ou dependência declarada também pode mudar de simulador;
+      nesses casos, as versões não são comparáveis. Não é um teste de compatibilidade.</p>
      <p>São somente requisitos declarados no JSON; as versões instaladas não foram verificadas.
       O mesmo ID não comprova identidade, segurança ou compatibilidade do pacote.
       A proposta não foi aplicada; cancelar preserva os dados locais.</p>

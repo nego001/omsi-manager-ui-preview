@@ -80,3 +80,33 @@ test('mudança de simulador impede comparar as exigências numéricas do mesmo I
  await expect(card(page,'Ônibus Urbano Clássico')
   .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
 });
+
+test('dependência reutilizada em outro simulador bloqueia comparação numérica do piso a 390 px',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ await propose(page,[{...bus,requires:['engine'],
+  requiresMinVersions:[{id:'engine',minVersion:'1.0'}]},engine],'base.json');
+ await card(page,'Ônibus Urbano Clássico').getByRole('button',{name:'Favoritar'}).click();
+ await propose(page,[{...bus,requires:['engine'],
+  requiresMinVersions:[{id:'engine',minVersion:'1.5'}]},
+  {...engine,game:'ets2'}],'cross-game.json');
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ const panel=consent.locator('details.catalog-version-constraints');
+ await panel.locator('summary').click();
+ const group=consent.getByRole('group',{name:'Mudanças nas exigências de versão'});
+ await expect(group.getByRole('list',{name:'Direções das exigências declaradas'}))
+  .toContainText('Jogos diferentes: 1');
+ await expect(group.getByRole('list',{name:'Direções das exigências declaradas'}))
+  .toContainText('Mais restritivas: 0');
+ await expect(group).toContainText('Direção: Jogos diferentes: requisitos não comparáveis');
+ await expect(group).toContainText('dependência declarada também pode mudar de simulador');
+ await expect(consent.getByRole('note',{name:'Alerta de IDs reutilizados entre jogos'}))
+  .toBeVisible();
+ await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(card(page,'Ônibus Urbano Clássico')
+  .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

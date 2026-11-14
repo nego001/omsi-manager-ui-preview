@@ -983,3 +983,29 @@ gate Ubuntu 24.04. Testes verificam pisos, tetos, requisitos adicionados
 ou retirados, mudanças mistas, equivalência numérica, jogos diferentes
 e entradas inconsistentes; Playwright cobre apresentação móvel e
 cancelamento sem alteração de estado.
+
+## IDs de dependências reaproveitados entre jogos: impedir comparação de versões enganosa
+
+Antes, a classificação de versões verificava se o **ID do mod**
+tinha mudado de simulador. Uma dependência desse mod podia reutilizar
+o próprio ID em outro jogo (por exemplo, `engine` em OMSI → ETS2)
+sem que seu consumidor `bus` mudasse de jogo. Nesse caso, um aumento
+no piso de `engine` podia aparecer como "mais restritivo", embora
+a identidade e a escala dessa dependência não fossem comparáveis.
+
+Agora, se um requisito de versão adicionado, retirado ou alterado
+aponta para um ID marcado pela proteção já existente de reutilização
+entre simuladores, o resumo classifica **o consumidor afetado**
+como `different-games-not-comparable`. Isso prevalece sobre
+comparações numéricas apenas naquele registro; o restante da
+comparação mantém os totais válidos. Também valida a coerência entre
+`comparedIds`, `unchangedConstraints` e a lista alterada.
+
+O alerta permanece uma **comparação de declarações**, não uma
+prova de identidade, versão realmente instalada, compatibilidade ou
+integridade. Não muda a proposta, favoritos, arquivos dos jogos ou
+o sandbox. Testes unitários abrangem dependência entre simuladores
+com piso alterado, controle quando ela permanece no mesmo jogo e
+contadores falsos; Playwright cobre 390px, indicação textual,
+alerta cruzado e preservação dos favoritos ao cancelar. PR #1 Draft
+e gate Ubuntu 24.04 seguem obrigatórios.
