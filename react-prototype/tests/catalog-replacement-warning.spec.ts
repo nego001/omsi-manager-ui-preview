@@ -1,0 +1,255 @@
+import {test,expect} from '@playwright/test';
+
+const navName='Navegação principal';
+const warningName='Aviso sobre substituir o catálogo';
+const freshCatalog={
+ schemaVersion:1,
+ mods:[{
+  id:'ficticio',title:'Exemplo de importação',game:'omsi',
+  category:'Ônibus',version:'1',size:'1 MB',
+  description:'Metadados fictícios para testar substituição'
+ }]
+};
+
+test('catalog replacement warns before clearing favorites, and invalid JSON cannot clear them',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const warning=page.getByRole('note',{name:warningName});
+ await expect(warning).toHaveCount(0);
+ const card=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await expect(warning).toContainText('descarta favoritos, seleções, resumos temporários');
+ await expect(warning).toContainText('Salve uma lista declarativa de favoritos');
+ await expect(warning).toContainText('exporte os resumos importantes pelo Histórico');
+ await expect(warning).toContainText('não é um backup restaurável');
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ await picker.setInputFiles({
+  name:'invalido.json',mimeType:'application/json',buffer:Buffer.from('{invalid')
+ });
+ await expect(page.getByRole('alert')).toBeVisible();
+ await expect(warning).toBeVisible();
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await picker.setInputFiles({
+  name:'novo.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(confirm).toBeVisible();
+ await expect(confirm.getByRole('heading',{name:'Confirmar substituição do catálogo'})).toBeFocused();
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await confirm.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await picker.setInputFiles({name:'novo.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))});
+ await expect(confirm).toBeVisible();
+ await confirm.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeFocused();
+ await expect(warning).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('saved session history alone triggers catalog-replacement warning after favorite removal',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{
+  name:'Selecionar Ônibus Urbano Clássico para análise conjunta'
+ }).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ }).getByRole('button',{name:'Retirar dos favoritos'}).click();
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await expect(page.getByRole('note',{name:warningName})).toContainText('resumos temporários');
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+});
+
+test('restoring demonstration requires explicit consent when favorites or reports would be erased',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'imported.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeVisible();
+ await page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Exemplo de importação',exact:true})
+ }).getByRole('button',{name:'Favoritar'}).click();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await page.getByRole('checkbox',{name:'Selecionar Exemplo de importação para análise conjunta'}).check();
+ await page.getByRole('button',{name:'Analisar seleção'}).click();
+ await page.getByRole('region',{name:'Resultado da análise conjunta'})
+  .getByRole('button',{name:'Guardar resumo nesta sessão'}).click();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await expect(confirm).toContainText('Restaurar a demonstração');
+ await confirm.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toBeVisible();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.getByRole('button',{name:'Restaurar demonstração'}).click();
+ await expect(confirm).toBeVisible();
+ await confirm.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeFocused();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Histórico'}).click();
+ await expect(page.getByRole('button',{name:'Rever seleção do resumo 1'})).toHaveCount(0);
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('invalid replacement cancels earlier unconfirmed valid import without touching favorites',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const card=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await picker.setInputFiles({
+  name:'first-valid.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await expect(confirm).toBeVisible();
+ await picker.setInputFiles({
+  name:'invalid-after-valid.json',mimeType:'application/json',buffer:Buffer.from('not-json')
+ });
+ await expect(page.getByRole('alert')).toBeVisible();
+ await expect(confirm).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+});
+
+test('favorite added while catalog JSON is still reading cannot be erased without consent',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.evaluate(()=>{
+  const original=File.prototype.text;
+  const gate=new Promise<void>(resolve=>{
+   window.addEventListener('finish-delayed-catalog-review',()=>resolve(),{once:true});
+  });
+  File.prototype.text=function(this:File){
+   return this.name==='delayed-catalog.json'?gate.then(()=>original.call(this)):
+    original.call(this);
+  };
+ });
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ await picker.setInputFiles({name:'delayed-catalog.json',
+  mimeType:'application/json',buffer:Buffer.from(JSON.stringify(freshCatalog))});
+ const card=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await card.getByRole('button',{name:'Favoritar'}).click();
+ await expect(page.getByRole('note',{name:warningName})).toBeVisible();
+ await page.evaluate(()=>window.dispatchEvent(new Event('finish-delayed-catalog-review')));
+ const confirm=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(confirm).toBeVisible();
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await confirm.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(confirm).toHaveCount(0);
+ await expect(card.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('leaving the Catalog expires a validated replacement proposal and preserves favorites',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ const original=page.locator('.mod-card').filter({
+  has:page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})
+ });
+ await original.getByRole('button',{name:'Favoritar'}).click();
+ const picker=page.getByLabel('Arquivo JSON do catálogo');
+ await picker.setInputFiles({
+  name:'proposed.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ const pending=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ await expect(pending).toBeVisible();
+ await nav.getByRole('button',{name:'Minha biblioteca'}).click();
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await expect(pending).toHaveCount(0);
+ await expect(page.getByText('Origem: Demonstração')).toBeVisible();
+ await expect(original.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toHaveCount(0);
+ await picker.setInputFiles({
+  name:'reproposed.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await expect(pending).toBeVisible();
+ await pending.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(original.getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});
+
+test('leaving the Catalog invalidates a delayed JSON read before it can replace the catalog',async({page})=>{
+ await page.goto('/');
+ const nav=page.getByRole('navigation',{name:navName});
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await page.evaluate(()=>{
+  const original=File.prototype.text;
+  const gate=new Promise<void>(resolve=>{
+   window.addEventListener('release-catalog-read-after-navigation',()=>resolve(),{once:true});
+  });
+  File.prototype.text=function(this:File){
+   if(this.name!=='late-catalog.json')return original.call(this);
+   return gate.then(async()=>{
+    const contents=await original.call(this);
+    document.documentElement.dataset.lateCatalogReadFinished='yes';
+    return contents;
+   });
+  };
+ });
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'late-catalog.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify(freshCatalog))
+ });
+ await nav.getByRole('button',{name:'Jogos'}).click();
+ await page.evaluate(()=>window.dispatchEvent(new Event('release-catalog-read-after-navigation')));
+ await page.waitForFunction(()=>
+  document.documentElement.dataset.lateCatalogReadFinished==='yes');
+ await page.evaluate(()=>new Promise<void>(resolve=>requestAnimationFrame(()=>
+  requestAnimationFrame(()=>resolve()))));
+ await nav.getByRole('button',{name:'Catálogo de mods'}).click();
+ await expect(page.getByText('Origem: Demonstração')).toBeVisible();
+ await expect(page.getByRole('region',{name:'Confirmar substituição do catálogo'})).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'Ônibus Urbano Clássico',exact:true})).toBeVisible();
+ await expect(page.getByRole('button',{name:'Exemplo de importação',exact:true})).toHaveCount(0);
+});

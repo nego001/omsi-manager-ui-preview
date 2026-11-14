@@ -1,0 +1,214 @@
+[
+  {
+    "id": "matched",
+    "label": "Referência localizada em outro ZIP",
+    "fixtureCount": 2,
+    "declared": 2,
+    "withinOwn": 1,
+    "otherCandidate": 1,
+    "unresolved": 0,
+    "unsafe": 0,
+    "unsupported": 0,
+    "ambiguous": 0,
+    "inspectedSources": 3,
+    "notInspectedSources": 0,
+    "slots": [
+      {
+        "slot": 1,
+        "declared": 2,
+        "withinOwn": 1,
+        "otherCandidate": 1,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 2,
+        "notInspectedSources": 0
+      },
+      {
+        "slot": 2,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      }
+    ]
+  },
+  {
+    "id": "absent",
+    "label": "Referências não encontradas",
+    "fixtureCount": 2,
+    "declared": 2,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "unresolved": 2,
+    "unsafe": 0,
+    "unsupported": 0,
+    "ambiguous": 0,
+    "inspectedSources": 2,
+    "notInspectedSources": 0,
+    "slots": [
+      {
+        "slot": 1,
+        "declared": 2,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 2,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      },
+      {
+        "slot": 2,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      }
+    ]
+  },
+  {
+    "id": "ambiguous",
+    "label": "Mesmo arquivo declarado em dois ZIPs",
+    "fixtureCount": 3,
+    "declared": 1,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "ambiguous": 1,
+    "unresolved": 0,
+    "unsafe": 0,
+    "unsupported": 0,
+    "inspectedSources": 3,
+    "notInspectedSources": 0,
+    "slots": [
+      {
+        "slot": 1,
+        "declared": 1,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 1,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      },
+      {
+        "slot": 2,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      },
+      {
+        "slot": 3,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      }
+    ]
+  },
+  {
+    "id": "unsafe",
+    "label": "Caminhos perigosos e sufixo incorreto",
+    "fixtureCount": 2,
+    "declared": 3,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "unresolved": 0,
+    "unsafe": 2,
+    "unsupported": 1,
+    "ambiguous": 0,
+    "inspectedSources": 2,
+    "notInspectedSources": 0,
+    "slots": [
+      {
+        "slot": 1,
+        "declared": 3,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 2,
+        "unsupported": 1,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      },
+      {
+        "slot": 2,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 1,
+        "notInspectedSources": 0
+      }
+    ]
+  },
+  {
+    "id": "uninspected",
+    "label": "Texto fora do limite de inspeção",
+    "fixtureCount": 2,
+    "declared": 0,
+    "withinOwn": 0,
+    "otherCandidate": 0,
+    "ambiguous": 0,
+    "unresolved": 0,
+    "unsafe": 0,
+    "unsupported": 0,
+    "inspectedSources": 0,
+    "notInspectedSources": 1,
+    "slots": [
+      {
+        "slot": 1,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 0,
+        "notInspectedSources": 1
+      },
+      {
+        "slot": 2,
+        "declared": 0,
+        "withinOwn": 0,
+        "otherCandidate": 0,
+        "ambiguous": 0,
+        "unresolved": 0,
+        "unsafe": 0,
+        "unsupported": 0,
+        "inspectedSources": 0,
+        "notInspectedSources": 0
+      }
+    ]
+  }
+]
