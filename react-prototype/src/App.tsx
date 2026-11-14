@@ -1135,12 +1135,12 @@ export default function App(){
   </aside>}
   {catalogRelationRegressions&&catalogRelationRegressionCount>0&&
    <details className="catalog-relation-regressions">
-    <summary>Ver novos ou agravados bloqueios declarados ({catalogRelationRegressionCount})</summary>
+    <summary>Ver mudanças nos bloqueios declarados ({catalogRelationRegressionCount})</summary>
     <div role="group" aria-label="Mudanças de bloqueios declarados">
      <ul className="catalog-relation-regression-counts">
       <li>Novos bloqueios em IDs mantidos: <strong>{catalogRelationRegressions.newlyBlocked.length}</strong></li>
       <li>Bloqueios agravados em IDs mantidos: <strong>{catalogRelationRegressions.worsened.length}</strong></li>
-      <li>Tipos de bloqueio alterados, mesmo total: <strong>{catalogRelationRegressions.changedReasons.length}</strong></li>
+      <li>Tipos de bloqueio alterados, sem aumento: <strong>{catalogRelationRegressions.changedReasons.length}</strong></li>
       <li>Registros novos com bloqueios: <strong>{catalogRelationRegressions.addedBlocked.length}</strong></li>
      </ul>
      {([
@@ -1167,7 +1167,8 @@ export default function App(){
      </div>)}
      <p>A análise compara somente dependências e conflitos declarados nos dois catálogos,
       sem verificar nenhum arquivo instalado. Uma troca de tipo pode ocorrer sem aumentar
-      a quantidade de bloqueios. Este painel não detecta troca de causas individuais
+      a quantidade de bloqueios, mesmo quando o total diminui. Uma redução numérica
+      não é garantia de melhoria da compatibilidade. Este painel não detecta troca de causas individuais
       quando o tipo permanece igual. Bloqueios lógicos não comprovam incompatibilidade
       real; ausência de alertas não comprova compatibilidade. A proposta não foi aplicada.</p>
      <button type="button" className="btn secondary catalog-preflight-reports"

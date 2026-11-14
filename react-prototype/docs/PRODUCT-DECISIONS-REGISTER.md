@@ -813,3 +813,30 @@ duplicação, contadores falsos, comandos e campos estranhos. Playwright
 valida download a 390px, persistência dos favoritos após cancelar,
 segunda proposta e descarte apenas após confirmação explícita.
 O protótipo permanece apenas declarativo e a PR #1 segue Draft.
+
+## Regressão de tipo mesmo com menos bloqueios declarados
+
+O recorte anterior tinha uma falsa sensação de melhoria: se um ID tinha
+dois bloqueios, mas a proposta reduzia a contagem para um, a análise
+encerrava cedo. Isso ocultava um bloqueio **de tipo novo**: dois IDs
+ausentes podiam virar uma dependência declarada de outro simulador.
+
+Agora, diminuir o número de bloqueios continua registrado como queda
+numérica, mas **a introdução de um novo tipo também é revelada**. O
+painel usa "Tipos de bloqueio alterados, sem aumento" e mostra os
+totais anterior/proposto e os tipos. Remover bloqueios sem introduzir
+outro tipo não dispara essa categoria. Trocas de IDs dentro do mesmo
+código continuam fora do recorte, uma limitação explicitada na tela.
+
+O JSON de comparação já exportável permite a sobreposição legítima:
+`improvedExisting` contabiliza a redução de quantidade, enquanto
+`changedReasons` identifica a troca de tipo. O serializador valida
+essa sobreposição para evitar contagem contraditória e rejeita
+relatórios forjados que omitam a redução correspondente.
+Nenhuma dessas classificações representa compatibilidade comprovada,
+instalação ou autorização para interagir com arquivos do jogo.
+
+Testes novos de contrato, exportação e Playwright (390px) cobrem
+menos bloqueios com novo tipo, a ausência de alerta quando só se
+remove um bloqueio do mesmo tipo, exportação coerente e cancelamento.
+PR #1 Draft, sandbox estrito e bloqueio Ubuntu 24.04 intactos.

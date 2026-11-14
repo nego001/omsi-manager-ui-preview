@@ -76,3 +76,25 @@ test('não copia campos estranhos, caminhos nem comandos',()=>{
  expect(json).not.toContain('C:\\private');
  expect(JSON.parse(json).schema).not.toBe('omsi-manager-catalog-v1');
 });
+
+test('exporta mudança de tipo mesmo quando bloqueios caem de dois para um',()=>{
+ const engine=mod(1),bus=mod(0);
+ const before=[{...bus,requires:['missing_a','missing_b']},engine];
+ const after=[{...bus,requires:['mod_1']},{...engine,game:'ets2' as const}];
+ const summary=summarizeProposedRelationRegressions(before,after,['mod_0'],['mod_0']);
+ const report=JSON.parse(serialize(summary));
+ expect(report.counts).toMatchObject({
+  comparedExisting:2,improvedExisting:1,changedReasons:1,
+  newlyBlocked:0,worsened:0,addedBlocked:0
+ });
+ expect(report.changedReasons).toMatchObject([{
+  id:'mod_0',previousBlockers:2,proposedBlockers:1,
+  previousBlockingCodes:['dependency-missing'],
+  proposedBlockingCodes:['different-game'],
+  favoriteNow:true,selectedNow:true
+ }]);
+ // The overlap between reduced count and changed type is legitimate;
+ // a forged report omitting that improvement marker is not.
+ expect(()=>serialize({...summary,improvedExisting:0}))
+  .toThrow('DECLARED_RELATION_REGRESSION_EXPORT_INVALID');
+});

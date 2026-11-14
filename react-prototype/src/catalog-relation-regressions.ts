@@ -82,15 +82,19 @@ export function summarizeProposedRelationRegressions(
   const previous=previousIssues.length;
   const proposedIssues=count(proposed,mod.id);
   const next=proposedIssues.length;
-  if(old&&next<previous){improvedExisting++;continue;}
+  // Fewer declared blockers is a numerical improvement, but not necessarily
+  // a safe replacement: a NEW blocker type may have appeared at the same time.
+  if(old&&next<previous)improvedExisting++;
   if(next===0)continue;
   const previousCodes=[...new Set(previousIssues.map(x=>x.code))];
   const proposedCodes=[...new Set(proposedIssues.map(x=>x.code))];
-  // A changed blocker TYPE with the same count is not an increase, but it
-  // still warrants disclosure. Changes within the same code remain out of
-  // scope, and neither result is real compatibility evidence.
+  // At the same count report changes in blocker types; at lower counts report
+  // only NEWLY INTRODUCED types, not benign removal of old blocker types.
+  // Same-type target changes remain out of scope. No real compatibility proof.
   const sameTypes=previousCodes.length===proposedCodes.length&&
    previousCodes.every(x=>proposedCodes.includes(x));
+  const introducedType=proposedCodes.some(x=>!previousCodes.includes(x));
+  if(old&&next<previous&&!introducedType)continue;
   if(old&&next===previous&&sameTypes)continue;
   const entry:ProposedRelationChange=Object.freeze({
    id:mod.id,title:mod.title,game:mod.game,

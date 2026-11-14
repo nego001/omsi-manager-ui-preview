@@ -65,8 +65,10 @@ export function serializeDeclaredRelationRegressions(
    const newCodes=codes(value.proposedBlockingCodes,after);
    if(category==='newlyBlocked'&&!(before===0&&after>0)||
     category==='worsened'&&!(before>0&&after>before)||
-    category==='changedReasons'&&!(before===after&&before>0&&
-     (oldCodes.length!==newCodes.length||oldCodes.some(c=>!newCodes.includes(c))))||
+    category==='changedReasons'&&!(before>=after&&after>0&&
+     (before===after
+      ?oldCodes.length!==newCodes.length||oldCodes.some(c=>!newCodes.includes(c))
+      :newCodes.some(c=>!oldCodes.includes(c))))||
     category==='addedBlocked'&&!(before===0&&after>0))
     return invalid();
    if(category==='addedBlocked'&&(value.favoriteNow||value.selectedNow))return invalid();
@@ -81,7 +83,11 @@ export function serializeDeclaredRelationRegressions(
  const worsened=check(summary.worsened,'worsened');
  const changedReasons=check(summary.changedReasons,'changedReasons');
  const addedBlocked=check(summary.addedBlocked,'addedBlocked');
- if(newlyBlocked.length+worsened.length+changedReasons.length+improvedExisting>comparedExisting||
+ // A record may both have FEWER blockers numerically and have gained a new
+ // blocker TYPE. That legitimate overlap is counted in both quantities.
+ const overlap=changedReasons.filter(x=>x.proposedBlockers<x.previousBlockers).length;
+ if(improvedExisting<overlap||
+  newlyBlocked.length+worsened.length+changedReasons.length+improvedExisting-overlap>comparedExisting||
   addedBlocked.length>addedRecords)return invalid();
  const output={
   schema:'omsi-manager-declared-relation-regressions-v1',

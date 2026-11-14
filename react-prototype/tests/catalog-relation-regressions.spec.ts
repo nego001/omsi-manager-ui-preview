@@ -92,3 +92,36 @@ test('troca de ID ausente com mesmo tipo não é classificada como novo tipo',()
  expect(result.newlyBlocked).toEqual([]);
  expect(result.worsened).toEqual([]);
 });
+
+// Even when the NUMBER of declared blockers goes down, a new blocker TYPE
+// must not be silently accepted as an improvement.
+test('menos bloqueios, mas novo tipo, continua visível no pré-voo',()=>{
+ const engine={...base,id:'engine',title:'Motor declarado'};
+ const before=[{...base,requires:['missing_a','missing_b']},engine];
+ const proposed=[
+  {...base,requires:['engine']},
+  {...engine,game:'ets2' as const}
+ ];
+ const snapshot=JSON.stringify([before,proposed]);
+ const result=compare(before,proposed,['bus'],['bus']);
+ expect(result).toMatchObject({
+  newlyBlocked:[],worsened:[],addedBlocked:[],
+  improvedExisting:1,comparedExisting:2,
+  changedReasons:[{
+   id:'bus',previousBlockers:2,proposedBlockers:1,
+   previousBlockingCodes:['dependency-missing'],
+   proposedBlockingCodes:['different-game'],
+   favoriteNow:true,selectedNow:true
+  }]
+ });
+ expect(Object.isFrozen(result.changedReasons[0])).toBe(true);
+ expect(JSON.stringify([before,proposed])).toBe(snapshot);
+});
+test('queda de bloqueios sem introduzir novo tipo permanece só melhoria numérica',()=>{
+ const before=[{...base,requires:['missing_a','missing_b']}];
+ const proposed=[{...base,requires:['missing_a']}];
+ const result=compare(before,proposed,[],[]);
+ expect(result.improvedExisting).toBe(1);
+ expect(result.changedReasons).toEqual([]);
+ expect(result.worsened).toEqual([]);
+});

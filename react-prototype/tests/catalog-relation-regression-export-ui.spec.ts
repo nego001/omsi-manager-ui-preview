@@ -62,7 +62,7 @@ test('nova proposta e troca de motivo geram relatório atualizado, sem migraçã
  await expect(panel.locator('summary')).toContainText('(1)');
  await panel.locator('summary').click();
  const group=consent.getByRole('group',{name:'Mudanças de bloqueios declarados'});
- await expect(group).toContainText('Tipos de bloqueio alterados, mesmo total: 1');
+ await expect(group).toContainText('Tipos de bloqueio alterados, sem aumento: 1');
  const [download]=await Promise.all([
   page.waitForEvent('download'),
   group.getByRole('button',{name:'Baixar comparação completa de bloqueios declarados em JSON'}).click()
