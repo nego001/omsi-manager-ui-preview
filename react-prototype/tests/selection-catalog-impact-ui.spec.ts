@@ -59,6 +59,11 @@ test('trocar proposta recalcula a seleção, confirmação descarta mesmo IDs ig
  await expect(group).toContainText('Mesmo ID com dados alterados: 1');
  await expect(group).toContainText('Selecionados ausentes na proposta: 1');
  await proposal(page,[demo[0],demo[1]],'second.json');
+ // New file choice unmounts the old consent prompt until File.text resolves.
+ // Reopen the deliberately collapsed details panel for the new proposal.
+ await expect(consent.getByRole('group',{name:'Comparação declarativa entre catálogos'}))
+  .toContainText('ID mantido com metadados alterados: 0');
+ await consent.locator('summary').filter({hasText:'Ver impacto da seleção ativa'}).click();
  await expect(group).toContainText('Mesmo ID e dados iguais: 2');
  await expect(group).toContainText('Mesmo ID com dados alterados: 0');
  await expect(group).toContainText('Selecionados ausentes na proposta: 0');

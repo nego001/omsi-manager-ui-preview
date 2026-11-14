@@ -669,3 +669,33 @@ diagnóstico real ou autorização para instalação. Os testes unitários
 e Playwright (inclusive largura de 390 px) verificam categorias,
 troca de proposta, cancelamento, confirmação e ausência de painel vazio.
 A PR #1 permanece Draft e o gate Ubuntu 24.04 X11 permanece obrigatório.
+
+## Exportação da comparação da seleção ativa antes da troca
+
+A prévia recolhida da seleção ativa agora oferece o download manual
+`OMSI-Manager-Impacto-da-Selecao.json`, com **todos** os registros da
+seleção que permaneceriam com ID/metadados iguais, mudariam de metadados
+ou estariam ausentes do catálogo proposto. O relatório contém os
+totalizadores e os campos declarativos alterados, inclusive quando a
+interface mostra só cinco exemplos por grupo. Não há exportação vazia:
+a seção e o botão só aparecem se existir seleção ativa.
+
+O contrato `omsi-manager-declared-selection-impact-v1` reutiliza
+a validação de IDs, títulos, campos permitidos, duplicação e limites
+do serializador de impacto de favoritos, mas emite um **schema distinto
+e estritamente limitado à seleção**. É impossível usar esse arquivo
+como manifesto de catálogo ou como recibo de instalação. Os marcadores
+`allSelectionsDiscardedOnConfirmation:true`,
+`proposedCatalogApplied:false`, `restorableByPreview:false`,
+`sourceAuthenticated:false`, `installationVerified:false` e
+`compatibilityVerified:false` são explícitos.
+
+Baixar o relatório não importa, altera, salva automaticamente ou
+restaura a seleção. Cancelar a troca preserva favoritos e seleção;
+confirmar continua descartando tudo deliberadamente, mesmo se os
+IDs e metadados coincidirem na proposta. Testes unitários cobrem
+exportação completa (mais de cinco exemplos), campos extras,
+contagens inválidas, controles e IDs duplicados; Playwright cobre
+download real a 390px, cancelamento, segunda proposta e confirmação.
+
+CI Ubuntu 24.04 X11 estrita e PR #1 Draft mantidas sem alterações.
