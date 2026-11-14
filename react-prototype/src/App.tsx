@@ -8,6 +8,7 @@ import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
+import {serializeDeclaredRelationRegressions} from './catalog-relation-regression-export';
 import {serializeDeclaredSelectedImpact} from './selection-impact-export';
 import {serializeDeclaredFavoriteImpact} from './favorite-impact-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
@@ -489,6 +490,13 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingRelationRegressions(){
+  if(!pendingCatalogReplacement||!catalogRelationRegressions||catalogRelationRegressionCount<1)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredRelationRegressions(catalogRelationRegressions),
+    'OMSI-Manager-Bloqueios-Declarados.json');
+  }catch{setToast('Não foi possível exportar a comparação declarativa dos bloqueios.');}
  }
  function exportPendingSelectedImpact(){
   if(!pendingCatalogReplacement||!catalogSelectedImpact||catalogSelectedImpact.total<1)return;
@@ -1162,8 +1170,11 @@ export default function App(){
       a quantidade de bloqueios. Este painel não detecta troca de causas individuais
       quando o tipo permanece igual. Bloqueios lógicos não comprovam incompatibilidade
       real; ausência de alertas não comprova compatibilidade. A proposta não foi aplicada.</p>
+     <button type="button" className="btn secondary catalog-preflight-reports"
+      onClick={exportPendingRelationRegressions}><Download size={16} aria-hidden="true"/>
+      Baixar comparação completa de bloqueios declarados em JSON</button>
     </div>
-   </details>}
+   </details>
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
    <section className="catalog-favorite-impact" role="group"
     aria-label="Impacto da proposta nos favoritos">

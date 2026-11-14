@@ -783,3 +783,33 @@ Testes de contrato cobrem mudança missing → different-game com a
 mesma contagem, não regressão quando só muda o ID ausente, e
 imutabilidade. Playwright verifica o aviso, os rótulos dos motivos,
 a tela de 390px e a preservação dos favoritos ao cancelar.
+
+## Exportação completa dos bloqueios declarados antes da troca
+
+A análise de novos/agravados bloqueios e mudanças de tipo oferece agora
+o download voluntário `OMSI-Manager-Bloqueios-Declarados.json`.
+A tela continua resumida a cinco exemplos por classe, mas o arquivo
+inclui **todos** os IDs sinalizados nas quatro categorias: novos
+bloqueios, aumento de bloqueios, troca de tipos com contagem igual e
+novos registros já bloqueados, com os tipos de bloqueios declarados
+antes/depois e marcadores de favorito/seleção.
+
+O schema exclusivo `omsi-manager-declared-relation-regressions-v1`
+apresenta os contadores completos, `completeFlaggedRecords:true`,
+`proposedCatalogApplied:false`, `restorableByPreview:false`,
+`installedPackagesChecked:false`, `realCompatibilityVerified:false`,
+`installationVerified:false` e `sourceAuthenticated:false`.
+Não é catálogo importável, prova de instalação ou backup.
+
+O serializador aceita até 200 registros, limita tamanhos e valida
+IDs exclusivos, jogos reconhecidos, nomes sem caracteres de controle,
+códigos permitidos de bloqueios e coerência dos contadores e grupos.
+Rejeita campos manipulados e nunca exporta dados extras de objetos,
+como comandos ou caminhos de arquivos. Download não confirma a troca
+nem descarta favoritos ou seleções; cancelar permanece inofensivo.
+
+Testes unitários abrangem mais de cinco exemplos, mudança de tipo,
+duplicação, contadores falsos, comandos e campos estranhos. Playwright
+valida download a 390px, persistência dos favoritos após cancelar,
+segunda proposta e descarte apenas após confirmação explícita.
+O protótipo permanece apenas declarativo e a PR #1 segue Draft.
