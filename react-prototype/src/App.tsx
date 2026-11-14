@@ -6,6 +6,7 @@ import {compareDeclaredCatalogs,declaredCatalogFieldLabels} from './catalog-repl
 import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
+import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {serializeDeclaredSelectedImpact} from './selection-impact-export';
 import {serializeDeclaredFavoriteImpact} from './favorite-impact-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
@@ -746,6 +747,10 @@ export default function App(){
   compareDeclaredCatalogs(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog):null,
   [catalogMods,pendingCatalogReplacement]);
+ const catalogCrossGameReuse=useMemo(()=>pendingCatalogReplacement?
+  findDeclaredCrossGameIdReuses(catalogMods,pendingCatalogReplacement.kind==='demo'?
+   mods:pendingCatalogReplacement.catalog,favorites,activeBatch):[],
+  [catalogMods,pendingCatalogReplacement,favorites,activeBatch]);
  const catalogFavoriteImpact=useMemo(()=>catalogReplacementDiff?
   summarizeFavoriteCatalogImpact(catalogMods,favorites,catalogReplacementDiff):null,
   [catalogMods,favorites,catalogReplacementDiff]);
@@ -1092,6 +1097,24 @@ export default function App(){
    </ul>
    <small>Contagem da sessão atual. Nenhum mod foi verificado ou instalado; o catálogo ainda não foi substituído.</small>
   </div>
+  {catalogCrossGameReuse.length>0&&<aside className="catalog-cross-game-warning"
+   role="note" aria-label="Alerta de IDs reutilizados entre jogos">
+   <strong>IDs reaproveitados entre jogos: {catalogCrossGameReuse.length}</strong>
+   <p>O mesmo ID declarado aparece associado a jogos diferentes nos dois catálogos.
+    Isso não comprova identidade, migração nem compatibilidade entre simuladores.
+    Confira antes de confirmar a substituição; nada foi instalado.</p>
+   <ul>{catalogCrossGameReuse.slice(0,5).map(entry=><li key={entry.id}>
+    <strong>{entry.id}</strong>: {entry.oldTitle} ({games[entry.oldGame].title})
+    {' → '}{entry.newTitle} ({games[entry.newGame].title})
+    {(entry.inFavorites||entry.inActiveSelection)&&<small>
+     {entry.inFavorites?'Favorito atual':''}
+     {entry.inFavorites&&entry.inActiveSelection?' · ':''}
+     {entry.inActiveSelection?'Na seleção ativa':''}
+    </small>}
+   </li>)}</ul>
+   {catalogCrossGameReuse.length>5&&<small>Outros {catalogCrossGameReuse.length-5} IDs reaproveitados não exibidos.</small>}
+   <small>O aviso compara apenas metadados JSON e não preserva favoritos ou seleções automaticamente.</small>
+  </aside>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
    <section className="catalog-favorite-impact" role="group"
     aria-label="Impacto da proposta nos favoritos">

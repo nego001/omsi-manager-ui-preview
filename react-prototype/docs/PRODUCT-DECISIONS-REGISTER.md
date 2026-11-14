@@ -699,3 +699,28 @@ contagens inválidas, controles e IDs duplicados; Playwright cobre
 download real a 390px, cancelamento, segunda proposta e confirmação.
 
 CI Ubuntu 24.04 X11 estrita e PR #1 Draft mantidas sem alterações.
+
+## Aviso de reaproveitamento de ID entre simuladores
+
+Antes de confirmar a substituição do catálogo, o protótipo destaca um
+alerta específico **somente se um mesmo ID declarado mudar de jogo**
+(OMSI 2, ETS2 ou ATS) entre o catálogo atual e a proposta. Essa
+comparação é distinta de versões, nomes ou categorias alteradas dentro
+do mesmo jogo. O aviso mostra a contagem total, até cinco exemplos
+com jogo de origem/destino e sinaliza quando um ID está nos favoritos
+ou na seleção ativa do catálogo corrente.
+
+O contrato `catalog-cross-game-reuse.ts` valida listas, IDs, unicidade,
+jogos reconhecidos e o pertencimento de favoritos e seleção; seus
+resultados são somente leitura e são calculados novamente quando o
+usuário importa outra proposta. O aviso desaparece quando a nova
+proposta não contém reaproveitamento de ID entre jogos.
+
+**Limites:** uma colisão de ID em metadados não comprova que um arquivo
+real foi trocado, convertido, instalado ou que seja incompatível.
+Nenhuma transferência de favoritos/seleção acontece. A confirmação
+explícita continua necessária para descartar o estado da sessão;
+cancelar mantém tudo. O aviso não habilita operações de instalador,
+nem contorna o sandbox. Testes de contrato e Playwright a 390px cobrem
+duas mudanças de jogo, flags de favoritos/seleção, ausência de
+falsos positivos por versão, cancelamento e troca de proposta.

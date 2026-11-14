@@ -1339,3 +1339,13 @@
 .catalog-selection-impact small{display:block;font-size:11px;line-height:1.5;color:#becfd9}
 .catalog-selection-impact p{margin:12px 0 0;color:#dae9f3}
 @media(max-width:640px){.catalog-selection-impact-counts{grid-template-columns:minmax(0,1fr)}}
+
+/* Cross-game ID reuse is a warning about conflicting catalog declarations,
+   not a compatibility verdict or installed-package detector. */
+.catalog-cross-game-warning{margin:12px 0;padding:13px 14px;border:1px solid #c08c58;background:#322720;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-cross-game-warning>strong{display:block;font-size:13px;color:#ffe4bb}
+.catalog-cross-game-warning p{font-size:12px;line-height:1.6;color:#f3ddc2;margin:9px 0}
+.catalog-cross-game-warning ul{margin:9px 0;padding-left:19px}
+.catalog-cross-game-warning li{font-size:12px;line-height:1.65;color:#f5e6d0;overflow-wrap:anywhere;margin:6px 0}
+.catalog-cross-game-warning li strong{color:#fff1d9}
+.catalog-cross-game-warning small{display:block;font-size:11px;line-height:1.55;color:#dfc6ac}
