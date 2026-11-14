@@ -1323,3 +1323,19 @@
 .catalog-favorite-impact small{display:block;font-size:11px;line-height:1.5;color:#dccbb5}
 .catalog-favorite-impact p{margin:12px 0 0;color:#f5dcbd}
 @media(max-width:640px){.catalog-favorite-impact-counts{grid-template-columns:minmax(0,1fr)}}
+
+/* Optional active-selection impact, collapsed by default so replacement
+   confirmation remains usable on narrow screens and with 200 declarations. */
+.catalog-selection-impact{margin:12px 0;padding:12px 14px;border:1px solid #536f7e;background:#212d35;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-selection-impact summary{cursor:pointer;color:#e8f2f8;font-size:13px;font-weight:700;line-height:1.6}
+.catalog-selection-impact summary:focus-visible{outline:2px solid #a0d4f3;outline-offset:4px}
+.catalog-selection-impact-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;list-style:none;padding:0;margin:12px 0}
+.catalog-selection-impact-counts li{display:flex;justify-content:space-between;gap:12px;color:#dceaf4;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.catalog-selection-impact-counts strong{color:#fff;font-size:14px}
+.catalog-selection-impact div[role="group"]>div{margin-top:12px}
+.catalog-selection-impact b{font-size:12px;color:#e4f4ff}
+.catalog-selection-impact div[role="group"]>div ul{margin:7px 0;padding-left:19px}
+.catalog-selection-impact div[role="group"]>div li{font-size:12px;line-height:1.5;margin:5px 0;color:#ebf3f8}
+.catalog-selection-impact small{display:block;font-size:11px;line-height:1.5;color:#becfd9}
+.catalog-selection-impact p{margin:12px 0 0;color:#dae9f3}
+@media(max-width:640px){.catalog-selection-impact-counts{grid-template-columns:minmax(0,1fr)}}

@@ -644,3 +644,28 @@ metadados malformados e recusa de IDs duplicados ou flags falsificadas;
 Playwright cobre download móvel, ausência de efeito colateral e troca
 de proposta que reutiliza o mesmo ID. Requisitos de sandbox e
 homologação Ubuntu 24.04 continuam inalterados.
+
+## Prévia do impacto sobre a seleção ativa no catálogo proposto
+
+A confirmação da troca de catálogo já mostrava quantos mods estavam na
+seleção temporária de análise conjunta e permitia exportar a seleção.
+Passou a oferecer também um painel recolhido por padrão, "Ver impacto da
+seleção ativa", quando existir ao menos um mod selecionado. O recorte
+compara **somente os IDs atualmente selecionados** com a proposta validada:
+IDs com metadados iguais, IDs com campos alterados e selecionados ausentes.
+As quantidades consideram todos os selecionados; os exemplos visíveis
+são limitados a cinco por grupo para não sobrecarregar a interface.
+
+A fonte é um comparador puro, limitado aos metadados declarativos. Os
+IDs da seleção precisam existir no catálogo corrente, não podem ser
+repetidos e o diff precisa ser consistente. A derivação é reativa a
+nova proposta e a alterações da seleção, sem leitura de arquivos reais.
+
+**Atenção:** a seleção inteira continua sendo descartada somente após
+a confirmação explícita da troca, inclusive quando IDs e metadados
+permanecem iguais. Cancelar não altera seleção ou favoritos, e o
+painel não é uma migração automática, prova de identidade de arquivo,
+diagnóstico real ou autorização para instalação. Os testes unitários
+e Playwright (inclusive largura de 390 px) verificam categorias,
+troca de proposta, cancelamento, confirmação e ausência de painel vazio.
+A PR #1 permanece Draft e o gate Ubuntu 24.04 X11 permanece obrigatório.

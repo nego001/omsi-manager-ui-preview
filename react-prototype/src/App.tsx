@@ -5,6 +5,7 @@ import {serializeDeclaredBatchSelection} from './batch-selection-export';
 import {compareDeclaredCatalogs,declaredCatalogFieldLabels} from './catalog-replacement-diff';
 import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
+import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {serializeDeclaredFavoriteImpact} from './favorite-impact-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
 import {matchesCatalogSearch,declaredSearchMatchFields} from './catalog-search';
@@ -740,6 +741,9 @@ export default function App(){
  const catalogFavoriteImpact=useMemo(()=>catalogReplacementDiff?
   summarizeFavoriteCatalogImpact(catalogMods,favorites,catalogReplacementDiff):null,
   [catalogMods,favorites,catalogReplacementDiff]);
+ const catalogSelectedImpact=useMemo(()=>catalogReplacementDiff&&activeBatch.length>0?
+  summarizeSelectedCatalogImpact(catalogMods,activeBatch,catalogReplacementDiff):null,
+  [catalogMods,activeBatch,catalogReplacementDiff]);
  const catalogReplacementImpact={
   favorites:favorites.length,
   selected:batchSelected.length,
@@ -1120,6 +1124,40 @@ export default function App(){
      onClick={exportPendingFavoriteImpact}><Download size={16} aria-hidden="true"/>
      Baixar impacto completo nos favoritos em JSON</button>
    </section>}
+  {catalogSelectedImpact&&catalogSelectedImpact.total>0&&
+   <details className="catalog-selection-impact">
+    <summary>Ver impacto da seleção ativa ({catalogSelectedImpact.total})</summary>
+    <div role="group" aria-label="Impacto da proposta na seleção ativa">
+     <ul className="catalog-selection-impact-counts">
+      <li>Mesmo ID e dados iguais: <strong>{catalogSelectedImpact.unchanged.length}</strong></li>
+      <li>Mesmo ID com dados alterados: <strong>{catalogSelectedImpact.changed.length}</strong></li>
+      <li>Selecionados ausentes na proposta: <strong>{catalogSelectedImpact.removed.length}</strong></li>
+     </ul>
+     {catalogSelectedImpact.changed.length>0&&<div>
+      <b>Selecionados com registros alterados</b>
+      <ul>{catalogSelectedImpact.changed.slice(0,5).map(entry=>
+       <li key={entry.id}><strong>{entry.oldTitle}</strong> → {entry.newTitle}
+        <small>ID: {entry.id} · Campos alterados: {entry.fields.map(field=>declaredCatalogFieldLabels[field]).join(', ')}.</small>
+       </li>)}</ul>
+      {catalogSelectedImpact.changed.length>5&&<small>Outros {catalogSelectedImpact.changed.length-5} selecionados alterados não exibidos.</small>}
+     </div>}
+     {catalogSelectedImpact.removed.length>0&&<div>
+      <b>Selecionados sem registro correspondente</b>
+      <ul>{catalogSelectedImpact.removed.slice(0,5).map(entry=>
+       <li key={entry.id}>{entry.title} <small>ID: {entry.id}</small></li>)}</ul>
+      {catalogSelectedImpact.removed.length>5&&<small>Outros {catalogSelectedImpact.removed.length-5} selecionados ausentes não exibidos.</small>}
+     </div>}
+     {catalogSelectedImpact.unchanged.length>0&&<div>
+      <b>Selecionados com metadados iguais</b>
+      <ul>{catalogSelectedImpact.unchanged.slice(0,5).map(entry=>
+       <li key={entry.id}>{entry.title} <small>ID: {entry.id}</small></li>)}</ul>
+      {catalogSelectedImpact.unchanged.length>5&&<small>Outros {catalogSelectedImpact.unchanged.length-5} selecionados iguais não exibidos.</small>}
+     </div>}
+     <p>Toda a seleção ativa ({catalogSelectedImpact.total} mods) será descartada ao confirmar,
+      mesmo se os registros tiverem ID e metadados iguais. Este recorte não
+      comprova identidade, compatibilidade ou instalação; cancelar preserva a seleção.</p>
+    </div>
+   </details>}
   {catalogReplacementDiff&&<section className="catalog-replacement-diff" role="group"
    aria-label="Comparação declarativa entre catálogos">
    <strong>O que muda nos registros do catálogo?</strong>
