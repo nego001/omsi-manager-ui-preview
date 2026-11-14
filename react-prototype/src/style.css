@@ -1370,3 +1370,13 @@
 /* Distinguish the old and proposed logical categories, not real installation. */
 .catalog-relation-regressions li small{overflow-wrap:anywhere}
 .catalog-relation-regressions li small+small{margin-top:2px}
+
+/* Metadata-only target-ID diff, independently from numerical blocker count. */
+.catalog-reference-changes{margin:12px 0;padding:12px 14px;border:1px solid #657b78;background:#23302f;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-reference-changes summary{cursor:pointer;font-size:13px;font-weight:700;line-height:1.6;color:#e0f4ee}
+.catalog-reference-changes summary:focus-visible{outline:2px solid #9ad8c5;outline-offset:4px}
+.catalog-reference-changes p{font-size:12px;line-height:1.6;color:#d0e5dd;margin:12px 0}
+.catalog-reference-changes ul{margin:9px 0;padding-left:19px}
+.catalog-reference-changes li{font-size:12px;line-height:1.6;color:#e8f5ed;margin:8px 0;overflow-wrap:anywhere}
+.catalog-reference-changes li strong{color:#f0fff9}
+.catalog-reference-changes small{display:block;font-size:11px;line-height:1.55;color:#c0d9cf;overflow-wrap:anywhere}

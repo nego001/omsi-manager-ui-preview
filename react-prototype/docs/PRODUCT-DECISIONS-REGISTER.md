@@ -840,3 +840,29 @@ Testes novos de contrato, exportação e Playwright (390px) cobrem
 menos bloqueios com novo tipo, a ausência de alerta quando só se
 remove um bloqueio do mesmo tipo, exportação coerente e cancelamento.
 PR #1 Draft, sandbox estrito e bloqueio Ubuntu 24.04 intactos.
+
+## Alvos exatos de dependências e conflitos declarados
+
+A prévia de substituição agora contém um painel **recolhido por padrão**
+que mostra os IDs de dependências e conflitos adicionados ou retirados
+em um mesmo ID de mod. Essa análise é **independente da contagem e do
+tipo dos bloqueios lógicos**, de modo que uma dependência que muda de
+`missing-a` para `missing-b` não desaparece do pré-voo só porque
+ambas resultam no tipo `dependency-missing`.
+
+O comparador puro `catalog-reference-changes.ts` considera apenas
+registros com ID existente nos dois catálogos, valida 1–200 registros,
+IDs únicos e listas de até 20 referências, sem aceitar caminhos ou
+caracteres inválidos. Reordenar a mesma lista não é modificação.
+O resultado e as listas são imutáveis. A UI mostra os totais completos
+e até cinco exemplos, para manter a largura de 390px legível, e recalcula
+ao escolher outro catálogo.
+
+A prévia não interpreta a mudança como instalação, compatibilidade,
+identidade real do pacote nem autorização para executar comandos.
+Nenhum dado local é alterado até a confirmação explícita; cancelar
+preserva favoritos e seleção. Testes unitários verificam trocas com
+mesmo tipo de bloqueio, reordenação, IDs novos/removidos, duplicações
+e referências hostis. Playwright cobre tela estreita, troca de proposta,
+independência dos alertas de bloqueio, cancelamento e confirmação.
+A PR #1 permanece Draft e o Ubuntu 24.04 estrito continua bloqueante.

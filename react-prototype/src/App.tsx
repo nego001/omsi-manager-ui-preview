@@ -7,6 +7,7 @@ import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
+import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
 import {serializeDeclaredRelationRegressions} from './catalog-relation-regression-export';
 import {serializeDeclaredSelectedImpact} from './selection-impact-export';
@@ -760,6 +761,10 @@ export default function App(){
   findDeclaredCrossGameIdReuses(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog,favorites,activeBatch):[],
   [catalogMods,pendingCatalogReplacement,favorites,activeBatch]);
+ const catalogReferenceChanges=useMemo(()=>pendingCatalogReplacement?
+  compareDeclaredReferenceTargets(catalogMods,pendingCatalogReplacement.kind==='demo'?
+   mods:pendingCatalogReplacement.catalog):null,
+  [catalogMods,pendingCatalogReplacement]);
  const catalogRelationRegressions=useMemo(()=>pendingCatalogReplacement?
   summarizeProposedRelationRegressions(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog,favorites,activeBatch):null,
@@ -1174,6 +1179,27 @@ export default function App(){
      <button type="button" className="btn secondary catalog-preflight-reports"
       onClick={exportPendingRelationRegressions}><Download size={16} aria-hidden="true"/>
       Baixar comparação completa de bloqueios declarados em JSON</button>
+    </div>
+   </details>}
+  {catalogReferenceChanges&&catalogReferenceChanges.changed.length>0&&
+   <details className="catalog-reference-changes">
+    <summary>Ver alvos de dependências e conflitos alterados ({catalogReferenceChanges.changed.length})</summary>
+    <div role="group" aria-label="Mudanças de alvos declarados">
+     <p>{catalogReferenceChanges.changed.length} de {catalogReferenceChanges.comparedIds} IDs mantidos
+      mudaram as referências declaradas. A ordem das listas não conta como mudança.</p>
+     <ul>{catalogReferenceChanges.changed.slice(0,5).map(entry=><li key={entry.id}>
+      <strong>{entry.oldTitle}</strong> <small>ID: {entry.id}</small>
+      {entry.requiresRemoved.length>0&&<small>Dependências retiradas: {entry.requiresRemoved.join(', ')}</small>}
+      {entry.requiresAdded.length>0&&<small>Dependências adicionadas: {entry.requiresAdded.join(', ')}</small>}
+      {entry.conflictsRemoved.length>0&&<small>Conflitos retirados: {entry.conflictsRemoved.join(', ')}</small>}
+      {entry.conflictsAdded.length>0&&<small>Conflitos adicionados: {entry.conflictsAdded.join(', ')}</small>}
+     </li>)}</ul>
+     {catalogReferenceChanges.changed.length>5&&
+      <small>Outros {catalogReferenceChanges.changed.length-5} IDs alterados não exibidos.</small>}
+     <p>Este painel compara apenas listas de IDs em metadados JSON e não comprova arquivos instalados,
+      identidade de pacotes ou compatibilidade real. Mesmo que o tipo e a quantidade de bloqueios
+      permaneçam iguais, os IDs de referência podem ter mudado.
+      A proposta não foi aplicada; cancelar preserva os dados locais.</p>
     </div>
    </details>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
