@@ -39,6 +39,7 @@ test('distingue bloqueios que pioraram, melhoraram e alterações neutras',()=>{
  const summary=compare(current,proposed,[],[]);
  expect(summary.newlyBlocked).toEqual([]);
  expect(summary.worsened).toMatchObject([{id:'worse',previousBlockers:1,proposedBlockers:2}]);
+ expect(summary.changedReasons).toEqual([]);
  expect(summary.addedBlocked).toEqual([]);
  expect(summary.improvedExisting).toBe(1);
 });
@@ -61,4 +62,33 @@ test('recusa seleção sem favorito, IDs duplicados e catálogo inválido',()=>{
  ];
  for(const args of candidates)
   expect(()=>compare(...args)).toThrow('PROPOSED_RELATION_REGRESSION_INVALID');
+});
+
+test('mesma quantidade mas novo tipo de bloqueio é destacado separadamente',()=>{
+ const current=[
+  {...base,requires:['missing']},
+  {...base,id:'engine',title:'Motor'}
+ ];
+ const proposed=[
+  {...current[0],requires:['engine']},
+  {...current[1],game:'ets2' as const}
+ ];
+ const result=compare(current,proposed,['bus'],['bus']);
+ expect(result.newlyBlocked).toEqual([]);
+ expect(result.worsened).toEqual([]);
+ expect(result.changedReasons).toMatchObject([{
+  id:'bus',previousBlockers:1,proposedBlockers:1,
+  previousBlockingCodes:['dependency-missing'],
+  proposedBlockingCodes:['different-game'],
+  favoriteNow:true,selectedNow:true
+ }]);
+ expect(Object.isFrozen(result.changedReasons[0].previousBlockingCodes)).toBe(true);
+});
+test('troca de ID ausente com mesmo tipo não é classificada como novo tipo',()=>{
+ const current=[{...base,requires:['missing-a']}];
+ const proposed=[{...base,requires:['missing-b']}];
+ const result=compare(current,proposed,[],[]);
+ expect(result.changedReasons).toEqual([]);
+ expect(result.newlyBlocked).toEqual([]);
+ expect(result.worsened).toEqual([]);
 });

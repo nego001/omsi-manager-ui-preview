@@ -1366,3 +1366,7 @@
 .catalog-relation-regressions small{display:block;font-size:11px;line-height:1.5;color:#e1bfb5}
 .catalog-relation-regressions p{margin:12px 0 0;font-size:12px;line-height:1.6;color:#edd4ce}
 @media(max-width:640px){.catalog-relation-regression-counts{grid-template-columns:minmax(0,1fr)}}
+
+/* Distinguish the old and proposed logical categories, not real installation. */
+.catalog-relation-regressions li small{overflow-wrap:anywhere}
+.catalog-relation-regressions li small+small{margin-top:2px}

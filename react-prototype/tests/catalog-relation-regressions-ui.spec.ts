@@ -63,3 +63,35 @@ test('trocar proposta para dependências resolvidas remove alerta anterior',asyn
  await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
 });
+
+test('mostra troca do tipo de bloqueio sem aumento da quantidade, apenas metadados',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ const engine={id:'engine',title:'Motor declarado',game:'omsi',category:'Sons',
+  version:'1.0',description:'Registro demonstrativo',size:'1 MB'};
+ // First import is allowed without prior session-bound data. It declares
+ // one existing missing-dependency blocker for the bus.
+ await propose(page,[{...bus,requires:['missing']},engine],'base.json');
+ await expect(card(page,'Ônibus Urbano Clássico').getByRole('button',{name:'Favoritar'})).toBeVisible();
+ await card(page,'Ônibus Urbano Clássico').getByRole('button',{name:'Favoritar'}).click();
+ // New proposal keeps one blocker, but changes the type to different-game.
+ await propose(page,[{...bus,requires:['engine']},{...engine,game:'ets2'}],'mudanca.json');
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ const details=consent.locator('details.catalog-relation-regressions');
+ await expect(details.locator('summary')).toContainText('Ver novos ou agravados bloqueios declarados (1)');
+ await details.locator('summary').click();
+ const group=consent.getByRole('group',{name:'Mudanças de bloqueios declarados'});
+ await expect(group).toContainText('Tipos de bloqueio alterados, mesmo total: 1');
+ await expect(group).toContainText('IDs mantidos com tipos de bloqueio diferentes');
+ await expect(group).toContainText('Bloqueios antes: 1 · Na proposta: 1');
+ await expect(group).toContainText('Motivos anteriores: Dependência declarada ausente');
+ await expect(group).toContainText('Motivos na proposta: Dependência declarada de outro simulador');
+ await expect(group).toContainText('Favorito atual');
+ await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(card(page,'Ônibus Urbano Clássico')
+  .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

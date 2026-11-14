@@ -7,7 +7,7 @@ import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
-import {summarizeProposedRelationRegressions} from './catalog-relation-regressions';
+import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
 import {serializeDeclaredSelectedImpact} from './selection-impact-export';
 import {serializeDeclaredFavoriteImpact} from './favorite-impact-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
@@ -759,6 +759,7 @@ export default function App(){
  const catalogRelationRegressionCount=catalogRelationRegressions?
   catalogRelationRegressions.newlyBlocked.length+
   catalogRelationRegressions.worsened.length+
+  catalogRelationRegressions.changedReasons.length+
   catalogRelationRegressions.addedBlocked.length:0;
  const catalogFavoriteImpact=useMemo(()=>catalogReplacementDiff?
   summarizeFavoriteCatalogImpact(catalogMods,favorites,catalogReplacementDiff):null,
@@ -1131,17 +1132,23 @@ export default function App(){
      <ul className="catalog-relation-regression-counts">
       <li>Novos bloqueios em IDs mantidos: <strong>{catalogRelationRegressions.newlyBlocked.length}</strong></li>
       <li>Bloqueios agravados em IDs mantidos: <strong>{catalogRelationRegressions.worsened.length}</strong></li>
+      <li>Tipos de bloqueio alterados, mesmo total: <strong>{catalogRelationRegressions.changedReasons.length}</strong></li>
       <li>Registros novos com bloqueios: <strong>{catalogRelationRegressions.addedBlocked.length}</strong></li>
      </ul>
      {([
       {label:'IDs mantidos que passaram a ter bloqueios',items:catalogRelationRegressions.newlyBlocked},
       {label:'IDs mantidos com mais bloqueios declarados',items:catalogRelationRegressions.worsened},
+      {label:'IDs mantidos com tipos de bloqueio diferentes',items:catalogRelationRegressions.changedReasons},
       {label:'Novos registros que já declaram bloqueios',items:catalogRelationRegressions.addedBlocked}
      ]).map(group=>group.items.length>0&&<div key={group.label}>
       <b>{group.label}</b>
       <ul>{group.items.slice(0,5).map(entry=><li key={entry.id}>
        <strong>{entry.title}</strong> <small>ID: {entry.id} · {games[entry.game].title}</small>
        <span>Bloqueios antes: {entry.previousBlockers} · Na proposta: {entry.proposedBlockers}</span>
+       {entry.previousBlockingCodes.length>0&&<small>
+        Motivos anteriores: {entry.previousBlockingCodes.map(code=>declaredBlockingReasonLabels[code]).join('; ')}
+       </small>}
+       <small>Motivos na proposta: {entry.proposedBlockingCodes.map(code=>declaredBlockingReasonLabels[code]).join('; ')}</small>
        {(entry.favoriteNow||entry.selectedNow)&&<small>
         {entry.favoriteNow?'Favorito atual':''}
         {entry.favoriteNow&&entry.selectedNow?' · ':''}
@@ -1151,7 +1158,9 @@ export default function App(){
       {group.items.length>5&&<small>Outros {group.items.length-5} registros com alterações não exibidos.</small>}
      </div>)}
      <p>A análise compara somente dependências e conflitos declarados nos dois catálogos,
-      sem verificar nenhum arquivo instalado. Bloqueios lógicos não comprovam incompatibilidade
+      sem verificar nenhum arquivo instalado. Uma troca de tipo pode ocorrer sem aumentar
+      a quantidade de bloqueios. Este painel não detecta troca de causas individuais
+      quando o tipo permanece igual. Bloqueios lógicos não comprovam incompatibilidade
       real; ausência de alertas não comprova compatibilidade. A proposta não foi aplicada.</p>
     </div>
    </details>}

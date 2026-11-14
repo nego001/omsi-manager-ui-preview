@@ -757,3 +757,29 @@ unitários e Playwright cobrem novas dependências ausentes, bloqueios
 agravados, adições já problemáticas, falsos positivos, seleção/favoritos,
 troca de proposta e layout móvel. PR #1 continua Draft e o Ubuntu 24.04
 X11 estrito segue como bloqueio de release independente.
+
+## Troca de tipo de bloqueio lógico com a mesma contagem
+
+O pré-voo da troca do catálogo agora distingue quatro casos, incluindo
+uma categoria específica **"Tipos de bloqueio alterados, mesmo total"**.
+Antes, a comparação observava somente a quantidade de bloqueios:
+um registro que continuasse com um bloqueio, mas passasse de
+"dependência declarada ausente" para "dependência de outro simulador",
+não era destacado. A nova classificação compara conjuntos de códigos
+de bloqueio da análise declarativa anterior e da proposta.
+
+O painel mostra também os **motivos anteriores e os da proposta em
+português**, além das quantidades, para que a mudança seja entendida
+sem interpretar códigos internos. O número total em título/contadores
+agora inclui os IDs que trocaram de tipo sem aumentar a quantidade.
+A classificação não confunde uma troca de tipo com o agravamento pela
+quantidade. Mudanças de IDs ou detalhes da causa **dentro do mesmo
+código** permanecem fora desse recorte, explicitamente.
+
+A análise não inspeciona mods instalados e não certifica
+compatibilidade. O painel segue recolhido, sem descarte automático,
+sem alteração do catálogo ao observar e sem bypass do sandbox.
+Testes de contrato cobrem mudança missing → different-game com a
+mesma contagem, não regressão quando só muda o ID ausente, e
+imutabilidade. Playwright verifica o aviso, os rótulos dos motivos,
+a tela de 390px e a preservação dos favoritos ao cancelar.
