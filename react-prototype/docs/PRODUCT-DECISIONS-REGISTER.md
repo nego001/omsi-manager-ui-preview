@@ -924,3 +924,36 @@ separado. Testes unitários cobrem alterações em mínimos e máximos,
 inclusão/remoção, reordenações e entradas inválidas; Playwright testa
 390px, cancelamento, substituição de proposta e descarte explícito.
 PR #1 segue Draft e o gate Ubuntu 24.04 continua obrigatório.
+
+## Exportação integral de exigências de versão propostas
+
+O painel recolhido de exigências de versão permite agora baixar
+`OMSI-Manager-Exigencias-de-Versao.json`. O relatório contém
+**todas** as alterações de `gameVersionRange` e
+`requiresMinVersions` entre os IDs mantidos nos dois catálogos, em
+vez de apenas cinco exemplos visíveis. Registra contagem de IDs
+comparados, inalterados e alterados; limites antigos/novos de versão
+do jogo; e requisitos mínimos adicionados, retirados ou alterados.
+
+O schema exclusivo `omsi-manager-declared-version-constraints-v1`
+usa allowlist estrita e limite de 128 KiB. O serializador recusa
+contagens incoerentes, IDs duplicados, nomes com controles,
+versões não numéricas, faixas invertidas, alterações vazias,
+requisitos repetidos, sobreposição contraditória entre exigências
+adicionadas/retiradas/alteradas e jogos não reconhecidos.
+Não copia campos extras como caminhos ou comandos.
+
+O JSON sinaliza `completeDeclaredVersionChanges:true`,
+`proposedCatalogApplied:false`, `restorableByPreview:false`,
+`installedFilesChecked:false`, `realCompatibilityVerified:false`,
+`installationVerified:false`, `sourceAuthenticated:false`
+e `sameIdProvesPackageIdentity:false`. É apenas um relatório
+de metadados, não um manifesto importável, prova de compatibilidade
+real ou backup restaurável.
+
+Download manual não altera a sessão e não aplica o catálogo.
+Testes unitários cobrem mais de cinco alterações, casos inválidos,
+dados extras e limite de versões; Playwright verifica downloads em
+390px, cancelamento com favorito preservado, segunda proposta e
+descarte apenas após confirmação. PR #1 Draft e gate Ubuntu 24.04
+com sandbox estrito permanecem inalterados.

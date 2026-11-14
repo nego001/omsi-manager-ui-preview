@@ -9,6 +9,7 @@ import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
+import {serializeDeclaredVersionConstraintChanges} from './catalog-version-constraints-export';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
 import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
 import {serializeDeclaredRelationRegressions} from './catalog-relation-regression-export';
@@ -493,6 +494,14 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingVersionConstraints(){
+  if(!pendingCatalogReplacement||!catalogVersionConstraints||
+   catalogVersionConstraints.changed.length<1)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredVersionConstraintChanges(catalogVersionConstraints),
+    'OMSI-Manager-Exigencias-de-Versao.json');
+  }catch{setToast('Não foi possível exportar as exigências declaradas de versão.');}
  }
  function exportPendingReferenceChanges(){
   if(!pendingCatalogReplacement||!catalogReferenceChanges||
@@ -1249,6 +1258,9 @@ export default function App(){
      <p>São somente requisitos declarados no JSON; as versões instaladas não foram verificadas.
       O mesmo ID não comprova identidade, segurança ou compatibilidade do pacote.
       A proposta não foi aplicada; cancelar preserva os dados locais.</p>
+     <button type="button" className="btn secondary catalog-preflight-reports"
+      onClick={exportPendingVersionConstraints}><Download size={16} aria-hidden="true"/>
+      Baixar comparação completa de versões declaradas em JSON</button>
     </div>
    </details>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
