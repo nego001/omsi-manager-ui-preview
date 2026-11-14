@@ -1174,7 +1174,7 @@ export default function App(){
       onClick={exportPendingRelationRegressions}><Download size={16} aria-hidden="true"/>
       Baixar comparação completa de bloqueios declarados em JSON</button>
     </div>
-   </details>
+   </details>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
    <section className="catalog-favorite-impact" role="group"
     aria-label="Impacto da proposta nos favoritos">
