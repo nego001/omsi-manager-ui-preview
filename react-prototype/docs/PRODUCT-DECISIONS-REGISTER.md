@@ -1009,3 +1009,21 @@ com piso alterado, controle quando ela permanece no mesmo jogo e
 contadores falsos; Playwright cobre 390px, indicação textual,
 alerta cruzado e preservação dos favoritos ao cancelar. PR #1 Draft
 e gate Ubuntu 24.04 seguem obrigatórios.
+
+## Resumo compacto do pré-voo de substituição
+
+A confirmação de substituição do catálogo apresenta, antes dos painéis
+individuais, um **resumo informativo** com quatro contagens: IDs
+reaproveitados entre simuladores, registros com bloqueios lógicos
+novos/alterados, IDs cujos alvos de dependências/conflitos mudaram e
+IDs com exigências de versão diferentes. O resumo é atualizado quando
+a proposta JSON muda e desaparece ao cancelar ou confirmar.
+
+As contagens **não devem ser somadas**: um mesmo ID pode estar em
+mais de um grupo. Não há pontuação de risco, decisão de compatibilidade,
+atestado de identidade, verificação de arquivos instalados ou
+autorização de instalação. Os painéis individuais e exportações
+permanecem disponíveis. O resumo não altera o catálogo, favoritos,
+seleções, descarte explícito ou a política de sandbox. O teste de
+interface cobre largura de 390px, atualização ao trocar proposta,
+cancelamento e ausência de conclusão de segurança.

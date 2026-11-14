@@ -1148,6 +1148,20 @@ export default function App(){
    </ul>
    <small>Contagem da sessão atual. Nenhum mod foi verificado ou instalado; o catálogo ainda não foi substituído.</small>
   </div>
+  <section className="catalog-preflight-overview" role="group"
+   aria-label="Resumo das diferenças declaradas">
+   <strong>Resumo para revisar a proposta</strong>
+   <p>Comparação informativa entre o catálogo atual e a proposta, sem acessar mods instalados.</p>
+   <ul>
+    <li>IDs reutilizados entre simuladores: <strong>{catalogCrossGameReuse.length}</strong></li>
+    <li>Registros com bloqueios declarados novos ou alterados: <strong>{catalogRelationRegressionCount}</strong></li>
+    <li>IDs com dependências ou conflitos de destino alterados: <strong>{catalogReferenceChanges?.changed.length??0}</strong></li>
+    <li>IDs com exigências declaradas de versão alteradas: <strong>{catalogVersionConstraints?.changed.length??0}</strong></li>
+   </ul>
+   <small>Os grupos podem incluir o mesmo ID mais de uma vez. Estes números não são
+    uma nota de segurança, um teste de compatibilidade ou aprovação para instalar.
+    Os detalhes de cada grupo continuam disponíveis abaixo. Nada foi aplicado.</small>
+  </section>
   {catalogCrossGameReuse.length>0&&<aside className="catalog-cross-game-warning"
    role="note" aria-label="Alerta de IDs reutilizados entre jogos">
    <strong>IDs reaproveitados entre jogos: {catalogCrossGameReuse.length}</strong>

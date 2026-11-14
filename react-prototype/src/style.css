@@ -1397,3 +1397,13 @@
 .catalog-version-direction-counts li{margin:0!important;padding:5px 8px;border:1px solid #5d5877;border-radius:6px;font-size:11px!important;color:#eee8fa}
 .catalog-version-direction-counts strong{font-weight:700;color:#fff}
 .catalog-version-constraints .catalog-version-direction-label{color:#e7e0ff;font-weight:700;margin:3px 0}
+
+/* Compact, metadata-only counts; never a risk score or approval to install. */
+.catalog-preflight-overview{margin:12px 0;padding:13px 15px;border:1px solid #626a77;background:#252a33;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-preflight-overview>strong{font-size:14px;color:#f4f7fa}
+.catalog-preflight-overview p{margin:7px 0 11px;font-size:12px;line-height:1.5;color:#d1d9e1}
+.catalog-preflight-overview ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 15px;list-style:none;padding:0;margin:0 0 11px}
+.catalog-preflight-overview li{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:#e0e7ec;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.catalog-preflight-overview li strong{color:#fff;font-size:14px;white-space:nowrap}
+.catalog-preflight-overview small{display:block;color:#bfccd6;font-size:11px;line-height:1.5}
+@media(max-width:640px){.catalog-preflight-overview ul{grid-template-columns:minmax(0,1fr)}}
