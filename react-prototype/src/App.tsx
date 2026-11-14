@@ -8,6 +8,7 @@ import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
+import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
 import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
 import {serializeDeclaredRelationRegressions} from './catalog-relation-regression-export';
 import {serializeDeclaredSelectedImpact} from './selection-impact-export';
@@ -491,6 +492,14 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingReferenceChanges(){
+  if(!pendingCatalogReplacement||!catalogReferenceChanges||
+   catalogReferenceChanges.changed.length<1)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredReferenceChanges(catalogReferenceChanges),
+    'OMSI-Manager-Alvos-de-Referencias.json');
+  }catch{setToast('Não foi possível exportar os alvos declarados de dependências e conflitos.');}
  }
  function exportPendingRelationRegressions(){
   if(!pendingCatalogReplacement||!catalogRelationRegressions||catalogRelationRegressionCount<1)return;
@@ -1200,6 +1209,9 @@ export default function App(){
       identidade de pacotes ou compatibilidade real. Mesmo que o tipo e a quantidade de bloqueios
       permaneçam iguais, os IDs de referência podem ter mudado.
       A proposta não foi aplicada; cancelar preserva os dados locais.</p>
+     <button type="button" className="btn secondary catalog-preflight-reports"
+      onClick={exportPendingReferenceChanges}><Download size={16} aria-hidden="true"/>
+      Baixar alvos alterados de dependências e conflitos em JSON</button>
     </div>
    </details>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&

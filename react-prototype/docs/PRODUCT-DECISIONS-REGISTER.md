@@ -866,3 +866,33 @@ mesmo tipo de bloqueio, reordenação, IDs novos/removidos, duplicações
 e referências hostis. Playwright cobre tela estreita, troca de proposta,
 independência dos alertas de bloqueio, cancelamento e confirmação.
 A PR #1 permanece Draft e o Ubuntu 24.04 estrito continua bloqueante.
+
+## Exportação de todas as mudanças de alvos declarados
+
+A prévia recolhida de mudanças nas referências de dependências e
+conflitos agora permite baixar manualmente
+`OMSI-Manager-Alvos-de-Referencias.json`. O arquivo abrange **todos**
+os IDs comparados cujas listas mudaram, não somente cinco exemplos da
+tela, com IDs adicionados/removidos em `requires` e
+`conflictsWith`, títulos/jogos declarativos antigos e propostos e
+contagem de referências iguais/alteradas.
+
+O schema `omsi-manager-declared-reference-changes-v1` é exclusivo
+dessa análise (não é manifesto de catálogo). O serializador rejeita
+IDs inválidos/duplicados, títulos com controles, jogos desconhecidos,
+listas malformadas/duplicadas, interseção entre alvos adicionados e
+retirados, alterações vazias e contadores falsos. Sua saída possui
+apenas campos permitidos, limite de 128 KiB e flags inequívocas:
+`completeReferenceChanges:true`,
+`proposedCatalogApplied:false`, `restorableByPreview:false`,
+`installedFilesChecked:false`, `installationVerified:false`,
+`compatibilityVerified:false`, `sourceAuthenticated:false`
+e `sameIdProvesPackageIdentity:false`.
+
+O download não confirma substituição, altera favoritos ou toca no jogo;
+cancelar continua sem efeitos. Testes unitários abrangem mais de cinco
+mudanças, contadores manipulados, listas hostis, campos extras e
+imutabilidade; Playwright cobre downloads reais a 390px, cancelamento,
+segunda proposta e confirmação explícita. PR #1 continua Draft, sem
+merge ou autorização de lançamento. O gate Ubuntu 24.04 em sandbox
+estrito segue exigido.
