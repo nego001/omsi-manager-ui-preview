@@ -30,6 +30,8 @@ test('resumo de revisão agrega categorias sem pontuação de segurança a 390 p
  await expect(summary).toContainText('IDs reutilizados entre simuladores: 1');
  await expect(summary).toContainText('IDs com dependências ou conflitos de destino alterados: 1');
  await expect(summary).toContainText('IDs com exigências declaradas de versão alteradas: 1');
+ await expect(summary).toContainText('IDs distintos nos quatro grupos: 2');
+ await expect(summary).toContainText('IDs presentes em mais de um grupo: 1');
  await expect(summary).toContainText('Os grupos podem incluir o mesmo ID mais de uma vez.');
  await expect(summary).toContainText('Nada foi aplicado.');
  await expect(consent.locator('details.catalog-version-constraints')).toBeVisible();
@@ -53,10 +55,13 @@ test('resumo reflete a última proposta e desaparece após confirmação explíc
  const summary=consent.getByRole('group',{name:'Resumo das diferenças declaradas'});
  await expect(summary).toBeVisible();
  await expect(summary).toContainText('IDs com dependências ou conflitos de destino alterados: 1');
+ await expect(summary).toContainText('IDs distintos nos quatro grupos: 1');
  await propose(page,[bus],'segunda.json');
  await expect(summary).toContainText('IDs com dependências ou conflitos de destino alterados: 0');
  await expect(summary).toContainText('IDs reutilizados entre simuladores: 0');
  await expect(summary).toContainText('IDs com exigências declaradas de versão alteradas: 0');
+ await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
+ await expect(summary).toContainText('IDs presentes em mais de um grupo: 0');
  await expect(card(page,'Ônibus Urbano Clássico')
   .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
  await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();

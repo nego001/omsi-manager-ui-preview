@@ -9,6 +9,7 @@ import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
+import {summarizeDistinctDeclaredPreflightIds} from './catalog-preflight-distinct-ids';
 import {summarizeDeclaredConstraintDirections,declaredConstraintDirectionLabels} from './catalog-version-direction';
 import {serializeDeclaredVersionConstraintChanges} from './catalog-version-constraints-export';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
@@ -802,6 +803,11 @@ export default function App(){
   catalogRelationRegressions.worsened.length+
   catalogRelationRegressions.changedReasons.length+
   catalogRelationRegressions.addedBlocked.length:0;
+ const catalogPreflightDistinctIds=useMemo(()=>
+  catalogRelationRegressions&&catalogReferenceChanges&&catalogVersionConstraints?
+   summarizeDistinctDeclaredPreflightIds(catalogCrossGameReuse,catalogRelationRegressions,
+    catalogReferenceChanges,catalogVersionConstraints):null,
+  [catalogCrossGameReuse,catalogRelationRegressions,catalogReferenceChanges,catalogVersionConstraints]);
  const catalogFavoriteImpact=useMemo(()=>catalogReplacementDiff?
   summarizeFavoriteCatalogImpact(catalogMods,favorites,catalogReplacementDiff):null,
   [catalogMods,favorites,catalogReplacementDiff]);
@@ -1158,8 +1164,11 @@ export default function App(){
     <li>IDs com dependências ou conflitos de destino alterados: <strong>{catalogReferenceChanges?.changed.length??0}</strong></li>
     <li>IDs com exigências declaradas de versão alteradas: <strong>{catalogVersionConstraints?.changed.length??0}</strong></li>
    </ul>
+   <p>IDs distintos nos quatro grupos: <strong>{catalogPreflightDistinctIds?.distinctIds??0}</strong>.
+    {' '}IDs presentes em mais de um grupo: <strong>{catalogPreflightDistinctIds?.overlappingIds??0}</strong>.</p>
    <small>Os grupos podem incluir o mesmo ID mais de uma vez. Estes números não são
     uma nota de segurança, um teste de compatibilidade ou aprovação para instalar.
+    A contagem distinta não inclui outras alterações de campos nem IDs removidos.
     Os detalhes de cada grupo continuam disponíveis abaixo. Nada foi aplicado.</small>
   </section>
   {catalogCrossGameReuse.length>0&&<aside className="catalog-cross-game-warning"
