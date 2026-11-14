@@ -7,6 +7,7 @@ import {serializeDeclaredCatalogDiff} from './catalog-diff-export';
 import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
+import {summarizeProposedRelationRegressions} from './catalog-relation-regressions';
 import {serializeDeclaredSelectedImpact} from './selection-impact-export';
 import {serializeDeclaredFavoriteImpact} from './favorite-impact-export';
 import {parseFavoriteInventory,compareFavoriteInventory,filterFavoriteInventoryEntries,serializeFavoriteInventoryComparison,MAX_FAVORITE_LIST_REVIEW_BYTES,type FavoriteInventoryReview} from './favorite-list-review';
@@ -751,6 +752,14 @@ export default function App(){
   findDeclaredCrossGameIdReuses(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog,favorites,activeBatch):[],
   [catalogMods,pendingCatalogReplacement,favorites,activeBatch]);
+ const catalogRelationRegressions=useMemo(()=>pendingCatalogReplacement?
+  summarizeProposedRelationRegressions(catalogMods,pendingCatalogReplacement.kind==='demo'?
+   mods:pendingCatalogReplacement.catalog,favorites,activeBatch):null,
+  [catalogMods,pendingCatalogReplacement,favorites,activeBatch]);
+ const catalogRelationRegressionCount=catalogRelationRegressions?
+  catalogRelationRegressions.newlyBlocked.length+
+  catalogRelationRegressions.worsened.length+
+  catalogRelationRegressions.addedBlocked.length:0;
  const catalogFavoriteImpact=useMemo(()=>catalogReplacementDiff?
   summarizeFavoriteCatalogImpact(catalogMods,favorites,catalogReplacementDiff):null,
   [catalogMods,favorites,catalogReplacementDiff]);
@@ -1115,6 +1124,37 @@ export default function App(){
    {catalogCrossGameReuse.length>5&&<small>Outros {catalogCrossGameReuse.length-5} IDs reaproveitados não exibidos.</small>}
    <small>O aviso compara apenas metadados JSON e não preserva favoritos ou seleções automaticamente.</small>
   </aside>}
+  {catalogRelationRegressions&&catalogRelationRegressionCount>0&&
+   <details className="catalog-relation-regressions">
+    <summary>Ver novos ou agravados bloqueios declarados ({catalogRelationRegressionCount})</summary>
+    <div role="group" aria-label="Mudanças de bloqueios declarados">
+     <ul className="catalog-relation-regression-counts">
+      <li>Novos bloqueios em IDs mantidos: <strong>{catalogRelationRegressions.newlyBlocked.length}</strong></li>
+      <li>Bloqueios agravados em IDs mantidos: <strong>{catalogRelationRegressions.worsened.length}</strong></li>
+      <li>Registros novos com bloqueios: <strong>{catalogRelationRegressions.addedBlocked.length}</strong></li>
+     </ul>
+     {([
+      {label:'IDs mantidos que passaram a ter bloqueios',items:catalogRelationRegressions.newlyBlocked},
+      {label:'IDs mantidos com mais bloqueios declarados',items:catalogRelationRegressions.worsened},
+      {label:'Novos registros que já declaram bloqueios',items:catalogRelationRegressions.addedBlocked}
+     ]).map(group=>group.items.length>0&&<div key={group.label}>
+      <b>{group.label}</b>
+      <ul>{group.items.slice(0,5).map(entry=><li key={entry.id}>
+       <strong>{entry.title}</strong> <small>ID: {entry.id} · {games[entry.game].title}</small>
+       <span>Bloqueios antes: {entry.previousBlockers} · Na proposta: {entry.proposedBlockers}</span>
+       {(entry.favoriteNow||entry.selectedNow)&&<small>
+        {entry.favoriteNow?'Favorito atual':''}
+        {entry.favoriteNow&&entry.selectedNow?' · ':''}
+        {entry.selectedNow?'Na seleção ativa':''}
+       </small>}
+      </li>)}</ul>
+      {group.items.length>5&&<small>Outros {group.items.length-5} registros com alterações não exibidos.</small>}
+     </div>)}
+     <p>A análise compara somente dependências e conflitos declarados nos dois catálogos,
+      sem verificar nenhum arquivo instalado. Bloqueios lógicos não comprovam incompatibilidade
+      real; ausência de alertas não comprova compatibilidade. A proposta não foi aplicada.</p>
+    </div>
+   </details>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&
    <section className="catalog-favorite-impact" role="group"
     aria-label="Impacto da proposta nos favoritos">

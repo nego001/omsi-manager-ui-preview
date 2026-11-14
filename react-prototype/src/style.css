@@ -1349,3 +1349,20 @@
 .catalog-cross-game-warning li{font-size:12px;line-height:1.65;color:#f5e6d0;overflow-wrap:anywhere;margin:6px 0}
 .catalog-cross-game-warning li strong{color:#fff1d9}
 .catalog-cross-game-warning small{display:block;font-size:11px;line-height:1.55;color:#dfc6ac}
+
+/* Collapsed by default: compare logical blockers of declared metadata only.
+   No installation status or compatibility assertions. */
+.catalog-relation-regressions{margin:12px 0;padding:12px 14px;border:1px solid #91685d;background:#302627;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-relation-regressions summary{cursor:pointer;color:#ffe3da;font-size:13px;font-weight:700;line-height:1.6}
+.catalog-relation-regressions summary:focus-visible{outline:2px solid #ffc4ae;outline-offset:4px}
+.catalog-relation-regression-counts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;list-style:none;padding:0;margin:12px 0}
+.catalog-relation-regression-counts li{display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:1.5;color:#f1dad3;overflow-wrap:anywhere}
+.catalog-relation-regression-counts strong{font-size:14px;color:#fff6ee}
+.catalog-relation-regressions div[role="group"]>div{margin-top:12px}
+.catalog-relation-regressions b{font-size:12px;color:#fff1e8}
+.catalog-relation-regressions div[role="group"]>div ul{margin:7px 0;padding-left:19px}
+.catalog-relation-regressions div[role="group"]>div li{font-size:12px;line-height:1.6;margin:6px 0;color:#f4e6df}
+.catalog-relation-regressions div[role="group"]>div li span{display:block;color:#ffe2d3}
+.catalog-relation-regressions small{display:block;font-size:11px;line-height:1.5;color:#e1bfb5}
+.catalog-relation-regressions p{margin:12px 0 0;font-size:12px;line-height:1.6;color:#edd4ce}
+@media(max-width:640px){.catalog-relation-regression-counts{grid-template-columns:minmax(0,1fr)}}

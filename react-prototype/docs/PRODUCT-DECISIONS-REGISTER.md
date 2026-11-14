@@ -724,3 +724,36 @@ cancelar mantém tudo. O aviso não habilita operações de instalador,
 nem contorna o sandbox. Testes de contrato e Playwright a 390px cobrem
 duas mudanças de jogo, flags de favoritos/seleção, ausência de
 falsos positivos por versão, cancelamento e troca de proposta.
+
+## Prévia de regressões lógicas de dependências no catálogo proposto
+
+O pré-voo da substituição pode agora exibir uma seção recolhida por
+padrão, "Ver novos ou agravados bloqueios declarados". A análise
+compara os **bloqueios lógicos** do catálogo atual e os da proposta
+para os IDs mantidos e verifica se **novos registros** já declaram
+dependências ou conflitos bloqueantes segundo a análise existente.
+
+As três classes são: IDs que estavam sem bloqueios e passam a tê-los,
+IDs que já tinham bloqueios declarados e passam a ter mais, e IDs novos
+que chegam com bloqueios. Os totais abrangem todos os registros;
+a interface limita exemplos a cinco por classe, para legibilidade
+em telas de 390px. Exibe total anterior e novo para cada exemplo,
+identificando favoritos e seleção ativa do catálogo corrente, sem
+copiar/transportar tais estados para a proposta.
+
+A função pura `summarizeProposedRelationRegressions` usa
+`analyzeModRelations` para ambos os catálogos, exigindo IDs únicos,
+jogos reconhecidos e coerência da seleção com favoritos. Diminuição de
+bloqueios é contabilizada separadamente e não aparece como regressão.
+Nova proposta substitui os resultados anteriores; cancelamento
+mantém os dados locais, confirmação preserva o fluxo explícito de
+descarte já existente.
+
+**Limites:** os diagnósticos são hipóteses baseadas apenas em
+declarações do JSON. A detecção de uma dependência ausente ou vinculada
+a outro jogo não é prova de arquivos instalados, compatibilidade real
+ou segurança executável; não configura o instalador. Testes
+unitários e Playwright cobrem novas dependências ausentes, bloqueios
+agravados, adições já problemáticas, falsos positivos, seleção/favoritos,
+troca de proposta e layout móvel. PR #1 continua Draft e o Ubuntu 24.04
+X11 estrito segue como bloqueio de release independente.
