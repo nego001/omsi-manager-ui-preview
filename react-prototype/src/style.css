@@ -1380,3 +1380,14 @@
 .catalog-reference-changes li{font-size:12px;line-height:1.6;color:#e8f5ed;margin:8px 0;overflow-wrap:anywhere}
 .catalog-reference-changes li strong{color:#f0fff9}
 .catalog-reference-changes small{display:block;font-size:11px;line-height:1.55;color:#c0d9cf;overflow-wrap:anywhere}
+
+/* Version boundaries and minimum dependency versions are catalog metadata.
+   They never claim knowledge of installed versions or executable safety. */
+.catalog-version-constraints{margin:12px 0;padding:12px 14px;border:1px solid #797697;background:#282936;border-radius:9px;min-width:0;overflow-wrap:anywhere}
+.catalog-version-constraints summary{cursor:pointer;font-size:13px;line-height:1.6;font-weight:700;color:#e7e2fd}
+.catalog-version-constraints summary:focus-visible{outline:2px solid #bbb0ef;outline-offset:4px}
+.catalog-version-constraints p{margin:12px 0;font-size:12px;line-height:1.6;color:#ddd8ee}
+.catalog-version-constraints ul{margin:9px 0;padding-left:19px}
+.catalog-version-constraints li{margin:8px 0;font-size:12px;line-height:1.6;color:#f0edfa;overflow-wrap:anywhere}
+.catalog-version-constraints li strong{color:#fff}
+.catalog-version-constraints small{display:block;font-size:11px;line-height:1.55;color:#d0c9e7;overflow-wrap:anywhere}

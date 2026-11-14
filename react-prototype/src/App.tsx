@@ -8,6 +8,7 @@ import {summarizeFavoriteCatalogImpact} from './favorite-catalog-impact';
 import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
+import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
 import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
 import {serializeDeclaredRelationRegressions} from './catalog-relation-regression-export';
@@ -774,6 +775,10 @@ export default function App(){
   compareDeclaredReferenceTargets(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog):null,
   [catalogMods,pendingCatalogReplacement]);
+ const catalogVersionConstraints=useMemo(()=>pendingCatalogReplacement?
+  compareDeclaredVersionConstraints(catalogMods,pendingCatalogReplacement.kind==='demo'?
+   mods:pendingCatalogReplacement.catalog):null,
+  [catalogMods,pendingCatalogReplacement]);
  const catalogRelationRegressions=useMemo(()=>pendingCatalogReplacement?
   summarizeProposedRelationRegressions(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog,favorites,activeBatch):null,
@@ -1212,6 +1217,38 @@ export default function App(){
      <button type="button" className="btn secondary catalog-preflight-reports"
       onClick={exportPendingReferenceChanges}><Download size={16} aria-hidden="true"/>
       Baixar alvos alterados de dependências e conflitos em JSON</button>
+    </div>
+   </details>}
+  {catalogVersionConstraints&&catalogVersionConstraints.changed.length>0&&
+   <details className="catalog-version-constraints">
+    <summary>Ver exigências de versão alteradas ({catalogVersionConstraints.changed.length})</summary>
+    <div role="group" aria-label="Mudanças nas exigências de versão">
+     <p>{catalogVersionConstraints.changed.length} de {catalogVersionConstraints.comparedIds} IDs
+      mantidos tiveram limites de versão alterados nos metadados.</p>
+     <ul>{catalogVersionConstraints.changed.slice(0,5).map(entry=><li key={entry.id}>
+      <strong>{entry.title}</strong> <small>ID: {entry.id} · {games[entry.game].title}</small>
+      {entry.oldGameMin!==entry.newGameMin&&<small>
+       Mínimo do jogo: {entry.oldGameMin??'não declarado'} → {entry.newGameMin??'não declarado'}
+      </small>}
+      {entry.oldGameMax!==entry.newGameMax&&<small>
+       Máximo do jogo: {entry.oldGameMax??'não declarado'} → {entry.newGameMax??'não declarado'}
+      </small>}
+      {entry.addedFloors.map(floor=><small key={'add-'+floor.id}>
+       Versão mínima adicionada: {floor.id}: {floor.minVersion}
+      </small>)}
+      {entry.removedFloors.map(floor=><small key={'remove-'+floor.id}>
+       Versão mínima retirada: {floor.id}: {floor.minVersion}
+      </small>)}
+      {entry.changedFloors.map(floor=><small key={'change-'+floor.id}>
+       Versão mínima alterada: {floor.id}: {floor.oldMinVersion} → {floor.newMinVersion}
+      </small>)}
+     </li>)}</ul>
+     {catalogVersionConstraints.changed.length>5&&<small>
+      Outros {catalogVersionConstraints.changed.length-5} registros alterados não exibidos.
+     </small>}
+     <p>São somente requisitos declarados no JSON; as versões instaladas não foram verificadas.
+      O mesmo ID não comprova identidade, segurança ou compatibilidade do pacote.
+      A proposta não foi aplicada; cancelar preserva os dados locais.</p>
     </div>
    </details>}
   {catalogFavoriteImpact&&catalogFavoriteImpact.total>0&&

@@ -896,3 +896,31 @@ imutabilidade; Playwright cobre downloads reais a 390px, cancelamento,
 segunda proposta e confirmação explícita. PR #1 continua Draft, sem
 merge ou autorização de lançamento. O gate Ubuntu 24.04 em sandbox
 estrito segue exigido.
+
+## Prévia de alteração das exigências declaradas de versão
+
+A confirmação de substituição agora dispõe de um painel recolhido
+**"Ver exigências de versão alteradas"**, separado dos alertas sobre
+IDs referenciados ou bloqueios lógicos. Ele detecta alterações nos
+metadados `gameVersionRange.min/max` e em
+`requiresMinVersions[].minVersion` para registros de mesmo ID.
+Mostra limites antigos e propostos; versões mínimas adicionadas,
+retiradas ou alteradas; total de IDs afetados e até cinco exemplos.
+Reordenações das listas não contam como alterações.
+
+Isso cobre casos nos quais os mesmos mods e as mesmas dependências
+continuam declarados, mas uma exigência mínima muda de `1.0` para
+`1.5`, por exemplo, sem produzir uma diferença visível na análise
+lógica por tipo e contagem. O comparador
+`compareDeclaredVersionConstraints` valida listas, IDs, unicidade,
+versionamento numérico limitado, faixas não invertidas e coerência
+dos requisitos mínimos com `requires`. Sua saída é imutável e
+só contém metadados.
+
+Não há avaliação das versões reais instaladas, integridade, autoria
+ou compatibilidade. A detecção é informativa e não altera o catálogo
+ou o jogo. Cancelar preserva dados; confirmar exige consentimento
+separado. Testes unitários cobrem alterações em mínimos e máximos,
+inclusão/remoção, reordenações e entradas inválidas; Playwright testa
+390px, cancelamento, substituição de proposta e descarte explícito.
+PR #1 segue Draft e o gate Ubuntu 24.04 continua obrigatório.
