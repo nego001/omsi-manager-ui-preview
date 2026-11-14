@@ -1391,3 +1391,9 @@
 .catalog-version-constraints li{margin:8px 0;font-size:12px;line-height:1.6;color:#f0edfa;overflow-wrap:anywhere}
 .catalog-version-constraints li strong{color:#fff}
 .catalog-version-constraints small{display:block;font-size:11px;line-height:1.55;color:#d0c9e7;overflow-wrap:anywhere}
+
+/* Purely declarative direction of numeric version constraints. */
+.catalog-version-direction-counts{display:flex;flex-wrap:wrap;gap:6px 12px;list-style:none!important;margin:10px 0!important;padding:0!important}
+.catalog-version-direction-counts li{margin:0!important;padding:5px 8px;border:1px solid #5d5877;border-radius:6px;font-size:11px!important;color:#eee8fa}
+.catalog-version-direction-counts strong{font-weight:700;color:#fff}
+.catalog-version-constraints .catalog-version-direction-label{color:#e7e0ff;font-weight:700;margin:3px 0}

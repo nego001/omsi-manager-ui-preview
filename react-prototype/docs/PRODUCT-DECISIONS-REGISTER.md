@@ -957,3 +957,29 @@ dados extras e limite de versões; Playwright verifica downloads em
 390px, cancelamento com favorito preservado, segunda proposta e
 descarte apenas após confirmação. PR #1 Draft e gate Ubuntu 24.04
 com sandbox estrito permanecem inalterados.
+
+## Direção declarativa das mudanças de exigências de versão
+
+O painel de versões separa agora os **efeitos direcionais dos limites
+numéricos** por registro: `mais restritivas`, `menos restritivas`,
+`mistas`, `numericamente equivalentes` ou
+`jogos diferentes: não comparáveis`. O resumo contabiliza todos os
+registros alterados, embora a tela mostre até cinco exemplos.
+
+A lógica `catalog-version-direction.ts` considera elevar um mínimo,
+reduzir um máximo ou adicionar um piso para dependência como restrição
+maior; reduzir mínimos, elevar máximos e retirar pisos como restrição
+menor. Aumentar uma exigência e relaxar outra resulta em `mista`.
+Diferenças textuais que representam o mesmo número (1.0 e 1.0.0)
+são `numericamente equivalentes`. Quando o mesmo ID mudou de
+simulador, a direção é **não comparável**, independentemente dos
+números. Os dados continuam imutáveis, em memória e sem arquivos.
+
+**Advertência:** são apenas mudanças da exigência escrita no catálogo,
+não identificação do mod, certificação de compatibilidade, inspeção
+de versão instalada ou diagnóstico de segurança do código. Não muda
+a decisão do usuário, a confirmação, o descarte de favoritos nem o
+gate Ubuntu 24.04. Testes verificam pisos, tetos, requisitos adicionados
+ou retirados, mudanças mistas, equivalência numérica, jogos diferentes
+e entradas inconsistentes; Playwright cobre apresentação móvel e
+cancelamento sem alteração de estado.

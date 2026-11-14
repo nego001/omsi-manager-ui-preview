@@ -9,6 +9,7 @@ import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
+import {summarizeDeclaredConstraintDirections,declaredConstraintDirectionLabels} from './catalog-version-direction';
 import {serializeDeclaredVersionConstraintChanges} from './catalog-version-constraints-export';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
 import {summarizeProposedRelationRegressions,declaredBlockingReasonLabels} from './catalog-relation-regressions';
@@ -788,6 +789,10 @@ export default function App(){
   compareDeclaredVersionConstraints(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog):null,
   [catalogMods,pendingCatalogReplacement]);
+ const catalogVersionDirections=useMemo(()=>catalogVersionConstraints?
+  summarizeDeclaredConstraintDirections(catalogVersionConstraints,
+   catalogCrossGameReuse.map(entry=>entry.id)):null,
+  [catalogVersionConstraints,catalogCrossGameReuse]);
  const catalogRelationRegressions=useMemo(()=>pendingCatalogReplacement?
   summarizeProposedRelationRegressions(catalogMods,pendingCatalogReplacement.kind==='demo'?
    mods:pendingCatalogReplacement.catalog,favorites,activeBatch):null,
@@ -1234,8 +1239,20 @@ export default function App(){
     <div role="group" aria-label="Mudanças nas exigências de versão">
      <p>{catalogVersionConstraints.changed.length} de {catalogVersionConstraints.comparedIds} IDs
       mantidos tiveram limites de versão alterados nos metadados.</p>
+     {catalogVersionDirections&&<ul className="catalog-version-direction-counts"
+      aria-label="Direções das exigências declaradas">
+      <li>Mais restritivas: <strong>{catalogVersionDirections.counts['more-restrictive']}</strong></li>
+      <li>Menos restritivas: <strong>{catalogVersionDirections.counts['less-restrictive']}</strong></li>
+      <li>Mistas: <strong>{catalogVersionDirections.counts['mixed-directions']}</strong></li>
+      <li>Numericamente equivalentes: <strong>{catalogVersionDirections.counts['numerically-equivalent']}</strong></li>
+      <li>Jogos diferentes: <strong>{catalogVersionDirections.counts['different-games-not-comparable']}</strong></li>
+     </ul>}
      <ul>{catalogVersionConstraints.changed.slice(0,5).map(entry=><li key={entry.id}>
       <strong>{entry.title}</strong> <small>ID: {entry.id} · {games[entry.game].title}</small>
+      {catalogVersionDirections&&<small className="catalog-version-direction-label">
+       Direção: {declaredConstraintDirectionLabels[
+        catalogVersionDirections.items.find(item=>item.id===entry.id)?.direction??'numerically-equivalent']}
+      </small>}
       {entry.oldGameMin!==entry.newGameMin&&<small>
        Mínimo do jogo: {entry.oldGameMin??'não declarado'} → {entry.newGameMin??'não declarado'}
       </small>}
@@ -1255,6 +1272,9 @@ export default function App(){
      {catalogVersionConstraints.changed.length>5&&<small>
       Outros {catalogVersionConstraints.changed.length-5} registros alterados não exibidos.
      </small>}
+     <p>A direção classifica apenas limites numéricos declarados: elevar mínimos ou reduzir
+      máximos é mais restritivo; reduzir mínimos ou elevar máximos é menos restritivo.
+      Mudanças em jogos diferentes não são comparáveis. Não é um teste de compatibilidade.</p>
      <p>São somente requisitos declarados no JSON; as versões instaladas não foram verificadas.
       O mesmo ID não comprova identidade, segurança ou compatibilidade do pacote.
       A proposta não foi aplicada; cancelar preserva os dados locais.</p>
