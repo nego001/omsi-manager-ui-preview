@@ -9,7 +9,7 @@ import {summarizeSelectedCatalogImpact} from './selection-catalog-impact';
 import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
-import {summarizeDistinctDeclaredPreflightIds} from './catalog-preflight-distinct-ids';
+import {summarizeDistinctDeclaredPreflightIds,declaredPreflightGroupLabels} from './catalog-preflight-distinct-ids';
 import {summarizeDeclaredConstraintDirections,declaredConstraintDirectionLabels} from './catalog-version-direction';
 import {serializeDeclaredVersionConstraintChanges} from './catalog-version-constraints-export';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
@@ -1166,6 +1166,17 @@ export default function App(){
    </ul>
    <p>IDs distintos nos quatro grupos: <strong>{catalogPreflightDistinctIds?.distinctIds??0}</strong>.
     {' '}IDs presentes em mais de um grupo: <strong>{catalogPreflightDistinctIds?.overlappingIds??0}</strong>.</p>
+   {catalogPreflightDistinctIds&&catalogPreflightDistinctIds.overlappingIds>0&&
+    <details className="catalog-preflight-overlap-examples">
+     <summary>Ver IDs presentes em mais de um grupo ({catalogPreflightDistinctIds.overlappingIds})</summary>
+     <ul>{catalogPreflightDistinctIds.overlapExamples.map(entry=><li key={entry.id}>
+      <strong>{entry.id}</strong>: {entry.groups.map(group=>declaredPreflightGroupLabels[group]).join(' · ')}
+     </li>)}</ul>
+     {catalogPreflightDistinctIds.overlapExamplesOmitted>0&&<small>
+      Outros {catalogPreflightDistinctIds.overlapExamplesOmitted} IDs não exibidos.
+     </small>}
+     <small>Somente IDs dos metadados declarados; os mesmos nomes não provam arquivos iguais.</small>
+    </details>}
    <small>Os grupos podem incluir o mesmo ID mais de uma vez. Estes números não são
     uma nota de segurança, um teste de compatibilidade ou aprovação para instalar.
     A contagem distinta não inclui outras alterações de campos nem IDs removidos.
