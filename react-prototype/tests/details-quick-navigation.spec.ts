@@ -15,13 +15,16 @@ test('atalhos dos Detalhes preservam contexto e movem foco entre seções a 390p
  const checks=page.getByRole('region',{name:'Etapas de verificação do mod'});
  const relations=page.locator('#relacoes-declaradas');
  const incoming=page.locator('#relacoes-recebidas');
- await expect(shortcuts.getByRole('button')).toHaveCount(3);
+ await expect(shortcuts.getByRole('button')).toHaveCount(4);
  await shortcuts.getByRole('button',{name:'Estado da análise'}).click();
  await expect(checks).toBeFocused();
  await shortcuts.getByRole('button',{name:'Dependências e conflitos'}).click();
  await expect(relations).toBeFocused();
  await shortcuts.getByRole('button',{name:'Referências recebidas'}).click();
  await expect(incoming).toBeFocused();
+ await shortcuts.getByRole('button',{name:/Relatório consolidado/}).click();
+ await expect(page.getByRole('region',{name:'Relatório consolidado'})).toBeFocused();
+ await expect(page.getByRole('heading',{name:'Relatório consolidado'})).toBeVisible();
  await expect(page.getByText('Compatibilidade não verificada').first()).toBeVisible();
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));

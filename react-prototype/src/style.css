@@ -1539,3 +1539,10 @@
   flex:1 1 170px;justify-content:space-between;
  }
 }
+
+/* The consolidated report is a long-screen keyboard destination, not a link
+   implying that installation or compatibility has been verified. */
+#relatorio-consolidado:focus{
+ outline:2px solid #9bb9ef;
+ outline-offset:4px;
+}

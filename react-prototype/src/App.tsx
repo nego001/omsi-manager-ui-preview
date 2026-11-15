@@ -733,7 +733,7 @@ export default function App(){
   focusFirstLibraryCardAfterReset.current=true;
   resetLibraryControls();
  }
- function jumpToDetailSection(id:'detail-verification-checklist'|'relacoes-declaradas'|'relacoes-recebidas'){
+ function jumpToDetailSection(id:'detail-verification-checklist'|'relacoes-declaradas'|'relacoes-recebidas'|'relatorio-consolidado'){
   if(screen!=='details')return;
   document.getElementById(id)?.focus();
  }
@@ -1743,6 +1743,11 @@ export default function App(){
    <span className="detail-section-jump-copy"><strong>Referências recebidas</strong>
     <small>{incomingOriginCount} registro(s) que mencionam este ID (JSON)</small>
     <small>Dependências: {incomingRelations.requiredBy.length} · Conflitos: {incomingRelations.conflictDeclaredBy.length}</small></span>
+   <ChevronRight size={14} aria-hidden="true"/>
+  </button>
+  <button type="button" onClick={()=>jumpToDetailSection('relatorio-consolidado')}>
+   <span className="detail-section-jump-copy"><strong>Relatório consolidado</strong>
+    <small>Consultar evidências e limitações da prévia</small></span>
    <ChevronRight size={14} aria-hidden="true"/>
   </button>
  </nav>
