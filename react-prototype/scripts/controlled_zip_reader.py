@@ -8,6 +8,7 @@ import io
 import re
 import stat
 import zipfile
+from controlled_o3d_header_hints import (O3D_HEADER_CLASSES, classify_o3d_header_prefix)
 
 from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
 from controlled_reference_hints import (
@@ -48,6 +49,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     # Source text is retained only in this function, after ZIP entry budgets
     # and before its aggregate response. Never returned, persisted or logged.
     fixture_sources = []
+    o3d_header_counts = {kind: 0 for kind in O3D_HEADER_CLASSES}
+    plausible_o3d_paths: set[str] = set()
     references = empty_counts()
     reference_sources = {"inspected": 0, "notInspected": 0}
     definition_hints = {
@@ -70,6 +73,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     # [mesh] reference resolves to a separate O3D entry in the same variant.
     mesh_backed_cfg_paths: set[str] = set()
     mesh_linked_vehicle_folders: set[str] = set()
+    header_backed_cfg_paths: set[str] = set()
+    header_linked_vehicle_folders: set[str] = set()
     truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
@@ -136,6 +141,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 ext = info.filename.rsplit(".", 1)[-1].lower()
                 small_definition = ext in SUPPORTED and info.file_size <= TEXT_LIMIT
                 sample = bytearray() if small_definition else None
+                # Prefix is bounded to 8 bytes, even for large O3D entries.
+                prefix = bytearray() if ext == "o3d" else None
                 with zf.open(info) as source:
                     while True:
                         chunk = source.read(CHUNK)
@@ -147,8 +154,15 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                             refuse()
                         if sample is not None:
                             sample.extend(chunk)
+                        if prefix is not None and len(prefix) < 8:
+                            prefix.extend(chunk[:8-len(prefix)])
                 if per_file != info.file_size:
                     refuse()
+                if prefix is not None:
+                    header_kind = classify_o3d_header_prefix(bytes(prefix))
+                    o3d_header_counts[header_kind] += 1
+                    if header_kind == "plausiblePrefix":
+                        plausible_o3d_paths.add(info.filename.lower())
                 if ext in ("bus", "cfg"):
                     fixture_sources.append((info.filename.lower(), ext,
                                             bytes(sample) if sample is not None else None))
@@ -198,6 +212,16 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 if (mesh_hints is not None and
                         mesh_hints["mesh"]["presentInFixture"] > 0):
                     mesh_backed_cfg_paths.add(source)
+                # M9 is an independent header hint on the EXACT mesh target,
+                # not an attempt to decode geometry or certify any format.
+                plausible_targets = frozenset(path for path in plausible_o3d_paths
+                                             if path.startswith(variant + "/"))
+                if plausible_targets:
+                    prefix_hints = inspect_fixture_references("cfg", content,
+                                                              source, plausible_targets)
+                    if (prefix_hints is not None and
+                            prefix_hints["mesh"]["presentInFixture"] > 0):
+                        header_backed_cfg_paths.add(source)
             # The existing bounded reference interpreter validates the exact
             # tiny [model] -> next line dialect. Reuse it with a restricted
             # index of marked CFG targets rather than creating another parser.
@@ -232,6 +256,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                         if (backed is not None and
                                 backed["model"]["presentInFixture"] > 0):
                             mesh_linked_vehicle_folders.add(variant)
+                            header_targets = frozenset(path for path in header_backed_cfg_paths
+                                                       if path.startswith(variant + "/"))
+                            if header_targets:
+                                header_link = inspect_fixture_references(
+                                    "bus", content, source, header_targets)
+                                if (header_link is not None and
+                                        header_link["model"]["presentInFixture"] > 0):
+                                    header_linked_vehicle_folders.add(variant)
     except FixtureReferenceLimitExceeded:
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
@@ -245,12 +277,17 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "actualInflatedBytes": actual,
         "zipHeadersAndCrcRead": True,
         "declaredSuffixCounts": suffix_counts,
+        "o3dHeaderHintCounts": o3d_header_counts,
+        "meshFormatVerified": False,
         "declaredSuffixesAreContentProof": False,
         "definitionFixtureHints": definition_hints,
         "fixtureGameHints": {
             "omsiPairedVehicleFolders": len(bus_marker_folders & cfg_marker_folders),
             "omsiLinkedVehicleFolders": len(linked_vehicle_folders),
             "omsiMeshLinkedVehicleFolders": len(mesh_linked_vehicle_folders),
+            "omsiPlausibleO3dHeaderLinkedVehicleFolders": len(header_linked_vehicle_folders),
+            "omsiMeshLinkedWithoutPlausibleHeaderFolders": len(
+                mesh_linked_vehicle_folders - header_linked_vehicle_folders),
             "omsiLinkedWithoutMeshFolders": len(linked_vehicle_folders
                                                 - mesh_linked_vehicle_folders),
             "omsiUnlinkedPairedFolders": len((bus_marker_folders & cfg_marker_folders)
