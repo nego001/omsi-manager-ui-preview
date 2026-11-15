@@ -56,6 +56,11 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
             "textUnavailable": 0, "notInspected": 0
         } for suffix in ("bus", "cfg", "sii")
     }
+    # Private, package-local grouping. Full paths and vehicle folder names
+    # never appear in the returned report. Markers are NOT format proof.
+    bus_marker_folders: set[str] = set()
+    cfg_marker_folders: set[str] = set()
+    truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
             infos = zf.infolist()
@@ -147,6 +152,18 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                         "not-inspected": "notInspected"
                     }[result]
                     definition_hints[ext][column] += 1
+                    if result == "marker-observed":
+                        parts = info.filename.lower().split("/")
+                        if (ext in ("bus", "cfg") and len(parts) >= 3 and
+                            parts[0] == "vehicles"):
+                            folder = "/".join(parts[:2])
+                            if ext == "bus":
+                                bus_marker_folders.add(folder)
+                            else:
+                                cfg_marker_folders.add(folder)
+                        elif (ext == "sii" and len(parts) >= 2 and
+                              parts[0] == "def"):
+                            truck_sii_marker_count += 1
             # Cross-check ONLY against archive-internal file names already
             # accepted by the gate, never the user's game installation.
             vetted = frozenset(file_names)
@@ -177,6 +194,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "declaredSuffixCounts": suffix_counts,
         "declaredSuffixesAreContentProof": False,
         "definitionFixtureHints": definition_hints,
+        "fixtureGameHints": {
+            "omsiPairedVehicleFolders": len(bus_marker_folders & cfg_marker_folders),
+            "omsiBusMarkerFolders": len(bus_marker_folders),
+            "omsiCfgMarkerFolders": len(cfg_marker_folders),
+            "truckSiiDefinitionMarkers": truck_sii_marker_count,
+            "realFormatVerified": False,
+            "gameRecognized": False,
+        },
         "definitionSyntaxVerified": False,
         "fixtureReferenceCounts": references,
         "fixtureReferenceSources": reference_sources,
