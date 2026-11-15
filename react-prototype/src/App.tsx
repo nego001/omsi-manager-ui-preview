@@ -168,7 +168,7 @@ export default function App(){
  const focusDetailsTitleAfterStep=useRef(false);
  const [hypotheticalGameVersion,setHypotheticalGameVersion]=useState('');
  const [incomingView,setIncomingView]=useState<{
-  modId:string;kind:'all'|'requires'|'conflicts';scope:'all'|'cross-game'
+  modId:string;kind:'all'|'requires'|'conflicts';scope:'all'|'same-game'|'cross-game'
  }>({modId:mods[0].id,kind:'all',scope:'all'});
  const [catalogMods,setCatalogMods]=useState<Mod[]>(mods);
  const [catalogSource,setCatalogSource]=useState('Demonstração');
@@ -255,10 +255,12 @@ export default function App(){
  // This view is scoped to the current catalog entry, never another mod.
  const incomingKind=incomingView.modId===selected.id?incomingView.kind:'all';
  const incomingScope=incomingView.modId===selected.id?incomingView.scope:'all';
+ const sourceVisible=(differentGame:boolean)=>incomingScope==='all'||
+  (incomingScope==='cross-game'?differentGame:!differentGame);
  const incomingRequires=(incomingKind==='conflicts'?[]:incomingRelations.requiredBy)
-  .filter(source=>incomingScope==='all'||source.differentGame);
+  .filter(source=>sourceVisible(source.differentGame));
  const incomingConflicts=(incomingKind==='requires'?[]:incomingRelations.conflictDeclaredBy)
-  .filter(source=>incomingScope==='all'||source.differentGame);
+  .filter(source=>sourceVisible(source.differentGame));
  const incomingVisibleTotal=incomingRequires.length+incomingConflicts.length;
  // One catalog record can mention the same target twice (requires + conflicts).
  // The count of originating IDs must not be confused with the number of edges.
@@ -1861,9 +1863,10 @@ export default function App(){
        disabled={incomingCrossGameSummary.total===0}
        onChange={event=>setIncomingView({
         modId:selected.id,kind:incomingKind,
-        scope:event.target.value as 'all'|'cross-game'
+        scope:event.target.value as 'all'|'same-game'|'cross-game'
        })}>
        <option value="all">Todos os simuladores</option>
+       <option value="same-game">Somente mesmo simulador</option>
        <option value="cross-game">Somente outros simuladores</option>
       </select>
      </label>

@@ -88,6 +88,8 @@ test('filtro de referências altera apenas a lista visível e reinicia ao mudar 
  const filter=incoming.getByRole('combobox',{name:'Filtrar tipo de referência recebida'});
  const shortcuts=page.getByRole('navigation',{name:'Atalhos dos detalhes do mod'});
  await expect(filter).toHaveValue('all');
+ await expect(incoming.getByRole('combobox',{name:'Filtrar origem das referências recebidas'}))
+  .toBeDisabled();
  await expect(incoming.getByRole('status')).toContainText('Exibindo 2 de 2');
  await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(2);
  await filter.selectOption('requires');
@@ -150,6 +152,16 @@ test('filtro de outro simulador combina com tipo sem duplicar referências ou al
  await expect(items).toHaveCount(4);
  await expect(shortcut).toContainText('3 registro(s) que mencionam este ID (JSON)');
  await expect(shortcut).toContainText('Dependências: 2 · Conflitos: 2');
+ await origin.selectOption('same-game');
+ await expect(status).toContainText('Exibindo 2 de 4');
+ await expect(items).toHaveCount(2);
+ await expect(items).toContainText('Origem OMSI');
+ await expect(items).not.toContainText('Origem ETS2');
+ await expect(items).not.toContainText('Origem ATS');
+ await type.selectOption('requires');
+ await expect(status).toContainText('Exibindo 1 de 4');
+ await expect(items.first()).toContainText('Origem OMSI');
+ await type.selectOption('all');
  await origin.selectOption('cross-game');
  await expect(status).toContainText('Exibindo 2 de 4');
  await expect(items).toHaveCount(2);
