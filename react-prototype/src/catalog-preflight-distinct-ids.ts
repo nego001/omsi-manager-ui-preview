@@ -5,8 +5,20 @@ import type {DeclaredVersionConstraintSummary} from './catalog-version-constrain
 
 // A declared ID can belong to several preflight groups at once.
 // This never counts installed files, package identities or security risks.
+export type DeclaredPreflightGroup='cross-game'|'blockers'|'references'|'versions';
+export const declaredPreflightGroupLabels:Readonly<Record<DeclaredPreflightGroup,string>>=Object.freeze({
+ 'cross-game':'Entre simuladores',
+ blockers:'Bloqueios declarados',
+ references:'Dependências/conflitos',
+ versions:'Exigências de versão'
+});
+export type DeclaredPreflightOverlap={
+ id:string;groups:readonly DeclaredPreflightGroup[];
+};
 export type DeclaredPreflightDistinctIdSummary={
  distinctIds:number;overlappingIds:number;
+ overlapExamples:readonly DeclaredPreflightOverlap[];
+ overlapExamplesOmitted:number;
  installedFilesChecked:false;realCompatibilityVerified:false;
 };
 const validId=/^[a-z0-9][a-z0-9_-]*$/;
@@ -49,17 +61,27 @@ export function summarizeDistinctDeclaredPreflightIds(
   }
  }
  if(relationIds.size>200)return invalid();
- const groups=[
-  crossIds,relationIds,checkedGroup(references.changed),
-  checkedGroup(versions.changed)
+ const groups:readonly {name:DeclaredPreflightGroup;ids:ReadonlySet<string>}[]=[
+  {name:'cross-game',ids:crossIds},{name:'blockers',ids:relationIds},
+  {name:'references',ids:checkedGroup(references.changed)},
+  {name:'versions',ids:checkedGroup(versions.changed)}
  ];
- const occurrences=new Map<string,number>();
- for(const group of groups)for(const id of group)
-  occurrences.set(id,(occurrences.get(id)??0)+1);
+ const occurrences=new Map<string,DeclaredPreflightGroup[]>();
+ for(const group of groups)for(const id of group.ids){
+  const names=occurrences.get(id)??[];
+  names.push(group.name);
+  occurrences.set(id,names);
+ }
  if(occurrences.size>200)return invalid();
+ const overlapping=[...occurrences].filter(([,names])=>names.length>1)
+  .sort(([a],[b])=>a<b?-1:a>b?1:0);
+ const overlapExamples=Object.freeze(overlapping.slice(0,5).map(([id,names])=>
+  Object.freeze({id,groups:Object.freeze([...names])})));
  return Object.freeze({
   distinctIds:occurrences.size,
-  overlappingIds:[...occurrences.values()].filter(count=>count>1).length,
+  overlappingIds:overlapping.length,
+  overlapExamples,
+  overlapExamplesOmitted:overlapping.length-overlapExamples.length,
   installedFilesChecked:false,realCompatibilityVerified:false
  });
 }
