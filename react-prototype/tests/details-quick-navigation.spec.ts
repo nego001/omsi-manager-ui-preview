@@ -155,9 +155,10 @@ test('filtro de outro simulador combina com tipo sem duplicar referências ou al
  await origin.selectOption('same-game');
  await expect(status).toContainText('Exibindo 2 de 4');
  await expect(items).toHaveCount(2);
- await expect(items).toContainText('Origem OMSI');
- await expect(items).not.toContainText('Origem ETS2');
- await expect(items).not.toContainText('Origem ATS');
+ await expect(items.first()).toContainText('Origem OMSI');
+ await expect(items.last()).toContainText('Origem OMSI');
+ await expect(incoming.locator('.relation-incoming-groups')).not.toContainText('Origem ETS2');
+ await expect(incoming.locator('.relation-incoming-groups')).not.toContainText('Origem ATS');
  await type.selectOption('requires');
  await expect(status).toContainText('Exibindo 1 de 4');
  await expect(items.first()).toContainText('Origem OMSI');
