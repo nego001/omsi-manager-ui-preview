@@ -1176,7 +1176,7 @@ export default function App(){
      (catalogReplacementDiff.added.length>0||catalogReplacementDiff.removed.length>0||
       catalogReplacementDiff.changed.length>0)&&
      <strong> Zero alertas nos quatro grupos não significa catálogos iguais.</strong>}
-   </p>
+   </p>}
    {catalogPreflightDistinctIds&&catalogPreflightDistinctIds.overlappingIds>0&&
     <details className="catalog-preflight-overlap-examples">
      <summary>Ver IDs presentes em mais de um grupo ({catalogPreflightDistinctIds.overlappingIds})</summary>
