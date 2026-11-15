@@ -62,11 +62,11 @@ def explain_controlled_fixture_decision(
     matches = (
         (bool(paired or linked) and bool(truck)),
         bool(mesh),
-        bool(linked),
+        bool(linked) and not bool(mesh),
         bool(truck),
-        bool(paired),
-        bool(bus or cfg),
-        True,
+        bool(paired) and not bool(linked),
+        bool(bus or cfg) and not bool(paired) and not bool(truck),
+        not bool(bus or cfg or truck),
     )
     selected = next(i for i, value in enumerate(matches) if value)
     if RULES[selected][1] != assessment:
