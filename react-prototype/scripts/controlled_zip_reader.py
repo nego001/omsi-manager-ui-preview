@@ -4,6 +4,7 @@ No paths, extraction, filesystem, subprocesses, network, IPC or real mods.
 This is not a production-safe reader of untrusted user archives.
 """
 from __future__ import annotations
+import hashlib
 import io
 import re
 import stat
@@ -28,6 +29,10 @@ from controlled_o3d_bone_hints import (
 )
 from controlled_o3d_evidence_coordinator import (
     empty_evidence_counts, classify_fixture_o3d_evidence
+)
+from controlled_o3d_scope_audit import (
+    audit_synthetic_o3d_scope, make_synthetic_entry_receipt,
+    ControlledO3dScopeRefused
 )
 
 from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
@@ -83,6 +88,12 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     bounded_bone_o3d_paths: set[str] = set()
     # M15: per-entry classifications, never combined across O3D paths.
     o3d_evidence_counts = empty_evidence_counts()
+    # M16: invocation-local private ledger: one state for each vetted O3D.
+    o3d_entry_states: dict[str, str] = {}
+    # SHA-256 receipts are private, invocation-local, and not signatures.
+    archive_digest = hashlib.sha256(payload).digest()
+    o3d_entry_digests: dict[str, bytes] = {}
+    o3d_entry_receipts: dict[str, bytes] = {}
     optional_bone_absent_o3d_paths: set[str] = set()
     references = empty_counts()
     reference_sources = {"inspected": 0, "notInspected": 0}
@@ -194,6 +205,7 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 triangle_sample = bytearray() if ext == "o3d" else None
                 # M12: only first bounded material table, 8192 bytes maximum.
                 material_sample = bytearray() if ext == "o3d" else None
+                entry_hasher = hashlib.sha256() if ext == "o3d" else None
                 with zf.open(info) as source:
                     while True:
                         chunk = source.read(CHUNK)
@@ -205,6 +217,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                             refuse()
                         if sample is not None:
                             sample.extend(chunk)
+                        if entry_hasher is not None:
+                            entry_hasher.update(chunk)
                         if prefix is not None and len(prefix) < 8:
                             prefix.extend(chunk[:8-len(prefix)])
                         if vertex_sample is not None and len(vertex_sample) < MAX_O3D_SAMPLE:
@@ -216,6 +230,11 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 if per_file != info.file_size:
                     refuse()
                 if prefix is not None:
+                    entry_key = info.filename.lower()
+                    digest = entry_hasher.digest()
+                    o3d_entry_digests[entry_key] = digest
+                    o3d_entry_receipts[entry_key] = make_synthetic_entry_receipt(
+                        archive_digest, entry_key, digest)
                     header_kind = classify_o3d_header_prefix(bytes(prefix))
                     o3d_header_counts[header_kind] += 1
                     if header_kind == "plausiblePrefix":
@@ -253,6 +272,7 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                         header_kind, vertex_kind, triangle_kind,
                         material_kind, matrix_kind, bone_kind)
                     o3d_evidence_counts[evidence_state] += 1
+                    o3d_entry_states[info.filename.lower()] = evidence_state
                     if evidence_state == "matrixWithOptionalBonesAbsent":
                         optional_bone_absent_o3d_paths.add(info.filename.lower())
                 if ext in ("bus", "cfg"):
@@ -455,14 +475,50 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                                 if (optional_link is not None and
                                         optional_link["model"]["presentInFixture"] > 0):
                                     optional_absent_vehicle_folders.add(variant)
-    except FixtureReferenceLimitExceeded:
+    except (FixtureReferenceLimitExceeded, ControlledO3dScopeRefused):
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
             EOFError, OSError, NotImplementedError, OverflowError,
             MemoryError):
         refuse()
+    # Validate all observable stage paths and counters against the SAME ZIP
+    # entry index, before releasing any summary. A failed consistency check
+    # refuses the entire fixture with a fixed, privacy-safe message.
+    try:
+        scope_audited = audit_synthetic_o3d_scope(
+            frozenset(file_names),
+            {
+                "header": frozenset(plausible_o3d_paths),
+                "vertex": frozenset(bounded_vertex_o3d_paths),
+                "triangle": frozenset(bounded_triangle_o3d_paths),
+                "material": frozenset(bounded_material_o3d_paths),
+                "matrix": frozenset(bounded_matrix_o3d_paths),
+                "bone": frozenset(bounded_bone_o3d_paths),
+                "optionalBoneAbsent": frozenset(optional_bone_absent_o3d_paths),
+            },
+            o3d_entry_states,
+            o3d_evidence_counts,
+            {
+                "linked": frozenset(linked_vehicle_folders),
+                "mesh": frozenset(mesh_linked_vehicle_folders),
+                "header": frozenset(header_linked_vehicle_folders),
+                "vertex": frozenset(vertex_linked_vehicle_folders),
+                "triangle": frozenset(triangle_linked_vehicle_folders),
+                "material": frozenset(material_linked_vehicle_folders),
+                "matrix": frozenset(matrix_linked_vehicle_folders),
+                "bone": frozenset(bone_linked_vehicle_folders),
+                "optionalBoneAbsent": frozenset(optional_absent_vehicle_folders),
+            },
+            archive_digest,
+            o3d_entry_digests,
+            o3d_entry_receipts,
+        )
+    except ControlledO3dScopeRefused:
+        refuse()
     return {
         "source": "ci-generated-zip-bytes",
+        "syntheticScopeConsistencyChecked": scope_audited,
+        "syntheticScopeIsAuthenticatedOrigin": False,
         "fileCount": files,
         "directoryCount": dirs,
         "actualInflatedBytes": actual,

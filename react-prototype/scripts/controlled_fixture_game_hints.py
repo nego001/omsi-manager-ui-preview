@@ -73,6 +73,8 @@ def assess_controlled_zip_game_hints(payload: bytes) -> dict:
         "o3dBoneWeightHintCounts": report["o3dBoneWeightHintCounts"],
         "o3dSyntheticEvidenceStateCounts": report["o3dSyntheticEvidenceStateCounts"],
         "syntheticEvidenceIsRealFormatProof": False,
+        "syntheticScopeConsistencyChecked": report["syntheticScopeConsistencyChecked"],
+        "syntheticScopeIsAuthenticatedOrigin": False,
         "omsiOptionalBoneAbsentLinkedVehicleFolderCount": hints["omsiOptionalBoneAbsentLinkedVehicleFolders"],
         "meshFormatVerified": False,
         "omsiLinkedWithoutMeshFolderCount": missing_mesh,
