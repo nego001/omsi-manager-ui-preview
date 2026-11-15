@@ -115,16 +115,16 @@ test('alertas zerados não ocultam IDs removidos/adicionados ou alterações for
  const summary=consent.getByRole('group',{name:'Resumo das diferenças declaradas'});
  const coverage=summary.getByRole('note');
  await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
- await expect(coverage).toContainText('1 IDs adicionados');
- await expect(coverage).toContainText('1 IDs removidos');
- await expect(coverage).toContainText('0 IDs mantidos com metadados alterados');
+ await expect(coverage).toContainText('IDs adicionados: 1');
+ await expect(coverage).toContainText('IDs removidos: 1');
+ await expect(coverage).toContainText('IDs mantidos com metadados alterados: 0');
  await expect(coverage).toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
 
  await propose(page,[{...bus,description:'Descrição revisada'}],'apenas-descricao.json');
  await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
- await expect(coverage).toContainText('0 IDs adicionados');
- await expect(coverage).toContainText('0 IDs removidos');
- await expect(coverage).toContainText('1 IDs mantidos com metadados alterados');
+ await expect(coverage).toContainText('IDs adicionados: 0');
+ await expect(coverage).toContainText('IDs removidos: 0');
+ await expect(coverage).toContainText('IDs mantidos com metadados alterados: 1');
  await expect(coverage).toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));

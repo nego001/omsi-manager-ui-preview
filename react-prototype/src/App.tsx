@@ -1168,9 +1168,9 @@ export default function App(){
     {' '}IDs presentes em mais de um grupo: <strong>{catalogPreflightDistinctIds?.overlappingIds??0}</strong>.</p>
    {catalogReplacementDiff&&<p className="catalog-preflight-scope" role="note">
     Cobertura do catálogo completo, separada dos quatro grupos:
-    {' '}<strong>{catalogReplacementDiff.added.length}</strong> IDs adicionados,
-    {' '}<strong>{catalogReplacementDiff.removed.length}</strong> IDs removidos e
-    {' '}<strong>{catalogReplacementDiff.changed.length}</strong> IDs mantidos com metadados alterados.
+    {' '}IDs adicionados: <strong>{catalogReplacementDiff.added.length}</strong>;
+    {' '}IDs removidos: <strong>{catalogReplacementDiff.removed.length}</strong>;
+    {' '}IDs mantidos com metadados alterados: <strong>{catalogReplacementDiff.changed.length}</strong>.
     {' '}Estes totais podem se sobrepor aos alertas acima e não devem ser somados.
     {catalogPreflightDistinctIds?.distinctIds===0&&
      (catalogReplacementDiff.added.length>0||catalogReplacementDiff.removed.length>0||
