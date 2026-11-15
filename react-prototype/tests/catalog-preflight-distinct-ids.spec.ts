@@ -34,7 +34,13 @@ test('deduplica alertas de quatro grupos e conta sobreposições por ID',()=>{
   {...bus,requires:['missing'],requiresMinVersions:[{id:'missing',minVersion:'2.0'}]},
   {...engine,game:'ets2' as const}
  ];
- expect(analyze(before,after)).toMatchObject({distinctIds:2,overlappingIds:1});
+ const result=analyze(before,after);
+ expect(result).toMatchObject({distinctIds:2,overlappingIds:1,overlapExamplesOmitted:0});
+ expect(result.overlapExamples).toEqual([{
+  id:'bus',groups:['blockers','references','versions']
+ }]);
+ expect(Object.isFrozen(result.overlapExamples)).toBe(true);
+ expect(Object.isFrozen(result.overlapExamples[0].groups)).toBe(true);
 });
 test('aponta bloqueio em novo ID mesmo sem alterações de referências mantidas',()=>{
  const after=[bus,{...bus,id:'new-addon',title:'Novo mod',requires:['missing']}];
@@ -43,6 +49,18 @@ test('aponta bloqueio em novo ID mesmo sem alterações de referências mantidas
 test('catálogos idênticos não criam alertas mesmo com uma dependência antiga',()=>{
  const input=[{...bus,requires:['missing']}];
  expect(analyze(input,[{...input[0]}])).toMatchObject({distinctIds:0,overlappingIds:0});
+});
+test('limita a cinco exemplos determinísticos sem reduzir as contagens completas',()=>{
+ const before=Array.from({length:7},(_,i)=>({
+  ...bus,id:`mod-${6-i}`,requires:['old-dep']
+ }));
+ const after=before.map(mod=>({...mod,game:'ets2' as const,requires:['new-dep']}));
+ const result=analyze(before,after);
+ expect(result).toMatchObject({distinctIds:7,overlappingIds:7,overlapExamplesOmitted:2});
+ expect(result.overlapExamples.map(entry=>entry.id)).toEqual([
+  'mod-0','mod-1','mod-2','mod-3','mod-4'
+ ]);
+ expect(result.overlapExamples[0].groups).toEqual(['cross-game','references']);
 });
 test('recusa IDs duplicados e resumos adulterados inclusive entre grupos',()=>{
  const before=[bus],after=[{...bus,requires:['missing']}];
