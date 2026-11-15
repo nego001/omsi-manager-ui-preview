@@ -168,7 +168,7 @@ test('filtro de outro simulador combina com tipo sem duplicar referências ou al
  await expect(items).toHaveCount(2);
  await expect(incoming.locator('.relation-cross-game-summary'))
   .toContainText('2 referência(s) diretas recebidas de outros simuladores');
- await expect(items).not.toContainText('Origem OMSI');
+ await expect(incoming.locator('.relation-incoming-groups')).not.toContainText('Origem OMSI');
  await type.selectOption('requires');
  await expect(status).toContainText('Exibindo 1 de 4');
  await expect(items).toHaveCount(1);
