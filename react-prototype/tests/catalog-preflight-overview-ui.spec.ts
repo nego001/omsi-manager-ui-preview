@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 type Page=import('@playwright/test').Page;
 const nav=(page:Page)=>page.getByRole('navigation',{name:'Navegação principal'});
 const card=(page:Page,title:string)=>
@@ -136,6 +137,66 @@ test('alertas zerados não ocultam IDs removidos/adicionados ou alterações for
  expect(overflow).toBeLessThanOrEqual(3);
  await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
  await expect(summary).toHaveCount(0);
+ await expect(card(page,'Ônibus Urbano Clássico')
+  .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+});
+
+
+test('exportação de sobreposições acompanha a última proposta sem vazar o JSON anterior',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ await propose(page,[bus,engine],'base-overlap.json');
+ await card(page,'Ônibus Urbano Clássico')
+  .getByRole('button',{name:'Favoritar'}).click();
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ const overlap=consent.locator('.catalog-preflight-overlap-examples');
+ async function downloadOverlap(){
+  await overlap.locator('summary').click();
+  const [download]=await Promise.all([
+   page.waitForEvent('download'),
+   overlap.getByRole('button',{name:'Baixar todos os IDs sobrepostos em JSON'}).click()
+  ]);
+  expect(download.suggestedFilename()).toBe('OMSI-Manager-IDs-Sobrepostos.json');
+  const path=await download.path();
+  expect(path).not.toBeNull();
+  return JSON.parse(await readFile(path!,'utf8'));
+ }
+
+ await propose(page,[{...bus,requires:['missing']},engine],'primeira-sobreposicao.json');
+ await expect(overlap).toBeVisible();
+ const firstExport=await downloadOverlap();
+ expect(firstExport.schema).toBe('omsi-manager-declared-preflight-overlaps-v1');
+ expect(firstExport.counts).toEqual({distinctIds:1,overlappingIds:1});
+ expect(firstExport.overlaps).toEqual([{
+  id:'omsi-bus',groups:['blockers','references']
+ }]);
+ expect(firstExport).toMatchObject({
+  completeOverlapList:true,proposedCatalogApplied:false,
+  installedFilesChecked:false,compatibilityVerified:false,
+  sourceAuthenticated:false,restorableByPreview:false
+ });
+
+ await propose(page,[{...bus,requires:['engine'],
+  requiresMinVersions:[{id:'engine',minVersion:'9.0'}]},engine],
+ 'segunda-sobreposicao.json');
+ await expect(overlap).toBeVisible();
+ // A nova proposta pode conservar ou recolher o disclosure; ajuste o estado
+ // de forma explícita antes de acionar o botão.
+ if(await overlap.getAttribute('open')!==null){
+  await overlap.locator('summary').click();
+ }
+ const secondExport=await downloadOverlap();
+ expect(secondExport.counts).toEqual({distinctIds:1,overlappingIds:1});
+ expect(secondExport.overlaps).toEqual([{
+  id:'omsi-bus',groups:['blockers','references','versions']
+ }]);
+ expect(secondExport.overlaps).not.toEqual(firstExport.overlaps);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+ await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(overlap).toHaveCount(0);
  await expect(card(page,'Ônibus Urbano Clássico')
   .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
 });
