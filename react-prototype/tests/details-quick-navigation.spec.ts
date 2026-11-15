@@ -117,3 +117,64 @@ test('filtro de referências altera apenas a lista visível e reinicia ao mudar 
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('filtro de outro simulador combina com tipo sem duplicar referências ou alterar metadados',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ const base={game:'omsi',category:'Ônibus',version:'1.0',size:'1 MB',
+  description:'Somente dados fictícios para visualização de relações'};
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'referencias-entre-simuladores.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify({schemaVersion:1,mods:[
+   {...base,id:'target',title:'Destino OMSI'},
+   {...base,id:'same-source',title:'Origem OMSI',
+    requires:['target'],conflictsWith:['target']},
+   {...base,id:'ets-source',title:'Origem ETS2',game:'ets2',
+    category:'Caminhões',requires:['target']},
+   {...base,id:'ats-source',title:'Origem ATS',game:'ats',
+    category:'Caminhões',conflictsWith:['target']}
+  ]}))
+ });
+ await page.getByRole('button',{name:'Ver Destino OMSI'}).click();
+ const incoming=page.locator('#relacoes-recebidas');
+ const type=incoming.getByRole('combobox',{name:'Filtrar tipo de referência recebida'});
+ const origin=incoming.getByRole('combobox',{name:'Filtrar origem das referências recebidas'});
+ const status=incoming.locator('.relation-incoming-filter [role="status"]');
+ const items=incoming.locator('.relation-incoming-groups li');
+ const shortcut=page.getByRole('navigation',{name:'Atalhos dos detalhes do mod'})
+  .getByRole('button',{name:/Referências recebidas/});
+ await expect(type).toHaveValue('all');
+ await expect(origin).toHaveValue('all');
+ await expect(status).toContainText('Exibindo 4 de 4');
+ await expect(items).toHaveCount(4);
+ await expect(shortcut).toContainText('3 registro(s) que mencionam este ID (JSON)');
+ await expect(shortcut).toContainText('Dependências: 2 · Conflitos: 2');
+ await origin.selectOption('cross-game');
+ await expect(status).toContainText('Exibindo 2 de 4');
+ await expect(items).toHaveCount(2);
+ await expect(incoming.locator('.relation-cross-game-summary'))
+  .toContainText('2 referência(s) diretas recebidas de outros simuladores');
+ await expect(items).not.toContainText('Origem OMSI');
+ await type.selectOption('requires');
+ await expect(status).toContainText('Exibindo 1 de 4');
+ await expect(items).toHaveCount(1);
+ await expect(items.first()).toContainText('Origem ETS2');
+ await type.selectOption('conflicts');
+ await expect(status).toContainText('Exibindo 1 de 4');
+ await expect(items.first()).toContainText('Origem ATS');
+ await origin.selectOption('all');
+ await expect(status).toContainText('Exibindo 2 de 4');
+ await expect(items).toHaveCount(2);
+ await expect(shortcut).toContainText('Dependências: 2 · Conflitos: 2');
+ await page.getByRole('button',{name:'Próximo mod: Origem OMSI'}).click();
+ await expect(page.getByRole('heading',{name:'Origem OMSI',exact:true})).toBeFocused();
+ await expect(origin).toHaveCount(0);
+ await page.getByRole('button',{name:'Mod anterior: Destino OMSI'}).click();
+ await expect(type).toHaveValue('all');
+ await expect(origin).toHaveValue('all');
+ await expect(items).toHaveCount(4);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

@@ -168,8 +168,8 @@ export default function App(){
  const focusDetailsTitleAfterStep=useRef(false);
  const [hypotheticalGameVersion,setHypotheticalGameVersion]=useState('');
  const [incomingView,setIncomingView]=useState<{
-  modId:string;kind:'all'|'requires'|'conflicts'
- }>({modId:mods[0].id,kind:'all'});
+  modId:string;kind:'all'|'requires'|'conflicts';scope:'all'|'cross-game'
+ }>({modId:mods[0].id,kind:'all',scope:'all'});
  const [catalogMods,setCatalogMods]=useState<Mod[]>(mods);
  const [catalogSource,setCatalogSource]=useState('Demonstração');
  const [catalogError,setCatalogError]=useState('');
@@ -254,8 +254,11 @@ export default function App(){
   collectIncomingDeclaredRelations(catalogMods,selected.id);
  // This view is scoped to the current catalog entry, never another mod.
  const incomingKind=incomingView.modId===selected.id?incomingView.kind:'all';
- const incomingRequires=incomingKind==='conflicts'?[]:incomingRelations.requiredBy;
- const incomingConflicts=incomingKind==='requires'?[]:incomingRelations.conflictDeclaredBy;
+ const incomingScope=incomingView.modId===selected.id?incomingView.scope:'all';
+ const incomingRequires=(incomingKind==='conflicts'?[]:incomingRelations.requiredBy)
+  .filter(source=>incomingScope==='all'||source.differentGame);
+ const incomingConflicts=(incomingKind==='requires'?[]:incomingRelations.conflictDeclaredBy)
+  .filter(source=>incomingScope==='all'||source.differentGame);
  const incomingVisibleTotal=incomingRequires.length+incomingConflicts.length;
  // One catalog record can mention the same target twice (requires + conflicts).
  // The count of originating IDs must not be confused with the number of edges.
@@ -766,7 +769,7 @@ export default function App(){
   if(id!==screen&&!preserveInputFocus)focusMainAfterNavigation.current=true;
   setScreen(id);setToast('');
  }
- function detail(id:string){setIncomingView({modId:id,kind:'all'});setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
+ function detail(id:string){setIncomingView({modId:id,kind:'all',scope:'all'});setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
  function returnFromDetails(){
   // Restore the exact card when possible; filtered-out cards fall back to main.
   focusCardAfterDetails.current=selected.id;
@@ -788,7 +791,7 @@ export default function App(){
   restoreCatalogBeforeDependencyLookup(context);
   if(!catalogMods.some(mod=>mod.id===context.sourceId))return;
   setSelectedMod(context.sourceId);setDetailOrigin(context.origin);
-  setIncomingView({modId:context.sourceId,kind:'all'});
+  setIncomingView({modId:context.sourceId,kind:'all',scope:'all'});
   setHypotheticalGameVersion(context.hypotheticalVersion);
   setDetailFocus(context.returnFocus);goto('details');
  }
@@ -816,14 +819,14 @@ export default function App(){
   if(!detailCandidates.some(mod=>mod.id===nextId))return;
   focusDetailsTitleAfterStep.current=true;
   setSelectedMod(nextId);
-  setIncomingView({modId:nextId,kind:'all'});
+  setIncomingView({modId:nextId,kind:'all',scope:'all'});
   setHypotheticalGameVersion('');
   setDetailFocus('overview');
  }
- function openDeclaredDiagnostic(id:string){setIncomingView({modId:id,kind:'all'});setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
+ function openDeclaredDiagnostic(id:string){setIncomingView({modId:id,kind:'all',scope:'all'});setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
  function openIncomingFromLibrary(id:string){
   if(!catalogMods.some(mod=>mod.id===id))return;
-  setIncomingView({modId:id,kind:'all'});
+  setIncomingView({modId:id,kind:'all',scope:'all'});
   setHypotheticalGameVersion('');
   setDetailOrigin('library');setSelectedMod(id);setDetailFocus('incoming');
   goto('details');
@@ -1845,21 +1848,33 @@ export default function App(){
      <label>Exibir referências por tipo
       <select aria-label="Filtrar tipo de referência recebida" value={incomingKind}
        onChange={event=>setIncomingView({
-        modId:selected.id,kind:event.target.value as 'all'|'requires'|'conflicts'
+        modId:selected.id,kind:event.target.value as 'all'|'requires'|'conflicts',
+        scope:incomingScope
        })}>
        <option value="all">Todas as referências</option>
        <option value="requires">Somente dependências</option>
        <option value="conflicts">Somente conflitos</option>
       </select>
      </label>
+     <label>Origem declarada
+      <select aria-label="Filtrar origem das referências recebidas" value={incomingScope}
+       disabled={incomingCrossGameSummary.total===0}
+       onChange={event=>setIncomingView({
+        modId:selected.id,kind:incomingKind,
+        scope:event.target.value as 'all'|'cross-game'
+       })}>
+       <option value="all">Todos os simuladores</option>
+       <option value="cross-game">Somente outros simuladores</option>
+      </select>
+     </label>
      <span role="status">Exibindo {incomingVisibleTotal} de {
       incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length
-     } referência(s) declaradas. O filtro não altera o catálogo.</span>
+     } referência(s) declaradas. Filtros apenas visuais, sem verificar compatibilidade nem modificar o catálogo.</span>
     </div>}
    {incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length===0?
     <p className="relation-incoming-empty">Nenhuma referência recebida nesses campos do catálogo.</p>:
     incomingVisibleTotal===0?
-    <p className="relation-incoming-empty" role="status">Nenhuma referência deste tipo foi declarada para este ID.</p>:
+    <p className="relation-incoming-empty" role="status">Nenhuma referência corresponde à combinação de tipo e origem selecionada. Os registros do JSON continuam intactos.</p>:
     <div className="relation-incoming-groups">
      {incomingRequires.length>0&&<div>
       <h4>Declara dependência direta deste ID ({incomingRequires.length})</h4>
