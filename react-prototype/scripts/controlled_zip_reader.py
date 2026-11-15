@@ -23,6 +23,9 @@ from controlled_o3d_material_hints import (
 from controlled_o3d_matrix_hints import (
     O3D_MATRIX_HINT_CLASSES, classify_bounded_o3d_matrix_section
 )
+from controlled_o3d_bone_hints import (
+    O3D_BONE_HINT_CLASSES, classify_bounded_o3d_bone_weights
+)
 
 from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
 from controlled_reference_hints import (
@@ -73,6 +76,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     bounded_material_o3d_paths: set[str] = set()
     matrix_hint_counts = {kind: 0 for kind in O3D_MATRIX_HINT_CLASSES}
     bounded_matrix_o3d_paths: set[str] = set()
+    bone_hint_counts = {kind: 0 for kind in O3D_BONE_HINT_CLASSES}
+    bounded_bone_o3d_paths: set[str] = set()
     references = empty_counts()
     reference_sources = {"inspected": 0, "notInspected": 0}
     definition_hints = {
@@ -105,6 +110,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     material_linked_vehicle_folders: set[str] = set()
     matrix_backed_cfg_paths: set[str] = set()
     matrix_linked_vehicle_folders: set[str] = set()
+    bone_backed_cfg_paths: set[str] = set()
+    bone_linked_vehicle_folders: set[str] = set()
     truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
@@ -226,6 +233,12 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                     matrix_hint_counts[matrix_kind] += 1
                     if matrix_kind == "plausibleBoundedMatrixLayout":
                         bounded_matrix_o3d_paths.add(info.filename.lower())
+                    # Reuse the existing 8192-byte M12/M13 buffer.
+                    bone_kind = classify_bounded_o3d_bone_weights(
+                        bytes(material_sample), per_file)
+                    bone_hint_counts[bone_kind] += 1
+                    if bone_kind == "plausibleBoundedBoneWeights":
+                        bounded_bone_o3d_paths.add(info.filename.lower())
                 if ext in ("bus", "cfg"):
                     fixture_sources.append((info.filename.lower(), ext,
                                             bytes(sample) if sample is not None else None))
@@ -320,6 +333,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                     if (matrix_hints is not None and
                             matrix_hints["mesh"]["presentInFixture"] > 0):
                         matrix_backed_cfg_paths.add(source)
+                bone_targets = frozenset(path for path in bounded_bone_o3d_paths
+                                         if path.startswith(variant + "/"))
+                if bone_targets:
+                    bone_hints = inspect_fixture_references("cfg", content,
+                                                            source, bone_targets)
+                    if (bone_hints is not None and
+                            bone_hints["mesh"]["presentInFixture"] > 0):
+                        bone_backed_cfg_paths.add(source)
             # The existing bounded reference interpreter validates the exact
             # tiny [model] -> next line dialect. Reuse it with a restricted
             # index of marked CFG targets rather than creating another parser.
@@ -394,6 +415,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                                 if (matrix_link is not None and
                                         matrix_link["model"]["presentInFixture"] > 0):
                                     matrix_linked_vehicle_folders.add(variant)
+                            bone_targets = frozenset(path for path in bone_backed_cfg_paths
+                                                     if path.startswith(variant + "/"))
+                            if bone_targets:
+                                bone_link = inspect_fixture_references(
+                                    "bus", content, source, bone_targets)
+                                if (bone_link is not None and
+                                        bone_link["model"]["presentInFixture"] > 0):
+                                    bone_linked_vehicle_folders.add(variant)
     except FixtureReferenceLimitExceeded:
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
@@ -412,6 +441,7 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "o3dTriangleIndexHintCounts": triangle_hint_counts,
         "o3dMaterialReferenceHintCounts": material_hint_counts,
         "o3dMatrixSectionHintCounts": matrix_hint_counts,
+        "o3dBoneWeightHintCounts": bone_hint_counts,
         "meshFormatVerified": False,
         "declaredSuffixesAreContentProof": False,
         "definitionFixtureHints": definition_hints,
@@ -424,6 +454,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
             "omsiBoundedTriangleHintLinkedVehicleFolders": len(triangle_linked_vehicle_folders),
             "omsiBoundedMaterialHintLinkedVehicleFolders": len(material_linked_vehicle_folders),
             "omsiBoundedMatrixHintLinkedVehicleFolders": len(matrix_linked_vehicle_folders),
+            "omsiBoundedBoneHintLinkedVehicleFolders": len(bone_linked_vehicle_folders),
+            "omsiMeshLinkedWithoutBoundedBoneHintFolders": len(
+                mesh_linked_vehicle_folders - bone_linked_vehicle_folders),
             "omsiMeshLinkedWithoutBoundedMatrixHintFolders": len(
                 mesh_linked_vehicle_folders - matrix_linked_vehicle_folders),
             "omsiMeshLinkedWithoutBoundedMaterialHintFolders": len(
