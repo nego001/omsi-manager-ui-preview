@@ -182,7 +182,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
 
     def test_sound_reference_to_cfg_is_not_model_reference(self):
         result = inspect([
-            ("Vehicles/A/A.bus", b"[friendlyname]\\nDemo\\n[sound]\\nmodel/model.cfg\\n"),
+            ("Vehicles/A/A.bus", b"[friendlyname]\nDemo\n[sound]\nmodel/model.cfg\n"),
             ("Vehicles/A/model/model.cfg", CFG),
         ])
         self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
@@ -191,7 +191,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
 
     def test_unsafe_traversal_in_model_reference_cannot_create_link(self):
         result = inspect([
-            ("Vehicles/A/A.bus", b"[friendlyname]\\nDemo\\n[model]\\n../B/model.cfg\\n"),
+            ("Vehicles/A/A.bus", b"[friendlyname]\nDemo\n[model]\n../B/model.cfg\n"),
             ("Vehicles/A/model/model.cfg", CFG),
         ])
         self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
@@ -200,7 +200,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
 
     def test_reference_to_another_variant_does_not_count_as_local_link(self):
         result = inspect([
-            ("Vehicles/A/A.bus", b"[model]\\nmodel/model.cfg\\n"),
+            ("Vehicles/A/A.bus", b"[model]\nmodel/model.cfg\n"),
             ("Vehicles/A/other.cfg", CFG),
             ("Vehicles/B/model/model.cfg", CFG),
         ])
@@ -211,7 +211,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
     def test_casefolded_fixture_paths_support_same_variant_model_reference(self):
         result = inspect([
             ("VEHICLES/MyBus/BUS.BUS",
-             b"[friendlyname]\\nBus\\n[MODEL]\\nMODEL\\\\body.CFG\\n"),
+             b"[friendlyname]\nBus\n[MODEL]\nMODEL\\body.CFG\n"),
             ("Vehicles/MyBus/Model/Body.cfg", CFG),
         ])
         self.assertEqual(result["assessment"], "omsi-fixture-candidate")
@@ -233,7 +233,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
     def test_link_report_never_exposes_private_paths_or_referenced_content(self):
         result = inspect([
             ("Vehicles/PrivateVariant9/BusName907.bus",
-             b"[model]\\nprivate/PrivateCfg227.cfg\\n"),
+             b"[model]\nprivate/PrivateCfg227.cfg\n"),
             ("Vehicles/PrivateVariant9/private/PrivateCfg227.cfg", CFG),
         ])
         self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
