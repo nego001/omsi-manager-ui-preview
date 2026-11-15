@@ -68,3 +68,47 @@ test('contagens nos atalhos seguem o mod selecionado e só descrevem o JSON',asy
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('filtro de referências altera apenas a lista visível e reinicia ao mudar mod',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ const base={game:'omsi',category:'Ônibus',version:'1.0',size:'1 MB',
+  description:'Exemplo fictício somente de metadados'};
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'filtro-referencias.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify({schemaVersion:1,mods:[
+   {...base,id:'target',title:'Destino fictício'},
+   {...base,id:'source',title:'Origem fictícia',
+    requires:['target'],conflictsWith:['target']}
+  ]}))
+ });
+ await page.getByRole('button',{name:'Ver Destino fictício'}).click();
+ const incoming=page.locator('#relacoes-recebidas');
+ const filter=incoming.getByRole('combobox',{name:'Filtrar tipo de referência recebida'});
+ const shortcuts=page.getByRole('navigation',{name:'Atalhos dos detalhes do mod'});
+ await expect(filter).toHaveValue('all');
+ await expect(incoming.getByRole('status')).toContainText('Exibindo 2 de 2');
+ await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(2);
+ await filter.selectOption('requires');
+ await expect(incoming.getByRole('status')).toContainText('Exibindo 1 de 2');
+ await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(1);
+ await expect(incoming).toContainText('Declara dependência direta deste ID (1)');
+ await expect(incoming).not.toContainText('Outros registros que declaram conflito');
+ await expect(shortcuts.getByRole('button',{name:/Referências recebidas/}))
+  .toContainText('Dependências: 1 · Conflitos: 1');
+ await filter.selectOption('conflicts');
+ await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(1);
+ await expect(incoming).toContainText('Outros registros que declaram conflito com este ID (1)');
+ await expect(incoming).not.toContainText('Declara dependência direta deste ID');
+ await page.getByRole('button',{name:'Próximo mod: Origem fictícia'}).click();
+ await expect(page.getByRole('heading',{name:'Origem fictícia',exact:true})).toBeFocused();
+ await expect(filter).toHaveCount(0);
+ await expect(incoming).toContainText('Nenhuma referência recebida nesses campos do catálogo.');
+ await page.getByRole('button',{name:'Mod anterior: Destino fictício'}).click();
+ await expect(filter).toHaveValue('all');
+ await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(2);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

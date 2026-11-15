@@ -1487,3 +1487,26 @@
  color:#bbcbdc;
  line-height:1.45;
 }
+
+/* Details: filter visible declarations only; no change to unfiltered evidence. */
+.relation-incoming-filter{
+ display:flex;flex-wrap:wrap;align-items:end;gap:10px 16px;padding:12px;
+ margin:12px 0;border:1px solid #4c5b6b;border-radius:9px;
+ background:#222b35;min-width:0;
+}
+.relation-incoming-filter label{
+ display:flex;flex-direction:column;gap:6px;flex:1 1 190px;
+ min-width:0;color:#d9e4ef;font-size:11px;font-weight:600;
+}
+.relation-incoming-filter select{
+ width:100%;min-height:38px;min-width:0;padding:7px 10px;
+ background:#293541;border:1px solid #65758a;border-radius:7px;
+ color:#f3f6fb;font-size:12px;
+}
+.relation-incoming-filter select:focus-visible{
+ outline:2px solid #c2d6ff;outline-offset:3px;
+}
+.relation-incoming-filter [role="status"]{
+ flex:1 1 170px;min-width:0;color:#c1d3e2;
+ line-height:1.55;font-size:11px;overflow-wrap:anywhere;
+}

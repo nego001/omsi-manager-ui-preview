@@ -167,6 +167,9 @@ export default function App(){
  const [selectedMod,setSelectedMod]=useState(mods[0].id);
  const focusDetailsTitleAfterStep=useRef(false);
  const [hypotheticalGameVersion,setHypotheticalGameVersion]=useState('');
+ const [incomingView,setIncomingView]=useState<{
+  modId:string;kind:'all'|'requires'|'conflicts'
+ }>({modId:mods[0].id,kind:'all'});
  const [catalogMods,setCatalogMods]=useState<Mod[]>(mods);
  const [catalogSource,setCatalogSource]=useState('Demonstração');
  const [catalogError,setCatalogError]=useState('');
@@ -249,6 +252,11 @@ export default function App(){
  const incomingById=useMemo(()=>indexIncomingDeclaredRelations(catalogMods),[catalogMods]);
  const incomingRelations=incomingById.get(selected.id)??
   collectIncomingDeclaredRelations(catalogMods,selected.id);
+ // This view is scoped to the current catalog entry, never another mod.
+ const incomingKind=incomingView.modId===selected.id?incomingView.kind:'all';
+ const incomingRequires=incomingKind==='conflicts'?[]:incomingRelations.requiredBy;
+ const incomingConflicts=incomingKind==='requires'?[]:incomingRelations.conflictDeclaredBy;
+ const incomingVisibleTotal=incomingRequires.length+incomingConflicts.length;
  // One catalog record can mention the same target twice (requires + conflicts).
  // The count of originating IDs must not be confused with the number of edges.
  const incomingOriginCount=new Set([
@@ -1829,12 +1837,30 @@ export default function App(){
     </div>
     <small>Resumo de declarações entre jogos, não de mods instalados nem de compatibilidade ou conversão confirmada.</small>
    </div>}
+   {incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length>0&&
+    <div className="relation-incoming-filter">
+     <label>Exibir referências por tipo
+      <select aria-label="Filtrar tipo de referência recebida" value={incomingKind}
+       onChange={event=>setIncomingView({
+        modId:selected.id,kind:event.target.value as 'all'|'requires'|'conflicts'
+       })}>
+       <option value="all">Todas as referências</option>
+       <option value="requires">Somente dependências</option>
+       <option value="conflicts">Somente conflitos</option>
+      </select>
+     </label>
+     <span role="status">Exibindo {incomingVisibleTotal} de {
+      incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length
+     } referência(s) declaradas. O filtro não altera o catálogo.</span>
+    </div>}
    {incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length===0?
     <p className="relation-incoming-empty">Nenhuma referência recebida nesses campos do catálogo.</p>:
+    incomingVisibleTotal===0?
+    <p className="relation-incoming-empty" role="status">Nenhuma referência deste tipo foi declarada para este ID.</p>:
     <div className="relation-incoming-groups">
-     {incomingRelations.requiredBy.length>0&&<div>
-      <h4>Declara dependência direta deste ID ({incomingRelations.requiredBy.length})</h4>
-      <ul>{incomingRelations.requiredBy.map(mod=><li key={mod.id}>
+     {incomingRequires.length>0&&<div>
+      <h4>Declara dependência direta deste ID ({incomingRequires.length})</h4>
+      <ul>{incomingRequires.map(mod=><li key={mod.id}>
        <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small>
         {mod.differentGame&&<small className="relation-incoming-context">Referência entre jogos diferentes · somente JSON</small>}</span>
        <button className="relation-stage-catalog-jump" type="button"
@@ -1844,9 +1870,9 @@ export default function App(){
        </button>
       </li>)}</ul>
      </div>}
-     {incomingRelations.conflictDeclaredBy.length>0&&<div>
-      <h4>Outros registros que declaram conflito com este ID ({incomingRelations.conflictDeclaredBy.length})</h4>
-      <ul>{incomingRelations.conflictDeclaredBy.map(mod=><li key={mod.id}>
+     {incomingConflicts.length>0&&<div>
+      <h4>Outros registros que declaram conflito com este ID ({incomingConflicts.length})</h4>
+      <ul>{incomingConflicts.map(mod=><li key={mod.id}>
        <span><strong>{mod.title}</strong><small>{games[mod.game].title} · {mod.category} · ID {mod.id}</small>
         <small className="relation-incoming-context">{mod.reciprocalDeclaration?
          'Ambos os registros declaram conflito no JSON':
