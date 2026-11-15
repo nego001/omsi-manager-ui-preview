@@ -102,3 +102,35 @@ test('ID declarado com 64 caracteres permanece legível a 390px e funciona por t
  await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
  await expect(overlap).toHaveCount(0);
 });
+
+test('alertas zerados não ocultam IDs removidos/adicionados ou alterações fora dos quatro grupos',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ await propose(page,[bus],'base-somente-um.json');
+ await card(page,'Ônibus Urbano Clássico').getByRole('button',{name:'Favoritar'}).click();
+ const other={...bus,id:'only-new',title:'Registro novo'};
+ await propose(page,[other],'tudo-substituido.json');
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ const summary=consent.getByRole('group',{name:'Resumo das diferenças declaradas'});
+ const coverage=summary.getByRole('note');
+ await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
+ await expect(coverage).toContainText('1 IDs adicionados');
+ await expect(coverage).toContainText('1 IDs removidos');
+ await expect(coverage).toContainText('0 IDs mantidos com metadados alterados');
+ await expect(coverage).toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
+
+ await propose(page,[{...bus,description:'Descrição revisada'}],'apenas-descricao.json');
+ await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
+ await expect(coverage).toContainText('0 IDs adicionados');
+ await expect(coverage).toContainText('0 IDs removidos');
+ await expect(coverage).toContainText('1 IDs mantidos com metadados alterados');
+ await expect(coverage).toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+ await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(summary).toHaveCount(0);
+ await expect(card(page,'Ônibus Urbano Clássico')
+  .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+});

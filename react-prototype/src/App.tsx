@@ -1166,6 +1166,17 @@ export default function App(){
    </ul>
    <p>IDs distintos nos quatro grupos: <strong>{catalogPreflightDistinctIds?.distinctIds??0}</strong>.
     {' '}IDs presentes em mais de um grupo: <strong>{catalogPreflightDistinctIds?.overlappingIds??0}</strong>.</p>
+   {catalogReplacementDiff&&<p className="catalog-preflight-scope" role="note">
+    Cobertura do catálogo completo, separada dos quatro grupos:
+    {' '}<strong>{catalogReplacementDiff.added.length}</strong> IDs adicionados,
+    {' '}<strong>{catalogReplacementDiff.removed.length}</strong> IDs removidos e
+    {' '}<strong>{catalogReplacementDiff.changed.length}</strong> IDs mantidos com metadados alterados.
+    {' '}Estes totais podem se sobrepor aos alertas acima e não devem ser somados.
+    {catalogPreflightDistinctIds?.distinctIds===0&&
+     (catalogReplacementDiff.added.length>0||catalogReplacementDiff.removed.length>0||
+      catalogReplacementDiff.changed.length>0)&&
+     <strong> Zero alertas nos quatro grupos não significa catálogos iguais.</strong>}
+   </p>
    {catalogPreflightDistinctIds&&catalogPreflightDistinctIds.overlappingIds>0&&
     <details className="catalog-preflight-overlap-examples">
      <summary>Ver IDs presentes em mais de um grupo ({catalogPreflightDistinctIds.overlappingIds})</summary>
