@@ -13,8 +13,9 @@ def assess_controlled_zip_game_hints(payload: bytes) -> dict:
     """Classify TEST-FIXTURE patterns, not an actual game's mod format.
 
     Two marker-bearing bus/cfg entries in one Vehicles/<variant> folder
-    require a bounded [model] reference from the BUS to the CFG before
-    producing an OMSI *fixture candidate*. SiiNunit-like markers under def/
+    require a bounded [model] reference from the BUS to the CFG, AND the
+    linked CFG must cite an O3D fixture entry with [mesh] in the same variant,
+    before producing an OMSI *fixture candidate*. SiiNunit-like markers under def/
     remain ambiguous between ETS2 and ATS. All source bytes are supplied
     directly in memory; the existing ZIP reader enforces entry limits,
     path rules, compression policy, CRC and size accounting.
@@ -23,17 +24,19 @@ def assess_controlled_zip_game_hints(payload: bytes) -> dict:
     hints = report["fixtureGameHints"]
     paired = hints["omsiPairedVehicleFolders"]
     linked = hints["omsiLinkedVehicleFolders"]
+    mesh_linked = hints["omsiMeshLinkedVehicleFolders"]
+    missing_mesh = hints["omsiLinkedWithoutMeshFolders"]
     unlinked = hints["omsiUnlinkedPairedFolders"]
     bus = hints["omsiBusMarkerFolders"]
     cfg = hints["omsiCfgMarkerFolders"]
     truck = hints["truckSiiDefinitionMarkers"]
 
-    if linked and truck:
+    if (linked or paired) and truck:
         assessment = "mixed-markers-ambiguous"
-    elif linked:
+    elif mesh_linked:
         assessment = "omsi-fixture-candidate"
-    elif paired and truck:
-        assessment = "mixed-markers-ambiguous"
+    elif linked:
+        assessment = "omsi-model-mesh-unconfirmed"
     elif truck:
         assessment = "ets2-ats-shared-format-ambiguous"
     elif paired:
@@ -49,6 +52,8 @@ def assess_controlled_zip_game_hints(payload: bytes) -> dict:
         "assessment": assessment,
         "omsiPairedVehicleFolderCount": paired,
         "omsiLinkedVehicleFolderCount": linked,
+        "omsiMeshLinkedVehicleFolderCount": mesh_linked,
+        "omsiLinkedWithoutMeshFolderCount": missing_mesh,
         "omsiUnlinkedPairedFolderCount": unlinked,
         "omsiBusMarkerFolderCount": bus,
         "omsiCfgMarkerFolderCount": cfg,

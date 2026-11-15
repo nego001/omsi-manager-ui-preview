@@ -66,6 +66,10 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     bus_marker_paths: set[str] = set()
     cfg_marker_paths: set[str] = set()
     linked_vehicle_folders: set[str] = set()
+    # M8: a model CFG can strengthen the fixture hint only if a bounded
+    # [mesh] reference resolves to a separate O3D entry in the same variant.
+    mesh_backed_cfg_paths: set[str] = set()
+    mesh_linked_vehicle_folders: set[str] = set()
     truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
@@ -175,6 +179,25 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
             # Cross-check ONLY against archive-internal file names already
             # accepted by the gate, never the user's game installation.
             vetted = frozenset(file_names)
+            # The same bounded interpreter handles the tiny [mesh] -> O3D
+            # dialect. Only CFGs with their own text marker are eligible.
+            # The targets MUST be separate ZIP entries under this variant;
+            # merely declaring the mesh or referencing another variant
+            # cannot qualify. Keep paths private to this one invocation.
+            for source, suffix, content in fixture_sources:
+                if suffix != "cfg" or source not in cfg_marker_paths or content is None:
+                    continue
+                variant = "/".join(source.split("/")[:2])
+                mesh_targets = frozenset(path for path in file_names
+                                         if path.startswith(variant + "/")
+                                         and path.endswith(".o3d"))
+                if not mesh_targets:
+                    continue
+                mesh_hints = inspect_fixture_references("cfg", content,
+                                                        source, mesh_targets)
+                if (mesh_hints is not None and
+                        mesh_hints["mesh"]["presentInFixture"] > 0):
+                    mesh_backed_cfg_paths.add(source)
             # The existing bounded reference interpreter validates the exact
             # tiny [model] -> next line dialect. Reuse it with a restricted
             # index of marked CFG targets rather than creating another parser.
@@ -201,6 +224,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                                                      marked_targets)
                 if linked is not None and linked["model"]["presentInFixture"] > 0:
                     linked_vehicle_folders.add(variant)
+                    backed_targets = frozenset(path for path in mesh_backed_cfg_paths
+                                               if path.startswith(variant + "/"))
+                    if backed_targets:
+                        backed = inspect_fixture_references("bus", content, source,
+                                                            backed_targets)
+                        if (backed is not None and
+                                backed["model"]["presentInFixture"] > 0):
+                            mesh_linked_vehicle_folders.add(variant)
     except FixtureReferenceLimitExceeded:
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
@@ -219,6 +250,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "fixtureGameHints": {
             "omsiPairedVehicleFolders": len(bus_marker_folders & cfg_marker_folders),
             "omsiLinkedVehicleFolders": len(linked_vehicle_folders),
+            "omsiMeshLinkedVehicleFolders": len(mesh_linked_vehicle_folders),
+            "omsiLinkedWithoutMeshFolders": len(linked_vehicle_folders
+                                                - mesh_linked_vehicle_folders),
             "omsiUnlinkedPairedFolders": len((bus_marker_folders & cfg_marker_folders)
                                             - linked_vehicle_folders),
             "omsiBusMarkerFolders": len(bus_marker_folders),

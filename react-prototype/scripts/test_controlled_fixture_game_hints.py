@@ -31,11 +31,14 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
         result = inspect([
             ("Vehicles/A/A.bus", BUS),
             ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/A/model/body.o3d", b"fake model"),
             ("Vehicles/A/body.dds", b"fake"),
         ])
         self.assertEqual(result["assessment"], "omsi-fixture-candidate")
         self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
         self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiLinkedWithoutMeshFolderCount"], 0)
         self.assertEqual(result["omsiUnlinkedPairedFolderCount"], 0)
         self.assertEqual(result["omsiBusMarkerFolderCount"], 1)
         self.assertEqual(result["omsiCfgMarkerFolderCount"], 1)
@@ -75,6 +78,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
     def test_omsi_pair_and_sii_marker_in_same_zip_never_choose_destination(self):
         result = inspect([
             ("Vehicles/A/A.bus", BUS), ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/A/model/body.o3d", b"fake model"),
             ("def/vehicle.sii", SII)
         ])
         self.assertEqual(result["assessment"], "mixed-markers-ambiguous")
@@ -213,6 +217,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
             ("VEHICLES/MyBus/BUS.BUS",
              b"[friendlyname]\nBus\n[MODEL]\nMODEL\\body.CFG\n"),
             ("Vehicles/MyBus/Model/Body.cfg", CFG),
+            ("Vehicles/MyBus/Model/body.o3d", b"fake"),
         ])
         self.assertEqual(result["assessment"], "omsi-fixture-candidate")
         self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
@@ -222,6 +227,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
             ("Vehicles/A/a.bus", BUS),
             ("Vehicles/A/b.bus", BUS),
             ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/A/model/body.o3d", b"fake"),
             ("Vehicles/B/a.bus", BUS),
             ("Vehicles/B/different.cfg", CFG),
         ])
@@ -235,8 +241,10 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
             ("Vehicles/PrivateVariant9/BusName907.bus",
              b"[model]\nprivate/PrivateCfg227.cfg\n"),
             ("Vehicles/PrivateVariant9/private/PrivateCfg227.cfg", CFG),
+            ("Vehicles/PrivateVariant9/private/body.o3d", b"fake"),
         ])
         self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
         printed = json.dumps(result)
         for private in ("PrivateVariant9", "BusName907", "PrivateCfg227",
                         "private/", "Vehicles/", "model/model.cfg"):
@@ -252,6 +260,98 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
         ], compression=zipfile.ZIP_STORED))
         self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
         self.assertEqual(result["assessment"], "insufficient-omsi-fixture-evidence")
+
+
+    def test_linked_cfg_missing_o3d_is_not_promoted_to_candidate(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["omsiLinkedWithoutMeshFolderCount"], 1)
+        self.assertEqual(result["assessment"], "omsi-model-mesh-unconfirmed")
+
+    def test_o3d_only_in_another_variant_is_not_mesh_evidence(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/B/model/body.o3d", b"fake"),
+        ])
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "omsi-model-mesh-unconfirmed")
+
+    def test_cfg_texture_marker_cannot_substitute_mesh_reference(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", b"[texture]\nbody.o3d\n"),
+            ("Vehicles/A/model/body.o3d", b"fake"),
+        ])
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "omsi-model-mesh-unconfirmed")
+
+    def test_cfg_unsafe_mesh_traversal_does_not_pass(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", b"[mesh]\n../body.o3d\n"),
+            ("Vehicles/A/model/body.o3d", b"fake"),
+        ])
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "omsi-model-mesh-unconfirmed")
+
+    def test_cfg_mesh_reference_casefold_and_backslash_is_accepted_in_fixture(self):
+        result = inspect([
+            ("Vehicles/BigBus/BigBus.bus", BUS),
+            ("Vehicles/BigBus/Model/Model.cfg", b"[MESH]\nBODY" + bytes([92]) + b"one.O3D\n"),
+            ("Vehicles/BigBus/Model/body/one.o3d", b"fake"),
+        ])
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["assessment"], "omsi-fixture-candidate")
+
+    def test_same_variant_with_wrong_cfg_target_does_not_borrow_another_mesh(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/A/unused.cfg", b"[mesh]\nbody.o3d\n"),
+            ("Vehicles/A/body.o3d", b"fake"),
+        ])
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "omsi-model-mesh-unconfirmed")
+
+    def test_two_mesh_chains_in_one_variant_count_only_once(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/B.bus", BUS),
+            ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/A/model/body.o3d", b"fake"),
+        ])
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiLinkedWithoutMeshFolderCount"], 0)
+
+    def test_fully_linked_chain_remains_ambiguous_with_truck_marker(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/A/model/body.o3d", b"fake"),
+            ("def/vehicle.sii", SII),
+        ])
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["assessment"], "mixed-markers-ambiguous")
+        self.assertFalse(result["gameRecognized"])
+
+    def test_mesh_chain_result_does_not_return_paths_or_mesh_payload(self):
+        result = inspect([
+            ("Vehicles/Personal999/BusSecret.bus", b"[model]\nmodel/PrivateCFG.cfg\n"),
+            ("Vehicles/Personal999/model/PrivateCFG.cfg", b"[mesh]\nSecretMesh.o3d\n"),
+            ("Vehicles/Personal999/model/SecretMesh.o3d", b"private bytes"),
+        ])
+        self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
+        text = json.dumps(result)
+        for private in ("Personal999", "BusSecret", "PrivateCFG",
+                        "SecretMesh", "private bytes", "Vehicles/"):
+            self.assertNotIn(private, text)
 
 
 if __name__ == "__main__":
