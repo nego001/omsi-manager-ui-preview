@@ -1524,3 +1524,18 @@
 .relation-incoming-filter .relation-incoming-reset:focus-visible{
  outline:2px solid #c2d6ff;outline-offset:3px;
 }
+
+/* Library: reach the real filter toolbar without walking through inventory
+   import/review panels, retaining the original result shortcut. */
+.library-quick-navigation{
+ display:flex;flex-wrap:wrap;align-items:center;
+ gap:8px 10px;margin-top:14px;min-width:0;
+}
+.library-quick-navigation .library-jump-results{
+ margin-top:0;max-width:100%;
+}
+@media(max-width:480px){
+ .library-quick-navigation .library-jump-results{
+  flex:1 1 170px;justify-content:space-between;
+ }
+}

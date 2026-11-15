@@ -737,6 +737,14 @@ export default function App(){
   if(screen!=='details')return;
   document.getElementById(id)?.focus();
  }
+ function jumpToLibraryFilters(){
+  if(screen!=='library'||favoriteMods.length===0)return;
+  // The filter toolbar is below the inventory review; reach it without
+  // changing any selected favorite, active filter or catalog metadata.
+  document.querySelector<HTMLSelectElement>(
+   '.library-toolbar select[aria-label="Filtrar jogo na biblioteca"]'
+  )?.focus();
+ }
  function jumpToLibraryResults(){
   if(screen!=='library')return;
   const first=libraryMods[0];
@@ -1546,13 +1554,19 @@ export default function App(){
   'Favoritos da demonstração ficam salvos neste navegador.':
   'Favoritos do catálogo importado duram apenas esta sessão e não voltam ao reiniciar.'}
   {' '}Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p>
-  <button type="button" className="btn secondary library-jump-results"
-   onClick={jumpToLibraryResults}>
-   {libraryMods.length>0?
-    `Ir aos favoritos exibidos (${libraryMods.length})`:
-    favoriteMods.length>0?'Ir ao resultado vazio dos filtros':'Ir à biblioteca vazia'}
-   <ChevronRight size={15} aria-hidden="true"/>
-  </button>
+  <div className="library-quick-navigation" role="group" aria-label="Atalhos da Biblioteca">
+   <button type="button" className="btn secondary library-jump-results"
+    onClick={jumpToLibraryResults}>
+    {libraryMods.length>0?
+     `Ir aos favoritos exibidos (${libraryMods.length})`:
+     favoriteMods.length>0?'Ir ao resultado vazio dos filtros':'Ir à biblioteca vazia'}
+    <ChevronRight size={15} aria-hidden="true"/>
+   </button>
+   {favoriteMods.length>0&&<button type="button" className="btn secondary library-jump-results"
+    onClick={jumpToLibraryFilters}>
+    Ir aos filtros da biblioteca <ChevronRight size={15} aria-hidden="true"/>
+   </button>}
+  </div>
  </div>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
