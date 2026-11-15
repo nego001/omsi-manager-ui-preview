@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "mods": [
+    {
+      "id": "ets2-sound-core",
+      "title": "Biblioteca de áudio (exemplo)",
+      "game": "ets2",
+      "category": "Sons",
+      "version": "2.1",
+      "description": "Biblioteca fictícia usada apenas para testar requisitos por versão.",
+      "size": "22 MB"
+    },
+    {
+      "id": "ets2-sound-engine",
+      "title": "Som de motor (exemplo)",
+      "game": "ets2",
+      "category": "Sons",
+      "version": "1.5",
+      "description": "Requer biblioteca 2.2 ou superior e declara faixa hipotética de jogo 1.50 a 1.55.",
+      "size": "55 MB",
+      "requires": [
+        "ets2-sound-core"
+      ],
+      "requiresMinVersions": [
+        {
+          "id": "ets2-sound-core",
+          "minVersion": "2.2"
+        }
+      ],
+      "gameVersionRange": {
+        "min": "1.50",
+        "max": "1.55"
+      }
+    },
+    {
+      "id": "ets2-paint",
+      "title": "Pintura demonstrativa",
+      "game": "ets2",
+      "category": "Gráficos",
+      "version": "1.0",
+      "description": "Registro fictício que declara jogo 1.51 ou mais recente.",
+      "size": "10 MB",
+      "gameVersionRange": {
+        "min": "1.51"
+      }
+    }
+  ]
+}

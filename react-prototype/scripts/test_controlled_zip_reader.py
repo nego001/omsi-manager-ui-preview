@@ -1,0 +1,270 @@
+"""Adversarial ZIP fixtures are constructed in memory; no user file access."""
+import io
+import stat
+import unittest
+import zipfile
+from controlled_zip_reader import (
+    ControlledZipRefused, MAX_ARCHIVE_BYTES, examine_controlled_zip_bytes
+)
+
+def bundle(entries, compression=zipfile.ZIP_STORED):
+    mem = io.BytesIO()
+    with zipfile.ZipFile(mem, "w", compression=compression) as zf:
+        for name, data in entries:
+            # Directory entries are intentionally stored, never deflated.
+            # The constrained reader rejects compressed empty directory metadata.
+            if name.endswith("/"):
+                item = zipfile.ZipInfo(name)
+                item.compress_type = zipfile.ZIP_STORED
+                zf.writestr(item, data)
+            else:
+                zf.writestr(name, data)
+    return mem.getvalue()
+
+class ControlledZipReaderTests(unittest.TestCase):
+    def test_real_zip_byte_headers_deflate_and_crc_without_extraction(self):
+        data = bundle([
+            ("Vehicles/", b""),
+            ("Vehicles/Bus.bus", b"synthetic-bus"),
+            ("sound/engine.wav", b"not-actual-wave")
+        ], zipfile.ZIP_DEFLATED)
+        report = examine_controlled_zip_bytes(data)
+        self.assertEqual(report["fileCount"], 2)
+        self.assertEqual(report["directoryCount"], 1)
+        self.assertEqual(report["actualInflatedBytes"],
+                         len(b"synthetic-bus") + len(b"not-actual-wave"))
+        self.assertTrue(report["zipHeadersAndCrcRead"])
+        self.assertEqual(report["declaredSuffixCounts"]["bus"], 1)
+        self.assertEqual(report["declaredSuffixCounts"]["wav"], 1)
+        self.assertEqual(sum(report["declaredSuffixCounts"].values()), 2)
+        self.assertFalse(report["declaredSuffixesAreContentProof"])
+        for key in ("archiveOriginVerified", "gameRecognized",
+                    "compatibilityVerified", "installationEnabled",
+                    "realGameFilesTouched"):
+            self.assertFalse(report[key])
+
+    def test_only_fixed_suffix_counts_not_names_are_returned(self):
+        import json
+        samples = [
+            ("Vehicles/SECRET_CUSTOMER_BUS_917.bus", b"fixture"),
+            ("def/private_truck.sii", b"fixture"),
+            ("mod/packed.scs", b"fixture"),
+            ("sounds/secret_audio.OGG", b"fixture"),
+            ("covers/image.png", b"fixture"),
+            ("scripts/suspicious.exe", b"fixture"),
+        ]
+        report = examine_controlled_zip_bytes(bundle(samples))
+        expected = {
+            "bus": 1, "cfg": 0, "sco": 0, "sli": 0,
+            "sii": 1, "scs": 1, "dds": 0,
+            "png": 1, "jpg": 0, "wav": 0, "ogg": 1,
+            "bank": 0, "json": 0, "other": 1
+        }
+        self.assertEqual(report["declaredSuffixCounts"], expected)
+        self.assertEqual(sum(expected.values()), report["fileCount"])
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["declaredSuffixesAreContentProof"])
+        self.assertFalse(report["installationEnabled"])
+        serialized = json.dumps(report)
+        for forbidden in (
+            "SECRET_CUSTOMER_BUS_917", "private_truck", "packed.scs",
+            "secret_audio", "suspicious.exe", "Vehicles/"
+        ):
+            self.assertNotIn(forbidden, serialized)
+
+    def test_filename_suffix_is_never_confused_with_actual_content_format(self):
+        # A .bus or .sii name does not make arbitrary bytes a valid game file.
+        report = examine_controlled_zip_bytes(bundle([
+            ("vehicles/not-a-real-bus.bus", b"not a definition"),
+            ("def/not-a-real-sii.sii", b"not a definition"),
+        ]))
+        self.assertEqual(report["declaredSuffixCounts"]["bus"], 1)
+        self.assertEqual(report["declaredSuffixCounts"]["sii"], 1)
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["compatibilityVerified"])
+        self.assertFalse(report["declaredSuffixesAreContentProof"])
+
+    def test_definition_hints_are_aggregate_only_and_not_game_recognition(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("Vehicles/private_bus.bus", b"[friendlyname]\nFictitious\n[model]\nmodel.cfg\n"),
+            ("models/example.cfg", b"[mesh]\nplaceholder.o3d\n"),
+            ("def/truck.sii", b"SiiNunit\n{\nvehicle : demo.truck\n}\n"),
+            ("def/fake.sii", b"SiiNunit\n{\nvehicle : demo.truck\n"),
+            ("vehicles/binary.bus", b"\xff\x00\xfe"),
+            ("vehicle/unrelated.bus", b"hello"),
+            ("models/too-large.cfg", b"[mesh]\n" + b"x" * 17_000),
+        ]))
+        hints = report["definitionFixtureHints"]
+        self.assertEqual(hints["bus"], {
+            "declaredFiles": 3, "markerObserved": 1, "noMarker": 1,
+            "textUnavailable": 1, "notInspected": 0
+        })
+        self.assertEqual(hints["cfg"], {
+            "declaredFiles": 2, "markerObserved": 1, "noMarker": 0,
+            "textUnavailable": 0, "notInspected": 1
+        })
+        self.assertEqual(hints["sii"], {
+            "declaredFiles": 2, "markerObserved": 1, "noMarker": 1,
+            "textUnavailable": 0, "notInspected": 0
+        })
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["definitionSyntaxVerified"])
+        self.assertFalse(report["compatibilityVerified"])
+        self.assertFalse(report["installationEnabled"])
+        import json
+        out = json.dumps(report)
+        for secret in ("private_bus", "Fictitious", "demo.truck",
+                       "placeholder.o3d", "too-large.cfg", "hello"):
+            self.assertNotIn(secret, out)
+
+    def test_control_bytes_and_no_utf8_never_create_valid_markers(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("Vehicles/ctrl.bus", b"[friendlyname]\x00"),
+            ("models/invalid.cfg", b"\xff[mesh]"),
+            ("def/nothing.sii", b"vehicle : demo.truck\n{\n}\n"),
+        ]))
+        self.assertEqual(report["definitionFixtureHints"]["bus"]["textUnavailable"], 1)
+        self.assertEqual(report["definitionFixtureHints"]["cfg"]["textUnavailable"], 1)
+        self.assertEqual(report["definitionFixtureHints"]["sii"]["noMarker"], 1)
+        self.assertFalse(report["definitionSyntaxVerified"])
+
+    def test_reference_hints_count_present_missing_and_unsafe_without_paths(self):
+        import json
+        report = examine_controlled_zip_bytes(bundle([
+            ("Vehicles/Example/demo.bus",
+             b"[model]\nmodel\\model.cfg\n"
+             b"[sound]\nsound.cfg\n"
+             b"[model]\n../../secret.cfg\n"
+             b"[model]\nexternal.cfg\n"),
+            ("Vehicles/Example/model/model.cfg",
+             b"[mesh]\nbody.o3d\n"
+             b"[texture]\nbody.dds\n"
+             b"[texture]\nmissing.png\n"
+             b"[mesh]\nhttp://elsewhere.invalid/model.o3d\n"),
+            ("Vehicles/Example/sound.cfg", b"[sound]\nengine.cfg\n"),
+            ("Vehicles/Example/model/body.o3d", b"fake-model"),
+            ("Vehicles/Example/model/body.dds", b"fake-texture"),
+        ]))
+        kinds = report["fixtureReferenceCounts"]
+        self.assertEqual(kinds["model"], {
+            "declared": 3, "presentInFixture": 1, "absentFromFixture": 1,
+            "unsafePath": 1, "unsupportedHint": 0
+        })
+        self.assertEqual(kinds["sound"], {
+            "declared": 2, "presentInFixture": 1, "absentFromFixture": 1,
+            "unsafePath": 0, "unsupportedHint": 0
+        })
+        self.assertEqual(kinds["mesh"], {
+            "declared": 2, "presentInFixture": 1, "absentFromFixture": 0,
+            "unsafePath": 1, "unsupportedHint": 0
+        })
+        self.assertEqual(kinds["texture"], {
+            "declared": 2, "presentInFixture": 1, "absentFromFixture": 1,
+            "unsafePath": 0, "unsupportedHint": 0
+        })
+        self.assertEqual(report["fixtureReferenceSources"], {"inspected": 3, "notInspected": 0})
+        self.assertFalse(report["fixtureReferencesVerified"])
+        self.assertFalse(report["gameRecognized"])
+        self.assertFalse(report["installationEnabled"])
+        serialized = json.dumps(report)
+        for private in ("Example", "demo.bus", "secret.cfg", "elsewhere",
+                        "model.cfg", "body.o3d", "engine.cfg"):
+            self.assertNotIn(private, serialized)
+
+    def test_reference_resolution_is_relative_and_never_uses_external_files(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("A/bus.bus", b"[model]\nshared.cfg\n"),
+            ("B/shared.cfg", b"[mesh]\nremote.o3d\n"),
+        ]))
+        self.assertEqual(report["fixtureReferenceCounts"]["model"]["absentFromFixture"], 1)
+        self.assertEqual(report["fixtureReferenceCounts"]["model"]["presentInFixture"], 0)
+        self.assertFalse(report["fixtureReferencesVerified"])
+
+    def test_reference_payload_oversize_does_not_count_as_verified(self):
+        report = examine_controlled_zip_bytes(bundle([
+            ("A/bus.bus", b"[model]\nmodel.cfg\n" + b"x" * 17_000),
+            ("A/model.cfg", b"[mesh]\nbody.o3d\n"),
+        ]))
+        self.assertEqual(report["fixtureReferenceSources"]["notInspected"], 1)
+        self.assertEqual(report["fixtureReferenceSources"]["inspected"], 1)
+        self.assertEqual(report["fixtureReferenceCounts"]["model"]["declared"], 0)
+
+    def test_more_than_64_reference_hints_refuses_entire_fixture(self):
+        text = (b"[model]\nmissing.cfg\n" * 65)
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(bundle([("A/many.bus", text)]))
+
+    def test_deflated_directory_metadata_is_rejected(self):
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w") as zf:
+            item = zipfile.ZipInfo("vehicles/")
+            item.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(item, b"")
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(mem.getvalue())
+
+    def test_path_traversal_and_device_names_are_refused(self):
+        for name in (
+            "../private.bus", "/absolute.bus", "C:/mods/bus.bus",
+            "a//b.bus", "a/./bus.bus", "a/../bus.bus", "a\\bad.bus",
+            "CON.txt", "NUL", "a/LPT1.wav", "a/item.", "a/?name"
+        ):
+            with self.subTest(name=name):
+                with self.assertRaises(ControlledZipRefused):
+                    examine_controlled_zip_bytes(bundle([(name, b"x")]))
+
+    def test_case_duplicates_and_file_as_parent_are_refused(self):
+        for entries in (
+            [("mod/a.bus", b"x"), ("MOD/A.BUS", b"x")],
+            [("vehicles", b"x"), ("vehicles/a.bus", b"x")]
+        ):
+            with self.assertRaises(ControlledZipRefused):
+                examine_controlled_zip_bytes(bundle(entries))
+
+    def test_symlink_is_refused_even_without_extraction(self):
+        mem = io.BytesIO()
+        with zipfile.ZipFile(mem, "w") as zf:
+            info = zipfile.ZipInfo("vehicles/link")
+            info.create_system = 3
+            info.external_attr = (stat.S_IFLNK | 0o777) << 16
+            zf.writestr(info, b"../../private")
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(mem.getvalue())
+
+    def test_expansion_ratio_entry_budget_and_input_size(self):
+        data = bundle([("mod/compressible.scs", b"0" * 80_000)],
+                      zipfile.ZIP_DEFLATED)
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(data)
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(b"x" * (MAX_ARCHIVE_BYTES+1))
+        many = bundle([("mod/item"+str(i)+".bus", b"x") for i in range(129)])
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(many)
+
+    def test_bad_crc_truncation_and_unrecognized_bytes(self):
+        payload = bundle([("mod/data.scs", b"ORIGINAL")])
+        bad = payload.replace(b"ORIGINAL", b"TAMPERED", 1)
+        for data in (bad, payload[:23], b"NOT-A-ZIP", b""):
+            with self.subTest(size=len(data)):
+                with self.assertRaises(ControlledZipRefused):
+                    examine_controlled_zip_bytes(data)
+
+    def test_paths_and_mutable_bytearrays_cannot_trigger_disk_read(self):
+        for data in ("/home/user/private-mod.scs", bytearray(b"x"), None, {}):
+            with self.assertRaises(ControlledZipRefused):
+                examine_controlled_zip_bytes(data)
+
+    def test_encrypted_metadata_is_refused(self):
+        raw = bytearray(bundle([("mod/a.bus", b"x")]))
+        a = raw.find(b"PK\x03\x04")
+        b = raw.find(b"PK\x01\x02")
+        self.assertGreaterEqual(a, 0)
+        self.assertGreaterEqual(b, 0)
+        raw[a+6] |= 1
+        raw[b+8] |= 1
+        with self.assertRaises(ControlledZipRefused):
+            examine_controlled_zip_bytes(bytes(raw))
+
+if __name__ == "__main__":
+    unittest.main()

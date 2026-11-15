@@ -1,0 +1,352 @@
+"""Linux-only adversarial tests for real disposable files, not user mods."""
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+from controlled_ci_group_fd_reader import (
+    ControlledCiGroupFdRefused, inspect_open_fixture_group_fds,
+)
+from controlled_zip_reader import MAX_ARCHIVE_BYTES
+from test_controlled_zip_reader import bundle
+from test_controlled_ci_file_reader import open_fixture
+
+WORKER = str(Path(__file__).with_name("controlled_ci_group_fd_reader.py"))
+
+
+def invoke(*fds):
+    return subprocess.run(
+        [sys.executable, "-I", "-S", "-B", WORKER, "--fixture-fds",
+         *(str(fd) for fd in fds)],
+        pass_fds=fds, cwd="/",
+        env={"PYTHONIOENCODING": "utf-8"},
+        capture_output=True, text=True, timeout=8, check=False,
+    )
+
+
+@unittest.skipUnless(sys.platform.startswith("linux"), "Linux FD laboratory only")
+class ControlledCiGroupFdReaderTests(unittest.TestCase):
+    def test_multiple_real_disposable_zips_produce_anonymous_slot_evidence(self):
+        payloads = [
+            bundle([("Vehicles/Demo/private-123.bus",
+                     b"[model]\nmodel.cfg\n[mesh]\nbody.o3d\n"
+                     b"[texture]\nmissing.dds\n")]),
+            bundle([("Vehicles/Demo/model.cfg", b"fake fixture"),
+                    ("Vehicles/Demo/body.o3d", b"fake geometry")]),
+            bundle([("Vehicles/Demo/model.cfg", b"another invented fixture")]),
+        ]
+        with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
+            paths = [Path(root) / f"private-package-{i}.zip"
+                     for i in range(len(payloads))]
+            for path, payload in zip(paths, payloads):
+                path.write_bytes(payload)
+                path.chmod(0o600)
+            before = [(p.stat().st_size, p.stat().st_mtime_ns)
+                      for p in paths]
+            fds = tuple(open_fixture(path) for path in paths)
+            try:
+                result = invoke(*fds)
+            finally:
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(result.returncode, 0, result.stderr[:120])
+            self.assertEqual(result.stderr, "")
+            envelope = json.loads(result.stdout)
+            report = envelope["report"]
+            self.assertEqual(envelope["inputCount"], 3)
+            self.assertEqual(report["fixtureCount"], 3)
+            self.assertEqual(len(report["slots"]), 3)
+            self.assertEqual(report["slots"][0]["fixtureSlot"], 1)
+            first = report["slots"][0]["hints"]
+            self.assertEqual(first["model"]["ambiguousAcrossFixtures"], 1)
+            self.assertEqual(first["mesh"]["candidateInOtherFixture"], 1)
+            self.assertEqual(first["texture"]["notFoundInProvidedFixtures"], 1)
+            self.assertEqual(report["declaredHintCount"], 3)
+            for flag in ("osSandboxVerified", "fdOriginAuthenticated",
+                         "realUserModsInspected", "gameCompatibilityVerified",
+                         "installationEnabled", "writesPerformed"):
+                self.assertFalse(envelope[flag])
+            self.assertFalse(report["realPackagesRead"])
+            self.assertFalse(report["filesystemAccessEnabled"])
+            self.assertEqual([p.read_bytes() for p in paths], payloads)
+            self.assertEqual([(p.stat().st_size, p.stat().st_mtime_ns)
+                              for p in paths], before)
+            self.assertEqual(set(os.listdir(root)),
+                             {p.name for p in paths})
+            for secret in ("private-package", "private-123",
+                           "fake geometry", "missing.dds", root):
+                self.assertNotIn(secret, result.stdout)
+
+    def test_group_rechecks_all_fds_after_comparison_and_rejects_late_change(self):
+        # Check BOTH endpoints of the final validation sweep: a change to
+        # the first or last package must invalidate the entire result.
+        # Synthetic interception does not modify file contents or metadata.
+        first = bundle([("A/original.bus", b"[model]\nmodel.cfg\n")])
+        second = bundle([("A/model.cfg", b"made-up cfg")])
+        with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
+            paths = (Path(root) / "first.zip", Path(root) / "second.zip")
+            for path, data in zip(paths, (first, second)):
+                path.write_bytes(data)
+            fds = tuple(open_fixture(path) for path in paths)
+            from controlled_ci_group_fd_reader import read_checked_fixture_fd_bytes
+            try:
+                for altered_read in (3, 4):
+                    with self.subTest(final_pass_slot=altered_read - 2):
+                        seen = []
+                        def fake_race(fd):
+                            original = read_checked_fixture_fd_bytes(fd)
+                            seen.append(fd)
+                            if len(seen) == altered_read:
+                                # Distinct bytes, identical byte count/fstat.
+                                return bytes((original[0] ^ 1,)) + original[1:]
+                            return original
+                        with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
+                                   side_effect=fake_race):
+                            with self.assertRaisesRegex(
+                                ControlledCiGroupFdRefused,
+                                "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                            ):
+                                inspect_open_fixture_group_fds(fds)
+                        self.assertEqual(
+                            seen,
+                            [fds[0], fds[1], *fds[:altered_read - 2]],
+                        )
+            finally:
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(tuple(path.read_bytes() for path in paths),
+                             (first, second))
+
+    def test_group_rejects_same_byte_fd_swap_after_parsing(self):
+        # Artificial dup2 substitution: all archive bytes are identical,
+        # but a different disposable inode replaces a descriptor midway.
+        # The older final reread-bytes-only contract missed this change.
+        from controlled_ci_group_fd_reader import examine_fixture_group
+        payloads = (
+            bundle([("A/source.bus", b"original fixture")]),
+            bundle([("A/second.cfg", b"another invented fixture")]),
+        )
+        with tempfile.TemporaryDirectory(prefix="ci-group-fds-swap-") as root:
+            paths = tuple(Path(root) / f"slot-{i}.zip" for i in range(2))
+            copies = tuple(Path(root) / f"same-bytes-{i}.zip" for i in range(2))
+            for path, copy, data in zip(paths, copies, payloads):
+                path.write_bytes(data)
+                copy.write_bytes(data)
+            for swapped_slot in (0, 1):
+                with self.subTest(swapped_slot=swapped_slot):
+                    fds = tuple(open_fixture(path) for path in paths)
+                    replacement = open_fixture(copies[swapped_slot])
+                    try:
+                        def replace_after_parsing(captured):
+                            report = examine_fixture_group(captured)
+                            os.dup2(replacement, fds[swapped_slot])
+                            return report
+                        with patch("controlled_ci_group_fd_reader.examine_fixture_group",
+                                   side_effect=replace_after_parsing):
+                            with self.assertRaisesRegex(
+                                ControlledCiGroupFdRefused,
+                                "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                            ):
+                                inspect_open_fixture_group_fds(fds)
+                    finally:
+                        os.close(replacement)
+                        for fd in fds:
+                            os.close(fd)
+            self.assertEqual(tuple(p.read_bytes() for p in paths), payloads)
+            self.assertEqual(tuple(p.read_bytes() for p in copies), payloads)
+
+    def test_group_rejects_same_byte_fd_swap_during_first_read(self):
+        # FD identity must be checked even when its file contents are
+        # completely identical and the reader call itself returned success.
+        from controlled_ci_group_fd_reader import read_checked_fixture_fd_bytes
+        payloads = (
+            bundle([("A/source.bus", b"original fixture")]),
+            bundle([("A/second.cfg", b"another invented fixture")]),
+        )
+        with tempfile.TemporaryDirectory(prefix="ci-group-fds-swap-") as root:
+            paths = tuple(Path(root) / f"slot-{i}.zip" for i in range(2))
+            duplicate = Path(root) / "replacement.zip"
+            for path, data in zip(paths, payloads):
+                path.write_bytes(data)
+            duplicate.write_bytes(payloads[0])
+            fds = tuple(open_fixture(path) for path in paths)
+            replacement = open_fixture(duplicate)
+            try:
+                def replace_after_first_read(fd):
+                    data = read_checked_fixture_fd_bytes(fd)
+                    if fd == fds[0]:
+                        os.dup2(replacement, fd)
+                    return data
+                with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
+                           side_effect=replace_after_first_read):
+                    with self.assertRaisesRegex(
+                        ControlledCiGroupFdRefused,
+                        "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                    ):
+                        inspect_open_fixture_group_fds(fds)
+            finally:
+                os.close(replacement)
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(tuple(p.read_bytes() for p in paths), payloads)
+            self.assertEqual(duplicate.read_bytes(), payloads[0])
+
+    def test_group_rejects_last_slot_race_on_previously_checked_fd(self):
+        # The second-to-last validation used to be final for fd0. If fd0
+        # were replaced while the last FD was being checked, a per-slot
+        # validation alone could incorrectly return success.
+        from controlled_ci_group_fd_reader import read_checked_fixture_fd_bytes
+        payloads = (
+            bundle([("A/fixture.bus", b"same-byte race case")]),
+            bundle([("B/fixture.cfg", b"other harmless fixture")]),
+        )
+        with tempfile.TemporaryDirectory(prefix="ci-fd-final-sweep-") as root:
+            sources = tuple(Path(root) / f"source-{i}.zip" for i in range(2))
+            replacement_path = Path(root) / "different-inode-identical.zip"
+            for path, data in zip(sources, payloads):
+                path.write_bytes(data)
+            replacement_path.write_bytes(payloads[0])
+            fds = tuple(open_fixture(path) for path in sources)
+            replacement = open_fixture(replacement_path)
+            try:
+                calls = []
+                def race_during_last_read(fd):
+                    data = read_checked_fixture_fd_bytes(fd)
+                    calls.append(fd)
+                    if len(calls) == 4:
+                        self.assertEqual(fd, fds[1])
+                        os.dup2(replacement, fds[0])
+                    return data
+                with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
+                           side_effect=race_during_last_read):
+                    with self.assertRaisesRegex(
+                        ControlledCiGroupFdRefused,
+                        "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                    ):
+                        inspect_open_fixture_group_fds(fds)
+                self.assertEqual(calls, [fds[0], fds[1], fds[0], fds[1]])
+            finally:
+                os.close(replacement)
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(tuple(path.read_bytes() for path in sources), payloads)
+            self.assertEqual(replacement_path.read_bytes(), payloads[0])
+
+    def test_group_rejects_same_inode_writable_fd_swap_in_final_sweep(self):
+        # dup2 can replace a checked read-only file description with an
+        # O_RDWR description of the SAME inode (identical bytes and fstat
+        # timestamps). The final group-wide identity sweep must reject it.
+        from controlled_ci_group_fd_reader import read_checked_fixture_fd_bytes
+        payloads = (
+            bundle([("A/source.bus", b"harmless group fixture")]),
+            bundle([("A/more.cfg", b"another invented fixture")]),
+        )
+        with tempfile.TemporaryDirectory(prefix="ci-group-ro-swap-") as root:
+            files = tuple(Path(root) / f"package-{i}.zip" for i in range(2))
+            for path, data in zip(files, payloads):
+                path.write_bytes(data)
+            fds = tuple(open_fixture(path) for path in files)
+            writable = os.open(files[0], os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC)
+            try:
+                calls = []
+                def change_access_during_last_read(fd):
+                    result = read_checked_fixture_fd_bytes(fd)
+                    calls.append(fd)
+                    if len(calls) == 4:
+                        self.assertEqual(fd, fds[1])
+                        os.dup2(writable, fds[0])
+                        self.assertEqual(
+                            os.fstat(fds[0]).st_ino,
+                            os.fstat(writable).st_ino,
+                        )
+                    return result
+                with patch("controlled_ci_group_fd_reader.read_checked_fixture_fd_bytes",
+                           side_effect=change_access_during_last_read):
+                    with self.assertRaisesRegex(
+                        ControlledCiGroupFdRefused,
+                        "^CONTROLLED_CI_GROUP_FD_REFUSED$",
+                    ):
+                        inspect_open_fixture_group_fds(fds)
+                self.assertEqual(calls, [fds[0], fds[1], fds[0], fds[1]])
+            finally:
+                os.close(writable)
+                for fd in fds:
+                    os.close(fd)
+            self.assertEqual(tuple(path.read_bytes() for path in files), payloads)
+
+    def test_invalid_fds_and_duplicate_file_identity_fail_closed(self):
+        with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
+            p1 = Path(root) / "one.zip"
+            p2 = Path(root) / "two.zip"
+            p1.write_bytes(bundle([("a.bus", b"example")]))
+            p2.write_bytes(bundle([("b.bus", b"example")]))
+            fd1, fd2 = open_fixture(p1), open_fixture(p2)
+            try:
+                for wrong in ((fd1,), (fd1, fd1), [fd1, fd2],
+                              (fd1, fd2, "/tmp/a.zip"), (fd1, 64),
+                              (fd1, None), (fd1, 0), tuple(range(3, 8))):
+                    with self.subTest(case=str(wrong)[:60]):
+                        with self.assertRaises(ControlledCiGroupFdRefused):
+                            inspect_open_fixture_group_fds(wrong)
+                second_fd_same_inode = open_fixture(p1)
+                try:
+                    with self.assertRaises(ControlledCiGroupFdRefused):
+                        inspect_open_fixture_group_fds((fd1, second_fd_same_inode))
+                finally:
+                    os.close(second_fd_same_inode)
+                writable = os.open(p2, os.O_RDWR | os.O_NOFOLLOW | os.O_CLOEXEC)
+                try:
+                    bad = invoke(fd1, writable)
+                finally:
+                    os.close(writable)
+                self.assertEqual(bad.returncode, 2)
+                self.assertEqual(bad.stdout, "")
+                self.assertEqual(bad.stderr.strip(),
+                                 "CONTROLLED_CI_GROUP_FD_REFUSED")
+            finally:
+                os.close(fd1)
+                os.close(fd2)
+
+    def test_corrupt_or_oversized_file_refuses_entire_group(self):
+        with tempfile.TemporaryDirectory(prefix="ci-group-fds-") as root:
+            good = Path(root) / "good.zip"
+            bad = Path(root) / "bad.zip"
+            good.write_bytes(bundle([("a.bus", b"harmless")]))
+            bad.write_bytes(bundle([("secret.bus", b"ORIGINAL")])
+                            .replace(b"ORIGINAL", b"TAMPERED"))
+            for payload in (None, b"x" * (MAX_ARCHIVE_BYTES + 1)):
+                if payload is not None:
+                    bad.write_bytes(payload)
+                fds = tuple(open_fixture(p) for p in (good, bad))
+                try:
+                    result = invoke(*fds)
+                finally:
+                    for fd in fds:
+                        os.close(fd)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, "")
+                self.assertEqual(result.stderr.strip(),
+                                 "CONTROLLED_CI_GROUP_FD_REFUSED")
+                self.assertNotIn("secret", result.stderr)
+
+    def test_cli_never_accepts_host_path_or_uninherited_fds(self):
+        for arg in ("/home/example/mod.zip", "../secret.zip", "3.0",
+                    "-1", "999", "3x"):
+            result = subprocess.run(
+                [sys.executable, "-I", "-S", "-B", WORKER,
+                 "--fixture-fds", "3", arg],
+                cwd="/", env={"PYTHONIOENCODING": "utf-8"},
+                capture_output=True, text=True, timeout=8, check=False,
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr.strip(),
+                             "CONTROLLED_CI_GROUP_FD_REFUSED")
+
+
+if __name__ == "__main__":
+    unittest.main()

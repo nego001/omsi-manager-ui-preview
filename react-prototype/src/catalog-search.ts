@@ -1,0 +1,41 @@
+// Pure catalog-metadata search. Never reads archives, filesystem paths,
+// game installations, network resources, or binary mod content.
+import type {CatalogMod} from './catalog';
+
+// Search is intentionally a presentation filter only; it is not mod
+// classification, evidence, compatibility assessment or installation status.
+export function normalizeCatalogSearch(value:string):string{
+ return value.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toLocaleLowerCase('pt-BR').trim().replace(/\s+/gu,' ');
+}
+
+export function matchesCatalogSearch(
+ mod:Pick<CatalogMod,'title'|'category'> & Partial<Pick<CatalogMod,'id'|'version'>>,
+ gameTitle:string,
+ query:string
+):boolean{
+ const terms=normalizeCatalogSearch(query);
+ if(!terms)return true;
+ const haystack=normalizeCatalogSearch(
+  [mod.title,mod.category,gameTitle,mod.id??'',mod.version??''].join(' ')
+ );
+ // Independent terms tolerate reordered words without losing game/category.
+ return terms.split(' ').every(term=>haystack.includes(term));
+}
+
+/** Explains which declared metadata fields contain a search term.
+ * A field match is not proof of installation, integrity or compatibility. */
+export function declaredSearchMatchFields(
+ mod:Pick<CatalogMod,'id'|'version'>,
+ query:string
+):Readonly<{id:boolean;version:boolean}>{
+ const normalized=normalizeCatalogSearch(query);
+ if(!normalized)return {id:false,version:false};
+ const terms=normalized.split(' ');
+ const id=normalizeCatalogSearch(mod.id);
+ const version=normalizeCatalogSearch(mod.version);
+ return {
+  id:terms.some(term=>id.includes(term)),
+  version:terms.some(term=>version.includes(term))
+ };
+}
