@@ -303,7 +303,7 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
     def test_cfg_mesh_reference_casefold_and_backslash_is_accepted_in_fixture(self):
         result = inspect([
             ("Vehicles/BigBus/BigBus.bus", BUS),
-            ("Vehicles/BigBus/Model/Model.cfg", b"[MESH]\nBODY\\\\one.O3D\n"),
+            ("Vehicles/BigBus/Model/Model.cfg", b"[MESH]\nBODY" + bytes([92]) + b"one.O3D\n"),
             ("Vehicles/BigBus/Model/body/one.o3d", b"fake"),
         ])
         self.assertEqual(result["omsiMeshLinkedVehicleFolderCount"], 1)
