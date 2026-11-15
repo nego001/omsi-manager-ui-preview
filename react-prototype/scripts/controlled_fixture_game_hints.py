@@ -7,6 +7,7 @@ The result contains fixed labels and aggregate numbers only.
 from __future__ import annotations
 
 from controlled_zip_reader import examine_controlled_zip_bytes
+from controlled_fixture_decision_trace import explain_controlled_fixture_decision
 
 
 def assess_controlled_zip_game_hints(payload: bytes) -> dict:
@@ -46,10 +47,26 @@ def assess_controlled_zip_game_hints(payload: bytes) -> dict:
     else:
         assessment = "no-recognizable-fixture-evidence"
 
+    # M17: independently replay the exact rule precedence over the already
+    # M16-audited summary. Refuse rather than explain inconsistent data.
+    decision_trace = explain_controlled_fixture_decision(
+        assessment,
+        {
+            "paired": paired,
+            "linked": linked,
+            "meshLinked": mesh_linked,
+            "bus": bus,
+            "cfg": cfg,
+            "truck": truck,
+        },
+        report["syntheticScopeConsistencyChecked"],
+    )
+
     return {
         "source": "ci-generated-zip-bytes",
         "stage": "controlled-fixture-game-hints",
         "assessment": assessment,
+        "syntheticDecisionTrace": decision_trace,
         "omsiPairedVehicleFolderCount": paired,
         "omsiLinkedVehicleFolderCount": linked,
         "omsiMeshLinkedVehicleFolderCount": mesh_linked,
