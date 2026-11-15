@@ -60,6 +60,12 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     # never appear in the returned report. Markers are NOT format proof.
     bus_marker_folders: set[str] = set()
     cfg_marker_folders: set[str] = set()
+    # Private to this invocation: all names are already screened ZIP entries.
+    # Linking must target an independently marker-bearing CFG entry, not just
+    # another file with a .cfg suffix in the same folder.
+    bus_marker_paths: set[str] = set()
+    cfg_marker_paths: set[str] = set()
+    linked_vehicle_folders: set[str] = set()
     truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
@@ -159,14 +165,19 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                             folder = "/".join(parts[:2])
                             if ext == "bus":
                                 bus_marker_folders.add(folder)
+                                bus_marker_paths.add(info.filename.lower())
                             else:
                                 cfg_marker_folders.add(folder)
+                                cfg_marker_paths.add(info.filename.lower())
                         elif (ext == "sii" and len(parts) >= 2 and
                               parts[0] == "def"):
                             truck_sii_marker_count += 1
             # Cross-check ONLY against archive-internal file names already
             # accepted by the gate, never the user's game installation.
             vetted = frozenset(file_names)
+            # The existing bounded reference interpreter validates the exact
+            # tiny [model] -> next line dialect. Reuse it with a restricted
+            # index of marked CFG targets rather than creating another parser.
             for source, suffix, content in fixture_sources:
                 hints = (inspect_fixture_references(suffix, content, source, vetted)
                          if content is not None else None)
@@ -179,6 +190,17 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                         references[kind][key] += count
                 if sum(v["declared"] for v in references.values()) > MAX_REFERENCES_ALL:
                     refuse()
+                if suffix != "bus" or source not in bus_marker_paths:
+                    continue
+                variant = "/".join(source.split("/")[:2])
+                marked_targets = frozenset(path for path in cfg_marker_paths
+                                           if path.startswith(variant + "/"))
+                if not marked_targets:
+                    continue
+                linked = inspect_fixture_references("bus", content, source,
+                                                     marked_targets)
+                if linked is not None and linked["model"]["presentInFixture"] > 0:
+                    linked_vehicle_folders.add(variant)
     except FixtureReferenceLimitExceeded:
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
@@ -196,6 +218,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "definitionFixtureHints": definition_hints,
         "fixtureGameHints": {
             "omsiPairedVehicleFolders": len(bus_marker_folders & cfg_marker_folders),
+            "omsiLinkedVehicleFolders": len(linked_vehicle_folders),
+            "omsiUnlinkedPairedFolders": len((bus_marker_folders & cfg_marker_folders)
+                                            - linked_vehicle_folders),
             "omsiBusMarkerFolders": len(bus_marker_folders),
             "omsiCfgMarkerFolders": len(cfg_marker_folders),
             "truckSiiDefinitionMarkers": truck_sii_marker_count,

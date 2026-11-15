@@ -35,6 +35,8 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
         ])
         self.assertEqual(result["assessment"], "omsi-fixture-candidate")
         self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiUnlinkedPairedFolderCount"], 0)
         self.assertEqual(result["omsiBusMarkerFolderCount"], 1)
         self.assertEqual(result["omsiCfgMarkerFolderCount"], 1)
         self.assertTrue(result["zipCrcChecked"])
@@ -158,6 +160,96 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
             with self.subTest(kind=type(bad).__name__):
                 with self.assertRaises(ControlledZipRefused):
                     assess_controlled_zip_game_hints(bad)
+
+    def test_unrelated_cfg_in_same_variant_no_longer_produces_candidate(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/other.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["omsiUnlinkedPairedFolderCount"], 1)
+        self.assertEqual(result["assessment"], "unlinked-omsi-fixture-markers")
+
+    def test_model_reference_must_point_to_marked_cfg_not_only_matching_name(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", BUS),
+            ("Vehicles/A/model/model.cfg", b"not a model config"),
+        ])
+        self.assertEqual(result["omsiPairedVehicleFolderCount"], 0)
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "insufficient-omsi-fixture-evidence")
+
+    def test_sound_reference_to_cfg_is_not_model_reference(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", b"[friendlyname]\\nDemo\\n[sound]\\nmodel/model.cfg\\n"),
+            ("Vehicles/A/model/model.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "unlinked-omsi-fixture-markers")
+
+    def test_unsafe_traversal_in_model_reference_cannot_create_link(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", b"[friendlyname]\\nDemo\\n[model]\\n../B/model.cfg\\n"),
+            ("Vehicles/A/model/model.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiPairedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "unlinked-omsi-fixture-markers")
+
+    def test_reference_to_another_variant_does_not_count_as_local_link(self):
+        result = inspect([
+            ("Vehicles/A/A.bus", b"[model]\\nmodel/model.cfg\\n"),
+            ("Vehicles/A/other.cfg", CFG),
+            ("Vehicles/B/model/model.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["omsiUnlinkedPairedFolderCount"], 1)
+        self.assertEqual(result["assessment"], "unlinked-omsi-fixture-markers")
+
+    def test_casefolded_fixture_paths_support_same_variant_model_reference(self):
+        result = inspect([
+            ("VEHICLES/MyBus/BUS.BUS",
+             b"[friendlyname]\\nBus\\n[MODEL]\\nMODEL\\\\body.CFG\\n"),
+            ("Vehicles/MyBus/Model/Body.cfg", CFG),
+        ])
+        self.assertEqual(result["assessment"], "omsi-fixture-candidate")
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+
+    def test_multiple_links_same_folder_count_once_and_unlinked_folders_remain_visible(self):
+        result = inspect([
+            ("Vehicles/A/a.bus", BUS),
+            ("Vehicles/A/b.bus", BUS),
+            ("Vehicles/A/model/model.cfg", CFG),
+            ("Vehicles/B/a.bus", BUS),
+            ("Vehicles/B/different.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiPairedVehicleFolderCount"], 2)
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        self.assertEqual(result["omsiUnlinkedPairedFolderCount"], 1)
+        self.assertEqual(result["assessment"], "omsi-fixture-candidate")
+
+    def test_link_report_never_exposes_private_paths_or_referenced_content(self):
+        result = inspect([
+            ("Vehicles/PrivateVariant9/BusName907.bus",
+             b"[model]\\nprivate/PrivateCfg227.cfg\\n"),
+            ("Vehicles/PrivateVariant9/private/PrivateCfg227.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 1)
+        printed = json.dumps(result)
+        for private in ("PrivateVariant9", "BusName907", "PrivateCfg227",
+                        "private/", "Vehicles/", "model/model.cfg"):
+            self.assertNotIn(private, printed)
+
+    def test_oversized_reference_source_cannot_be_linked(self):
+        bus = BUS + b"x" * 18000
+        result = inspect([
+            ("Vehicles/A/A.bus", bus),
+            ("Vehicles/A/model/model.cfg", CFG),
+        ])
+        self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
+        self.assertEqual(result["assessment"], "insufficient-omsi-fixture-evidence")
 
 
 if __name__ == "__main__":
