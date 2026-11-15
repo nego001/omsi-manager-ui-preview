@@ -18,6 +18,7 @@ export type DeclaredPreflightOverlap={
 export type DeclaredPreflightDistinctIdSummary={
  distinctIds:number;overlappingIds:number;
  overlapExamples:readonly DeclaredPreflightOverlap[];
+ allOverlaps:readonly DeclaredPreflightOverlap[];
  overlapExamplesOmitted:number;
  installedFilesChecked:false;realCompatibilityVerified:false;
 };
@@ -99,13 +100,14 @@ export function summarizeDistinctDeclaredPreflightIds(
  if(occurrences.size>200)return invalid();
  const overlapping=[...occurrences].filter(([,names])=>names.length>1)
   .sort(([a],[b])=>a<b?-1:a>b?1:0);
- const overlapExamples=Object.freeze(overlapping.slice(0,5).map(([id,names])=>
+ const allOverlaps=Object.freeze(overlapping.map(([id,names])=>
   Object.freeze({id,groups:Object.freeze([...names])})));
+ const overlapExamples=Object.freeze(allOverlaps.slice(0,5));
  return Object.freeze({
   distinctIds:occurrences.size,
-  overlappingIds:overlapping.length,
-  overlapExamples,
-  overlapExamplesOmitted:overlapping.length-overlapExamples.length,
+  overlappingIds:allOverlaps.length,
+  allOverlaps,overlapExamples,
+  overlapExamplesOmitted:allOverlaps.length-overlapExamples.length,
   installedFilesChecked:false,realCompatibilityVerified:false
  });
 }

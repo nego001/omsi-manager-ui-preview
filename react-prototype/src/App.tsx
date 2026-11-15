@@ -10,6 +10,7 @@ import {findDeclaredCrossGameIdReuses} from './catalog-cross-game-reuse';
 import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
 import {summarizeDistinctDeclaredPreflightIds,declaredPreflightGroupLabels} from './catalog-preflight-distinct-ids';
+import {serializeDeclaredPreflightOverlaps} from './catalog-preflight-overlap-export';
 import {summarizeDeclaredConstraintDirections,declaredConstraintDirectionLabels} from './catalog-version-direction';
 import {serializeDeclaredVersionConstraintChanges} from './catalog-version-constraints-export';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
@@ -496,6 +497,14 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingPreflightOverlaps(){
+  if(!pendingCatalogReplacement||!catalogPreflightDistinctIds||
+   catalogPreflightDistinctIds.overlappingIds<1)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredPreflightOverlaps(catalogPreflightDistinctIds),
+    'OMSI-Manager-IDs-Sobrepostos.json');
+  }catch{setToast('Não foi possível exportar os IDs declarados sobrepostos.');}
  }
  function exportPendingVersionConstraints(){
   if(!pendingCatalogReplacement||!catalogVersionConstraints||
@@ -1187,6 +1196,9 @@ export default function App(){
       Outros {catalogPreflightDistinctIds.overlapExamplesOmitted} IDs não exibidos.
      </small>}
      <small>Somente IDs dos metadados declarados; os mesmos nomes não provam arquivos iguais.</small>
+     <button type="button" className="btn secondary catalog-preflight-reports"
+      onClick={exportPendingPreflightOverlaps}><Download size={16} aria-hidden="true"/>
+      Baixar todos os IDs sobrepostos em JSON</button>
     </details>}
    <small>Os grupos podem incluir o mesmo ID mais de uma vez. Estes números não são
     uma nota de segurança, um teste de compatibilidade ou aprovação para instalar.

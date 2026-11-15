@@ -36,6 +36,11 @@ test('resumo de revisão agrega categorias sem pontuação de segurança a 390 p
  await expect(summary.locator('.catalog-preflight-overlap-examples li')).toHaveText([
   'omsi-bus: Bloqueios declarados · Dependências/conflitos · Exigências de versão'
  ]);
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  summary.getByRole('button',{name:'Baixar todos os IDs sobrepostos em JSON'}).click()
+ ]);
+ expect(download.suggestedFilename()).toBe('OMSI-Manager-IDs-Sobrepostos.json');
  await expect(summary).toContainText('Os grupos podem incluir o mesmo ID mais de uma vez.');
  await expect(summary).toContainText('Nada foi aplicado.');
  await expect(consent.locator('details.catalog-version-constraints')).toBeVisible();
