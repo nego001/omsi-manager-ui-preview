@@ -766,7 +766,7 @@ export default function App(){
   if(id!==screen&&!preserveInputFocus)focusMainAfterNavigation.current=true;
   setScreen(id);setToast('');
  }
- function detail(id:string){setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
+ function detail(id:string){setIncomingView({modId:id,kind:'all'});setHypotheticalGameVersion('');setDetailFocus('overview');setDetailOrigin(screen==='library'?'library':screen==='home'?'home':'catalog');setSelectedMod(id);goto('details')}
  function returnFromDetails(){
   // Restore the exact card when possible; filtered-out cards fall back to main.
   focusCardAfterDetails.current=selected.id;
@@ -788,6 +788,7 @@ export default function App(){
   restoreCatalogBeforeDependencyLookup(context);
   if(!catalogMods.some(mod=>mod.id===context.sourceId))return;
   setSelectedMod(context.sourceId);setDetailOrigin(context.origin);
+  setIncomingView({modId:context.sourceId,kind:'all'});
   setHypotheticalGameVersion(context.hypotheticalVersion);
   setDetailFocus(context.returnFocus);goto('details');
  }
@@ -815,12 +816,14 @@ export default function App(){
   if(!detailCandidates.some(mod=>mod.id===nextId))return;
   focusDetailsTitleAfterStep.current=true;
   setSelectedMod(nextId);
+  setIncomingView({modId:nextId,kind:'all'});
   setHypotheticalGameVersion('');
   setDetailFocus('overview');
  }
- function openDeclaredDiagnostic(id:string){setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
+ function openDeclaredDiagnostic(id:string){setIncomingView({modId:id,kind:'all'});setHypotheticalGameVersion('');setDetailOrigin('library');setSelectedMod(id);setDetailFocus('relations');goto('details')}
  function openIncomingFromLibrary(id:string){
   if(!catalogMods.some(mod=>mod.id===id))return;
+  setIncomingView({modId:id,kind:'all'});
   setHypotheticalGameVersion('');
   setDetailOrigin('library');setSelectedMod(id);setDetailFocus('incoming');
   goto('details');

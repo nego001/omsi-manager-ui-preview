@@ -108,6 +108,11 @@ test('filtro de referências altera apenas a lista visível e reinicia ao mudar 
  await page.getByRole('button',{name:'Mod anterior: Destino fictício'}).click();
  await expect(filter).toHaveValue('all');
  await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(2);
+ await filter.selectOption('requires');
+ await page.getByRole('button',{name:'Voltar ao catálogo'}).click();
+ await page.getByRole('button',{name:'Ver Destino fictício'}).click();
+ await expect(filter).toHaveValue('all');
+ await expect(incoming.locator('.relation-incoming-groups li')).toHaveCount(2);
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
