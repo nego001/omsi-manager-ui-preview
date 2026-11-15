@@ -7,8 +7,8 @@ import zipfile
 from controlled_o3d_header_hints import classify_o3d_header_prefix
 from controlled_fixture_game_hints import assess_controlled_zip_game_hints
 
-BUS = b"[model]\\nmodel/model.cfg\\n"
-CFG = b"[mesh]\\nbody.o3d\\n"
+BUS = b"[model]\nmodel/model.cfg\n"
+CFG = b"[mesh]\nbody.o3d\n"
 # Deliberately header-only: a plausible prefix is NOT a decodable mesh.
 PREFIX = bytes((0x84, 0x19, 5, 0, 0, 0, 0, 0))
 
