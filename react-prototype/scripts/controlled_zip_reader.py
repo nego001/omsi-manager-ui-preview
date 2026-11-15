@@ -9,6 +9,9 @@ import re
 import stat
 import zipfile
 from controlled_o3d_header_hints import (O3D_HEADER_CLASSES, classify_o3d_header_prefix)
+from controlled_o3d_vertex_hints import (
+    MAX_O3D_SAMPLE, O3D_VERTEX_HINT_CLASSES, classify_bounded_o3d_vertex_section
+)
 
 from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
 from controlled_reference_hints import (
@@ -51,6 +54,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     fixture_sources = []
     o3d_header_counts = {kind: 0 for kind in O3D_HEADER_CLASSES}
     plausible_o3d_paths: set[str] = set()
+    vertex_hint_counts = {kind: 0 for kind in O3D_VERTEX_HINT_CLASSES}
+    bounded_vertex_o3d_paths: set[str] = set()
     references = empty_counts()
     reference_sources = {"inspected": 0, "notInspected": 0}
     definition_hints = {
@@ -75,6 +80,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     mesh_linked_vehicle_folders: set[str] = set()
     header_backed_cfg_paths: set[str] = set()
     header_linked_vehicle_folders: set[str] = set()
+    vertex_backed_cfg_paths: set[str] = set()
+    vertex_linked_vehicle_folders: set[str] = set()
     truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
@@ -143,6 +150,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 sample = bytearray() if small_definition else None
                 # Prefix is bounded to 8 bytes, even for large O3D entries.
                 prefix = bytearray() if ext == "o3d" else None
+                # M10: first tagged section, bounded to 1100 bytes per O3D.
+                vertex_sample = bytearray() if ext == "o3d" else None
                 with zf.open(info) as source:
                     while True:
                         chunk = source.read(CHUNK)
@@ -156,6 +165,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                             sample.extend(chunk)
                         if prefix is not None and len(prefix) < 8:
                             prefix.extend(chunk[:8-len(prefix)])
+                        if vertex_sample is not None and len(vertex_sample) < MAX_O3D_SAMPLE:
+                            vertex_sample.extend(chunk[:MAX_O3D_SAMPLE-len(vertex_sample)])
                 if per_file != info.file_size:
                     refuse()
                 if prefix is not None:
@@ -163,6 +174,11 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                     o3d_header_counts[header_kind] += 1
                     if header_kind == "plausiblePrefix":
                         plausible_o3d_paths.add(info.filename.lower())
+                    vertex_kind = classify_bounded_o3d_vertex_section(
+                        bytes(vertex_sample), per_file)
+                    vertex_hint_counts[vertex_kind] += 1
+                    if vertex_kind == "plausibleBoundedVertexPayload":
+                        bounded_vertex_o3d_paths.add(info.filename.lower())
                 if ext in ("bus", "cfg"):
                     fixture_sources.append((info.filename.lower(), ext,
                                             bytes(sample) if sample is not None else None))
@@ -222,6 +238,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                     if (prefix_hints is not None and
                             prefix_hints["mesh"]["presentInFixture"] > 0):
                         header_backed_cfg_paths.add(source)
+                vertex_targets = frozenset(path for path in bounded_vertex_o3d_paths
+                                           if path.startswith(variant + "/"))
+                if vertex_targets:
+                    vertex_hints = inspect_fixture_references(
+                        "cfg", content, source, vertex_targets)
+                    if (vertex_hints is not None and
+                            vertex_hints["mesh"]["presentInFixture"] > 0):
+                        vertex_backed_cfg_paths.add(source)
             # The existing bounded reference interpreter validates the exact
             # tiny [model] -> next line dialect. Reuse it with a restricted
             # index of marked CFG targets rather than creating another parser.
@@ -264,6 +288,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                                 if (header_link is not None and
                                         header_link["model"]["presentInFixture"] > 0):
                                     header_linked_vehicle_folders.add(variant)
+                            vertex_targets = frozenset(path for path in vertex_backed_cfg_paths
+                                                       if path.startswith(variant + "/"))
+                            if vertex_targets:
+                                vertex_link = inspect_fixture_references(
+                                    "bus", content, source, vertex_targets)
+                                if (vertex_link is not None and
+                                        vertex_link["model"]["presentInFixture"] > 0):
+                                    vertex_linked_vehicle_folders.add(variant)
     except FixtureReferenceLimitExceeded:
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
@@ -278,6 +310,7 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "zipHeadersAndCrcRead": True,
         "declaredSuffixCounts": suffix_counts,
         "o3dHeaderHintCounts": o3d_header_counts,
+        "o3dVertexSectionHintCounts": vertex_hint_counts,
         "meshFormatVerified": False,
         "declaredSuffixesAreContentProof": False,
         "definitionFixtureHints": definition_hints,
@@ -286,6 +319,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
             "omsiLinkedVehicleFolders": len(linked_vehicle_folders),
             "omsiMeshLinkedVehicleFolders": len(mesh_linked_vehicle_folders),
             "omsiPlausibleO3dHeaderLinkedVehicleFolders": len(header_linked_vehicle_folders),
+            "omsiBoundedVertexHintLinkedVehicleFolders": len(vertex_linked_vehicle_folders),
+            "omsiMeshLinkedWithoutBoundedVertexHintFolders": len(
+                mesh_linked_vehicle_folders - vertex_linked_vehicle_folders),
             "omsiMeshLinkedWithoutPlausibleHeaderFolders": len(
                 mesh_linked_vehicle_folders - header_linked_vehicle_folders),
             "omsiLinkedWithoutMeshFolders": len(linked_vehicle_folders
