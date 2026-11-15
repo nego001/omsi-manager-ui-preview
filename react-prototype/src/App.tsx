@@ -715,6 +715,16 @@ export default function App(){
   focusFirstLibraryCardAfterReset.current=true;
   resetLibraryControls();
  }
+ function jumpToLibraryResults(){
+  if(screen!=='library')return;
+  const first=libraryMods[0];
+  const target=first?
+   document.getElementById('mod-title-'+first.id):
+   document.querySelector<HTMLButtonElement>(
+    '.library-empty-filter button, .library-empty button'
+   );
+  if(target instanceof HTMLElement)target.focus();
+ }
  function resetCatalogFiltersWithFocus(){
   // A search/category/game combination can hide all examples without removing data.
   focusFirstCatalogCardAfterReset.current=true;
@@ -1510,7 +1520,15 @@ export default function App(){
     {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>{catalogSource==='Demonstração'?
   'Favoritos da demonstração ficam salvos neste navegador.':
   'Favoritos do catálogo importado duram apenas esta sessão e não voltam ao reiniciar.'}
-  {' '}Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p></div>
+  {' '}Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p>
+  <button type="button" className="btn secondary library-jump-results"
+   onClick={jumpToLibraryResults}>
+   {libraryMods.length>0?
+    `Ir aos favoritos exibidos (${libraryMods.length})`:
+    favoriteMods.length>0?'Ir ao resultado vazio dos filtros':'Ir à biblioteca vazia'}
+   <ChevronRight size={15} aria-hidden="true"/>
+  </button>
+ </div>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
    <div className="library-by-game-heading">

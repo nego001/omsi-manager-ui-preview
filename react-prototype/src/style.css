@@ -1415,3 +1415,18 @@
 .catalog-preflight-overlap-examples ul{display:block;list-style:none;margin:10px 0 8px;padding:0}
 .catalog-preflight-overlap-examples li{display:block;padding:7px 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
 .catalog-preflight-overlap-examples li strong{white-space:normal;overflow-wrap:anywhere}
+
+/* Library navigation: bypass long filter, review and selection panels.
+   Focusing the actual card or empty-state action also scrolls to it. */
+.library-jump-results{
+ margin-top:14px;
+ max-width:100%;
+ text-align:left;
+ line-height:1.5;
+ white-space:normal;
+ overflow-wrap:anywhere;
+}
+.library-jump-results:focus-visible{
+ outline:2px solid #c0c9ff;
+ outline-offset:3px;
+}
