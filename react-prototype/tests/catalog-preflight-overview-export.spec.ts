@@ -64,3 +64,17 @@ test('recusa contagens adulteradas e aceita categorias genuinamente sobrepostas'
   ...input,summary:{...input.summary,distinctIds:0}
  })).toThrow('DECLARED_PREFLIGHT_OVERLAP_EXPORT_INVALID');
 });
+
+test('catálogos idênticos têm contagens declaradas iguais, não prova de arquivos',()=>{
+ const input=snapshot([bus],[{...bus}]);
+ const data=JSON.parse(serializeDeclaredPreflightOverview(input));
+ expect(data.counts.catalog).toEqual({
+  current:1,proposed:1,unchanged:1,changed:0,removed:0,added:0
+ });
+ expect(data.counts.alerts.distinctIds).toBe(0);
+ expect(data.hasCatalogChangesOutsideFourAlertGroups).toBe(false);
+ expect(data).toMatchObject({
+  metadataOnly:true,compatibilityVerified:false,
+  installedFilesChecked:false,proposedCatalogApplied:false
+ });
+});

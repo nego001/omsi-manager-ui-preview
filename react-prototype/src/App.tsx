@@ -1203,6 +1203,11 @@ export default function App(){
      (catalogReplacementDiff.added.length>0||catalogReplacementDiff.removed.length>0||
       catalogReplacementDiff.changed.length>0)&&
      <strong> Zero alertas nos quatro grupos não significa catálogos iguais.</strong>}
+    {catalogReplacementDiff.changed.length===0&&
+     catalogReplacementDiff.added.length===0&&
+     catalogReplacementDiff.removed.length===0&&
+     <strong> Nenhuma diferença nos metadados declarados dos dois catálogos.
+      Isso não comprova igualdade dos arquivos instalados.</strong>}
    </p>}
    <button type="button" className="btn secondary catalog-preflight-reports"
     onClick={exportPendingPreflightOverview}><Download size={16} aria-hidden="true"/>

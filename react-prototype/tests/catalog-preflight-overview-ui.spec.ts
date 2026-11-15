@@ -222,3 +222,39 @@ test('exportação de sobreposições acompanha a última proposta sem vazar o J
  await expect(card(page,'Ônibus Urbano Clássico')
   .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
 });
+
+test('metadados idênticos têm aviso de escopo e exportação sem alegar instalação',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ await propose(page,[bus],'base-identica.json');
+ await card(page,'Ônibus Urbano Clássico').getByRole('button',{name:'Favoritar'}).click();
+ await propose(page,[{...bus}],'proposta-identica.json');
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ const summary=consent.getByRole('group',{name:'Resumo das diferenças declaradas'});
+ const note=summary.getByRole('note');
+ await expect(note).toContainText('Nenhuma diferença nos metadados declarados');
+ await expect(note).toContainText('não comprova igualdade dos arquivos instalados');
+ await expect(note).not.toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
+ const [download]=await Promise.all([
+  page.waitForEvent('download'),
+  summary.getByRole('button',{name:'Baixar resumo do pré-voo em JSON'}).click()
+ ]);
+ const report=JSON.parse(await readFile((await download.path())!,'utf8'));
+ expect(report.counts.catalog).toEqual({
+  current:1,proposed:1,unchanged:1,changed:0,removed:0,added:0
+ });
+ expect(report.counts.alerts.distinctIds).toBe(0);
+ expect(report.hasCatalogChangesOutsideFourAlertGroups).toBe(false);
+ expect(report).toMatchObject({
+  metadataOnly:true,installedFilesChecked:false,
+  compatibilityVerified:false,sourceAuthenticated:false
+ });
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+ await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(summary).toHaveCount(0);
+ await expect(card(page,'Ônibus Urbano Clássico')
+  .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
+});
