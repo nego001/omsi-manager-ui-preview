@@ -1430,3 +1430,42 @@
  outline:2px solid #c0c9ff;
  outline-offset:3px;
 }
+
+/* Details: a compact and keyboard-accessible route to the long evidence panels. */
+.detail-section-jumps{
+ display:flex;
+ flex-wrap:wrap;
+ align-items:center;
+ gap:8px;
+ margin:15px 0 5px;
+ min-width:0;
+}
+.detail-section-jumps button{
+ display:inline-flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:7px;
+ min-width:0;
+ max-width:100%;
+ padding:8px 10px;
+ border:1px solid #536578;
+ border-radius:8px;
+ background:#242e39;
+ color:#e0eaf8;
+ font-size:11px;
+ line-height:1.45;
+ text-align:left;
+ cursor:pointer;
+ white-space:normal;
+ overflow-wrap:anywhere;
+}
+.detail-section-jumps button:hover{background:#303d4c;border-color:#91aaca}
+.detail-section-jumps button:focus-visible{outline:2px solid #bdcaff;outline-offset:3px}
+.detail-section-jumps svg{flex-shrink:0}
+#detail-verification-checklist:focus,#relacoes-declaradas:focus,#relacoes-recebidas:focus{
+ outline:2px solid #9bb9ef;
+ outline-offset:4px;
+}
+@media(max-width:480px){
+ .detail-section-jumps button{flex:1 1 130px}
+}

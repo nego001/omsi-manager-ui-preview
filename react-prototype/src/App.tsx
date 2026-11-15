@@ -715,6 +715,10 @@ export default function App(){
   focusFirstLibraryCardAfterReset.current=true;
   resetLibraryControls();
  }
+ function jumpToDetailSection(id:'detail-verification-checklist'|'relacoes-declaradas'|'relacoes-recebidas'){
+  if(screen!=='details')return;
+  document.getElementById(id)?.focus();
+ }
  function jumpToLibraryResults(){
   if(screen!=='library')return;
   const first=libraryMods[0];
@@ -1690,7 +1694,19 @@ export default function App(){
   <button type="button" className="btn secondary" disabled={!detailPrev} aria-label={detailPrev?`Mod anterior: ${detailPrev.title}`:'Sem mod anterior'} onClick={()=>detailPrev&&stepDetails(detailPrev.id)}>Anterior</button>
   <span aria-live="polite">{detailPosition>=0?`${detailPosition+1} de ${detailCandidates.length}`:'Fora dos filtros atuais'} · {detailOrigin==='library'?'Biblioteca':detailOrigin==='home'?'Destaques':'Catálogo'}</span>
   <button type="button" className="btn secondary" disabled={!detailNext} aria-label={detailNext?`Próximo mod: ${detailNext.title}`:'Sem próximo mod'} onClick={()=>detailNext&&stepDetails(detailNext.id)}>Próximo</button>
- </nav><div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>ID declarado no catálogo</span><strong className="mod-declared-id">{selected.id}</strong></div><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
+ </nav>
+ <nav className="detail-section-jumps" aria-label="Atalhos dos detalhes do mod">
+  <button type="button" onClick={()=>jumpToDetailSection('detail-verification-checklist')}>
+   Estado da análise <ChevronRight size={14} aria-hidden="true"/>
+  </button>
+  <button type="button" onClick={()=>jumpToDetailSection('relacoes-declaradas')}>
+   Dependências e conflitos <ChevronRight size={14} aria-hidden="true"/>
+  </button>
+  <button type="button" onClick={()=>jumpToDetailSection('relacoes-recebidas')}>
+   Referências recebidas <ChevronRight size={14} aria-hidden="true"/>
+  </button>
+ </nav>
+ <div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>ID declarado no catálogo</span><strong className="mod-declared-id">{selected.id}</strong></div><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
   <div className="detail-size-evidence" role="note" aria-label="Qualidade do tamanho declarado">
    <div className="detail-size-evidence-head">
     <strong>{selectedDeclaredLabel}</strong>
@@ -1703,7 +1719,8 @@ export default function App(){
     'Equivalência decimal aproximada informada pelo catálogo: '+selectedDeclaredDisplay+'.'}</p>
    <small>Sem medição de disco, abertura de pacote, verificação de integridade ou instalação.</small>
   </div>
- <section className="detail-checklist" aria-label="Etapas de verificação do mod">
+ <section id="detail-verification-checklist" tabIndex={-1}
+  className="detail-checklist" aria-label="Etapas de verificação do mod">
   <div className="detail-checklist-heading"><div><span className="eyebrow">ESTADO DA ANÁLISE</span><h2>O que já sabemos sobre este mod</h2></div><span className="detail-checklist-mode"><LockKeyhole size={14}/> Somente leitura</span></div>
   <div className="detail-checklist-grid">
    <div className="detail-check-item"><span className="detail-check-icon neutral"><CheckCircle2 size={17}/></span><div><strong>Metadados do catálogo</strong><p>{catalogSource==='Demonstração'?'Exemplo demonstrativo, não extraído do mod.':'JSON fornecido pelo usuário, sem validação contra o mod.'}</p></div></div>
