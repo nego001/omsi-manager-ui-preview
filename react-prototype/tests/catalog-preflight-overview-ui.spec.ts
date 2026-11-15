@@ -32,6 +32,10 @@ test('resumo de revisão agrega categorias sem pontuação de segurança a 390 p
  await expect(summary).toContainText('IDs com exigências declaradas de versão alteradas: 1');
  await expect(summary).toContainText('IDs distintos nos quatro grupos: 2');
  await expect(summary).toContainText('IDs presentes em mais de um grupo: 1');
+ await summary.getByText('Ver IDs presentes em mais de um grupo (1)').click();
+ await expect(summary.locator('.catalog-preflight-overlap-examples li')).toHaveText([
+  'omsi-bus: Bloqueios declarados · Dependências/conflitos · Exigências de versão'
+ ]);
  await expect(summary).toContainText('Os grupos podem incluir o mesmo ID mais de uma vez.');
  await expect(summary).toContainText('Nada foi aplicado.');
  await expect(consent.locator('details.catalog-version-constraints')).toBeVisible();
@@ -62,6 +66,7 @@ test('resumo reflete a última proposta e desaparece após confirmação explíc
  await expect(summary).toContainText('IDs com exigências declaradas de versão alteradas: 0');
  await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
  await expect(summary).toContainText('IDs presentes em mais de um grupo: 0');
+ await expect(summary.locator('.catalog-preflight-overlap-examples')).toHaveCount(0);
  await expect(card(page,'Ônibus Urbano Clássico')
   .getByRole('button',{name:'Retirar dos favoritos'})).toBeVisible();
  await consent.getByRole('button',{name:'Confirmar e descartar dados locais'}).click();
