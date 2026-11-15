@@ -129,9 +129,10 @@ test('arquivo fora da raiz ou sufixo autorizado não pode se tornar sinal',()=>{
 });
 test('handle não existente ou apontando outro tipo não passa no validador',()=>{
  const i=index(['def/truck.sii','vehicles/a.bus']);
- expect(validateSyntheticDefinitionClaims(i,[
-  claim(i,'synthetic-entry-9999','ats-vehicle-definition')
- ]).reason).toBe('out-of-scope');
+ expect(validateSyntheticDefinitionClaims(i,[{
+  handle:'synthetic-entry-9999',marker:'ats-vehicle-definition',
+  revisionTicket:issueSyntheticRevisionTicket(i,'definitions')
+ }]).reason).toBe('out-of-scope');
  const bus=handle(i,'bus','vehicles');
  expect(validateSyntheticDefinitionClaims(i,[
   claim(i,bus,'ets2-vehicle-definition')
