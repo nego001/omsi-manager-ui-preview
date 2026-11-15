@@ -83,6 +83,7 @@ test('ID declarado com 64 caracteres permanece legível a 390px e funciona por t
  const longId='mod-'+('a'.repeat(60));
  expect(longId).toHaveLength(64);
  await propose(page,[{...bus,id:longId,requires:['old-dep']}],'long-before.json');
+ await card(page,'Ônibus Urbano Clássico').getByRole('button',{name:'Favoritar'}).click();
  await propose(page,[{...bus,id:longId,game:'ets2',requires:['new-dep']}],'long-after.json');
  const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
  const overlap=consent.locator('.catalog-preflight-overlap-examples');
