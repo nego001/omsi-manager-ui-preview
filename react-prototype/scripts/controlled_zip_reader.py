@@ -12,6 +12,10 @@ from controlled_o3d_header_hints import (O3D_HEADER_CLASSES, classify_o3d_header
 from controlled_o3d_vertex_hints import (
     MAX_O3D_SAMPLE, O3D_VERTEX_HINT_CLASSES, classify_bounded_o3d_vertex_section
 )
+from controlled_o3d_triangle_hints import (
+    MAX_O3D_TRIANGLE_SAMPLE, O3D_TRIANGLE_HINT_CLASSES,
+    classify_bounded_o3d_triangle_indices
+)
 
 from controlled_definition_hints import SUPPORTED, TEXT_LIMIT, inspect_fixture_text
 from controlled_reference_hints import (
@@ -56,6 +60,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     plausible_o3d_paths: set[str] = set()
     vertex_hint_counts = {kind: 0 for kind in O3D_VERTEX_HINT_CLASSES}
     bounded_vertex_o3d_paths: set[str] = set()
+    triangle_hint_counts = {kind: 0 for kind in O3D_TRIANGLE_HINT_CLASSES}
+    bounded_triangle_o3d_paths: set[str] = set()
     references = empty_counts()
     reference_sources = {"inspected": 0, "notInspected": 0}
     definition_hints = {
@@ -82,6 +88,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
     header_linked_vehicle_folders: set[str] = set()
     vertex_backed_cfg_paths: set[str] = set()
     vertex_linked_vehicle_folders: set[str] = set()
+    triangle_backed_cfg_paths: set[str] = set()
+    triangle_linked_vehicle_folders: set[str] = set()
     truck_sii_marker_count = 0
     try:
         with zipfile.ZipFile(io.BytesIO(payload)) as zf:
@@ -152,6 +160,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                 prefix = bytearray() if ext == "o3d" else None
                 # M10: first tagged section, bounded to 1100 bytes per O3D.
                 vertex_sample = bytearray() if ext == "o3d" else None
+                # M11: first vertex + triangle section: 4096 bytes maximum.
+                triangle_sample = bytearray() if ext == "o3d" else None
                 with zf.open(info) as source:
                     while True:
                         chunk = source.read(CHUNK)
@@ -167,6 +177,8 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                             prefix.extend(chunk[:8-len(prefix)])
                         if vertex_sample is not None and len(vertex_sample) < MAX_O3D_SAMPLE:
                             vertex_sample.extend(chunk[:MAX_O3D_SAMPLE-len(vertex_sample)])
+                        if triangle_sample is not None and len(triangle_sample) < MAX_O3D_TRIANGLE_SAMPLE:
+                            triangle_sample.extend(chunk[:MAX_O3D_TRIANGLE_SAMPLE-len(triangle_sample)])
                 if per_file != info.file_size:
                     refuse()
                 if prefix is not None:
@@ -179,6 +191,11 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                     vertex_hint_counts[vertex_kind] += 1
                     if vertex_kind == "plausibleBoundedVertexPayload":
                         bounded_vertex_o3d_paths.add(info.filename.lower())
+                    triangle_kind = classify_bounded_o3d_triangle_indices(
+                        bytes(triangle_sample), per_file)
+                    triangle_hint_counts[triangle_kind] += 1
+                    if triangle_kind == "plausibleBoundedTriangleIndices":
+                        bounded_triangle_o3d_paths.add(info.filename.lower())
                 if ext in ("bus", "cfg"):
                     fixture_sources.append((info.filename.lower(), ext,
                                             bytes(sample) if sample is not None else None))
@@ -246,6 +263,15 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                     if (vertex_hints is not None and
                             vertex_hints["mesh"]["presentInFixture"] > 0):
                         vertex_backed_cfg_paths.add(source)
+                # Correlate only to the precise CFG [mesh] target.
+                triangle_targets = frozenset(path for path in bounded_triangle_o3d_paths
+                                             if path.startswith(variant + "/"))
+                if triangle_targets:
+                    triangle_hints = inspect_fixture_references(
+                        "cfg", content, source, triangle_targets)
+                    if (triangle_hints is not None and
+                            triangle_hints["mesh"]["presentInFixture"] > 0):
+                        triangle_backed_cfg_paths.add(source)
             # The existing bounded reference interpreter validates the exact
             # tiny [model] -> next line dialect. Reuse it with a restricted
             # index of marked CFG targets rather than creating another parser.
@@ -296,6 +322,14 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
                                 if (vertex_link is not None and
                                         vertex_link["model"]["presentInFixture"] > 0):
                                     vertex_linked_vehicle_folders.add(variant)
+                            triangle_targets = frozenset(path for path in triangle_backed_cfg_paths
+                                                         if path.startswith(variant + "/"))
+                            if triangle_targets:
+                                triangle_link = inspect_fixture_references(
+                                    "bus", content, source, triangle_targets)
+                                if (triangle_link is not None and
+                                        triangle_link["model"]["presentInFixture"] > 0):
+                                    triangle_linked_vehicle_folders.add(variant)
     except FixtureReferenceLimitExceeded:
         refuse()
     except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError,
@@ -311,6 +345,7 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
         "declaredSuffixCounts": suffix_counts,
         "o3dHeaderHintCounts": o3d_header_counts,
         "o3dVertexSectionHintCounts": vertex_hint_counts,
+        "o3dTriangleIndexHintCounts": triangle_hint_counts,
         "meshFormatVerified": False,
         "declaredSuffixesAreContentProof": False,
         "definitionFixtureHints": definition_hints,
@@ -320,6 +355,9 @@ def examine_controlled_zip_bytes(payload: bytes) -> dict:
             "omsiMeshLinkedVehicleFolders": len(mesh_linked_vehicle_folders),
             "omsiPlausibleO3dHeaderLinkedVehicleFolders": len(header_linked_vehicle_folders),
             "omsiBoundedVertexHintLinkedVehicleFolders": len(vertex_linked_vehicle_folders),
+            "omsiBoundedTriangleHintLinkedVehicleFolders": len(triangle_linked_vehicle_folders),
+            "omsiMeshLinkedWithoutBoundedTriangleHintFolders": len(
+                mesh_linked_vehicle_folders - triangle_linked_vehicle_folders),
             "omsiMeshLinkedWithoutBoundedVertexHintFolders": len(
                 mesh_linked_vehicle_folders - vertex_linked_vehicle_folders),
             "omsiMeshLinkedWithoutPlausibleHeaderFolders": len(
