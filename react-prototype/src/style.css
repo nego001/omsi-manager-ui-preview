@@ -1469,3 +1469,21 @@
 @media(max-width:480px){
  .detail-section-jumps button{flex:1 1 130px}
 }
+
+/* Compact inline context for Details shortcuts. Counts cover only declared
+   JSON relations and must never look like installed-mod verification. */
+.detail-section-jump-copy{
+ display:flex;
+ flex-direction:column;
+ align-items:flex-start;
+ min-width:0;
+ gap:3px;
+ overflow-wrap:anywhere;
+}
+.detail-section-jump-copy strong{font-size:11px;font-weight:700}
+.detail-section-jump-copy small{
+ font-size:10px;
+ font-weight:500;
+ color:#bbcbdc;
+ line-height:1.45;
+}

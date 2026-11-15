@@ -1700,10 +1700,15 @@ export default function App(){
    Estado da análise <ChevronRight size={14} aria-hidden="true"/>
   </button>
   <button type="button" onClick={()=>jumpToDetailSection('relacoes-declaradas')}>
-   Dependências e conflitos <ChevronRight size={14} aria-hidden="true"/>
+   <span className="detail-section-jump-copy"><strong>Dependências e conflitos</strong>
+    <small>{relationSummary.blocking+relationSummary.attention} alerta(s) declarados no JSON</small></span>
+   <ChevronRight size={14} aria-hidden="true"/>
   </button>
   <button type="button" onClick={()=>jumpToDetailSection('relacoes-recebidas')}>
-   Referências recebidas <ChevronRight size={14} aria-hidden="true"/>
+   <span className="detail-section-jump-copy"><strong>Referências recebidas</strong>
+    <small>{incomingRelations.requiredBy.length+
+     incomingRelations.conflictDeclaredBy.length} menção(ões) diretas no JSON</small></span>
+   <ChevronRight size={14} aria-hidden="true"/>
   </button>
  </nav>
  <div className="detail-verification-status"><AlertTriangle size={17}/><span><strong>Compatibilidade não verificada</strong> · Instalação e atualização reais indisponíveis nesta prévia.</span></div><div className="properties"><div><span>ID declarado no catálogo</span><strong className="mod-declared-id">{selected.id}</strong></div><div><span>Versão declarada</span><strong>{selected.version}</strong></div><div><span>Tamanho declarado</span><strong>{selected.size}</strong></div><div><span>Origem</span><strong>{catalogSource==='Demonstração'?'Catálogo demonstrativo':'JSON importado'}</strong></div></div>
