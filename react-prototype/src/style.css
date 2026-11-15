@@ -1402,8 +1402,16 @@
 .catalog-preflight-overview{margin:12px 0;padding:13px 15px;border:1px solid #626a77;background:#252a33;border-radius:9px;min-width:0;overflow-wrap:anywhere}
 .catalog-preflight-overview>strong{font-size:14px;color:#f4f7fa}
 .catalog-preflight-overview p{margin:7px 0 11px;font-size:12px;line-height:1.5;color:#d1d9e1}
-.catalog-preflight-overview ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 15px;list-style:none;padding:0;margin:0 0 11px}
-.catalog-preflight-overview li{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:#e0e7ec;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.catalog-preflight-overview li strong{color:#fff;font-size:14px;white-space:nowrap}
+.catalog-preflight-overview>ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 15px;list-style:none;padding:0;margin:0 0 11px}
+.catalog-preflight-overview>ul>li{display:flex;align-items:baseline;justify-content:space-between;gap:8px;color:#e0e7ec;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.catalog-preflight-overview>ul>li strong{color:#fff;font-size:14px;white-space:nowrap}
 .catalog-preflight-overview small{display:block;color:#bfccd6;font-size:11px;line-height:1.5}
-@media(max-width:640px){.catalog-preflight-overview ul{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:640px){.catalog-preflight-overview>ul{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep the nested disclosure readable on phones and for 64-character metadata IDs. */
+.catalog-preflight-overlap-examples{min-width:0;border-top:1px solid #485767;padding-top:10px;margin-top:9px}
+.catalog-preflight-overlap-examples summary{cursor:pointer;font-size:12px;color:#e6eeff;line-height:1.6;overflow-wrap:anywhere}
+.catalog-preflight-overlap-examples summary:focus-visible{outline:2px solid #c3d4ff;outline-offset:3px}
+.catalog-preflight-overlap-examples ul{display:block;list-style:none;margin:10px 0 8px;padding:0}
+.catalog-preflight-overlap-examples li{display:block;padding:7px 0;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.catalog-preflight-overlap-examples li strong{white-space:normal;overflow-wrap:anywhere}

@@ -23,6 +23,8 @@ export type DeclaredPreflightDistinctIdSummary={
 };
 const validId=/^[a-z0-9][a-z0-9_-]*$/;
 const invalid=():never=>{throw Error('DECLARED_PREFLIGHT_DISTINCT_IDS_INVALID');};
+const validCount=(v:unknown):v is number=>
+ typeof v==='number'&&Number.isSafeInteger(v)&&v>=0&&v<=200;
 type IdRecord={id:string};
 function checkedGroup(items:readonly IdRecord[]):ReadonlySet<string>{
  if(!Array.isArray(items)||items.length>200)return invalid();
@@ -61,10 +63,32 @@ export function summarizeDistinctDeclaredPreflightIds(
   }
  }
  if(relationIds.size>200)return invalid();
+ const referenceIds=checkedGroup(references.changed);
+ const versionIds=checkedGroup(versions.changed);
+ // These four synthetic summaries must describe the same catalog comparison.
+ // Consistent counters are not a proof of a real package or installation.
+ if(!validCount(references.comparedIds)||
+  !validCount(references.unchangedReferences)||
+  !validCount(versions.comparedIds)||
+  !validCount(versions.unchangedConstraints)||
+  !validCount(relations.comparedExisting)||
+  !validCount(relations.addedRecords)||
+  !validCount(relations.improvedExisting)||
+  references.comparedIds!==versions.comparedIds||
+  references.comparedIds!==relations.comparedExisting||
+  references.unchangedReferences+referenceIds.size!==references.comparedIds||
+  versions.unchangedConstraints+versionIds.size!==versions.comparedIds||
+  relations.comparedExisting+relations.addedRecords>200||
+  relations.improvedExisting>relations.comparedExisting||
+  crossIds.size>relations.comparedExisting||
+  relationIds.size>relations.comparedExisting+relations.addedRecords||
+  relations.addedBlocked.length>relations.addedRecords||
+  relations.newlyBlocked.length+relations.worsened.length+
+   relations.changedReasons.length>relations.comparedExisting)return invalid();
  const groups:readonly {name:DeclaredPreflightGroup;ids:ReadonlySet<string>}[]=[
   {name:'cross-game',ids:crossIds},{name:'blockers',ids:relationIds},
-  {name:'references',ids:checkedGroup(references.changed)},
-  {name:'versions',ids:checkedGroup(versions.changed)}
+  {name:'references',ids:referenceIds},
+  {name:'versions',ids:versionIds}
  ];
  const occurrences=new Map<string,DeclaredPreflightGroup[]>();
  for(const group of groups)for(const id of group.ids){

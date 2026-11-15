@@ -74,3 +74,30 @@ test('resumo reflete a última proposta e desaparece após confirmação explíc
  await nav(page).getByRole('button',{name:'Minha biblioteca'}).click();
  await expect(page.getByRole('heading',{name:'Biblioteca vazia'})).toBeVisible();
 });
+
+
+test('ID declarado com 64 caracteres permanece legível a 390px e funciona por teclado',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ const longId='mod-'+('a'.repeat(60));
+ expect(longId).toHaveLength(64);
+ await propose(page,[{...bus,id:longId,requires:['old-dep']}],'long-before.json');
+ await propose(page,[{...bus,id:longId,game:'ets2',requires:['new-dep']}],'long-after.json');
+ const consent=page.getByRole('region',{name:'Confirmar substituição do catálogo'});
+ const overlap=consent.locator('.catalog-preflight-overlap-examples');
+ await expect(overlap).toBeVisible();
+ await expect(overlap.locator('li')).toHaveCount(1);
+ await overlap.locator('summary').focus();
+ await expect(overlap.locator('summary')).toBeFocused();
+ await page.keyboard.press('Enter');
+ await expect(overlap).toHaveAttribute('open','');
+ await expect(overlap.locator('li')).toContainText(longId);
+ await expect(overlap.locator('li')).toContainText('Entre simuladores');
+ await expect(overlap.locator('li')).toContainText('Dependências/conflitos');
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+ await consent.getByRole('button',{name:'Cancelar substituição do catálogo'}).click();
+ await expect(overlap).toHaveCount(0);
+});

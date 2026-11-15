@@ -73,4 +73,8 @@ test('recusa IDs duplicados e resumos adulterados inclusive entre grupos',()=>{
  expect(()=>summarize(cross,{...relations,addedBlocked:[...relations.newlyBlocked]},refs,versions)).toThrow(fail);
  expect(()=>summarize(cross,relations,{...refs,compatibilityVerified:true} as unknown as typeof refs,versions)).toThrow(fail);
  expect(()=>summarize([{id:'invalid/path'}] as unknown as typeof cross,relations,refs,versions)).toThrow(fail);
+ expect(()=>summarize(cross,relations,{...refs,comparedIds:refs.comparedIds+1},versions)).toThrow(fail);
+ expect(()=>summarize(cross,relations,refs,{...versions,unchangedConstraints:99})).toThrow(fail);
+ expect(()=>summarize(cross,{...relations,improvedExisting:relations.comparedExisting+1},refs,versions)).toThrow(fail);
+ expect(()=>summarize(cross,{...relations,addedRecords:201},refs,versions)).toThrow(fail);
 });
