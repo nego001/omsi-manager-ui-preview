@@ -125,6 +125,19 @@ test('alertas zerados não ocultam IDs removidos/adicionados ou alterações for
  await expect(coverage).toContainText('IDs removidos: 1');
  await expect(coverage).toContainText('IDs mantidos com metadados alterados: 0');
  await expect(coverage).toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
+ const downloadSummary=async()=>{
+  const [download]=await Promise.all([
+   page.waitForEvent('download'),
+   summary.getByRole('button',{name:'Baixar resumo do pré-voo em JSON'}).click()
+  ]);
+  expect(download.suggestedFilename()).toBe('OMSI-Manager-Resumo-do-Pre-voo.json');
+  return JSON.parse(await readFile((await download.path())!,'utf8'));
+ };
+ const firstOverview=await downloadSummary();
+ expect(firstOverview.counts.catalog).toEqual({
+  current:1,proposed:1,unchanged:0,changed:0,removed:1,added:1
+ });
+ expect(firstOverview.counts.alerts.distinctIds).toBe(0);
 
  await propose(page,[{...bus,description:'Descrição revisada'}],'apenas-descricao.json');
  await expect(summary).toContainText('IDs distintos nos quatro grupos: 0');
@@ -132,6 +145,15 @@ test('alertas zerados não ocultam IDs removidos/adicionados ou alterações for
  await expect(coverage).toContainText('IDs removidos: 0');
  await expect(coverage).toContainText('IDs mantidos com metadados alterados: 1');
  await expect(coverage).toContainText('Zero alertas nos quatro grupos não significa catálogos iguais.');
+ const secondOverview=await downloadSummary();
+ expect(secondOverview.counts.catalog).toEqual({
+  current:1,proposed:1,unchanged:0,changed:1,removed:0,added:0
+ });
+ expect(secondOverview.hasCatalogChangesOutsideFourAlertGroups).toBe(true);
+ expect(secondOverview).toMatchObject({
+  proposedCatalogApplied:false,installedFilesChecked:false,
+  compatibilityVerified:false,sourceAuthenticated:false
+ });
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);

@@ -11,6 +11,7 @@ import {compareDeclaredReferenceTargets} from './catalog-reference-changes';
 import {compareDeclaredVersionConstraints} from './catalog-version-constraints';
 import {summarizeDistinctDeclaredPreflightIds,declaredPreflightGroupLabels} from './catalog-preflight-distinct-ids';
 import {serializeDeclaredPreflightOverlaps} from './catalog-preflight-overlap-export';
+import {serializeDeclaredPreflightOverview} from './catalog-preflight-overview-export';
 import {summarizeDeclaredConstraintDirections,declaredConstraintDirectionLabels} from './catalog-version-direction';
 import {serializeDeclaredVersionConstraintChanges} from './catalog-version-constraints-export';
 import {serializeDeclaredReferenceChanges} from './catalog-reference-export';
@@ -497,6 +498,23 @@ export default function App(){
    downloadDeclaredJson(serializeDeclaredFavoriteList(favoriteMods),
     'OMSI-Manager-Lista-de-Favoritos.json');
   }catch{setToast('Não foi possível exportar a lista de favoritos declarados.');}
+ }
+ function exportPendingPreflightOverview(){
+  if(!pendingCatalogReplacement||!catalogReplacementDiff||
+   !catalogPreflightDistinctIds||!catalogReferenceChanges||
+   !catalogVersionConstraints||!catalogRelationRegressions)return;
+  try{
+   downloadDeclaredJson(serializeDeclaredPreflightOverview({
+    diff:catalogReplacementDiff,
+    summary:catalogPreflightDistinctIds,
+    groups:{
+     'cross-game':catalogCrossGameReuse.length,
+     blockers:catalogRelationRegressionCount,
+     references:catalogReferenceChanges.changed.length,
+     versions:catalogVersionConstraints.changed.length
+    }
+   }),'OMSI-Manager-Resumo-do-Pre-voo.json');
+  }catch{setToast('Não foi possível exportar o resumo declarativo do pré-voo.');}
  }
  function exportPendingPreflightOverlaps(){
   if(!pendingCatalogReplacement||!catalogPreflightDistinctIds||
@@ -1186,6 +1204,9 @@ export default function App(){
       catalogReplacementDiff.changed.length>0)&&
      <strong> Zero alertas nos quatro grupos não significa catálogos iguais.</strong>}
    </p>}
+   <button type="button" className="btn secondary catalog-preflight-reports"
+    onClick={exportPendingPreflightOverview}><Download size={16} aria-hidden="true"/>
+    Baixar resumo do pré-voo em JSON</button>
    {catalogPreflightDistinctIds&&catalogPreflightDistinctIds.overlappingIds>0&&
     <details className="catalog-preflight-overlap-examples">
      <summary>Ver IDs presentes em mais de um grupo ({catalogPreflightDistinctIds.overlappingIds})</summary>
