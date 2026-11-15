@@ -32,8 +32,8 @@ export function serializeDeclaredPreflightOverlaps(
    (index>0&&entry.id<=summary.allOverlaps[index-1].id)||
    !Array.isArray(entry.groups)||entry.groups.length<2||
    entry.groups.length>groupOrder.length)return invalid();
-  const indices=entry.groups.map(g=>groupOrder.indexOf(g));
-  if(indices.some((v,i)=>v<0||(i>0&&v<=indices[i-1])))return invalid();
+  const indices=entry.groups.map((g:DeclaredPreflightGroup)=>groupOrder.indexOf(g));
+  if(indices.some((v:number,i:number)=>v<0||(i>0&&v<=indices[i-1])))return invalid();
   return {id:entry.id,groups:[...entry.groups]};
  });
  for(let i=0;i<summary.overlapExamples.length;i++){
