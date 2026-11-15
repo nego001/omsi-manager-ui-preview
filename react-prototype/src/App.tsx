@@ -1870,6 +1870,16 @@ export default function App(){
        <option value="cross-game">Somente outros simuladores</option>
       </select>
      </label>
+     {(incomingKind!=='all'||incomingScope!=='all')&&
+      <button type="button" className="relation-incoming-reset"
+       onClick={event=>{
+        // Keep keyboard focus in the filter area when this reset button unmounts.
+        event.currentTarget.parentElement
+         ?.querySelector<HTMLSelectElement>('select')?.focus({preventScroll:true});
+        setIncomingView({modId:selected.id,kind:'all',scope:'all'});
+       }}>
+       Limpar filtros de referências
+      </button>}
      <span role="status">Exibindo {incomingVisibleTotal} de {
       incomingRelations.requiredBy.length+incomingRelations.conflictDeclaredBy.length
      } referência(s) declaradas. Filtros apenas visuais, sem verificar compatibilidade nem modificar o catálogo.</span>

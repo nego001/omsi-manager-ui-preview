@@ -191,3 +191,44 @@ test('filtro de outro simulador combina com tipo sem duplicar referências ou al
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);
 });
+
+test('limpar filtros restaura todas as referências e o foco após combinação sem resultados',async({page})=>{
+ await page.setViewportSize({width:390,height:820});
+ await page.goto('/');
+ await nav(page).getByRole('button',{name:'Catálogo de mods'}).click();
+ const base={category:'Ônibus',version:'1.0',size:'1 MB',
+  description:'Metadados fictícios sem operação em arquivos'};
+ await page.getByLabel('Arquivo JSON do catálogo').setInputFiles({
+  name:'reset-referencias.json',mimeType:'application/json',
+  buffer:Buffer.from(JSON.stringify({schemaVersion:1,mods:[
+   {...base,id:'target',title:'Destino',game:'omsi'},
+   {...base,id:'same',title:'Origem OMSI',game:'omsi',requires:['target']},
+   {...base,id:'foreign',title:'Origem ETS2',game:'ets2',
+    category:'Caminhões',conflictsWith:['target']}
+  ]}))
+ });
+ await page.getByRole('button',{name:'Ver Destino'}).click();
+ const incoming=page.locator('#relacoes-recebidas');
+ const type=incoming.getByRole('combobox',{name:'Filtrar tipo de referência recebida'});
+ const origin=incoming.getByRole('combobox',{name:'Filtrar origem das referências recebidas'});
+ const reset=incoming.getByRole('button',{name:'Limpar filtros de referências'});
+ const items=incoming.locator('.relation-incoming-groups li');
+ const count=incoming.locator('.relation-incoming-filter [role="status"]');
+ await expect(reset).toHaveCount(0);
+ await expect(items).toHaveCount(2);
+ await type.selectOption('conflicts');
+ await origin.selectOption('same-game');
+ await expect(count).toContainText('Exibindo 0 de 2');
+ await expect(items).toHaveCount(0);
+ await expect(incoming).toContainText('Nenhuma referência corresponde à combinação de tipo e origem selecionada.');
+ await reset.click();
+ await expect(type).toBeFocused();
+ await expect(type).toHaveValue('all');
+ await expect(origin).toHaveValue('all');
+ await expect(count).toContainText('Exibindo 2 de 2');
+ await expect(items).toHaveCount(2);
+ await expect(reset).toHaveCount(0);
+ const overflow=await page.evaluate(()=>
+  Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
+ expect(overflow).toBeLessThanOrEqual(3);
+});

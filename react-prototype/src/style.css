@@ -1510,3 +1510,17 @@
  flex:1 1 170px;min-width:0;color:#c1d3e2;
  line-height:1.55;font-size:11px;overflow-wrap:anywhere;
 }
+
+/* A disappearing reset action transfers focus to the persistent type select. */
+.relation-incoming-filter .relation-incoming-reset{
+ flex:0 1 auto;max-width:100%;min-height:38px;
+ padding:8px 12px;background:#303e4e;border:1px solid #758ba4;
+ border-radius:7px;color:#e4effb;font-size:11px;line-height:1.5;
+ white-space:normal;overflow-wrap:anywhere;cursor:pointer;
+}
+.relation-incoming-filter .relation-incoming-reset:hover{
+ background:#3d5065;border-color:#a9c0df;
+}
+.relation-incoming-filter .relation-incoming-reset:focus-visible{
+ outline:2px solid #c2d6ff;outline-offset:3px;
+}
