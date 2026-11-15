@@ -50,16 +50,20 @@ test('contagens nos atalhos seguem o mod selecionado e só descrevem o JSON',asy
  await bus.getByRole('button',{name:'Ver Ônibus A'}).click();
  const shortcuts=page.getByRole('navigation',{name:'Atalhos dos detalhes do mod'});
  await expect(shortcuts.getByRole('button',{name:/Referências recebidas/}))
-  .toContainText('2 menção(ões) diretas no JSON');
+  .toContainText('1 registro(s) que mencionam este ID (JSON)');
+ await expect(shortcuts.getByRole('button',{name:/Referências recebidas/}))
+  .toContainText('Dependências: 1 · Conflitos: 1');
  await expect(shortcuts.getByRole('button',{name:/Dependências e conflitos/}))
-  .toContainText(/\d+ alerta\(s\) declarados no JSON/);
+  .toContainText(/Bloqueios: \d+ · Avisos: \d+ \(JSON\)/);
  await shortcuts.getByRole('button',{name:/Referências recebidas/}).click();
  await expect(page.locator('#relacoes-recebidas')).toBeFocused();
  await page.getByRole('button',{name:'Próximo mod: Ônibus B'}).click();
  await expect(shortcuts.getByRole('button',{name:/Referências recebidas/}))
-  .toContainText('0 menção(ões) diretas no JSON');
+  .toContainText('0 registro(s) que mencionam este ID (JSON)');
+ await expect(shortcuts.getByRole('button',{name:/Referências recebidas/}))
+  .toContainText('Dependências: 0 · Conflitos: 0');
  await expect(shortcuts.getByRole('button',{name:/Dependências e conflitos/}))
-  .toContainText(/\d+ alerta\(s\) declarados no JSON/);
+  .toContainText(/Bloqueios: \d+ · Avisos: \d+ \(JSON\)/);
  const overflow=await page.evaluate(()=>
   Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth));
  expect(overflow).toBeLessThanOrEqual(3);

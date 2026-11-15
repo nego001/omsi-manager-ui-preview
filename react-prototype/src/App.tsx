@@ -249,6 +249,11 @@ export default function App(){
  const incomingById=useMemo(()=>indexIncomingDeclaredRelations(catalogMods),[catalogMods]);
  const incomingRelations=incomingById.get(selected.id)??
   collectIncomingDeclaredRelations(catalogMods,selected.id);
+ // One catalog record can mention the same target twice (requires + conflicts).
+ // The count of originating IDs must not be confused with the number of edges.
+ const incomingOriginCount=new Set([
+  ...incomingRelations.requiredBy,...incomingRelations.conflictDeclaredBy
+ ].map(source=>source.id)).size;
  const incomingCrossGameSummary=summarizeCrossGameIncoming(incomingRelations);
  const diagnostic=useMemo(()=>consolidateDiagnostic(selected.game,selected.id,catalogSource,relationAnalysis,inspections[selected.game],hypotheticalGameVersion),[selected.game,selected.id,catalogSource,relationAnalysis,inspections,hypotheticalGameVersion]);
  const filtered=useMemo(()=>{
@@ -1701,13 +1706,13 @@ export default function App(){
   </button>
   <button type="button" onClick={()=>jumpToDetailSection('relacoes-declaradas')}>
    <span className="detail-section-jump-copy"><strong>Dependências e conflitos</strong>
-    <small>{relationSummary.blocking+relationSummary.attention} alerta(s) declarados no JSON</small></span>
+    <small>Bloqueios: {relationSummary.blocking} · Avisos: {relationSummary.attention} (JSON)</small></span>
    <ChevronRight size={14} aria-hidden="true"/>
   </button>
   <button type="button" onClick={()=>jumpToDetailSection('relacoes-recebidas')}>
    <span className="detail-section-jump-copy"><strong>Referências recebidas</strong>
-    <small>{incomingRelations.requiredBy.length+
-     incomingRelations.conflictDeclaredBy.length} menção(ões) diretas no JSON</small></span>
+    <small>{incomingOriginCount} registro(s) que mencionam este ID (JSON)</small>
+    <small>Dependências: {incomingRelations.requiredBy.length} · Conflitos: {incomingRelations.conflictDeclaredBy.length}</small></span>
    <ChevronRight size={14} aria-hidden="true"/>
   </button>
  </nav>
