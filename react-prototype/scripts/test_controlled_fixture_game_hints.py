@@ -243,11 +243,13 @@ class ControlledFixtureGameHintsTests(unittest.TestCase):
             self.assertNotIn(private, printed)
 
     def test_oversized_reference_source_cannot_be_linked(self):
+        # STORED stays within ZIP expansion-ratio limits so this test isolates
+        # the bounded text-sample rule, not the existing anti-zip-bomb gate.
         bus = BUS + b"x" * 18000
-        result = inspect([
+        result = assess_controlled_zip_game_hints(bundle([
             ("Vehicles/A/A.bus", bus),
             ("Vehicles/A/model/model.cfg", CFG),
-        ])
+        ], compression=zipfile.ZIP_STORED))
         self.assertEqual(result["omsiLinkedVehicleFolderCount"], 0)
         self.assertEqual(result["assessment"], "insufficient-omsi-fixture-evidence")
 
