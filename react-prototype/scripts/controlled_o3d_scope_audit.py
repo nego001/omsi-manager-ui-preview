@@ -6,6 +6,8 @@ and per-entry M15 labels from ONE invocation. No names/paths/bytes are returned.
 """
 from __future__ import annotations
 
+import hashlib
+
 from controlled_o3d_evidence_coordinator import O3D_EVIDENCE_STATES
 
 STAGES = ("header", "vertex", "triangle", "material", "matrix", "bone",
@@ -24,6 +26,23 @@ DEPTH = {
     "boundedBoneLayoutObserved": 5,
 }
 MAX_CONTROLLED_O3D_ENTRIES = 128
+RECEIPT_DOMAIN = b"OMSI_CONTROLLED_SYNTHETIC_SCOPE_V1\x00"
+
+
+def make_synthetic_entry_receipt(archive_digest: bytes,
+                                 path: str, entry_digest: bytes) -> bytes:
+    """In-memory binding only, NOT an authenticated signature."""
+    if (type(archive_digest) is not bytes or len(archive_digest) != 32 or
+            type(path) is not str or not path or path != path.lower() or
+            type(entry_digest) is not bytes or len(entry_digest) != 32):
+        refuse()
+    raw = path.encode("ascii", errors="strict")
+    if len(raw) > 160:
+        refuse()
+    return hashlib.sha256(
+        RECEIPT_DOMAIN + archive_digest + len(raw).to_bytes(2, "big") +
+        raw + entry_digest
+    ).digest()
 
 
 class ControlledO3dScopeRefused(ValueError):
@@ -39,7 +58,10 @@ def audit_synthetic_o3d_scope(
         stage_paths: dict[str, frozenset[str]],
         entry_states: dict[str, str],
         public_counts: dict[str, int],
-        linked_variants: dict[str, frozenset[str]]) -> bool:
+        linked_variants: dict[str, frozenset[str]],
+        archive_digest: bytes,
+        entry_digests: dict[str, bytes],
+        entry_receipts: dict[str, bytes]) -> bool:
     """Check per-entry stages, public totals and variant hierarchy together.
 
     The accepted path index is already screened by the *caller* ZIP gate.
@@ -63,6 +85,20 @@ def audit_synthetic_o3d_scope(
         path for path in vetted_zip_paths if path.endswith(".o3d"))
     if set(entry_states) != set(o3d_entries):
         refuse()
+    if (type(archive_digest) is not bytes or len(archive_digest) != 32 or
+            type(entry_digests) is not dict or
+            type(entry_receipts) is not dict or
+            set(entry_digests) != set(o3d_entries) or
+            set(entry_receipts) != set(o3d_entries)):
+        refuse()
+    for path in o3d_entries:
+        if (type(entry_digests[path]) is not bytes or len(entry_digests[path]) != 32
+                or type(entry_receipts[path]) is not bytes
+                or len(entry_receipts[path]) != 32):
+            refuse()
+        if (entry_receipts[path] != make_synthetic_entry_receipt(
+                archive_digest, path, entry_digests[path])):
+            refuse()
     if any(type(state) is not str or state not in DEPTH
            for state in entry_states.values()):
         # The M15 contradiction state must never become a published report.
