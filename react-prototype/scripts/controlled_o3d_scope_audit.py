@@ -33,7 +33,8 @@ def make_synthetic_entry_receipt(archive_digest: bytes,
                                  path: str, entry_digest: bytes) -> bytes:
     """In-memory binding only, NOT an authenticated signature."""
     if (type(archive_digest) is not bytes or len(archive_digest) != 32 or
-            type(path) is not str or not path or path != path.lower() or
+            type(path) is not str or not path or not path.isascii() or
+            path != path.lower() or
             type(entry_digest) is not bytes or len(entry_digest) != 32):
         refuse()
     raw = path.encode("ascii", errors="strict")
@@ -71,7 +72,7 @@ def audit_synthetic_o3d_scope(
     if (type(vetted_zip_paths) is not frozenset or
             len(vetted_zip_paths) > MAX_CONTROLLED_O3D_ENTRIES or
             any(type(path) is not str or not path or
-                path != path.lower() for path in vetted_zip_paths)):
+                (not path.isascii()) or path != path.lower() for path in vetted_zip_paths)):
         refuse()
     if (type(stage_paths) is not dict or set(stage_paths) != set(STAGES) or
             type(entry_states) is not dict or
