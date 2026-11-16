@@ -113,6 +113,21 @@ class ReadOnlyCiContextTests(unittest.TestCase):
         self.assertTrue(c["pullRequestPathFiltered"])
         self.assertFalse(c["defaultBranchPushCovered"])
 
+    def test_real_github_review_job_semicolon_is_valid_name(self):
+        original_name = "GitHub independent PR review observation (read-only; no approval)"
+        candidate_source = SOURCE + (
+            "  github_independent_review_observation:\n"
+            "    name: " + original_name + "\n"
+            "    runs-on: ubuntu-22.04\n")
+        catalog = catalog_from_workflow(candidate_source, "main")
+        self.assertIn(original_name, catalog["expandedNames"])
+        previous = jobs()
+        previous["jobs"].append(job(original_name, 5))
+        previous["total_count"] = len(previous["jobs"])
+        result = assess(source=candidate_source, previous=previous)
+        self.assertIn(original_name, result["observedPreviousJobNames"])
+        self.assert_blocked(result)
+
     def test_missing_main_workflow_blocks_required_checks(self):
         r = assess()
         self.assertEqual(r["auditStatus"], "defaultBranchWorkflowMissing")
