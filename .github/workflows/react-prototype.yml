@@ -631,3 +631,24 @@ jobs:
         run: python3 -I -S -B react-prototype/scripts/controlled_ubuntu24_repeatability.py
       # This is historical diagnostics ONLY. It never makes a failed
       # Ubuntu 24.04 strict X11 job optional, and cannot authorize release.
+
+  synthetic_m32_dual_source_custody:
+    name: Synthetic M32 dual-source custody regression (CI only)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout controlled synthetic files without saved credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node for synthetic-only hashing
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify M31 two-runtime artificial-byte hashing precondition
+        run: node --test react-prototype/scripts/ubuntu24-synthetic-byte-provenance.test.mjs
+      - name: Verify M32 two-source artificial custody and drift contracts
+        run: node --test react-prototype/scripts/ubuntu24-two-source-custody.test.mjs
+      # Red tests must remain red: no continue-on-error and no real artifact.
