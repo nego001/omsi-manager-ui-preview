@@ -1,11 +1,8 @@
 name: React Prototype Validation
 on:
   push:
-    branches: [feat/react-nine-screens-safe]
+    branches: [feat/react-nine-screens-safe, main]
   pull_request:
-    paths:
-      - 'react-prototype/**'
-      - '.github/workflows/react-prototype.yml'
 concurrency:
   group: react-prototype-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
