@@ -101,9 +101,9 @@ def _validate_declaration(
             declaration.baseline_commit_sha != FIXED_BASELINE_M18 or
             type(declaration.affected_groups) is not tuple or
             not declaration.affected_groups or
-            declaration.affected_groups != tuple(sorted(set(declaration.affected_groups))) or
             any(type(group) is not str or group not in REVIEWABLE_GROUPS
                 for group in declaration.affected_groups) or
+            declaration.affected_groups != tuple(sorted(set(declaration.affected_groups))) or
             declaration.affected_groups != changed or
             type(declaration.reason_code) is not str or
             declaration.reason_code not in REASON_CODES or
