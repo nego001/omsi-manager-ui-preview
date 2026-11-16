@@ -447,3 +447,29 @@ jobs:
         run: python3 -I -S -B candidate/react-prototype/scripts/controlled_ci_revision_diff.py
       # A changed contract group makes THIS job fail for review. It cannot
       # waive the separate strict Ubuntu 24.04 sandbox job or approve release.
+
+  github_independent_review_observation:
+    name: GitHub independent PR review observation (read-only; no approval)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout code with no persisted GitHub credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run synthetic GitHub review metadata adversarial contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_controlled_github_review_audit.py -v
+      - name: Observe actual pull request reviews (never approve or merge)
+        env:
+          GH_REVIEW_EVENT: ${{ github.event_name }}
+          GH_REVIEW_REPOSITORY: ${{ github.repository }}
+          GH_REVIEW_PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_REVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_REVIEW_TOKEN: ${{ github.token }}
+        run: python3 -I -S -B react-prototype/scripts/controlled_github_review_audit.py
+      # Successful observation DOES NOT mean approval, release, or a green
+      # Ubuntu 24.04 strict-sandbox gate. No bypass, no writes, no merge.
