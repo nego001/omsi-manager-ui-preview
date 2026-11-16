@@ -575,3 +575,28 @@ jobs:
         run: python3 -I -S -B react-prototype/scripts/controlled_docs_only_check_runs.py
       # A green observation is NOT an approved required check, nor an
       # exception for Ubuntu 24.04 strict X11 or permission to merge.
+
+  github_cross_pr_check_context_comparison:
+    name: GitHub docs vs code PR check contexts (read-only)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      checks: read
+    steps:
+      - name: Checkout controlled audit scripts without saved credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test cross-PR name, app, ID, and pending-run contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_controlled_cross_pr_check_contexts.py -v
+      - name: Compare live PR 30 and PR 31 check-run identities
+        env:
+          GH_M27_EVENT: ${{ github.event_name }}
+          GH_M27_TOKEN: ${{ github.token }}
+        run: python3 -I -S -B react-prototype/scripts/controlled_cross_pr_check_contexts.py
+      # This is a read-only observation, not a required status check
+      # configuration or a waiver of Ubuntu 24.04 strict X11 failure.
