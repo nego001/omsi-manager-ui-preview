@@ -150,6 +150,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+
   native_auto_x11:
     name: Native Auto X11 real-window check (${{ matrix.runner }}, strict sandbox)
     needs: build
@@ -419,3 +420,30 @@ jobs:
           python3 react-prototype/scripts/portable_pair_audit.py \
             pair-artifacts/linux pair-artifacts/windows
       # Metadata parity is not a digital signature or a real KDE/GNOME test.
+
+  synthetic_two_revision_contract:
+    name: Synthetic fixture two-revision comparison (CI only)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      # These are code-only checkouts into disposable GitHub-hosted workspace.
+      # Neither revision receives mod files, a game folder or credentials.
+      - name: Checkout candidate revision, without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          path: candidate
+          persist-credentials: false
+      - name: Checkout fixed M18 baseline commit, without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: c260b0b5e6325c44766788a528e8a2aee8237333
+          path: baseline
+          persist-credentials: false
+      - name: Compare both analyzers using identical in-memory synthetic ZIPs
+        env:
+          CI: 'true'
+        run: python3 -I -S -B candidate/react-prototype/scripts/controlled_ci_revision_diff.py
+      # A changed contract group makes THIS job fail for review. It cannot
+      # waive the separate strict Ubuntu 24.04 sandbox job or approve release.
