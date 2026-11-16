@@ -30,6 +30,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from controlled_fixture_regression_guard import (
     GROUPS, SyntheticFixtureSnapshot, compare_synthetic_fixture_snapshots
 )
+from controlled_fixture_review_policy import (
+    CI_CHANGE_DECLARATION, evaluate_synthetic_change_review
+)
 
 MAX_SYNTHETIC_PROBE_BYTES = 2_000_000
 MAX_PROBE_OUTPUT_BYTES = 16_384
@@ -227,7 +230,7 @@ def run_ci_two_revision_comparison(
             stable += 1
         else:
             changed.update(diff["changedContractGroups"])
-    return {
+    summary = {
         "schema": REVISION_PROBE_SCHEMA,
         "comparison": "reviewRequired" if changed else "stable",
         "syntheticFixturesCompared": len(fixtures),
@@ -240,6 +243,11 @@ def run_ci_two_revision_comparison(
         "realModValidated": False,
         "installationAuthorized": False,
     }
+    # M20 is a human-review classification, not an approval. A declared
+    # change always leaves CI red, and sandbox/release gates stay blocking.
+    summary["changeReviewPolicy"] = evaluate_synthetic_change_review(
+        summary, CI_CHANGE_DECLARATION)
+    return summary
 
 
 def main():
@@ -254,7 +262,8 @@ def main():
     candidate = workspace / "candidate" / "react-prototype" / "scripts"
     result = run_ci_two_revision_comparison(baseline, candidate)
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
-    if result["comparison"] != "stable":
+    if (result["comparison"] != "stable" or
+            result["changeReviewPolicy"]["ciPassAllowed"] is not True):
         raise SystemExit(1)
 
 
