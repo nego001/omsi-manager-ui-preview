@@ -652,3 +652,53 @@ jobs:
       - name: Verify M32 two-source artificial custody and drift contracts
         run: node --test react-prototype/scripts/ubuntu24-two-source-custody.test.mjs
       # Red tests must remain red: no continue-on-error and no real artifact.
+
+  ubuntu24_syscall_triage:
+    name: Ubuntu 24.04 Electron syscall triage (read-only)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - name: Checkout exact candidate without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up known Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download exact same unsigned Linux package from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: OMSI-Manager-Preview-Linux-x64-UNSIGNED
+          path: react-prototype/release
+      - name: Verify SHA256 and guarded synthetic-only preview extraction
+        run: |
+          set -euo pipefail
+          cd release
+          sha256sum -c OMSI-Manager-Preview-Linux-x64.sha256
+          python3 -I -S -B ../scripts/controlled_ci_archive_guard.py
+          tar --no-same-owner --no-same-permissions -xzf OMSI-Manager-Preview-Linux-x64.tar.gz
+          test -x OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
+      - name: Run M33 sanitized syscall parser adversarial contracts
+        run: node --test scripts/auto-x11-sigtrap-syscalls.test.mjs
+      - name: Install diagnostic tracer and Xvfb on disposable runner only
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends strace xvfb
+      - name: Trace unmodified packaged Electron with sandbox intact
+        timeout-minutes: 2
+        env:
+          CI: 'true'
+          M33_RUNNER: ubuntu-24.04
+        run: xvfb-run -a node scripts/auto-x11-sigtrap-syscalls.mjs
+      # This diagnostic is independent from the MANDATORY strict native
+      # X11 24.04 gate. It NEVER overrides a failure in native_auto_x11.
+      # The strace observer can affect process behavior: no causal verdict.
+      # Traces are temporary, erased and NEVER uploaded or logged raw.
