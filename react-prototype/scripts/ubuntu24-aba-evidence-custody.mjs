@@ -39,7 +39,6 @@ export function reviewUbuntu24ABAReceiptCustody(bundle){
  try{comparison=compareTwoDesktopUbuntu24ABA(bundle.pilot);}
  catch{refuse();}
  if(comparison.schema!=='UBUNTU24_TWO_DESKTOP_ABA_COMPARISON_V1'||
-    comparison.chromeRendererSandboxCertified===true||
     comparison.chromiumRendererSandboxCertified!==false||
     comparison.mergeAuthorized!==false||
     comparison.installationAuthorized!==false)refuse();
@@ -63,11 +62,11 @@ export function reviewUbuntu24ABAReceiptCustody(bundle){
   // A real, independent byte hash is NOT performed here. Reusing a copied
   // digest or a false reviewer claim cannot authenticate a package.
   for(const field of FIELDS){
-   if(field==='rollbackRestoration'&&phase!=='rollback'&&
-      receipt[field]!==null)refuse();
-   const kind=digestPair(receipt[field],
-       field!=='artifactBytes' &&
-       (field!=='rollbackRestoration'||phase==='rollback'));
+   if(field==='rollbackRestoration'&&phase!=='rollback'){
+    if(receipt[field]!==null)refuse();
+    continue; // Not applicable: only the two rollback phases have this slot.
+   }
+   const kind=digestPair(receipt[field],field!=='artifactBytes');
    if(kind.missing){
     missing++;
     missingKinds.add(field);
@@ -94,7 +93,7 @@ export function reviewUbuntu24ABAReceiptCustody(bundle){
   status,
   desktopGroups:2,
   phaseRecordsValidated:6,
-  evidenceReceiptSlots:24,
+  evidenceReceiptSlots:20,
   matchedReportedDigestPairs:matched,
   mismatchedReportedDigestPairs:mismatched,
   missingReceiptCategories: Object.freeze([...missingKinds].sort()),
