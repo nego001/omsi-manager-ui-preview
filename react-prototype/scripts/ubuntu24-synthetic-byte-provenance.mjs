@@ -90,7 +90,7 @@ export function verifyM31SyntheticBytes(input){
   source:'ci-synthetic-in-memory-byte-snapshots',
   status,
   syntheticPhaseSamplesValidated:6,
-  runtimeHashImplementations:['node-crypto','python-hashlib'],
+  runtimeHashImplementations:Object.freeze(['node-crypto','python-hashlib']),
   crossRuntimeDigestAgreements:nodePythonAgreements,
   operatorDigestClaimsMatchingSyntheticBytes:operatorClaimsMatch,
   reviewerDigestClaimsMatchingSyntheticBytes:reviewerClaimsMatch,
