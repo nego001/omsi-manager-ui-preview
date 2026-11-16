@@ -525,3 +525,29 @@ jobs:
         run: python3 -I -S -B react-prototype/scripts/controlled_default_branch_rollout.py
       # This job reports planning evidence only: reviewer unknown, zero
       # checks selected, no branch protection writes, no merge/release.
+
+  github_ci_context_readiness_audit:
+    name: GitHub CI context readiness audit (no branch rule writes)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout candidate workflow without saved credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test read-only Actions names, filters, and blocker contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_controlled_ci_context_readiness.py -v
+      - name: Observe exact job labels against a completed PR reference run
+        env:
+          GH_CONTEXT_EVENT: ${{ github.event_name }}
+          GH_CONTEXT_REPOSITORY: ${{ github.repository }}
+          GH_CONTEXT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_CONTEXT_RUN_ID: ${{ github.run_id }}
+          GH_CONTEXT_TOKEN: ${{ github.token }}
+        run: python3 -I -S -B react-prototype/scripts/controlled_ci_context_readiness.py
+      # This job never selects required check contexts. A successful run
+      # means inspection only, NOT a green Ubuntu 24.04 or merge approval.
