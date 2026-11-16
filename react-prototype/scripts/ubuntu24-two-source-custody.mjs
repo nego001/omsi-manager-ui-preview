@@ -59,6 +59,7 @@ export function compareM32SyntheticAcquisitionCustody(input){
     if(!exact(step,['stageId','syntheticBytes'])||
        step.stageId!==STAGES[s])refuse();
     const bytes=verifiedSyntheticSnapshot(step.syntheticBytes);
+    sha(bytes); // Recompute every artificial custody-hop digest, not only acquisition.
     snapshots.push(bytes);
     syntheticReceiptBytesHashed++;
    }
