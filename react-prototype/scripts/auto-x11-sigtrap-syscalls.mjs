@@ -171,11 +171,19 @@ async function main(){
  try{
   const exit=await runStrace(canonicalBinary,temp);
   const files=readTraceFiles(temp);
-  const report=classifyM33SyscallTrace({
-   runner:'ubuntu-24.04',traceTexts:files,tracerExit:exit
-  });
+  const sample={runner:'ubuntu-24.04',traceTexts:files,tracerExit:exit};
+  const report=classifyM33SyscallTrace(sample);
+  // M34 interprets the SAME bounded trace, but separates PRCTL EINVAL
+  // from explicit CLONE_NEWUSER denial. Dynamic import avoids a cycle
+  // during module initialization; neither parser executes policy edits.
+  const {classifyM34PrctlContext}=await import('./auto-x11-prctl-context.mjs');
+  const context=classifyM34PrctlContext(sample);
+  if(context.m33PrctlEINVALCount!==report.errnoDenialCounts.prctl.EINVAL||
+     context.m33SigtrapMarkers!==report.sigtrapSignalRecords||
+     context.prctlCallsClassified!==report.targetedSyscalls.prctl)refuse();
   // Fixed categories only: no PIDs, names, paths, raw stderr, argv or SHA.
   console.log('M33_SYSCALL_CATEGORIES',JSON.stringify(report));
+  console.log('M34_PRCTL_CONTEXT',JSON.stringify(context));
   if(report.syscallsObserved<1)refuse();
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});
