@@ -89,7 +89,7 @@ def _decode_probe(payload: bytes, wire: bytes) -> SyntheticFixtureSnapshot:
 
 
 def _probe_checkout(scripts: Path, payload: bytes) -> SyntheticFixtureSnapshot:
-    if (type(scripts) is not Path or scripts.name != "scripts"
+    if (not isinstance(scripts, Path) or scripts.name != "scripts"
             or scripts.parent.name != "react-prototype"
             or not scripts.is_dir()):
         _refuse()
@@ -204,8 +204,8 @@ def run_ci_two_revision_comparison(
     Executed ONLY by the dedicated GitHub Actions test job with two fixed
     checkouts, not by the product's archive-reading code.
     """
-    if (type(baseline_scripts) is not Path or
-            type(candidate_scripts) is not Path or
+    if (not isinstance(baseline_scripts, Path) or
+            not isinstance(candidate_scripts, Path) or
             baseline_scripts == candidate_scripts):
         _refuse()
     fixtures = ci_synthetic_fixtures()
