@@ -66,7 +66,8 @@ def observe_base_branch_policy(repo: str, number: int, head_sha: str,
             head.get("sha") != head_sha or
             base.get("ref") != base_name or base.get("sha") != base_sha or
             type(base.get("repo")) is not dict or
-            base["repo"].get("full_name", "").lower() != repo.lower() or
+            type(base["repo"].get("full_name")) is not str or
+            base["repo"]["full_name"].lower() != repo.lower() or
             branch.get("name") != base_name or
             type(branch.get("commit")) is not dict or
             branch["commit"].get("sha") != base_sha or
