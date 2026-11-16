@@ -15,6 +15,14 @@ e **uma failure** do Ubuntu 24.04 X11 estrito. O Ubuntu 22.04 passou.
 A [PR #31](https://github.com/nego001/omsi-manager-ui-preview/pull/31)
 contém scripts/testes/documentação e uma alteração no workflow.
 Ela originou o [run #43786218414](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/43786218414).
+**Fechamento confirmado em 16/11/2026 (UTC):** o run de código
+#43786218414 terminou com **13 de 14 jobs aprovados**. A única
+falha foi o Ubuntu 24.04 X11 estrito; Ubuntu 22.04 passou.
+Dessa forma, ambos os runs de referência estão agora concluídos
+e seus **13 checks compartilhados apareceram com o mesmo nome e
+aplicativo de origem `github-actions`**, preservando IDs numéricos
+diferentes para cada execução.
+
 O M26 acrescentou um único job informativo:
 `GitHub docs-only CI check-run evidence (read-only, not approval)`.
 Esse job **não existia** na versão usada pela PR #30 e não é
