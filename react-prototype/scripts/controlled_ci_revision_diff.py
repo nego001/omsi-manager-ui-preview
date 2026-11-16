@@ -22,6 +22,11 @@ import subprocess
 import sys
 import zipfile
 
+# The CI entrypoint runs with -I: Python deliberately removes the script
+# directory from sys.path. Add only the directory containing THIS checked-out
+# entrypoint, not PYTHONPATH, cwd, site-packages or a user-selected root.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 from controlled_fixture_regression_guard import (
     GROUPS, SyntheticFixtureSnapshot, compare_synthetic_fixture_snapshots
 )
