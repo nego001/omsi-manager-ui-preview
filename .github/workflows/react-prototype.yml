@@ -600,3 +600,26 @@ jobs:
         run: python3 -I -S -B react-prototype/scripts/controlled_cross_pr_check_contexts.py
       # This is a read-only observation, not a required status check
       # configuration or a waiver of Ubuntu 24.04 strict X11 failure.
+
+  ubuntu24_historical_strict_gate_repeatability:
+    name: Ubuntu 24.04 strict sandbox historical failures (read-only)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout source without persisting credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run no-false-causality and strict-gate history contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_controlled_ubuntu24_repeatability.py -v
+      - name: Inspect three pinned completed Actions runs (no sandbox edits)
+        env:
+          GH_M28_EVENT: ${{ github.event_name }}
+          GH_M28_TOKEN: ${{ github.token }}
+        run: python3 -I -S -B react-prototype/scripts/controlled_ubuntu24_repeatability.py
+      # This is historical diagnostics ONLY. It never makes a failed
+      # Ubuntu 24.04 strict X11 job optional, and cannot authorize release.
