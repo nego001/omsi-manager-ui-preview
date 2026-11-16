@@ -111,6 +111,8 @@ jobs:
         run: node --test scripts/ubuntu24-two-desktop-aba-evidence.test.mjs
       - name: A-B-A six-phase independent evidence receipts (synthetic only, M30)
         run: node --test scripts/ubuntu24-aba-evidence-custody.test.mjs
+      - name: Rehash six synthetic artifact buffers in Node and isolated Python (M31)
+        run: node --test scripts/ubuntu24-synthetic-byte-provenance.test.mjs
       - name: AppArmor administrator review classification (synthetic data only)
         run: node --test scripts/ubuntu24-app-profile-review.test.mjs
       - name: Install Weston for a real headless Wayland socket
