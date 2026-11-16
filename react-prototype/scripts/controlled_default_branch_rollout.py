@@ -10,7 +10,12 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 from urllib.parse import quote
+
+# Python -I removes the script directory. Trust only this checked-out
+# source directory, never cwd/PYTHONPATH or an external module location.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from controlled_base_policy_audit import (
     _api_json, _owners_bytes, MAX_RULES, MAX_CODEOWNERS_BYTES,
