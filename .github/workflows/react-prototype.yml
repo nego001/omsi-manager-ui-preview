@@ -37,6 +37,8 @@ jobs:
         run: node --test scripts/native-sandbox-preflight-contract.test.mjs
       - name: Strict native X11 matrix admission guard
         run: node --test scripts/native-x11-workflow-admission.test.mjs
+      - name: Mandatory unfiltered PR event coverage contracts (M25)
+        run: python3 -m unittest discover -s scripts -p test_controlled_ci_event_coverage.py -v
       - name: GNOME KDE Hyprland manual picker contracts (no GUI)
         run: npm run test:manual:contract
       - name: Safe desktop geometry contract
