@@ -473,3 +473,31 @@ jobs:
         run: python3 -I -S -B react-prototype/scripts/controlled_github_review_audit.py
       # Successful observation DOES NOT mean approval, release, or a green
       # Ubuntu 24.04 strict-sandbox gate. No bypass, no writes, no merge.
+
+  github_base_policy_codeowners_observation:
+    name: GitHub base branch rules and CODEOWNERS observation (no approval)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 4
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout code without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run synthetic branch-policy and CODEOWNERS contract tests
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_controlled_base_policy_audit.py -v
+      - name: Observe base rules and CODEOWNERS pinned to event base SHA
+        env:
+          GH_POLICY_EVENT: ${{ github.event_name }}
+          GH_POLICY_REPOSITORY: ${{ github.repository }}
+          GH_POLICY_PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_POLICY_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GH_POLICY_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          GH_POLICY_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GH_POLICY_TOKEN: ${{ github.token }}
+        run: python3 -I -S -B react-prototype/scripts/controlled_base_policy_audit.py
+      # Read-only evidence cannot waive GitHub review rules, failed M20
+      # regression contracts, CODEOWNERS checks or Ubuntu 24.04 X11 sandbox.
