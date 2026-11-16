@@ -550,3 +550,28 @@ jobs:
         run: python3 -I -S -B react-prototype/scripts/controlled_ci_context_readiness.py
       # This job never selects required check contexts. A successful run
       # means inspection only, NOT a green Ubuntu 24.04 or merge approval.
+
+  github_docs_only_check_run_observation:
+    name: GitHub docs-only CI check-run evidence (read-only, not approval)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+      checks: read
+    steps:
+      - name: Checkout candidate code without stored credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run adversarial check-run association contracts
+        run: python3 -m unittest discover -s react-prototype/scripts -p test_controlled_docs_only_check_runs.py -v
+      - name: Observe live docs-only PR 30 Actions check IDs and app identities
+        env:
+          GH_M26_EVENT: ${{ github.event_name }}
+          GH_M26_TOKEN: ${{ github.token }}
+        run: python3 -I -S -B react-prototype/scripts/controlled_docs_only_check_runs.py
+      # A green observation is NOT an approved required check, nor an
+      # exception for Ubuntu 24.04 strict X11 or permission to merge.
