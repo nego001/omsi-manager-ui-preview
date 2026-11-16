@@ -175,11 +175,11 @@ test('does not serialize hashes, tokens, labels beyond fixed names or private st
  const x=bundle(),secret='/home/a/private-sample.o3d';
  x.desktopPilots[0].observation.observations[0].stderr=secret;
  x.desktopPilots[1].observation.observations[1].launcher.rawArgv=secret;
- const r=JSON.stringify(compare(x));
+ const result=compare(x),serialized=JSON.stringify(result);
  for(const needle of [SHA,TAG,secret,'stderr','rawArgv','token',
                       'adminApprovedDisposableHost'])
-  assert.ok(!r.includes(needle),needle);
- locked(JSON.parse(r)); // Serialized result has same safety flags.
+  assert.ok(!serialized.includes(needle),needle);
+ locked(result);
 });
 
 test('nonobjects and nonarrays refuse without leaking input',()=>{
