@@ -7,6 +7,8 @@ import {interpretM36NamedCapabilityIndexes} from './auto-x11-symbolic-capabiliti
 import {classifyM37AnnotatedCapabilityIndexes} from './auto-x11-annotated-capability-indices.mjs';
 import {compareM38DirectAndInstrumentedSignals,runM38UntracedControl}
  from './auto-x11-untraced-exit-control.mjs';
+import {classifyM39UntracedSIGTRAPRepeatability,runM39AdditionalUntracedTrials}
+ from './auto-x11-untraced-repeatability.mjs';
 import {spawn} from 'node:child_process';
 import {accessSync,constants,mkdirSync,mkdtempSync,readdirSync,
         readFileSync,realpathSync,rmSync,statSync} from 'node:fs';
@@ -236,6 +238,27 @@ async function main(){
    }
   });
   console.log('M38_UNTRACED_EXIT_CONTROL',JSON.stringify(paired));
+  // Three more non-ptrace runs of the same CI package, each with a
+  // distinct HOME/XDG. Baseline M38 + these = four exit observations.
+  const repeats=await runM39AdditionalUntracedTrials(canonicalBinary,temp);
+  const repeated=classifyM39UntracedSIGTRAPRepeatability({
+   runner:'ubuntu-24.04',
+   baselineM38:{
+    schema:paired.schema,
+    untracedObservedExitCode:paired.untracedObservedExitCode,
+    untracedObservedSignal:paired.untracedObservedSignal,
+    untracedTimedOut:paired.untracedTimedOut,
+    untracedSIGTRAPExitSignalObserved:paired.untracedSIGTRAPExitSignalObserved,
+    strictUbuntu24NativeGatePassed:paired.strictUbuntu24NativeGatePassed,
+    strictNativeGateWaived:paired.strictNativeGateWaived,
+    apparmorCausesSIGTRAPProven:paired.apparmorCausesSIGTRAPProven,
+    rendererSandboxIndependentlyVerified:paired.rendererSandboxIndependentlyVerified,
+    mergeAuthorized:paired.mergeAuthorized,
+    installationAuthorized:paired.installationAuthorized
+   },
+   additionalDirectRuns:repeats
+  });
+  console.log('M39_UNTRACED_SIGTRAP_REPEATABILITY',JSON.stringify(repeated));
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});
  }
