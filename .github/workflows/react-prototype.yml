@@ -689,6 +689,8 @@ jobs:
         run: node --test scripts/auto-x11-sigtrap-syscalls.test.mjs
       - name: Validate M34 syscall-operation subtypes and denial boundaries
         run: node --test scripts/auto-x11-prctl-context.test.mjs
+      - name: Recheck M34 import graph before tracing real packaged Electron
+        run: node --test scripts/auto-x11-import-cycle.test.mjs
       - name: Collect read-only untraced host userns category for comparison
         env:
           CI: 'true'
@@ -728,4 +730,6 @@ jobs:
         run: node --test react-prototype/scripts/auto-x11-sigtrap-syscalls.test.mjs
       - name: Validate M34 explicit namespace denial vs PRCTL EINVAL classification
         run: node --test react-prototype/scripts/auto-x11-prctl-context.test.mjs
+      - name: Guard M34 static import against unresolved top-level await
+        run: node --test react-prototype/scripts/auto-x11-import-cycle.test.mjs
       # No strace, package, host policy or real Electron in this job.
