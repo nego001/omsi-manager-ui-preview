@@ -104,6 +104,29 @@ janela não mapeada, geometria insuficiente, argumentos perigosos
 na linha de comando, sinais falsificados, timeout, documentos
 ausentes, discrepâncias M40/M41 e vazamento de dados.
 
+### Falha de preparação observada e correção limitada
+
+A [primeira execução corrigida de testes do M41, CI #44147066458](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/44147066458)
+confirmou **22/22 testes adversariais M41** e, no job real Ubuntu 22.04,
+a presença de janela X11 mapeada, utilizável, atribuída ao PID do
+Electron direto. O processo terminou depois por timeout de 7,5 s;
+a janela foi verificada **antes** dessa finalização, não inferida dela.
+
+O runner diagnóstico Ubuntu 24.04 **não executou o Electron**:
+`apt-get` não encontrou candidato `x11-utils` na fonte de pacotes
+consultada naquele runner, apesar de o job nativo estrito separado
+ter instalado o mesmo pacote na imagem Ubuntu 24.04. Não houve um
+resultado de janela M41 válido do Ubuntu 24.04 nessa CI.
+
+A etapa de preparação agora repete **no máximo três vezes** o
+`apt-get update` e `apt-get install` para os mesmos pacotes
+oficiais `xvfb x11-utils`; usa apenas `Acquire::Retries=3`,
+sem alterar repositórios, AppArmor, sysctl, sandbox ou permissões
+do Electron. Continua falhando com
+`M41_X11_PREREQUISITE_UNAVAILABLE` caso as ferramentas não estejam
+disponíveis, e verifica `xvfb-run`, `xwininfo` e `xprop`
+explicitamente.
+
 O teste obrigatório `native_auto_x11` 22.04/24.04 permanece
 **inalterado**, falhando no 24.04 até evidência real de aprovação.
 
