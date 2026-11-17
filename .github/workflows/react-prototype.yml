@@ -794,11 +794,28 @@ jobs:
         run: node --test scripts/auto-x11-cross-runner-exit.test.mjs
       - name: Validate M41 native ownership, mapping and report integrity contracts
         run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
-      - name: Install only Xvfb diagnostic display on disposable runner
+      - name: Install only Xvfb and X11 query tools on disposable runner
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends xvfb x11-utils
+          # Some hosted apt mirrors briefly publish an incomplete package
+          # index. Retry the SAME official package operation up to 3 times;
+          # do not edit apt sources, change kernel policy or bypass checks.
+          installed=0
+          for attempt in 1 2 3; do
+            if sudo apt-get update -qq -o Acquire::Retries=3 &&
+               sudo apt-get install -y --no-install-recommends                  -o Acquire::Retries=3 xvfb x11-utils; then
+              installed=1
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 4; fi
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo 'M41_X11_PREREQUISITE_UNAVAILABLE' >&2
+            exit 1
+          fi
+          command -v xvfb-run >/dev/null
+          command -v xwininfo >/dev/null
+          command -v xprop >/dev/null
       - name: Execute exact packaged Electron directly with sandbox intact
         timeout-minutes: 2
         env:
@@ -859,11 +876,28 @@ jobs:
         run: node --test scripts/auto-x11-cross-runner-exit.test.mjs
       - name: Validate M41 native ownership, mapping and report integrity contracts
         run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
-      - name: Install only Xvfb diagnostic display on disposable runner
+      - name: Install only Xvfb and X11 query tools on disposable runner
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends xvfb x11-utils
+          # Some hosted apt mirrors briefly publish an incomplete package
+          # index. Retry the SAME official package operation up to 3 times;
+          # do not edit apt sources, change kernel policy or bypass checks.
+          installed=0
+          for attempt in 1 2 3; do
+            if sudo apt-get update -qq -o Acquire::Retries=3 &&
+               sudo apt-get install -y --no-install-recommends                  -o Acquire::Retries=3 xvfb x11-utils; then
+              installed=1
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 4; fi
+          done
+          if [ "$installed" -ne 1 ]; then
+            echo 'M41_X11_PREREQUISITE_UNAVAILABLE' >&2
+            exit 1
+          fi
+          command -v xvfb-run >/dev/null
+          command -v xwininfo >/dev/null
+          command -v xprop >/dev/null
       - name: Execute exact packaged Electron directly with sandbox intact
         timeout-minutes: 2
         env:
