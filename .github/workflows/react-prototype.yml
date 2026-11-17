@@ -697,6 +697,8 @@ jobs:
         run: node --test scripts/auto-x11-symbolic-capabilities.test.mjs
       - name: Check M37 raw numeric CAP unknown annotation refusal contracts
         run: node --test scripts/auto-x11-annotated-capability-indices.test.mjs
+      - name: Verify M38 direct native signal comparison before executing Electron
+        run: node --test scripts/auto-x11-untraced-exit-control.test.mjs
       - name: Collect read-only untraced host userns category for comparison
         env:
           CI: 'true'
@@ -744,4 +746,6 @@ jobs:
         run: node --test react-prototype/scripts/auto-x11-symbolic-capabilities.test.mjs
       - name: Test M37 strict numeric CAP unknown annotation decoder
         run: node --test react-prototype/scripts/auto-x11-annotated-capability-indices.test.mjs
+      - name: Verify M38 non-ptrace SIGTRAP exit and process refusal contracts
+        run: node --test react-prototype/scripts/auto-x11-untraced-exit-control.test.mjs
       # No strace, package, host policy or real Electron in this job.
