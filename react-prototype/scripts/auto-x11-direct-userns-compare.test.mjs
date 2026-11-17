@@ -105,7 +105,10 @@ test('a process confinement category is not proof about Electron renderer',()=>{
  locked(r);
 });
 test('unshare success cannot coexist with permission denied',()=>{
- const p=pair();p.m42HostProbes[0].unshareAttempt='allowed';
+ const p=pair();
+ // Baseline 22.04 is already "allowed"; introduce an actual conflict
+ // rather than rewriting that field to its existing value.
+ p.m42HostProbes[0].unshareFailureCategory='permission-denied';
  assert.throws(()=>compare(p),REFUSE);
 });
 test('direct host probe refuses unknown labels and accidental extra metadata',()=>{
