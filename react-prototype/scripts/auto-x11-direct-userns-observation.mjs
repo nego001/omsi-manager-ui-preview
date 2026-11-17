@@ -96,7 +96,13 @@ function getUnshare(){
  }catch(err){
   return {
    unshareAttempt:'blocked-or-unavailable',
-   unshareFailureCategory:categorizeUnshareFailure(err)
+   unshareFailureCategory:categorizeUnshareFailure({
+    code:err?.code,killed:err?.killed,signal:err?.signal,
+    // Convert only a bounded stderr fragment for categorization.
+    // Raw stderr is NEVER returned or emitted.
+    stderr:typeof err?.stderr==='string'?err.stderr.slice(0,2048):
+      Buffer.isBuffer(err?.stderr)?err.stderr.toString('utf8',0,2048):''
+   })
   };
  }
 }
