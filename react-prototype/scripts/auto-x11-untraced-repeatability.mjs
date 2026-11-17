@@ -74,7 +74,7 @@ export function classifyM39UntracedSIGTRAPRepeatability(observation){
  const status=signals.timeout>0?'repeatabilityIncompleteDueToTimeout':
   signals.SIGTRAP===4?'fourNonPtraceSIGTRAPSignalsObserved':
   signals.SIGTRAP>0?'mixedUntracedExitOutcomesNeedReview':
-  signals.code133>0?'onlyAmbiguousNumericSIGTRAPCodesWithoutDirectSignals':
+  signals.code133>0?'numericExit133WithoutDirectSIGTRAPSignals':
   'noUntracedSIGTRAPSignalAcrossFourObservations';
 
  return Object.freeze({
