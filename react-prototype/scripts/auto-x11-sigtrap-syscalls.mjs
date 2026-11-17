@@ -3,6 +3,7 @@
 // ptrace/strace may change behavior: this is NOT causality or sandbox proof.
 import {classifyM34PrctlContext} from './auto-x11-prctl-context.mjs';
 import {interpretM35KernelCapabilityBoundary} from './auto-x11-capbset-boundary.mjs';
+import {interpretM36NamedCapabilityIndexes} from './auto-x11-symbolic-capabilities.mjs';
 import {spawn} from 'node:child_process';
 import {accessSync,constants,mkdirSync,mkdtempSync,readdirSync,
         readFileSync,realpathSync,rmSync,statSync} from 'node:fs';
@@ -190,9 +191,18 @@ async function main(){
    runner:'ubuntu-24.04',kernelLastCapabilityText:capLast,
    traceTexts:files,m34:context
   });
+  const named=interpretM36NamedCapabilityIndexes({
+   runner:'ubuntu-24.04',kernelLastCapabilityText:capLast,
+   traceTexts:files,m34:context
+  });
+  if(named.totalCapReadCalls!==bound.capReadCalls||
+     named.totalCapReadEINVAL!==bound.capReadEINVAL||
+     named.unrecognizedSymbolicEINVAL+named.knownSymbolicWithinBoundEINVAL+
+       named.knownSymbolicAboveBoundEINVAL!==bound.EINVALWithUnparsedOperand)refuse();
   console.log('M33_SYSCALL_CATEGORIES',JSON.stringify(report));
   console.log('M34_PRCTL_CONTEXT',JSON.stringify(context));
   console.log('M35_CAPABILITY_BOUNDARY',JSON.stringify(bound));
+  console.log('M36_SYMBOLIC_CAPABILITIES',JSON.stringify(named));
   if(report.syscallsObserved<1)refuse();
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});
