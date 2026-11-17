@@ -756,6 +756,8 @@ jobs:
         run: node --test react-prototype/scripts/auto-x11-cross-runner-exit.test.mjs
       - name: Verify M41 owned X11 process window witness contracts
         run: node --test react-prototype/scripts/auto-x11-cross-runner-owned-window.test.mjs
+      - name: Verify M42 read-only userns categories and M41 pairing contracts
+        run: node --test react-prototype/scripts/auto-x11-direct-userns-compare.test.mjs
       # No strace, package, host policy or real Electron in this job.
 
   m40_direct_ubuntu22:
@@ -794,6 +796,13 @@ jobs:
         run: node --test scripts/auto-x11-cross-runner-exit.test.mjs
       - name: Validate M41 native ownership, mapping and report integrity contracts
         run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
+      - name: Validate M42 direct userns host categories without privilege writes
+        run: node --test scripts/auto-x11-direct-userns-compare.test.mjs
+      - name: Sample read-only namespaces before disposable X11 installation
+        env:
+          CI: 'true'
+          M40_RUNNER: ubuntu-22.04
+        run: node scripts/auto-x11-direct-userns-observation.mjs
       - name: Install only Xvfb and X11 query tools on disposable runner
         run: |
           set -euo pipefail
@@ -838,6 +847,14 @@ jobs:
           path: react-prototype/test-results/m41-window-ubuntu-22.04.json
           if-no-files-found: error
           retention-days: 7
+      - name: Upload sanitized M42 userns host categories only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m42-userns-ubuntu-22.04-sanitized
+          path: react-prototype/test-results/m42-userns-ubuntu-22.04.json
+          if-no-files-found: error
+          retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
 
   m40_direct_ubuntu24:
@@ -876,6 +893,13 @@ jobs:
         run: node --test scripts/auto-x11-cross-runner-exit.test.mjs
       - name: Validate M41 native ownership, mapping and report integrity contracts
         run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
+      - name: Validate M42 direct userns host categories without privilege writes
+        run: node --test scripts/auto-x11-direct-userns-compare.test.mjs
+      - name: Sample read-only namespaces before disposable X11 installation
+        env:
+          CI: 'true'
+          M40_RUNNER: ubuntu-24.04
+        run: node scripts/auto-x11-direct-userns-observation.mjs
       - name: Install only Xvfb and X11 query tools on disposable runner
         run: |
           set -euo pipefail
@@ -918,6 +942,14 @@ jobs:
         with:
           name: m41-window-ubuntu-24.04-sanitized
           path: react-prototype/test-results/m41-window-ubuntu-24.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload sanitized M42 userns host categories only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m42-userns-ubuntu-24.04-sanitized
+          path: react-prototype/test-results/m42-userns-ubuntu-24.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -970,4 +1002,14 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-cross-runner-window-compare.mjs
+      - name: Download both M42 read-only host namespace summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: m42-userns-*-sanitized
+          path: react-prototype/test-results/m41
+          merge-multiple: true
+      - name: Reconcile M42 host namespace states with direct X11 observations
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-direct-userns-compare.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
