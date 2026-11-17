@@ -754,6 +754,8 @@ jobs:
         run: node --test react-prototype/scripts/auto-x11-untraced-repeatability.test.mjs
       - name: Verify M40 direct Linux cross-runner exit comparison contracts
         run: node --test react-prototype/scripts/auto-x11-cross-runner-exit.test.mjs
+      - name: Verify M41 owned X11 process window witness contracts
+        run: node --test react-prototype/scripts/auto-x11-cross-runner-owned-window.test.mjs
       # No strace, package, host policy or real Electron in this job.
 
   m40_direct_ubuntu22:
@@ -790,11 +792,13 @@ jobs:
           test -x OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
       - name: Validate M40 fail-closed parser and CLI guards on this runner
         run: node --test scripts/auto-x11-cross-runner-exit.test.mjs
+      - name: Validate M41 native ownership, mapping and report integrity contracts
+        run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
       - name: Install only Xvfb diagnostic display on disposable runner
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends xvfb
+          sudo apt-get install -y --no-install-recommends xvfb x11-utils
       - name: Execute exact packaged Electron directly with sandbox intact
         timeout-minutes: 2
         env:
@@ -807,6 +811,14 @@ jobs:
         with:
           name: m40-direct-ubuntu-22.04-sanitized
           path: react-prototype/test-results/m40-direct-ubuntu-22.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload only process-owned X11 witness categories from same child
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m41-window-ubuntu-22.04-sanitized
+          path: react-prototype/test-results/m41-window-ubuntu-22.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -845,11 +857,13 @@ jobs:
           test -x OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview
       - name: Validate M40 fail-closed parser and CLI guards on this runner
         run: node --test scripts/auto-x11-cross-runner-exit.test.mjs
+      - name: Validate M41 native ownership, mapping and report integrity contracts
+        run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
       - name: Install only Xvfb diagnostic display on disposable runner
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends xvfb
+          sudo apt-get install -y --no-install-recommends xvfb x11-utils
       - name: Execute exact packaged Electron directly with sandbox intact
         timeout-minutes: 2
         env:
@@ -862,6 +876,14 @@ jobs:
         with:
           name: m40-direct-ubuntu-24.04-sanitized
           path: react-prototype/test-results/m40-direct-ubuntu-24.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload only process-owned X11 witness categories from same child
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m41-window-ubuntu-24.04-sanitized
+          path: react-prototype/test-results/m41-window-ubuntu-24.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -898,4 +920,20 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-cross-runner-exit-compare.mjs
+      - name: Download both M40 parent exit reports for M41 consistency check
+        uses: actions/download-artifact@v4
+        with:
+          pattern: m40-direct-*-sanitized
+          path: react-prototype/test-results/m41
+          merge-multiple: true
+      - name: Download both fixed M41 owned-window witness summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: m41-window-*-sanitized
+          path: react-prototype/test-results/m41
+          merge-multiple: true
+      - name: Compare owned and mapped X11 windows against exact M40 exits
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-cross-runner-window-compare.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
