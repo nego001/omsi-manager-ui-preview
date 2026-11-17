@@ -25,9 +25,9 @@ do renderer Chromium.
 O mesmo pacote da CI, executado **sem ptrace**, apresenta que
 categoria de encerramento em Ubuntu 22.04 e Ubuntu 24.04?
 
-O M40 acrescenta uma **matriz de diagnóstico separada**:
+O M40 acrescenta **dois jobs diagnósticos explícitos**, sem criar outra matriz GitHub Actions além do job nativo original:
 
-`m40_direct_untraced_runner`: `ubuntu-22.04` e `ubuntu-24.04`.
+`m40_direct_ubuntu22` no `ubuntu-22.04` e `m40_direct_ubuntu24` no `ubuntu-24.04`.
 
 Cada runner:
 
@@ -75,7 +75,7 @@ CI. Executam no job rápido e em cada runner de diagnóstico.
 
 O job nativo obrigatório `native_auto_x11` permanece **intocado**,
 com Ubuntu 22.04 e 24.04 estritos, e sua falha não é mascarada.
-A nova matriz é somente observacional e NÃO cria independentemente
+Os dois jobs novos são somente observacionais e NÃO cria independentemente
 prova de integridade dos bytes a partir de dois fornecedores; o
 checksum é conferido por cada runner com base no mesmo archive CI.
 
