@@ -5,6 +5,8 @@ import {classifyM34PrctlContext} from './auto-x11-prctl-context.mjs';
 import {interpretM35KernelCapabilityBoundary} from './auto-x11-capbset-boundary.mjs';
 import {interpretM36NamedCapabilityIndexes} from './auto-x11-symbolic-capabilities.mjs';
 import {classifyM37AnnotatedCapabilityIndexes} from './auto-x11-annotated-capability-indices.mjs';
+import {compareM38DirectAndInstrumentedSignals,runM38UntracedControl}
+ from './auto-x11-untraced-exit-control.mjs';
 import {spawn} from 'node:child_process';
 import {accessSync,constants,mkdirSync,mkdtempSync,readdirSync,
         readFileSync,realpathSync,rmSync,statSync} from 'node:fs';
@@ -217,6 +219,23 @@ async function main(){
   console.log('M36_SYMBOLIC_CAPABILITIES',JSON.stringify(named));
   console.log('M37_CAPABILITY_ANNOTATIONS',JSON.stringify(annotations));
   if(report.syscallsObserved<1)refuse();
+  // Same immutable CI-built binary and existing Xvfb job, this time
+  // WITHOUT strace. A separate temporary HOME is used and all raw
+  // stdout/stderr is discarded. This is not a native-window gate.
+  const untraced=await runM38UntracedControl(canonicalBinary,temp);
+  const paired=compareM38DirectAndInstrumentedSignals({
+   runner:'ubuntu-24.04',untraced,
+   traced:{
+    schema:report.schema,
+    sigtrapSignalRecords:report.sigtrapSignalRecords,
+    tracerTerminatedBySignal:report.tracerTerminatedBySignal,
+    tracingTimedOut:report.tracingTimedOut,
+    apparmorCausesSigtrapProven:report.apparmorCausesSigtrapProven,
+    rendererSandboxVerified:report.rendererSandboxVerified,
+    strictUbuntu24GateWaived:report.strictUbuntu24GateWaived
+   }
+  });
+  console.log('M38_UNTRACED_EXIT_CONTROL',JSON.stringify(paired));
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});
  }
