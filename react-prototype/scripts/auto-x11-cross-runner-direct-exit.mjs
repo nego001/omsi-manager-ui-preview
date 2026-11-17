@@ -6,6 +6,8 @@ import {accessSync,constants,mkdirSync,mkdtempSync,realpathSync,rmSync,writeFile
 import {tmpdir} from 'node:os';
 import {dirname,join,resolve,sep} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {classifyM41OwnedX11Window,observeM41OwnedX11Window}
+ from './auto-x11-cross-runner-owned-window.mjs';
 
 const REFUSE='M40_DIRECT_RUNNER_OBSERVATION_REFUSED';
 const reject=()=>{throw Error(REFUSE);};
@@ -85,6 +87,13 @@ async function launch(binary,work,runner){
   });}
   catch{fail(Error(REFUSE));return;}
   timeout=setTimeout(()=>{timedOut=true;killGroup();},7500);
+  // Observe ONLY the exact child started for M40, never any other X11
+  // window. Failure to obtain evidence becomes an unverified witness.
+  const flags=observeM41OwnedX11Window(child.pid,()=>!finished&&!timedOut)
+   .catch(()=>({
+    processImageObserved:false,windowTitleObserved:false,
+    pidAttributed:false,mappedUsableWindowObserved:false
+   }));
   child.once('error',()=>{
    if(finished)return;
    finished=true;clearTimeout(timeout);killGroup();fail(Error(REFUSE));
@@ -92,7 +101,9 @@ async function launch(binary,work,runner){
   child.once('close',(exitCode,exitSignal)=>{
    if(finished)return;
    finished=true;clearTimeout(timeout);killGroup();
-   done({runner,exitCode,exitSignal,timedOut});
+   flags.then(witness=>done({
+    exit:{runner,exitCode,exitSignal,timedOut},witness
+   }),()=>fail(Error(REFUSE)));
   });
  });
 }
@@ -110,15 +121,32 @@ async function main(){
  accessSync(bin,constants.X_OK);
  const temp=mkdtempSync(join(tmpdir(),'omsi-m40-control-'));
  try{
-  const result=classifyM40DirectExit(await launch(bin,temp,runner));
-  // JSON is fixed categories only. No raw logs, process IDs, arguments,
-  // transient paths, checksums, or credentials go into artifacts.
+  const observed=await launch(bin,temp,runner);
+  const result=classifyM40DirectExit(observed.exit);
+  const witness=classifyM41OwnedX11Window({
+   runner,flags:observed.witness,
+   exit:{
+    exitCode:observed.exit.exitCode,
+    exitSignal:observed.exit.exitSignal,
+    timedOut:observed.exit.timedOut
+   }
+  });
+  // Two fixed sanitized artifacts from the SAME child execution.
+  // No raw logs, PIDs, filenames, X11 arguments or private data leak.
   const dest=resolve('test-results');
   mkdirSync(dest,{recursive:true,mode:0o700});
-  const output=resolve(dest,'m40-direct-'+runner+'.json');
-  if(!output.startsWith(dest+sep))reject();
-  writeFileSync(output,JSON.stringify(result)+'\n',{mode:0o600,flag:'wx'});
+  for(const [filename,content] of [
+   ['m40-direct-'+runner+'.json',result],
+   ['m41-window-'+runner+'.json',witness]
+  ]){
+   const output=resolve(dest,filename);
+   if(!output.startsWith(dest+sep))reject();
+   writeFileSync(output,JSON.stringify(content)+'\n',{
+    mode:0o600,flag:'wx'
+   });
+  }
   console.log('M40_DIRECT_EXIT_CATEGORY',JSON.stringify(result));
+  console.log('M41_DIRECT_OWNED_X11_WINDOW',JSON.stringify(witness));
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});
  }
