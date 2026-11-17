@@ -1,6 +1,7 @@
 // M33: inspect only fixed, sanitized Linux syscall outcomes from a
 // short-lived CI-packaged Electron preview traced in disposable Xvfb.
 // ptrace/strace may change behavior: this is NOT causality or sandbox proof.
+import {classifyM34PrctlContext} from './auto-x11-prctl-context.mjs';
 import {spawn} from 'node:child_process';
 import {accessSync,constants,mkdirSync,mkdtempSync,readdirSync,
         readFileSync,realpathSync,rmSync,statSync} from 'node:fs';
@@ -171,11 +172,18 @@ async function main(){
  try{
   const exit=await runStrace(canonicalBinary,temp);
   const files=readTraceFiles(temp);
-  const report=classifyM33SyscallTrace({
-   runner:'ubuntu-24.04',traceTexts:files,tracerExit:exit
-  });
+  const sample={runner:'ubuntu-24.04',traceTexts:files,tracerExit:exit};
+  const report=classifyM33SyscallTrace(sample);
+  // Static import above avoids an unresolved dynamic import while
+  // main() has a pending top-level await. Both parsers inspect the
+  // SAME sanitized trace and do not change host security policy.
+  const context=classifyM34PrctlContext(sample);
+  if(context.m33PrctlEINVALCount!==report.errnoDenialCounts.prctl.EINVAL||
+     context.m33SigtrapMarkers!==report.sigtrapSignalRecords||
+     context.prctlCallsClassified!==report.targetedSyscalls.prctl)refuse();
   // Fixed categories only: no PIDs, names, paths, raw stderr, argv or SHA.
   console.log('M33_SYSCALL_CATEGORIES',JSON.stringify(report));
+  console.log('M34_PRCTL_CONTEXT',JSON.stringify(context));
   if(report.syscallsObserved<1)refuse();
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});
