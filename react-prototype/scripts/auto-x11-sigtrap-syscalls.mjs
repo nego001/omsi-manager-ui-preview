@@ -1,6 +1,7 @@
 // M33: inspect only fixed, sanitized Linux syscall outcomes from a
 // short-lived CI-packaged Electron preview traced in disposable Xvfb.
 // ptrace/strace may change behavior: this is NOT causality or sandbox proof.
+import {classifyM34PrctlContext} from './auto-x11-prctl-context.mjs';
 import {spawn} from 'node:child_process';
 import {accessSync,constants,mkdirSync,mkdtempSync,readdirSync,
         readFileSync,realpathSync,rmSync,statSync} from 'node:fs';
@@ -173,10 +174,9 @@ async function main(){
   const files=readTraceFiles(temp);
   const sample={runner:'ubuntu-24.04',traceTexts:files,tracerExit:exit};
   const report=classifyM33SyscallTrace(sample);
-  // M34 interprets the SAME bounded trace, but separates PRCTL EINVAL
-  // from explicit CLONE_NEWUSER denial. Dynamic import avoids a cycle
-  // during module initialization; neither parser executes policy edits.
-  const {classifyM34PrctlContext}=await import('./auto-x11-prctl-context.mjs');
+  // Static import above avoids an unresolved dynamic import while
+  // main() has a pending top-level await. Both parsers inspect the
+  // SAME sanitized trace and do not change host security policy.
   const context=classifyM34PrctlContext(sample);
   if(context.m33PrctlEINVALCount!==report.errnoDenialCounts.prctl.EINVAL||
      context.m33SigtrapMarkers!==report.sigtrapSignalRecords||
