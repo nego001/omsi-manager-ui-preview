@@ -191,6 +191,9 @@ test('malformed envelopes, fake runner and impossible exit record refuse',()=>{
  for(const value of [null,undefined,{},[],false,'preview'])
   assert.throws(()=>compare(value),pairRefusal);
  const x=make();x.m40Pair.observations[0].exitCode=133;
+ // With timedOut=true, recording an exit code isn't proof of success;
+ // make a genuinely contradictory *non-timeout* exit+signal record.
+ x.m40Pair.observations[0].timedOut=false;
  assert.throws(()=>compare(x),pairRefusal);
  const y=make();y.m41Witnesses[1].mappedUsableWindowObserved='yes';
  assert.throws(()=>compare(y),pairRefusal);
