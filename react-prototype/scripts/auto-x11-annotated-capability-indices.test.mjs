@@ -132,12 +132,16 @@ test('negative, nonnumeric and unsafe giant hex indexes stay unresolved',()=>{
   assert.equal(r.EINVALOperandsStillUnresolved,1,idx);locked(r);
  }
 });
-test('only the explicit CAP_??? annotation is accepted',()=>{
+test('unannotated numeric operand belongs to M35, not the M37 annotation decoder',()=>{
  const r=decode(make(
  named('0x29','-1 EINVAL')+
  annotated('0x2a')));
  assert.equal(r.decodedExplicitCAPUnknownNumericAnnotations,1);
- assert.equal(r.EINVALOperandsStillUnresolved,1);locked(r);
+ // M35 already decodes plain 0x29. Only annotated 0x2a is new to M37.
+ assert.equal(r.totalCapReadEINVAL,2);
+ assert.equal(r.EINVALOperandsStillUnresolved,0);
+ assert.equal(r.annotatedEINVALAboveKernelBound,1);
+ locked(r);
 });
 test('M34 declared totals mismatch and false native gate waiver refuse',()=>{
  const a=make(annotated('0x29'));
