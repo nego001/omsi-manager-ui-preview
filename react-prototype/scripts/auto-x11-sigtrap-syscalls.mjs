@@ -2,6 +2,7 @@
 // short-lived CI-packaged Electron preview traced in disposable Xvfb.
 // ptrace/strace may change behavior: this is NOT causality or sandbox proof.
 import {classifyM34PrctlContext} from './auto-x11-prctl-context.mjs';
+import {interpretM35KernelCapabilityBoundary} from './auto-x11-capbset-boundary.mjs';
 import {spawn} from 'node:child_process';
 import {accessSync,constants,mkdirSync,mkdtempSync,readdirSync,
         readFileSync,realpathSync,rmSync,statSync} from 'node:fs';
@@ -182,8 +183,16 @@ async function main(){
      context.m33SigtrapMarkers!==report.sigtrapSignalRecords||
      context.prctlCallsClassified!==report.targetedSyscalls.prctl)refuse();
   // Fixed categories only: no PIDs, names, paths, raw stderr, argv or SHA.
+  // Only this fixed, public kernel numeric boundary is read. Neither
+  // trace content nor paths are returned. No host policy or sysctl writes.
+  const capLast=readFileSync('/proc/sys/kernel/cap_last_cap','utf8');
+  const bound=interpretM35KernelCapabilityBoundary({
+   runner:'ubuntu-24.04',kernelLastCapabilityText:capLast,
+   traceTexts:files,m34:context
+  });
   console.log('M33_SYSCALL_CATEGORIES',JSON.stringify(report));
   console.log('M34_PRCTL_CONTEXT',JSON.stringify(context));
+  console.log('M35_CAPABILITY_BOUNDARY',JSON.stringify(bound));
   if(report.syscallsObserved<1)refuse();
  }finally{
   rmSync(temp,{recursive:true,force:true,maxRetries:2});

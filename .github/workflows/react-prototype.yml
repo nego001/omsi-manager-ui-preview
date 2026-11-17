@@ -691,6 +691,8 @@ jobs:
         run: node --test scripts/auto-x11-prctl-context.test.mjs
       - name: Recheck M34 import graph before tracing real packaged Electron
         run: node --test scripts/auto-x11-import-cycle.test.mjs
+      - name: Test M35 kernel capability boundary categories (synthetic only)
+        run: node --test scripts/auto-x11-capbset-boundary.test.mjs
       - name: Collect read-only untraced host userns category for comparison
         env:
           CI: 'true'
@@ -732,4 +734,6 @@ jobs:
         run: node --test react-prototype/scripts/auto-x11-prctl-context.test.mjs
       - name: Guard M34 static import against unresolved top-level await
         run: node --test react-prototype/scripts/auto-x11-import-cycle.test.mjs
+      - name: Test M35 PR_CAPBSET_READ kernel bound classifier (synthetic only)
+        run: node --test react-prototype/scripts/auto-x11-capbset-boundary.test.mjs
       # No strace, package, host policy or real Electron in this job.
