@@ -35,6 +35,8 @@ jobs:
         run: node --test scripts/auto-x11-m47-renderer-reference.test.mjs
       - name: M48 renderer vs main process namespace relation refusal contracts
         run: node --test scripts/auto-x11-m48-namespace-relation.test.mjs
+      - name: M49 renderer Linux capability, tracer and seccomp filter refusal contracts
+        run: node --test scripts/auto-x11-m49-renderer-privilege.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -107,6 +109,13 @@ jobs:
         with:
           name: m48-namespace-ubuntu22-sanitized
           path: react-prototype/test-results/m48/renderer-namespace-relations.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload M49 real Ubuntu22 renderer kernel privilege categories
+        uses: actions/upload-artifact@v4
+        with:
+          name: m49-renderer-ubuntu22-sanitized
+          path: react-prototype/test-results/m49/renderer-privilege-categories.json
           if-no-files-found: error
           retention-days: 7
       - name: Native auto X11 GUI contract (synthetic read-only)
@@ -1172,4 +1181,15 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-m48-namespace-relation.mjs
+      - name: Validate M49 kernel privilege observation refusal contracts
+        run: node --test scripts/auto-x11-m49-renderer-privilege.test.mjs
+      - name: Download exact Ubuntu22 real packaged renderer privilege categories
+        uses: actions/download-artifact@v4
+        with:
+          name: m49-renderer-ubuntu22-sanitized
+          path: react-prototype/test-results/m49
+      - name: Cross-check M49 renderer privileges with M46 M47 and M48
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-m49-renderer-privilege.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
