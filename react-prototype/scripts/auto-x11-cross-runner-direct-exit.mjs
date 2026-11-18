@@ -60,7 +60,7 @@ export function classifyM40DirectExit(input){
  });
 }
 
-async function launch(binary,work,runner){
+export async function launchM40DirectElectron(binary,work,runner){
  const root=join(work,'home');
  for(const child of ['','config','cache','data','runtime'])
   mkdirSync(child?join(root,child):root,{recursive:true,mode:0o700});
@@ -121,7 +121,7 @@ async function main(){
  accessSync(bin,constants.X_OK);
  const temp=mkdtempSync(join(tmpdir(),'omsi-m40-control-'));
  try{
-  const observed=await launch(bin,temp,runner);
+  const observed=await launchM40DirectElectron(bin,temp,runner);
   const result=classifyM40DirectExit(observed.exit);
   const witness=classifyM41OwnedX11Window({
    runner,flags:observed.witness,
