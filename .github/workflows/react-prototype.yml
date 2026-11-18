@@ -33,6 +33,8 @@ jobs:
         run: node --test scripts/auto-x11-m46-external-aba-intake.test.mjs
       - name: M47 packaged renderer evidence and sandbox-proof refusal contracts
         run: node --test scripts/auto-x11-m47-renderer-reference.test.mjs
+      - name: M48 renderer vs main process namespace relation refusal contracts
+        run: node --test scripts/auto-x11-m48-namespace-relation.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -98,6 +100,13 @@ jobs:
         with:
           name: m47-renderer-ubuntu22-sanitized
           path: react-prototype/test-results/m47/renderer-reference.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload M48 real Ubuntu22 main-vs-renderer namespace relation categories
+        uses: actions/upload-artifact@v4
+        with:
+          name: m48-namespace-ubuntu22-sanitized
+          path: react-prototype/test-results/m48/renderer-namespace-relations.json
           if-no-files-found: error
           retention-days: 7
       - name: Native auto X11 GUI contract (synthetic read-only)
@@ -1152,4 +1161,15 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-m47-renderer-reference.mjs
+      - name: Verify M48 process namespace comparison fail-closed contracts
+        run: node --test scripts/auto-x11-m48-namespace-relation.test.mjs
+      - name: Download M48 actual packaged Ubuntu22 renderer namespace categories
+        uses: actions/download-artifact@v4
+        with:
+          name: m48-namespace-ubuntu22-sanitized
+          path: react-prototype/test-results/m48
+      - name: Reconcile M48 namespace observations against M47 and M46
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-m48-namespace-relation.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
