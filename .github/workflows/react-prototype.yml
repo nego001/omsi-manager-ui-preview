@@ -27,6 +27,8 @@ jobs:
         run: node --test scripts/auto-x11-direct-repeatability.test.mjs
       - name: M44 bounded stderr classification refusal contracts
         run: node --test scripts/auto-x11-direct-stderr-categories.test.mjs
+      - name: M45 operator handoff fail-closed readiness contracts (synthetic only)
+        run: node --test scripts/auto-x11-admin-pilot-readiness.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -1100,4 +1102,17 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-direct-stderr-compare.mjs
+      - name: Recheck M45 administrator-review refusal contracts (no host operations)
+        run: node --test scripts/auto-x11-admin-pilot-readiness.test.mjs
+      - name: Assemble M45 sanitized same-CI administrator handoff (not an approval)
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-admin-pilot-readiness.mjs
+      - name: Upload M45 review-only categories and unresolved blockers
+        uses: actions/upload-artifact@v4
+        with:
+          name: m45-operator-readiness-sanitized
+          path: react-prototype/test-results/m45/operator-review-handoff.json
+          if-no-files-found: error
+          retention-days: 7
       # Missing report fails closed; never waives native Auto X11 failure.
