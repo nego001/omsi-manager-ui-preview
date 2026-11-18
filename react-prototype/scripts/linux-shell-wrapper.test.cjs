@@ -136,3 +136,24 @@ test('default shell wrapper executes no installer or privileged helper',async()=
  assert.equal(await fs.readFile(marker,'utf8'),'target-was-invoked\n');
  assert.equal(r.stdout,'argc=0\n');
 });
+
+test('packaged Playwright E2E uses direct ELF with sandbox, not user launchers',async()=>{
+ // Playwright Electron automation needs its own runtime handshake. Official
+ // launchers reject that environment by design. The actual app binary is
+ // still tested with Chromium sandbox enabled, while wrappers have separate
+ // argv/env regression tests and native X11 strict CI checks.
+ for(const [name,expected] of [
+  ['portable-linux-smoke.mjs',2],['wayland-weston-smoke.mjs',3]
+ ]){
+  const source=await fs.readFile(resolve('scripts',name),'utf8');
+  const matches=[...source.matchAll(/\bapplication\s*=\s*await\s+electron\.launch\s*\(\s*\{/g)];
+  assert.equal(matches.length,expected,name);
+  for(const match of matches){
+   const fragment=source.slice(match.index,match.index+320);
+   assert.match(fragment,/chromiumSandbox:\s*true\b/,name);
+   assert.match(fragment,/executablePath:\s*executable\b/,name);
+   assert.doesNotMatch(fragment,/chromiumSandbox:\s*false\b/,name);
+   assert.doesNotMatch(fragment,/executablePath:\s*launcher\b/,name);
+  }
+ }
+});

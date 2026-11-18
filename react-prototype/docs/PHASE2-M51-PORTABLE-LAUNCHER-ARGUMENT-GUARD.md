@@ -15,7 +15,7 @@ M51 closes this inconsistency in **both official launchers**; this is a product 
 
 ## Test coverage
 
-- 10 new packaged shell wrapper regression tests use a byte-for-byte copy of the **actually generated** wrapper and a fake sibling executable in a disposable directory. They check default and Wayland launch commands, numerous unsafe or unknown arguments, empty arguments, inherited runtime options and nonexecution of the sibling binary on refusal.
+- 11 packaged shell wrapper and E2E separation regression tests use a byte-for-byte copy of the **actually generated** wrapper and a fake sibling executable in a disposable directory. They check default and Wayland launch commands, numerous unsafe or unknown arguments, empty arguments, inherited runtime options and nonexecution of the sibling binary on refusal.
 - Native auto-launcher regression adds an inherited-variable refusal test and checks the diagnostic remains callable.
 - The CI still executes the full packaged Linux GUI smoke and the **mandatory unchanged Ubuntu 24.04 strict native X11 gate**.
 
@@ -24,3 +24,11 @@ M51 closes this inconsistency in **both official launchers**; this is a product 
 The official shell wrapper no longer supports passing arbitrary command-line options, a deliberate security behavior change. Direct invocation of the Electron binary remains outside this official wrapper's control. The observation that Ubuntu24 has restricted unprivileged user namespaces and repeated SIGTRAP before opening an owned window is **not** independent proof of the root cause. The separately authorized disposable-VM A/B/A and independent Chromium sandbox assessment are still necessary.
 
 No policy/sysctl writes, sandbox bypass, privileged Electron, real OMSI mod reads, installation, merge or release. PR remains Draft; issue #4 stays open.
+
+## Playwright test harness separation (CI fix)
+
+An initial M51 CI attempt [#44322725893](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/44322725893) confirmed the official shell/native guard tests passed but the packaged Playwright GUI smoke failed at the Electron driver handshake. The driver needs its own runtime instrumentation, while the official wrappers now deliberately refuse those inherited runtime options.
+
+The corrective commit changes **only** the Playwright E2E harness to invoke the **same packaged Electron ELF directly** (with its existing `chromiumSandbox:true` requirement). The real native Auto launcher remains covered separately by native launcher tests **and** the strict two-runner native X11 gate. The generated shell script remains tested with a synthetic adjacent executable, and does **not** regain argument forwarding or an exception for CI. The first explicit Weston Wayland smoke supplies the same controlled ozone Wayland flag in the E2E harness; the automatic Wayland and simulated GNOME/KDE scenarios preserve their no-extra-argument checks.
+
+An additional regression test enforces that all five Playwright package launch sites select the direct ELF and still require Chromium sandbox. This is test-harness compatibility, **not** a weakening of the official user launchers, a sandbox bypass or evidence that Ubuntu 24.04 is fixed.
