@@ -29,6 +29,8 @@ jobs:
         run: node --test scripts/auto-x11-direct-stderr-categories.test.mjs
       - name: M45 operator handoff fail-closed readiness contracts (synthetic only)
         run: node --test scripts/auto-x11-admin-pilot-readiness.test.mjs
+      - name: M46 external A/B/A intake and operator runbook refusal contracts (synthetic only)
+        run: node --test scripts/auto-x11-m46-external-aba-intake.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -1113,6 +1115,21 @@ jobs:
         with:
           name: m45-operator-readiness-sanitized
           path: react-prototype/test-results/m45/operator-review-handoff.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Validate M46 external operator intake and falsified approval refusals
+        run: node --test scripts/auto-x11-m46-external-aba-intake.test.mjs
+      - name: Produce M46 external A/B/A operator runbook (no pilot submitted)
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-m46-external-aba-intake.mjs
+      - name: Upload sanitized M46 operator protocol (not a host-policy approval)
+        uses: actions/upload-artifact@v4
+        with:
+          name: m46-aba-operator-protocol-sanitized
+          path: |
+            react-prototype/test-results/m46/operator-aba-intake.json
+            react-prototype/test-results/m46/operator-aba-runbook.md
           if-no-files-found: error
           retention-days: 7
       # Missing report fails closed; never waives native Auto X11 failure.
