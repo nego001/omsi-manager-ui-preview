@@ -32,3 +32,13 @@ An initial M51 CI attempt [#44322725893](https://github.com/nego001/omsi-manager
 The corrective commit changes **only** the Playwright E2E harness to invoke the **same packaged Electron ELF directly** (with its existing `chromiumSandbox:true` requirement). The real native Auto launcher remains covered separately by native launcher tests **and** the strict two-runner native X11 gate. The generated shell script remains tested with a synthetic adjacent executable, and does **not** regain argument forwarding or an exception for CI. The first explicit Weston Wayland smoke supplies the same controlled ozone Wayland flag in the E2E harness; the automatic Wayland and simulated GNOME/KDE scenarios preserve their no-extra-argument checks.
 
 An additional regression test enforces that all five Playwright package launch sites select the direct ELF and still require Chromium sandbox. This is test-harness compatibility, **not** a weakening of the official user launchers, a sandbox bypass or evidence that Ubuntu 24.04 is fixed.
+
+## Bounded CI context API read retry — independent failure isolation
+
+In [workflow run #44324199650](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/44324199650), the actual packaged shell, native ELF, Chromium sandbox-enabled Playwright, X11 on Ubuntu22 and Wayland/Weston tests passed. Besides the unchanged mandatory Ubuntu24 strict failure, the independent GitHub read-only context audit refused twice during API retrieval with a duration consistent with its existing nine-second HTTP timeout. The generic privacy-safe refusal does not identify a specific endpoint, so the root cause of the API failure is not authenticated.
+
+Only that audit's **read-only GitHub API fetch** function now retries an unsuccessful request up to **three total attempts** with the same fixed endpoint and token. It does not retry semantic validation or change the default deny behavior: unexpected JSON, invalid job labels, unavailable required evidence, incomplete reference runs, or a failed Ubuntu24 native gate **remain blocked**. Failed requests never print URLs, API data, auth tokens or user paths.
+
+Three additional offline unit tests verify exactly two transient retries, hard refusal after the third API error, and zero retry for an invalid semantic response. No branch rules, required-check settings, merge or release state is changed.
+
+This API reliability change is not a waiver of the mandatory Ubuntu24 strict test, and no successful audit response is considered security certification.

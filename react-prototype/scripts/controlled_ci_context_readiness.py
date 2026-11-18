@@ -265,27 +265,38 @@ def query_live_context_readiness(repo, run_id, head, token, source):
             type(token) is not str or not 16 <= len(token) <= 512):
         refuse()
     root = "repos/" + repo
-    meta = _api_json(token, root)
+    # Retry transient read-only GitHub API failures with a fixed small budget.
+    # Never retry semantic validation; never log request/response or secrets.
+    def bounded_read(path, allow_missing=False):
+        for attempt in range(3):
+            try:
+                return _api_json(token, path, allow_missing=allow_missing)
+            except ValueError:
+                if attempt == 2:
+                    refuse()
+        refuse()
+
+    meta = bounded_read(root)
     if type(meta) is not dict or type(meta.get("default_branch")) is not str:
         refuse()
-    branch = _api_json(
-        token, root + "/branches/" + quote(meta["default_branch"], safe=""))
+    branch = bounded_read(
+        root + "/branches/" + quote(meta["default_branch"], safe=""))
     if type(branch) is not dict or type(branch.get("commit")) is not dict:
         refuse()
     sha = branch["commit"].get("sha")
     if type(sha) is not str or not SHA_RE.fullmatch(sha):
         refuse()
-    main_workflow = _api_json(
-        token, root + "/contents/.github/workflows/react-prototype.yml?ref=" +
+    main_workflow = bounded_read(
+        root + "/contents/.github/workflows/react-prototype.yml?ref=" +
         sha, allow_missing=True)
-    reference_run = _api_json(token, root + "/actions/runs/" +
+    reference_run = bounded_read(root + "/actions/runs/" +
                               str(REFERENCE_RUN_ID))
-    reference_jobs = _api_json(
-        token, root + "/actions/runs/" + str(REFERENCE_RUN_ID) +
+    reference_jobs = bounded_read(
+        root + "/actions/runs/" + str(REFERENCE_RUN_ID) +
         "/jobs?per_page=100&filter=latest")
-    current_run = _api_json(token, root + "/actions/runs/" + str(run_id))
-    current_jobs = _api_json(
-        token, root + "/actions/runs/" + str(run_id) +
+    current_run = bounded_read(root + "/actions/runs/" + str(run_id))
+    current_jobs = bounded_read(
+        root + "/actions/runs/" + str(run_id) +
         "/jobs?per_page=100&filter=latest")
     return evaluate_ci_context_readiness(
         source, meta, branch, main_workflow,
