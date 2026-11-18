@@ -25,6 +25,8 @@ jobs:
       - run: npm run test:security
       - name: M43 three-process X11 repeatability adversarial contracts
         run: node --test scripts/auto-x11-direct-repeatability.test.mjs
+      - name: M44 bounded stderr classification refusal contracts
+        run: node --test scripts/auto-x11-direct-stderr-categories.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -802,6 +804,8 @@ jobs:
         run: node --test scripts/auto-x11-direct-userns-compare.test.mjs
       - name: Validate M43 read-only three-process X11 repeatability contracts
         run: node --test scripts/auto-x11-direct-repeatability.test.mjs
+      - name: Validate M44 sanitized startup stderr category contracts
+        run: node --test scripts/auto-x11-direct-stderr-categories.test.mjs
       - name: Sample read-only namespaces before disposable X11 installation
         env:
           CI: 'true'
@@ -841,6 +845,12 @@ jobs:
           CI: 'true'
           M40_RUNNER: ubuntu-22.04
         run: xvfb-run -a node scripts/auto-x11-direct-repeatability.mjs
+      - name: Sample one additional direct Electron startup stderr category (M44)
+        timeout-minutes: 2
+        env:
+          CI: 'true'
+          M40_RUNNER: ubuntu-22.04
+        run: xvfb-run -a node scripts/auto-x11-direct-stderr-categories.mjs
       - name: Upload only fixed sanitized exit JSON; no raw stderr or files
         if: always()
         uses: actions/upload-artifact@v4
@@ -871,6 +881,14 @@ jobs:
         with:
           name: m43-repeatability-ubuntu-22.04-sanitized
           path: react-prototype/test-results/m43-repeatability-ubuntu-22.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload M44 fixed stderr category without any raw log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m44-stderr-ubuntu-22.04-sanitized
+          path: react-prototype/test-results/m44-stderr-ubuntu-22.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -915,6 +933,8 @@ jobs:
         run: node --test scripts/auto-x11-direct-userns-compare.test.mjs
       - name: Validate M43 read-only three-process X11 repeatability contracts
         run: node --test scripts/auto-x11-direct-repeatability.test.mjs
+      - name: Validate M44 sanitized startup stderr category contracts
+        run: node --test scripts/auto-x11-direct-stderr-categories.test.mjs
       - name: Sample read-only namespaces before disposable X11 installation
         env:
           CI: 'true'
@@ -954,6 +974,12 @@ jobs:
           CI: 'true'
           M40_RUNNER: ubuntu-24.04
         run: xvfb-run -a node scripts/auto-x11-direct-repeatability.mjs
+      - name: Sample one additional direct Electron startup stderr category (M44)
+        timeout-minutes: 2
+        env:
+          CI: 'true'
+          M40_RUNNER: ubuntu-24.04
+        run: xvfb-run -a node scripts/auto-x11-direct-stderr-categories.mjs
       - name: Upload only fixed sanitized exit JSON; no raw stderr or files
         if: always()
         uses: actions/upload-artifact@v4
@@ -984,6 +1010,14 @@ jobs:
         with:
           name: m43-repeatability-ubuntu-24.04-sanitized
           path: react-prototype/test-results/m43-repeatability-ubuntu-24.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload M44 fixed stderr category without any raw log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m44-stderr-ubuntu-24.04-sanitized
+          path: react-prototype/test-results/m44-stderr-ubuntu-24.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -1056,4 +1090,14 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-direct-repeatability-compare.mjs
+      - name: Download both M44 sanitized startup stderr category summaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: m44-stderr-*-sanitized
+          path: react-prototype/test-results/m44
+          merge-multiple: true
+      - name: Compare two fixed M44 stderr categories without causal claims
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-direct-stderr-compare.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
