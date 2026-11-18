@@ -94,6 +94,8 @@ jobs:
         run: npm run package:linux
       - name: Automatic Linux ELF launcher regression (synthetic process)
         run: node --test scripts/linux-auto-launcher.test.cjs
+      - name: M51 packaged shell wrapper argv and runtime environment regression
+        run: node --test scripts/linux-shell-wrapper.test.cjs
       - name: Packaged renderer kernel evidence parser contracts (synthetic only)
         run: node --test scripts/electron-renderer-kernel-evidence.test.mjs
       - name: Test packaged Linux ELF GUI using synthetic game folder

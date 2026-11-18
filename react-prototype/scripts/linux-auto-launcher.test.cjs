@@ -130,3 +130,25 @@ test('refuses option injection and symlinked packaged target',async(t)=>{
  assert.equal(f.run({XDG_CURRENT_DESKTOP:'KDE'}).status,3);
  assert.equal(await fs.readFile(outside,'utf8'),'NOT_EXECUTED');
 });
+
+test('native Auto refuses inherited Electron-as-Node and Node runtime injection',async(t)=>{
+ if(process.getuid?.()===0){t.skip('launcher deliberately rejects root');return;}
+ const f=await fixture();
+ const host={XDG_CURRENT_DESKTOP:'GNOME',XDG_SESSION_TYPE:'x11',DISPLAY:':5'};
+ for(const [name,value] of [
+  ['ELECTRON_RUN_AS_NODE','1'],['ELECTRON_RUN_AS_NODE',''],
+  ['NODE_OPTIONS','--require=/tmp/untrusted.js'],['NODE_OPTIONS','']
+ ]){
+  const r=f.run({...host,[name]:value});
+  assert.equal(r.status,3,name);
+  assert.equal(r.stdout,'',name);
+  assert.match(r.stderr,/inherited runtime options are not permitted/);
+  assert.equal(r.stderr.includes('/tmp/untrusted.js'),false);
+ }
+ // The explicit diagnostics pathway has no Electron execution and remains
+ // usable for administrator review, even when a parent runtime sets options.
+ const diagnostic=f.run({...host,ELECTRON_RUN_AS_NODE:'1'},['--diagnose-sandbox']);
+ assert.equal(diagnostic.status,0,diagnostic.stderr);
+ assert.match(diagnostic.stdout,/OMSI_MANAGER_SANDBOX_PREFLIGHT_V1/);
+ assert.equal(diagnostic.stderr,'');
+});

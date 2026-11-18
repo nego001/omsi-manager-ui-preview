@@ -49,6 +49,9 @@ await assert.rejects(
 const automaticExecutable=join(dirname(executable),'OMSI-Manager-Auto');
 await access(automaticExecutable,constants.X_OK);
 assert.deepEqual([...(await readFile(automaticExecutable)).subarray(0,4)],[0x7f,0x45,0x4c,0x46]);
+// Playwright's Electron driver may inject runtime options. Official launchers
+// correctly reject them; E2E instrumentation runs the packaged ELF directly.
+// Native Auto and shell wrapper behavior are checked independently.
 const launcher=join(dirname(executable),'OMSI-Manager-Preview.sh');
 await access(launcher,constants.X_OK);
 const wrapper=await readFile(launcher,'utf8');
@@ -120,7 +123,7 @@ try{
  await writeFile(sentinel,'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n','utf8');
  application=await electron.launch({
   chromiumSandbox:true,
-  executablePath:launcher,
+  executablePath:executable,
   args:[],
   cwd:temp,
   env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0'},
@@ -223,7 +226,7 @@ try{
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
    chromiumSandbox:true,
-   executablePath:launcher,args:['--ozone-platform=x11'],cwd:temp,
+   executablePath:executable,args:['--ozone-platform=x11'],cwd:temp,
    env:{...process.env,XDG_CURRENT_DESKTOP:desktop,
     XDG_SESSION_TYPE:'x11',WAYLAND_DISPLAY:'',
     OMSI_MANAGER_NATIVE_WAYLAND:'0',OMSI_MANAGER_DEV_PREVIEW:'0'},

@@ -10,6 +10,9 @@ import {weston9HeadlessArgs} from './weston-9-headless-contract.mjs';
 
 // Genuine Wayland socket test using an ephemeral, unprivileged Weston headless
 // compositor in CI. This is NOT a Hyprland or GPU-driver qualification.
+// Playwright's Electron driver needs direct ELF invocation for its internal
+// runtime handshake; the official Auto and shell wrappers reject extra
+// options and are regression-tested independently with synthetic executables.
 if(process.platform!=='linux')throw Error('Wayland test requires Linux');
 const executable=resolve('release/OMSI-Manager-Preview-linux-x64/OMSI-Manager-Preview');
 const launcher=join(dirname(executable),'OMSI-Manager-Preview.sh');
@@ -52,7 +55,7 @@ try{
  assert.equal(ready,true,'Headless Wayland socket did not start: '+stderr.slice(-2500));
  application=await electron.launch({
   chromiumSandbox:true,
-  executablePath:launcher,args:[],cwd:root,env,timeout:90000
+  executablePath:executable,args:['--ozone-platform=wayland'],cwd:root,env,timeout:90000
  });
  const info=await application.evaluate(({app})=>({
   packaged:app.isPackaged,
@@ -118,7 +121,7 @@ try{
   'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
  console.log('PASS_NATIVE_WAYLAND_WESTON_DIALOG_CANCEL_AND_SYNTHETIC_READ_ONLY');
  console.log('PASS_NATIVE_WAYLAND_WESTON_HEADLESS_ELECTRON_READ_ONLY');
- // Follow-up regression: the portable wrapper must also launch under Wayland
+ // Follow-up regression: the packaged executable must launch under Wayland
  // with NO explicit override and NO X server. This specifically exercises
  // Electron 38's default Ozone platform selection in a true Wayland session.
  // Native chooser interaction is still not attested here.
@@ -132,7 +135,7 @@ try{
  assert.equal(existingSocket.isSocket(),true);
  application=await electron.launch({
   chromiumSandbox:true,
-  executablePath:launcher,args:[],cwd:root,env:automaticEnv,timeout:90000
+  executablePath:executable,args:[],cwd:root,env:automaticEnv,timeout:90000
  });
  const autoInfo=await application.evaluate(({app})=>({
   packaged:app.isPackaged,
@@ -166,7 +169,7 @@ try{
  for(const desktop of ['GNOME','KDE']){
   application=await electron.launch({
   chromiumSandbox:true,
-   executablePath:launcher,args:[],cwd:root,
+   executablePath:executable,args:[],cwd:root,
    env:{...automaticEnv,XDG_CURRENT_DESKTOP:desktop},timeout:90000
   });
   const native=await application.evaluate(({app})=>({

@@ -276,5 +276,71 @@ class ReadOnlyCiContextTests(unittest.TestCase):
         self.assert_blocked(assess())
 
 
+    def test_bounded_transient_api_read_retry_keeps_all_blockers(self):
+        calls = []
+        attempts = 0
+
+        def fake_api(token, path, allow_missing=False):
+            nonlocal attempts
+            self.assertEqual(token, TOKEN)
+            calls.append(path)
+            if path == "repos/" + REPO:
+                return repo_meta()
+            if path.endswith("/branches/main"):
+                return branch()
+            if "/contents/.github/workflows/" in path:
+                return None
+            if path.endswith("/actions/runs/" + str(REFERENCE_RUN_ID)):
+                return run()
+            if ("/actions/runs/" + str(REFERENCE_RUN_ID) +
+                    "/jobs?" in path):
+                return jobs()
+            if path.endswith("/actions/runs/" + str(RUN_ID)):
+                attempts += 1
+                if attempts < 3:
+                    raise ValueError("CONTROLLED_CI_CONTEXT_AUDIT_REFUSED")
+                return run(True)
+            if "/actions/runs/" + str(RUN_ID) + "/jobs?" in path:
+                return jobs(True)
+            raise AssertionError("unexpected API path")
+
+        with patch("controlled_ci_context_readiness._api_json",
+                   side_effect=fake_api):
+            out = query_live_context_readiness(
+                REPO, RUN_ID, HEAD, TOKEN, SOURCE)
+        self.assertEqual(attempts, 3)
+        self.assertEqual(len(calls), 9)
+        self.assertEqual(out["auditStatus"], "defaultBranchWorkflowMissing")
+        self.assert_blocked(out)
+
+    def test_three_failed_read_requests_still_refuse_without_partial_result(self):
+        calls = []
+        def always_refuse(token, path, allow_missing=False):
+            calls.append((token, path))
+            raise ValueError("CONTROLLED_CI_CONTEXT_AUDIT_REFUSED")
+        with patch("controlled_ci_context_readiness._api_json",
+                   side_effect=always_refuse):
+            with self.assertRaisesRegex(
+                    ValueError, "^CONTROLLED_CI_CONTEXT_AUDIT_REFUSED$"):
+                query_live_context_readiness(
+                    REPO, RUN_ID, HEAD, TOKEN, SOURCE)
+        self.assertEqual(len(calls), 3)
+        self.assertTrue(all(x[0] == TOKEN for x in calls))
+        self.assertTrue(all(x[1] == "repos/" + REPO for x in calls))
+
+    def test_semantically_invalid_api_data_is_refused_without_retry(self):
+        calls = []
+        def malformed(token, path, allow_missing=False):
+            calls.append(path)
+            return {"unexpected": "missing-default-branch"}
+        with patch("controlled_ci_context_readiness._api_json",
+                   side_effect=malformed):
+            with self.assertRaisesRegex(
+                    ValueError, "^CONTROLLED_CI_CONTEXT_AUDIT_REFUSED$"):
+                query_live_context_readiness(
+                    REPO, RUN_ID, HEAD, TOKEN, SOURCE)
+        self.assertEqual(calls, ["repos/" + REPO])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -32,11 +32,23 @@ const script=join(bundled[0],'OMSI-Manager-Preview.sh');
 const launcher=[
  '#!/bin/sh',
  'set -eu',
+ // This distributed entrypoint has NO public Electron CLI surface.
+ // Prevent argument forwarding from injecting Chromium sandbox bypass switches.
+ 'if [ "$#" -ne 0 ]; then',
+ '  printf "%s\\n" "OMSI Manager Preview: launcher arguments are not permitted." >&2',
+ '  exit 3',
+ 'fi',
+ // Electron can change execution mode via inherited environment variables.
+ // Reject rather than silently accept unsafe runtime customization.
+ 'if [ "${ELECTRON_RUN_AS_NODE+x}" = "x" ] || [ "${NODE_OPTIONS+x}" = "x" ]; then',
+ '  printf "%s\\n" "OMSI Manager Preview: inherited runtime options are not permitted." >&2',
+ '  exit 3',
+ 'fi',
  'DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)',
  'if [ "${OMSI_MANAGER_NATIVE_WAYLAND:-0}" = "1" ]; then',
- '  exec "$DIR/OMSI-Manager-Preview" --ozone-platform=wayland "$@"',
+ '  exec "$DIR/OMSI-Manager-Preview" --ozone-platform=wayland',
  'fi',
- 'exec "$DIR/OMSI-Manager-Preview" "$@"',
+ 'exec "$DIR/OMSI-Manager-Preview"',
  ''
 ].join('\n');
 await writeFile(script,launcher,{mode:0o755,flag:'wx'});
