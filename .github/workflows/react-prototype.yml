@@ -23,6 +23,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run build
       - run: npm run test:security
+      - name: M43 three-process X11 repeatability adversarial contracts
+        run: node --test scripts/auto-x11-direct-repeatability.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -798,6 +800,8 @@ jobs:
         run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
       - name: Validate M42 direct userns host categories without privilege writes
         run: node --test scripts/auto-x11-direct-userns-compare.test.mjs
+      - name: Validate M43 read-only three-process X11 repeatability contracts
+        run: node --test scripts/auto-x11-direct-repeatability.test.mjs
       - name: Sample read-only namespaces before disposable X11 installation
         env:
           CI: 'true'
@@ -831,6 +835,12 @@ jobs:
           CI: 'true'
           M40_RUNNER: ubuntu-22.04
         run: xvfb-run -a node scripts/auto-x11-cross-runner-direct-exit.mjs
+      - name: Sample three new independent packaged Electron launches (M43)
+        timeout-minutes: 2
+        env:
+          CI: 'true'
+          M40_RUNNER: ubuntu-22.04
+        run: xvfb-run -a node scripts/auto-x11-direct-repeatability.mjs
       - name: Upload only fixed sanitized exit JSON; no raw stderr or files
         if: always()
         uses: actions/upload-artifact@v4
@@ -853,6 +863,14 @@ jobs:
         with:
           name: m42-userns-ubuntu-22.04-sanitized
           path: react-prototype/test-results/m42-userns-ubuntu-22.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload three-trial sanitized M43 categories (no private process data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m43-repeatability-ubuntu-22.04-sanitized
+          path: react-prototype/test-results/m43-repeatability-ubuntu-22.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -895,6 +913,8 @@ jobs:
         run: node --test scripts/auto-x11-cross-runner-owned-window.test.mjs
       - name: Validate M42 direct userns host categories without privilege writes
         run: node --test scripts/auto-x11-direct-userns-compare.test.mjs
+      - name: Validate M43 read-only three-process X11 repeatability contracts
+        run: node --test scripts/auto-x11-direct-repeatability.test.mjs
       - name: Sample read-only namespaces before disposable X11 installation
         env:
           CI: 'true'
@@ -928,6 +948,12 @@ jobs:
           CI: 'true'
           M40_RUNNER: ubuntu-24.04
         run: xvfb-run -a node scripts/auto-x11-cross-runner-direct-exit.mjs
+      - name: Sample three new independent packaged Electron launches (M43)
+        timeout-minutes: 2
+        env:
+          CI: 'true'
+          M40_RUNNER: ubuntu-24.04
+        run: xvfb-run -a node scripts/auto-x11-direct-repeatability.mjs
       - name: Upload only fixed sanitized exit JSON; no raw stderr or files
         if: always()
         uses: actions/upload-artifact@v4
@@ -950,6 +976,14 @@ jobs:
         with:
           name: m42-userns-ubuntu-24.04-sanitized
           path: react-prototype/test-results/m42-userns-ubuntu-24.04.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload three-trial sanitized M43 categories (no private process data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m43-repeatability-ubuntu-24.04-sanitized
+          path: react-prototype/test-results/m43-repeatability-ubuntu-24.04.json
           if-no-files-found: error
           retention-days: 7
       # This is a separate diagnostic, not a replacement for native_auto_x11.
@@ -1012,4 +1046,14 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-direct-userns-compare.mjs
+      - name: Download both fixed M43 three-attempt reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: m43-repeatability-*-sanitized
+          path: react-prototype/test-results/m43
+          merge-multiple: true
+      - name: Compare M43 observed X11 repeatability without gate waiver
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-direct-repeatability-compare.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
