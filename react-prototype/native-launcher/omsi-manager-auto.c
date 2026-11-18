@@ -118,6 +118,11 @@ int main(int argc,char **argv) {
   if(argc!=1 && !diagnostic) return refuse("option not permitted");
   if(getuid()==0 || geteuid()==0) return refuse("do not launch as root");
   if(diagnostic) return diagnose_sandbox();
+  // Do not allow inherited Electron-as-Node or Node runtime injection in
+  // the standard native launch path. Even empty variables are rejected.
+  // The explicit --diagnose-sandbox mode above remains read-only and works.
+  if(getenv("ELECTRON_RUN_AS_NODE") || getenv("NODE_OPTIONS"))
+    return refuse("inherited runtime options are not permitted");
   enum desktop d=desktop_from(getenv("XDG_CURRENT_DESKTOP"));
   const char *backend=backend_from(d);
   char self[PATH_MAX];
