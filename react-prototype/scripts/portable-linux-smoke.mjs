@@ -9,6 +9,7 @@ import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
 import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
 import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
+import {createM47RendererReference} from './auto-x11-m47-renderer-reference.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 async function requireRendererKernelEvidence(sample,scenario){
@@ -102,6 +103,9 @@ const removed=runShortcut('remove');
 assert.equal(removed.status,0,removed.stderr);
 await assert.rejects(access(entry),{code:'ENOENT'});
 let application;
+// Real packaged renderer observations: main + Xvfb GNOME/KDE labels only.
+// The labels must never be interpreted as genuine desktop sessions.
+const m47RendererObservations=[];
 try{
  const fixture=join(temp,'OMSI 2 - SYNTHETIC ONLY');
  await mkdir(join(fixture,'Vehicles','Dummy Bus'),{recursive:true});
@@ -145,6 +149,7 @@ try{
  assert.equal(kernelEvidence.category,'renderer-kernel-restrictions-observed',
   'packaged Linux renderer must show Seccomp filter and NoNewPrivs');
  assert.equal(kernelEvidence.fullElectronSandboxCertified,false);
+ m47RendererObservations.push({label:'packaged-main',evidence:kernelEvidence});
  console.log('PACKAGED_RENDERER_KERNEL_RESTRICTIONS',JSON.stringify(kernelEvidence));
  const security=await window.evaluate(()=>({
   nodeRequire:typeof window.require,
@@ -226,6 +231,14 @@ try{
   assert.equal(labelKernel.category,'renderer-kernel-restrictions-observed',
    'renderer OS restrictions missing in '+desktop+' X11 label');
   assert.equal(labelKernel.fullElectronSandboxCertified,false);
+  const postProbeRendererPid=await application.evaluate(({BrowserWindow})=>
+    BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
+  assert.equal(labelSample.pid,postProbeRendererPid,
+    'renderer PID changed during '+desktop+' kernel security inspection');
+  m47RendererObservations.push({
+    label:desktop==='GNOME'?'xvfb-gnome-label':'xvfb-kde-label',
+    evidence:labelKernel
+  });
   const isolated=await view.evaluate(()=>({
    nodeRequire:typeof window.require,nodeProcess:typeof window.process,
    mode:window.omsiPreview?.mode,
@@ -242,6 +255,19 @@ try{
    'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n');
   await application.close();
   application=undefined;
+ }
+ // Public CI outputs categories only, never PIDs, commands, paths, or /proc.
+ // Local executions do not pretend to be the approved Ubuntu 22.04 CI runner.
+ if(process.env.CI==='true'&&process.env.GITHUB_ACTIONS==='true'&&
+    process.env.RUNNER_OS==='Linux'){
+  const report=createM47RendererReference({
+   runner:'ubuntu-22.04',desktopContext:'xvfb-synthetic-gnome-kde-labels',
+   observations:m47RendererObservations
+  });
+  await mkdir(resolve('test-results/m47'),{recursive:true,mode:0o700});
+  await writeFile(resolve('test-results/m47/renderer-reference.json'),
+   JSON.stringify(report)+'\n',{flag:'wx',mode:0o600});
+  console.log('M47_PACKAGED_RENDERER_REFERENCE',JSON.stringify(report));
  }
  console.log('PASS_GNOME_KDE_X11_ENVIRONMENT_MATRIX_XVFB_ONLY');
 }finally{
