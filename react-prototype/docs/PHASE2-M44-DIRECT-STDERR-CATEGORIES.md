@@ -1,0 +1,9 @@
+# Phase 2 / M44 — Categorized Electron startup diagnostics
+
+M43 CI #44221155604 verified all three owned/mapped X11 windows on Ubuntu 22.04, versus zero windows and three real SIGTRAP exits on Ubuntu 24.04. The mandatory strict Ubuntu 24.04 native gate still fails. M42 user namespace settings differ, but this alone does not establish AppArmor causality.
+
+M44 launches one additional independent CI-packaged Electron process on each same direct runner, after M43's trials. The original sandbox and Xvfb runner setup remain. The process is not root, uses a fresh synthetic HOME, and is killed after a bounded 7.5-second timeout.
+
+A maximum of 4096 bytes from the beginning of stderr is held only in memory. This text is classified into a small, fixed set of categories: namespace denial, sandbox unavailable, seccomp failure, zygote failure, generic Chromium FATAL, or no recognized message. Only the category, presence flag, truncation flag, sanitized exit signal category, host label and denial flags are logged or uploaded. Raw stderr, paths, PIDs, command lines, game files, screenshots and identity metadata are never intentionally persisted by this diagnostic.
+
+This is a passive diagnostic. Capturing stderr is itself a change in observation context. A category can be absent, truncated or ambiguous and is not proof of root cause. M44 makes no AppArmor/sysctl changes, sandbox bypass, mod installation, release, merge, or renderer sandbox certification. The strict Ubuntu 24.04 gate remains unchanged and blocking. The administrator-authorized A/B/A and independent confinement acceptance criteria remain open in issue #4.
