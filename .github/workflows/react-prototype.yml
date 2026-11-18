@@ -37,6 +37,8 @@ jobs:
         run: node --test scripts/auto-x11-m48-namespace-relation.test.mjs
       - name: M49 renderer Linux capability, tracer and seccomp filter refusal contracts
         run: node --test scripts/auto-x11-m49-renderer-privilege.test.mjs
+      - name: M50 one-time process birth marker continuity refusal contracts
+        run: node --test scripts/auto-x11-m50-process-continuity.test.mjs
       - name: Portable build identity contract
         run: node --test scripts/portable-build-manifest.test.mjs
       - name: Optional XDG desktop shortcut tests (disposable HOME)
@@ -116,6 +118,13 @@ jobs:
         with:
           name: m49-renderer-ubuntu22-sanitized
           path: react-prototype/test-results/m49/renderer-privilege-categories.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload M50 real Ubuntu22 sampled renderer and main PID birth continuity
+        uses: actions/upload-artifact@v4
+        with:
+          name: m50-ubuntu22-process-continuity-sanitized
+          path: react-prototype/test-results/m50/renderer-process-continuity.json
           if-no-files-found: error
           retention-days: 7
       - name: Native auto X11 GUI contract (synthetic read-only)
@@ -1192,4 +1201,15 @@ jobs:
         env:
           CI: 'true'
         run: node scripts/auto-x11-m49-renderer-privilege.mjs
+      - name: Validate M50 one-time birth marker and forged process identity contracts
+        run: node --test scripts/auto-x11-m50-process-continuity.test.mjs
+      - name: Download M50 exact Ubuntu22 live renderer continuity categories
+        uses: actions/download-artifact@v4
+        with:
+          name: m50-ubuntu22-process-continuity-sanitized
+          path: react-prototype/test-results/m50
+      - name: Reconcile M50 birth marker continuity with M46 M47 M48 and M49
+        env:
+          CI: 'true'
+        run: node scripts/auto-x11-m50-process-continuity.mjs
       # Missing report fails closed; never waives native Auto X11 failure.
