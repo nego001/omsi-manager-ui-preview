@@ -11,6 +11,7 @@ import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
 import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
 import {createM47RendererReference} from './auto-x11-m47-renderer-reference.mjs';
 import {probeM48NamespaceRelation,createM48NamespaceReference} from './auto-x11-m48-namespace-relation.mjs';
+import {probeM49RendererPrivilegeStatus,createM49RendererPrivilegeReference} from './auto-x11-m49-renderer-privilege.mjs';
 
 if(process.platform!=='linux')throw new Error('Linux portable smoke requires Linux');
 async function requireRendererKernelEvidence(sample,scenario){
@@ -108,6 +109,7 @@ let application;
 // The labels must never be interpreted as genuine desktop sessions.
 const m47RendererObservations=[];
 const m48NamespaceObservations=[];
+const m49PrivilegeObservations=[];
 try{
  const fixture=join(temp,'OMSI 2 - SYNTHETIC ONLY');
  await mkdir(join(fixture,'Vehicles','Dummy Bus'),{recursive:true});
@@ -148,6 +150,7 @@ try{
  // Compare namespace identities only. They never leave the test runner.
  const packagedMainPid=await application.evaluate(()=>process.pid);
  const m48MainRelation=await probeM48NamespaceRelation(packagedMainPid,rendererPid);
+ const mainPrivilegeStatus=await probeM49RendererPrivilegeStatus(rendererPid);
  const sameRendererPid=await application.evaluate(({BrowserWindow})=>
   BrowserWindow.getAllWindows()[0]?.webContents.getOSProcessId());
  assert.equal(rendererPid,sameRendererPid,'renderer PID changed during kernel security inspection');
@@ -156,6 +159,7 @@ try{
  assert.equal(kernelEvidence.fullElectronSandboxCertified,false);
  m47RendererObservations.push({label:'packaged-main',evidence:kernelEvidence});
  m48NamespaceObservations.push({label:'packaged-main',relation:m48MainRelation});
+ m49PrivilegeObservations.push({label:'packaged-main',privileges:mainPrivilegeStatus});
  console.log('PACKAGED_RENDERER_KERNEL_RESTRICTIONS',JSON.stringify(kernelEvidence));
  const security=await window.evaluate(()=>({
   nodeRequire:typeof window.require,
@@ -236,6 +240,7 @@ try{
   const labelKernel=await requireRendererKernelEvidence(labelSample,desktop);
   const labelMainPid=await application.evaluate(()=>process.pid);
   const labelNamespaceRelation=await probeM48NamespaceRelation(labelMainPid,labelSample.pid);
+  const labelPrivilegeStatus=await probeM49RendererPrivilegeStatus(labelSample.pid);
   assert.equal(labelKernel.category,'renderer-kernel-restrictions-observed',
    'renderer OS restrictions missing in '+desktop+' X11 label');
   assert.equal(labelKernel.fullElectronSandboxCertified,false);
@@ -250,6 +255,10 @@ try{
   m48NamespaceObservations.push({
     label:desktop==='GNOME'?'xvfb-gnome-label':'xvfb-kde-label',
     relation:labelNamespaceRelation
+  });
+  m49PrivilegeObservations.push({
+    label:desktop==='GNOME'?'xvfb-gnome-label':'xvfb-kde-label',
+    privileges:labelPrivilegeStatus
   });
   const isolated=await view.evaluate(()=>({
    nodeRequire:typeof window.require,nodeProcess:typeof window.process,
@@ -288,6 +297,14 @@ try{
   await writeFile(resolve('test-results/m48/renderer-namespace-relations.json'),
    JSON.stringify(m48)+'\n',{flag:'wx',mode:0o600});
   console.log('M48_NAMESPACE_RELATIONS',JSON.stringify(m48));
+  const m49=createM49RendererPrivilegeReference({
+   runner:'ubuntu-22.04',desktopContext:'xvfb-synthetic-gnome-kde-labels',
+   m47:report,m48,samples:m49PrivilegeObservations
+  });
+  await mkdir(resolve('test-results/m49'),{recursive:true,mode:0o700});
+  await writeFile(resolve('test-results/m49/renderer-privilege-categories.json'),
+   JSON.stringify(m49)+'\n',{flag:'wx',mode:0o600});
+  console.log('M49_RENDERER_PRIVILEGE_REFERENCE',JSON.stringify(m49));
  }
  console.log('PASS_GNOME_KDE_X11_ENVIRONMENT_MATRIX_XVFB_ONLY');
 }finally{
