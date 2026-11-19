@@ -80,6 +80,22 @@ try{
  assert.ok(!JSON.stringify(safeResult).includes(root),'Must not expose absolute paths');
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
 
+ // The native portal may fail with private paths or provider details.
+ // The renderer must receive only a fixed, path-free IPC error and recover.
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=async()=>{throw Error('/private/CI-SYNTHETIC-SECRET-PATH token=fictional');};
+ });
+ const pickerFailure=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(pickerFailure,{status:'error',
+  message:'Não foi possível abrir o seletor de pastas.'});
+ assert.ok(!JSON.stringify(pickerFailure).includes('CI-SYNTHETIC-SECRET-PATH'));
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[]});
+ });
+ const malformedPicker=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(malformedPicker,{status:'error',
+  message:'Não foi possível abrir o seletor de pastas.'});
+
  await application.evaluate(patch,{canceled:true,filePaths:[]});
  const cancelled=await window.evaluate(()=>window.omsiPreview.inspectGame('ets2'));
  assert.deepEqual(cancelled,{status:'cancelled'});
