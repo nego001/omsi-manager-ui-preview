@@ -13,6 +13,16 @@ try {
   console.error('OMSI_MANAGER_UNSAFE_ELECTRON_STARTUP_REFUSED');
   process.exit(3);
 }
+const { resolvePreviewMode } = require('./preview-mode-policy.cjs');
+// A local dev server must never be a renderer source for a distributed binary.
+// This check happens before creating any inspection grant, IPC or window.
+let isDevelopment;
+try {
+  isDevelopment = resolvePreviewMode(app.isPackaged, process.env.OMSI_MANAGER_DEV_PREVIEW);
+} catch {
+  console.error('OMSI_MANAGER_PACKAGED_DEV_MODE_REFUSED');
+  process.exit(3);
+}
 const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./security-policy.cjs');
 const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
@@ -22,7 +32,6 @@ const activeInspections = new Set();
 
 function createWindow() {
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
-  const isDevelopment = process.env.OMSI_MANAGER_DEV_PREVIEW === '1';
   const approvedURL = isDevelopment ? DEV_URL : pathToFileURL(indexPath).href;
 
   const win = new BrowserWindow({
@@ -63,7 +72,7 @@ app.whenReady().then(() => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
     const win = BrowserWindow.fromWebContents(event.sender);
-    const expectedURL = process.env.OMSI_MANAGER_DEV_PREVIEW === '1'
+    const expectedURL = isDevelopment
       ? DEV_URL : pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href;
     const originalFrame = event.senderFrame;
     // Dialog interaction is consent for exactly one scan in this webContents.
