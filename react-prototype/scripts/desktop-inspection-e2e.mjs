@@ -214,9 +214,13 @@ try{
  // claim a reply reached that now-destroyed context; prove clean recovery
  // by completing the old deferred picker and then issuing a new IPC request.
  await application.evaluate(({dialog})=>{
-  dialog.showOpenDialog=()=>new Promise(resolve=>{
-   globalThis.__omsiM57ReloadPickerRelease=resolve;
-  });
+  globalThis.__omsiM58PickerAttempts=0;
+  dialog.showOpenDialog=()=>{
+   globalThis.__omsiM58PickerAttempts++;
+   return new Promise(resolve=>{
+    globalThis.__omsiM57ReloadPickerRelease=resolve;
+   });
+  };
  });
  const reloading=window.evaluate(()=>window.omsiPreview.inspectGame('omsi'))
   .then(()=> 'reply-before-reload',()=> 'context-destroyed');
@@ -230,6 +234,14 @@ try{
  await window.reload({waitUntil:'load',timeout:30000});
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
   .waitFor({timeout:15000});
+ // M58: a second request from the NEW document cannot start another native
+ // picker while the OLD document's picker is still pending. It must recover
+ // after the original promise is released.
+ const blockedNewRequest=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(blockedNewRequest,{status:'error',
+  message:'Já existe uma inspeção em andamento.'});
+ const pendingPickerCount=await application.evaluate(()=>globalThis.__omsiM58PickerAttempts);
+ assert.equal(pendingPickerCount,1,'a new renderer must not open a second native dialog');
  await application.evaluate(()=>{
   const release=globalThis.__omsiM57ReloadPickerRelease;
   delete globalThis.__omsiM57ReloadPickerRelease;
