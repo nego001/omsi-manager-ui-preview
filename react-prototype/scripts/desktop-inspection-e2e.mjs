@@ -172,7 +172,77 @@ try{
  await application.evaluate(patch,{canceled:true,filePaths:[]});
  const afterEpoch=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
  assert.deepEqual(afterEpoch,{status:'cancelled'});
- console.log('Native folder IPC E2E: OK. Synthetic counts, picker errors, document-epoch revocation, recovery.');
+
+ // M57: run actual same-document hash navigation in the genuine renderer
+ // while a mocked native dialog is pending. No synthetic navigation event.
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=()=>new Promise(resolve=>{
+   globalThis.__omsiM57HashPickerRelease=resolve;
+  });
+ });
+ const hashPending=window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ await application.evaluate(async()=>{
+  for(let i=0;i<200;i++){
+   if(typeof globalThis.__omsiM57HashPickerRelease==='function')return;
+   await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  throw Error('real-hash-picker-not-started');
+ });
+ await application.evaluate(({BrowserWindow})=>{
+  const wc=BrowserWindow.getAllWindows()[0]?.webContents;
+  if(!wc)throw Error('missing-webcontents-for-hash');
+  globalThis.__omsiM57RealHashObserved=false;
+  wc.once('did-navigate-in-page',()=>{globalThis.__omsiM57RealHashObserved=true;});
+ });
+ await window.evaluate(()=>{window.location.hash='#m57-actual-in-page';});
+ await application.evaluate(async()=>{
+  for(let i=0;i<200;i++){
+   if(globalThis.__omsiM57RealHashObserved===true)return;
+   await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  throw Error('real-hash-event-not-observed');
+ });
+ await application.evaluate(()=>{
+  const release=globalThis.__omsiM57HashPickerRelease;
+  delete globalThis.__omsiM57HashPickerRelease;
+  if(typeof release!=='function')throw Error('real-hash-dialog-not-pending');
+  release({canceled:true,filePaths:[]});
+ });
+ assert.deepEqual(await hashPending,{status:'cancelled'});
+
+ // M57: a *real reload* destroys the original renderer context. Do not
+ // claim a reply reached that now-destroyed context; prove clean recovery
+ // by completing the old deferred picker and then issuing a new IPC request.
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=()=>new Promise(resolve=>{
+   globalThis.__omsiM57ReloadPickerRelease=resolve;
+  });
+ });
+ const reloading=window.evaluate(()=>window.omsiPreview.inspectGame('omsi'))
+  .then(()=> 'reply-before-reload',()=> 'context-destroyed');
+ await application.evaluate(async()=>{
+  for(let i=0;i<200;i++){
+   if(typeof globalThis.__omsiM57ReloadPickerRelease==='function')return;
+   await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  throw Error('real-reload-picker-not-started');
+ });
+ await window.reload({waitUntil:'load',timeout:30000});
+ await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
+  .waitFor({timeout:15000});
+ await application.evaluate(()=>{
+  const release=globalThis.__omsiM57ReloadPickerRelease;
+  delete globalThis.__omsiM57ReloadPickerRelease;
+  if(typeof release!=='function')throw Error('real-reload-dialog-not-pending');
+  release({canceled:true,filePaths:[]});
+ });
+ assert.equal(await reloading,'context-destroyed');
+ await application.evaluate(patch,{canceled:true,filePaths:[]});
+ const recovered=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(recovered,{status:'cancelled'});
+ assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),
+  'DO_NOT_MODIFY');
+ console.log('Native folder IPC E2E: OK. Synthetic epoch notification, actual hash navigation and real reload recovery.');
 }finally{
  await application?.close();
  await rm(root,{recursive:true,force:true});
