@@ -10,8 +10,11 @@ const ERROR = {message:DENIED};
 const commandLine = (active = []) => ({
   hasSwitch(name) { return active.includes(name); }
 });
-const deny = (args, switches = commandLine()) =>
+const deny = (args, ...values) => {
+  // Distinguish no second argument from an explicitly invalid undefined.
+  const switches = values.length ? values[0] : commandLine();
   assert.throws(() => check(args,switches), ERROR);
+};
 
 test('safe packaged and development argv preserve Electron automation flags',()=>{
   for (const args of [
