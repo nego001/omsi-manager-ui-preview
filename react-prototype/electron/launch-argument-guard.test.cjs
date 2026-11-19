@@ -110,3 +110,24 @@ test('new guard is refusal-only: no host or game security policy mutations',()=>
     'require("electron")'
   ])assert.equal(source.includes(marker),false,marker);
 });
+
+test('all supported Playwright Electron launch sites explicitly request Chromium sandbox',()=>{
+  const expected=[
+    ['desktop-smoke.mjs',1],
+    ['desktop-inspection-e2e.mjs',1],
+    ['portable-windows-smoke.mjs',1],
+    ['manual-wayland-portal-smoke.mjs',1],
+    ['portable-linux-smoke.mjs',2],
+    ['wayland-weston-smoke.mjs',3]
+  ];
+  for(const [file,count] of expected){
+    const code=readFileSync(join(__dirname,'..','scripts',file),'utf8');
+    const launches=[...code.matchAll(/electron\.launch\(\{/g)];
+    assert.equal(launches.length,count,file);
+    for(const launch of launches){
+      const fragment=code.slice(launch.index,launch.index+180);
+      assert.match(fragment,/chromiumSandbox\s*:\s*true\b/,file);
+      assert.doesNotMatch(fragment,/chromiumSandbox\s*:\s*false\b/,file);
+    }
+  }
+});

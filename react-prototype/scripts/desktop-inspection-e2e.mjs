@@ -20,6 +20,7 @@ try{
  await writeFile(join(etsSample,'mod','skin.zip'),'ZIP_SENTINEL');
  await writeFile(join(etsSample,'mod','notes.txt'),'TEXT_SENTINEL');
  application=await electron.launch({
+  chromiumSandbox:true,
   args:['.'],
   cwd:process.cwd(),
   env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0'},

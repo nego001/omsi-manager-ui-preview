@@ -27,6 +27,7 @@ try{
  await mkdir(join(sample,'maps','Sample Map'),{recursive:true});
  await writeFile(join(sample,'Vehicles','Bus A','sentinel.bus'),'UNCHANGED', 'utf8');
  application=await electron.launch({
+   chromiumSandbox:true,
    executablePath:exe,
    args:[],
    cwd:root,

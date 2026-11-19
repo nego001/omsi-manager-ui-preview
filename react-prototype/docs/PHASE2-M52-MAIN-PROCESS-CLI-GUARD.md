@@ -29,3 +29,13 @@ The tests **never launch a real Electron instance with sandbox bypass flags**. S
 Current repeatability evidence shows Ubuntu 22.04 Xvfb native windows while Ubuntu 24.04 exits `SIGTRAP` before a mapped/owned window under the required strict sandbox. A host policy difference is observed, but causality is unproven. No administrator-authorized disposable-VM A/B/A, app-specific AppArmor policy check, independent rollback or full Chromium renderer confinement attestation has occurred.
 
 No AppArmor/sysctl writes, `--no-sandbox` test launches, root Electron, mod operations, installer, merge, release or sandbox waiver. The M52 PR remains Draft and issue #4 remains blocking.
+
+## M52 CI regression: explicit Chromium sandbox in every Playwright Electron launch
+
+The first M52 build revealed a **test contract issue**: a malformed-input test accidentally replaced an explicitly passed `undefined` with a valid default helper argument; that test harness was fixed, and the full security unit suite passed.
+
+The subsequent [CI #44444530367](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/44444530367) then failed at the **development Electron desktop smoke**. That smoke (and the separate desktop IPC smoke) had omitted the `chromiumSandbox:true` option on `electron.launch`. The new fail-closed main guard correctly rejected the insecure driver startup, with the fixed, non-sensitive refusal message. This is **not** evidence of a new Ubuntu24 AppArmor problem.
+
+The correction explicitly requests **`chromiumSandbox:true`** in all six supported Playwright Electron smoke families: desktop dev, desktop inspection IPC, packaged Windows, manual native Wayland dialog pilot, packaged Linux X11 and headless Weston Wayland. The manual interactive pilot now launches the packaged ELF directly with an explicit ozone display flag, while the **official user launchers stay strict** and remain covered by their independent tests.
+
+An additional static security contract verifies **all nine current Playwright Electron launch sites** request Chromium sandbox. No CI switch-off, `--no-sandbox` launch, host policy modification, fake GUI success, waiver, merge, or release.

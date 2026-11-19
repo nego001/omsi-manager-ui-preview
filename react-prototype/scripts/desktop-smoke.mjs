@@ -4,6 +4,7 @@ import { _electron as electron } from 'playwright';
 let application;
 try {
   application = await electron.launch({
+    chromiumSandbox: true,
     args: ['.'],
     cwd: process.cwd(),
     env: {...process.env, OMSI_MANAGER_DEV_PREVIEW: '0'},
