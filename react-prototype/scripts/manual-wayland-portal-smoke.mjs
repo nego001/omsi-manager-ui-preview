@@ -59,8 +59,10 @@ async function run(desktop){
   const sentinel=join(fixture,'Vehicles','Test Bus','test.bus');
   await writeFile(sentinel,'SYNTHETIC ONLY - DO NOT MODIFY\n',{flag:'wx',mode:0o600});
   const before=sha(await readFile(sentinel));
-  app=await electron.launch({executablePath:launcher,
-   args:session==='x11'?['--ozone-platform=x11']:[],
+  // Playwright instruments the packaged executable directly with Chromium
+  // sandbox explicitly enabled; official launchers remain tested separately.
+  app=await electron.launch({chromiumSandbox:true,executablePath:exec,
+   args:[session==='x11'?'--ozone-platform=x11':'--ozone-platform=wayland'],
    cwd:dirname(exec),
    env:{...process.env,OMSI_MANAGER_DEV_PREVIEW:'0',
     OMSI_MANAGER_NATIVE_WAYLAND:session==='wayland'?'1':'0'},

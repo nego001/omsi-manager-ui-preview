@@ -2,6 +2,17 @@
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { assertSecureMainProcessStartup } = require('./launch-argument-guard.cjs');
+// This is the final app-owned boundary before registering IPC or a window.
+// It prevents use of a packaged app UI with recognized insecure Chromium
+// switches when someone bypasses the official launchers and runs the ELF.
+// Electron has already started: this does NOT attest kernel sandbox setup.
+try {
+  assertSecureMainProcessStartup(process.argv.slice(1), app.commandLine);
+} catch {
+  console.error('OMSI_MANAGER_UNSAFE_ELECTRON_STARTUP_REFUSED');
+  process.exit(3);
+}
 const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./security-policy.cjs');
 const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
