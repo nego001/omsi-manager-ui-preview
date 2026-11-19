@@ -127,7 +127,52 @@ try{
  assert.match(await report.innerText(),/Compatibilidade não verificada/);
  assert.equal(await window.getByRole('button',{name:'Instalar (bloqueado)'}).isDisabled(),true);
  assert.equal(await window.getByRole('button',{name:'Remover (bloqueado)'}).isDisabled(),true);
- console.log('Native folder IPC E2E: OK. Synthetic counts, cancellation, no path leak and concurrent-dialog guard.');
+
+ // M56: exercise the actual Electron main-process IPC path with a deferred
+ // synthetic native dialog. Only navigation EVENT NOTIFICATION is simulated:
+ // this is not proof of an actual browser reload, external portal or compositor.
+ async function runSyntheticNavigationWhilePickerPending(eventName,details){
+  await application.evaluate(({dialog})=>{
+   dialog.showOpenDialog=()=>new Promise(resolve=>{
+    globalThis.__omsiM56PickerRelease=resolve;
+   });
+  });
+  const pending=window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+  await application.evaluate(async()=>{
+   for(let i=0;i<200;i++){
+    if(typeof globalThis.__omsiM56PickerRelease==='function')return;
+    await new Promise(resolve=>setTimeout(resolve,20));
+   }
+   throw Error('synthetic-picker-not-started');
+  });
+  await application.evaluate(({BrowserWindow},payload)=>{
+   const target=BrowserWindow.getAllWindows()[0]?.webContents;
+   if(!target)throw Error('synthetic-window-unavailable');
+   const release=globalThis.__omsiM56PickerRelease;
+   delete globalThis.__omsiM56PickerRelease;
+   target.emit(payload.eventName,payload.details);
+   release({canceled:true,filePaths:[]});
+  },{eventName,details});
+  return pending;
+ }
+ const stalePicker=await runSyntheticNavigationWhilePickerPending(
+  'did-start-navigation',{isMainFrame:true,isSameDocument:false});
+ assert.deepEqual(stalePicker,{status:'error',
+  message:'Origem da inspeção não autorizada.'});
+ assert.equal(JSON.stringify(stalePicker).includes(root),false);
+ const spaPicker=await runSyntheticNavigationWhilePickerPending(
+  'did-start-navigation',{isMainFrame:true,isSameDocument:true});
+ assert.deepEqual(spaPicker,{status:'cancelled'});
+ const fallbackPicker=await runSyntheticNavigationWhilePickerPending(
+  'did-navigate',undefined);
+ assert.deepEqual(fallbackPicker,{status:'error',
+  message:'Origem da inspeção não autorizada.'});
+ // Prior stale/fallback dialogs must not leave the one-dialog-per-renderer
+ // lock behind. No scan is needed: successful cancellation is enough.
+ await application.evaluate(patch,{canceled:true,filePaths:[]});
+ const afterEpoch=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(afterEpoch,{status:'cancelled'});
+ console.log('Native folder IPC E2E: OK. Synthetic counts, picker errors, document-epoch revocation, recovery.');
 }finally{
  await application?.close();
  await rm(root,{recursive:true,force:true});
