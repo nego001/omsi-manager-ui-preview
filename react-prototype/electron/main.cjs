@@ -14,6 +14,7 @@ try {
   process.exit(3);
 }
 const { resolvePreviewMode } = require('./preview-mode-policy.cjs');
+const { createDocumentEpochGate, shouldInvalidateOnNavigation } = require('./document-epoch-gate.cjs');
 // A local dev server must never be a renderer source for a distributed binary.
 // This check happens before creating any inspection grant, IPC or window.
 let isDevelopment;
@@ -29,6 +30,8 @@ const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
+// Main-process-only identity: each window owns a separate document epoch.
+const documentEpochs = new WeakMap();
 
 function createWindow() {
   const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
@@ -50,6 +53,17 @@ function createWindow() {
     }
   });
 
+  // Any new top-level document retires IPC authorizations from the old one.
+  // Same-document hash/SPA navigation does not rotate the security epoch.
+  const documentEpoch = createDocumentEpochGate();
+  documentEpochs.set(win.webContents, documentEpoch);
+  win.webContents.on('did-start-navigation', details => {
+    if (shouldInvalidateOnNavigation(details)) documentEpoch.invalidate();
+  });
+  win.webContents.on('did-navigate', () => documentEpoch.invalidate());
+  // After renderer death, no old proof can become usable on a restarted process.
+  win.webContents.on('render-process-gone', () => documentEpoch.revoke());
+  win.webContents.on('destroyed', () => documentEpoch.revoke());
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   win.webContents.on('will-navigate', (event, targetURL) => {
     if (!isAllowedTopLevelURL(targetURL, approvedURL)) event.preventDefault();
@@ -75,10 +89,13 @@ app.whenReady().then(() => {
     const expectedURL = isDevelopment
       ? DEV_URL : pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href;
     const originalFrame = event.senderFrame;
+    const documentEpoch = documentEpochs.get(event.sender);
+    const documentProof = documentEpoch?.snapshot();
     // Dialog interaction is consent for exactly one scan in this webContents.
     // Re-check origin and frame after the native dialog and after the scan:
     // neither a delayed IPC reply nor a navigation may reuse the selection.
     const senderAuthorized = () => Boolean(
+      documentEpoch && documentEpoch.isCurrent(documentProof) &&
       win && !win.isDestroyed() && !event.sender.isDestroyed() &&
       originalFrame && event.senderFrame === originalFrame &&
       event.sender.mainFrame === originalFrame &&
