@@ -27,6 +27,7 @@ try {
 const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./security-policy.cjs');
 const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
+const { requestNativeDirectory } = require('./native-directory-choice.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
@@ -110,16 +111,19 @@ app.whenReady().then(() => {
       return { status: 'error', message: 'Já existe uma inspeção em andamento.' };
     activeInspections.add(senderId);
     try {
-      const choice = await dialog.showOpenDialog(win, {
+      const choice = await requestNativeDirectory(() => dialog.showOpenDialog(win, {
         title: 'Selecione a pasta do jogo (somente leitura)',
         properties: ['openDirectory', 'dontAddToRecent']
-      });
+      }));
+      // Origin and epoch validation always happens after the awaited dialog,
+      // even if the native picker failed or supplied a malformed result.
       if (!senderAuthorized())
         return { status: 'error', message: 'Origem da inspeção não autorizada.' };
-      if (choice.canceled || choice.filePaths.length !== 1)
-        return { status: 'cancelled' };
+      if (choice.status === 'cancelled') return { status: 'cancelled' };
+      if (choice.status !== 'selected')
+        return { status: 'error', message: 'Não foi possível abrir o seletor de pastas.' };
       try {
-        const grant = inspectionGrantGate.issue(choice.filePaths[0], gameId, senderId);
+        const grant = inspectionGrantGate.issue(choice.selectedPath, gameId, senderId);
         // issue happens only after native user selection. Consume at most once.
         const result = await inspectionGrantGate.inspectOnce(grant, senderId, gameId);
         if (!senderAuthorized())
