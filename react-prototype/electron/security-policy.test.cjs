@@ -26,3 +26,27 @@ test('production navigation cannot switch to a different file', () => {
   assert.equal(isAllowedTopLevelURL('file:///C:/OMSI%20Manager/dist/other.html', entry), false);
   assert.equal(isAllowedTopLevelURL('https://example.com', entry), false);
 });
+
+test('entry navigation refuses URL-embedded credentials even with matching host, port and path', () => {
+  const credentialUrls = [
+    'http://user@127.0.0.1:4173/',
+    'http://user:password@127.0.0.1:4173/',
+    'http://:password@127.0.0.1:4173/',
+    'http://%61dmin:se%63ret@127.0.0.1:4173/',
+    'http://user:password@127.0.0.1:4173/#games'
+  ];
+  for (const value of credentialUrls)
+    assert.equal(isAllowedTopLevelURL(value, DEV_URL), false, value);
+  assert.equal(isAllowedTopLevelURL('http://127.0.0.1:4173/#games', DEV_URL), true);
+});
+test('a credential-bearing approval parameter cannot turn an authentication URL into a trusted entry', () => {
+  const credentialEntry = 'http://admin:password@127.0.0.1:4173/';
+  assert.equal(isAllowedTopLevelURL(credentialEntry, credentialEntry), false);
+  assert.equal(isAllowedTopLevelURL(DEV_URL, credentialEntry), false);
+});
+test('bundled file document retains same-file hash navigation and rejects separate documents', () => {
+  const entry = 'file:///tmp/omsi-manager/dist/index.html';
+  assert.equal(isAllowedTopLevelURL(entry+'#games',entry),true);
+  assert.equal(isAllowedTopLevelURL('file:///tmp/omsi-manager/dist/index.html?auth=test',entry),false);
+  assert.equal(isAllowedTopLevelURL('file:///tmp/omsi-manager/dist/other.html',entry),false);
+});

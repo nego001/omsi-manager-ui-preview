@@ -16,6 +16,11 @@ function isAllowedTopLevelURL(candidate, approvedEntryURL) {
     const target = new URL(candidate);
     const approved = new URL(approvedEntryURL);
     return target.protocol === approved.protocol &&
+      // The approved dev/file entry never carries URL userinfo. Without this,
+      // http://user:password@127.0.0.1:4173/ would pass the host/path check.
+      // Credential-bearing URLs are not the approved entry document.
+      target.username === '' && target.password === '' &&
+      approved.username === '' && approved.password === '' &&
       target.hostname === approved.hostname &&
       target.port === approved.port &&
       target.pathname === approved.pathname &&
