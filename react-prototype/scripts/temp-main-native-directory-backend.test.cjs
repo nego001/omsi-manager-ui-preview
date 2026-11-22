@@ -197,8 +197,10 @@ test('a valid injected native witness traverses main executor only as auxiliary'
  const executor=createInspectionExecutor({
   platform:'win32',requireNative:true,nativeProbe:native,
   inspect:async(_root,game)=>({
-   status:'ok',game,mode:'read-only',groups:[],
-   assessment:{compatibilityVerified:false,installationVerified:false}
+   status:'ok',game,mode:'read-only',
+   groups:[{key:'vehicles',found:true,count:1}],
+   assessment:{scope:'directory-structure-only',
+    compatibilityVerified:false,installationVerified:false}
   })
  });
  const r=await executor.inspectSelectedDirectory(f.root,'omsi');
@@ -214,8 +216,10 @@ test('main grant rejects wrong webContents before launching a native subprocess'
  const executor=createInspectionExecutor({
   platform:'win32',requireNative:true,nativeProbe:native,
   inspect:async(_root,game)=>({
-   status:'ok',game,mode:'read-only',groups:[],
-   assessment:{compatibilityVerified:false,installationVerified:false}
+   status:'ok',game,mode:'read-only',
+   groups:[{key:'vehicles',found:true,count:1}],
+   assessment:{scope:'directory-structure-only',
+    compatibilityVerified:false,installationVerified:false}
   })
  });
  const gate=createInspectionGrantGate({inspect:executor.inspectSelectedDirectory});
