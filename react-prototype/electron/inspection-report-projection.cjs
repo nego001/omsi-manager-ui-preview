@@ -33,7 +33,11 @@ function projectInspectionReport(report,game){
  const expected=GAME_GROUPS[game];
  if(!Array.isArray(srcGroups)||srcGroups.length<1||
     srcGroups.length>expected.length)fail();
- const groups=srcGroups.map((source,i)=>{
+ const groups=[];
+ for(let i=0;i<srcGroups.length;i++){
+  // Numeric array indices must also be own data descriptors. Array.map()
+  // would invoke a forged getter on index 0 before our checks.
+  const source=own(srcGroups,String(i));
   if(!plain(source)||own(source,'key')!==expected[i].key)fail();
   const found=bool(source,'found'),count=number(source,'count');
   const limited=bool(source,'limited',true);
@@ -45,8 +49,8 @@ function projectInspectionReport(report,game){
   if(packageCandidates>files||directories>count||files>count||
      others>count||linksSkipped>MAX_ENTRIES_PER_GROUP)fail();
   return {key:expected[i].key,name:expected[i].name,found,count,limited,
-   directories,files,packageCandidates,linksSkipped,others};
- });
+   directories,files,packageCandidates,linksSkipped,others});
+ }
  const assessment=own(report,'assessment');
  if(!plain(assessment)||own(assessment,'scope')!=='directory-structure-only'||
     own(assessment,'compatibilityVerified')!==false||
