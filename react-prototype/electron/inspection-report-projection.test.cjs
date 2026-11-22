@@ -91,3 +91,12 @@ test('real group and notice schemas retain UI-facing fixed fields',()=>{
  assert.ok(out.notices.some(n=>n.code==='mods-not-verified'));
  assert.equal(out.assessment.compatibilityVerified,false);
 });
+
+test('group array index getters are refused without invocation',()=>{
+ const report=source();
+ let reads=0;
+ Object.defineProperty(report.groups,'0',{configurable:true,
+  get(){reads++;throw Error('PRIVATE SYNTHETIC');}});
+ assert.throws(()=>project(report,'omsi'),/Relatório de inspeção inválido/);
+ assert.equal(reads,0);
+});
