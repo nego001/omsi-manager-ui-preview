@@ -116,7 +116,14 @@ try{
  assert.equal(ordinaryIPC.folderName,ordinaryLabel);
  assert.equal(ordinaryIPC.groups[0].count,1);
  assert.equal(JSON.stringify(ordinaryIPC).includes(ordinaryFolder),false);
+ // Restore the original *UI* inspection, not merely the mocked picker.
+ // Later consolidated-report assertions intentionally expect 2 Vehicles +
+ // 1 Map. Patching the dialog alone leaves React's last report unchanged.
  await application.evaluate(patch,{canceled:false,filePaths:[sample]});
+ await window.locator('.inspection-game').first()
+  .getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
+ await window.locator('.inspection-game').first().locator('.inspection-result')
+  .getByText(/sample-omsi/).waitFor({timeout:15000});
  console.log('PASS_M64_REAL_ELECTRON_UNICODE_LABEL_IPC_AND_UI');
 
  // The native portal may fail with private paths or provider details.
