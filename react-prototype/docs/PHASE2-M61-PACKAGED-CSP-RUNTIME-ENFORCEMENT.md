@@ -15,19 +15,28 @@ renderer has loaded and rendered the welcome heading. The test:
 1. Requires the exact CSP string from the renderer DOM's policy meta tag.
 2. Appends an inert synthetic inline `script` that would set a marker if
    executed. The marker **must not** be set.
-3. Uses a synthetic `Function('return 37')` expression; it must be blocked
-   by the absence of `unsafe-eval`.
-4. Attempts to `fetch()` a harmless `data:text/plain` URL. That must be
+3. Attempts to `fetch()` a harmless `data:text/plain` URL. That must be
    denied by `connect-src 'none'`, without any network request.
 
 Any deviation fails the existing mandatory Windows/Linux packaged smoke.
 Three offline unit/contract tests also reject false-positive reports and
 verify integration in both packaged test paths.
 
-Playwright's `evaluate()` by itself is privileged instrumentation; no
-claim is made that CSP blocks DevTools evaluation. We test actual DOM
-script execution, Function compilation and resource fetch performed *inside*
-the renderer. No actual injection from an attacker is attempted.
+**Correction after the first Windows CI run:** the original probe used
+`Function('return 37')` inside Playwright's privileged `evaluate()`.
+That call **executed** even though inline script injection and the
+forbidden fetch were both blocked and the exact CSP was present.
+Playwright/CDP evaluation is not a trustworthy ordinary page-script
+context for measuring `unsafe-eval`. Treating its result as CSP
+enforcement proof is invalid, so the runtime probe was removed, not
+silenced or marked passing. The packaged CSP still explicitly omits
+`unsafe-eval`, and the M60 unit/build tests verify that textual policy.
+
+The live tests now assert **only two browser-managed behaviors**: inline
+DOM script rejection and blocked `fetch`, alongside the exact meta
+policy check. A future independent non-DevTools page-script harness would
+be required to claim dynamic code compilation is blocked at runtime.
+No actual attacker-origin injection is attempted.
 
 ## Limits
 
