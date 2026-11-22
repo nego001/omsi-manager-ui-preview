@@ -173,3 +173,63 @@ test('unchanged real hierarchy keeps standard counters and read-only assessment'
  assert.equal(report.mode,'read-only');
  assert.equal(JSON.stringify(report).includes(root),false);
 });
+
+// M66: a refused filesystem lookup must never be mistaken for a missing
+// optional game directory. All paths and files below are synthetic.
+// Compare the expected group basename within this disposable-only fake fs.
+// Windows realpath() may canonicalize the root's casing or path prefix.
+test('permission denied at initial group lstat aborts rather than reporting absent',async(t)=>{
+ const root=await fixture(t);
+ await fsp.mkdir(path.join(root,'Vehicles'));
+ await fsp.mkdir(path.join(root,'maps'));
+ for(const code of ['EACCES','EPERM']){
+  let reads=0;
+  const fake={...fsp,lstat:async(folder,opts)=>{
+   if(path.basename(folder).toLowerCase()==='vehicles'){
+    reads++;
+    throw Object.assign(Error('PRIVATE_SYNTHETIC_DENIED_PATH'),{code});
+   }
+   return fsp.lstat(folder,opts);
+  }};
+  await assert.rejects(createGameDirectoryInspector(fake)(root,'omsi'),
+   err=>err?.code===code&&reads>=1);
+ }
+});
+test('a denied direct group counter refuses instead of returning zero entries',async(t)=>{
+ const root=await fixture(t);
+ const folder=path.join(root,'mod');await fsp.mkdir(folder);
+ for(const code of ['EACCES','EPERM']){
+  let read=0;
+  const fake={...fsp,lstat:async(target,options)=>{
+   if(target===folder){
+    read++;
+    throw Object.assign(Error('PRIVATE_SYNTHETIC_DENIED_PATH'),{code});
+   }
+   return fsp.lstat(target,options);
+  }};
+  await assert.rejects(createDirectoryCounter(fake)(folder),
+   err=>err?.code===code&&read===1);
+ }
+});
+test('permission denied during opendir is not silently converted to an absent group',async(t)=>{
+ const root=await fixture(t);
+ await fsp.mkdir(path.join(root,'Vehicles'));
+ for(const code of ['EACCES','EPERM']){
+  const fake={...fsp,opendir:async(folder,...args)=>{
+   if(path.basename(folder).toLowerCase()==='vehicles')
+    throw Object.assign(Error('PRIVATE_SYNTHETIC_OPEN_DENIED'),{code});
+   return fsp.opendir(folder,...args);
+  }};
+  await assert.rejects(createGameDirectoryInspector(fake)(root,'omsi'),
+   err=>err?.code===code);
+ }
+});
+test('genuinely absent or non-directory group paths remain informational',async(t)=>{
+ const root=await fixture(t);
+ await fsp.writeFile(path.join(root,'maps'),'SYNTHETIC_NOT_A_DIRECTORY');
+ const report=await createGameDirectoryInspector()(root,'omsi');
+ assert.equal(report.groups[0].found,false);
+ assert.equal(report.groups[1].found,false);
+ assert.equal(report.recognized,false);
+ assert.ok(report.notices.some(n=>n.code==='no-known-folders'));
+});
