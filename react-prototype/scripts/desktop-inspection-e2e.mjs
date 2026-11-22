@@ -339,6 +339,103 @@ try{
  assert.deepEqual(recovered,{status:'cancelled'});
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),
   'DO_NOT_MODIFY');
+
+ // M67: real Electron main-process filesystem I/O is deliberately suspended
+ // inside an already-authorized metadata scan, then its owning renderer is
+ // genuinely reloaded. This is a test-only patch of node:fs/promises,
+ // confined to a disposable synthetic directory; restore it before recovery.
+ await application.evaluate(({dialog},payload)=>{
+  const fsp=process.getBuiltinModule('node:fs/promises');
+  if(!fsp||typeof fsp.opendir!=='function')throw Error('m67-fs-module-unavailable');
+  if(globalThis.__omsiM67OriginalOpendir)throw Error('m67-already-installed');
+  const original=fsp.opendir;
+  globalThis.__omsiM67OriginalOpendir=original;
+  globalThis.__omsiM67PauseReached=false;
+  globalThis.__omsiM67PauseRelease=null;
+  globalThis.__omsiM67IteratorStarts=0;
+  globalThis.__omsiM67CloseCalls=0;
+  let intercepted=false;
+  fsp.opendir=async function(folder,...args){
+   if(!intercepted&&folder===payload.vehicleFolder){
+    intercepted=true;
+    globalThis.__omsiM67PauseReached=true;
+    await new Promise(resolve=>{globalThis.__omsiM67PauseRelease=resolve;});
+    const handle=await original.call(fsp,folder,...args);
+    return {
+     [Symbol.asyncIterator](){
+      globalThis.__omsiM67IteratorStarts++;
+      return handle[Symbol.asyncIterator]();
+     },
+     async close(){
+      globalThis.__omsiM67CloseCalls++;
+      return handle.close();
+     }
+    };
+   }
+   return original.call(fsp,folder,...args);
+  };
+  dialog.showOpenDialog=async()=>({canceled:false,filePaths:[payload.sample]});
+ },{sample,vehicleFolder:join(sample,'Vehicles')});
+ const m67OldReply=window.evaluate(()=>window.omsiPreview.inspectGame('omsi'))
+  .then(()=> 'old-document-reply',()=> 'old-document-destroyed');
+ await application.evaluate(async()=>{
+  for(let n=0;n<200;n++){
+   if(globalThis.__omsiM67PauseReached&&
+      typeof globalThis.__omsiM67PauseRelease==='function')return;
+   await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  throw Error('m67-real-scanner-never-paused');
+ });
+ await window.reload({waitUntil:'load',timeout:30000});
+ await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
+  .waitFor({timeout:15000});
+ // Main-process one-flight guard must still block a new scan while the old
+ // opendir is held, even though the old renderer document has been destroyed.
+ const m67Blocked=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(m67Blocked,{status:'error',
+  message:'Já existe uma inspeção em andamento.'});
+ const m67Released=await application.evaluate(()=>{
+  const fsp=process.getBuiltinModule('node:fs/promises');
+  const original=globalThis.__omsiM67OriginalOpendir;
+  const release=globalThis.__omsiM67PauseRelease;
+  if(typeof original!=='function'||typeof release!=='function')
+   throw Error('m67-release-state-missing');
+  fsp.opendir=original;
+  delete globalThis.__omsiM67OriginalOpendir;
+  delete globalThis.__omsiM67PauseRelease;
+  release();
+  return true;
+ });
+ assert.equal(m67Released,true);
+ assert.equal(await m67OldReply,'old-document-destroyed');
+ await application.evaluate(async()=>{
+  for(let n=0;n<200;n++){
+   if(globalThis.__omsiM67CloseCalls===1)return;
+   await new Promise(resolve=>setTimeout(resolve,20));
+  }
+  throw Error('m67-aborted-directory-not-closed');
+ });
+ const m67State=await application.evaluate(()=>({
+  iteratorStarts:globalThis.__omsiM67IteratorStarts,
+  closes:globalThis.__omsiM67CloseCalls
+ }));
+ assert.deepEqual(m67State,{iteratorStarts:0,closes:1},
+  'cancelled scan must close its directory without enumerating entries');
+ let m67Recovered;
+ for(let n=0;n<100;n++){
+  m67Recovered=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+  if(m67Recovered.status==='ok')break;
+  assert.deepEqual(m67Recovered,{status:'error',
+   message:'Já existe uma inspeção em andamento.'});
+  await new Promise(resolve=>setTimeout(resolve,20));
+ }
+ assert.equal(m67Recovered.status,'ok');
+ assert.equal(m67Recovered.groups[0].count,2);
+ assert.equal(m67Recovered.groups[1].count,1);
+ assert.equal(m67Recovered.provenance.operationsEnabled,false);
+ assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),
+  'DO_NOT_MODIFY');
+ console.log('PASS_M67_REAL_ELECTRON_ABORTED_METADATA_SCAN_AND_RECOVERY');
  console.log('Native folder IPC E2E: OK. Synthetic epoch notification, actual hash navigation and real reload recovery.');
 }finally{
  await application?.close();

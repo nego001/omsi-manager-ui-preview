@@ -31,6 +31,27 @@ main wiring, revoked one-shot grants, a slow scanner resolving after abort,
 root lookup cancellation, and cancellation during actual async entry
 iteration with descriptor cleanup and untouched synthetic file content.
 
+## Real Electron IPC / reload regression
+
+The existing `desktop-inspection-e2e.mjs` now temporarily intercepts
+`node:fs/promises.opendir` **only inside the test Electron main process**
+for a disposable `Vehicles` fixture. It pauses an already-authorized
+metadata scan, performs an actual renderer `window.reload()`, confirms a
+new renderer request is blocked by the one-flight guard while the old
+scan remains pending, and releases the paused directory opening.
+
+The cancelled old document never receives a reply; the main scanner
+closes the returned directory descriptor without starting entry
+enumeration. The test restores the original `opendir` before issuing a
+new inspection, checks normal OMSI counts and confirms a synthetic
+`.bus` sentinel remains untouched. The test marker is
+`PASS_M67_REAL_ELECTRON_ABORTED_METADATA_SCAN_AND_RECOVERY`.
+
+The interception is not included in production. This proves specific
+Electron/main-process cancellation and cleanup paths, **not** forceful
+interruption of a hung kernel I/O call, a real OS-native folder portal,
+atomic pathname containment or Ubuntu24 Chromium sandbox confinement.
+
 This is **cooperative best-effort cancellation**, not immediate OS I/O
 interruption. A stalled `lstat`/`opendir` syscall may remain pending
 until it settles. This does **not** prove atomic directory-handle-based
