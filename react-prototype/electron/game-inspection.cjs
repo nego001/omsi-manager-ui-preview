@@ -3,7 +3,9 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const MAX_ENTRIES_PER_GROUP = 2000;
-const MISSING_CODES = Object.freeze(['ENOENT','ENOTDIR','EACCES','EPERM']);
+// Only true absence is an absent group. Permission denial must abort an
+// incomplete scan, not silently claim that the game folder is missing.
+const MISSING_CODES = Object.freeze(['ENOENT','ENOTDIR']);
 
 // Comparing the same pathname at multiple checkpoints detects many races.
 // It is NOT an atomic directory handle: in particular, ABA is still possible.
