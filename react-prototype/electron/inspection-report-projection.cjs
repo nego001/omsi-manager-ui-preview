@@ -46,8 +46,17 @@ function projectInspectionReport(report,game){
   const packageCandidates=number(source,'packageCandidates',true);
   const linksSkipped=number(source,'linksSkipped',true);
   const others=number(source,'others',true);
-  if(packageCandidates>files||directories>count||files>count||
-     others>count||linksSkipped>MAX_ENTRIES_PER_GROUP)fail();
+  // M63: avoid contradictory numeric reports. The scanner's count omits
+  // symlinks but equals the sum of regular directories, files and "others".
+  // Legacy injected test stubs may omit some breakdown properties; for a
+  // complete scanner breakdown, equality is mandatory.
+  const classified=directories+files+others;
+  const complete=['directories','files','others']
+   .every(key=>Object.hasOwn(source,key));
+  if(packageCandidates>files||classified>count||
+     (complete&&classified!==count)||
+     (expected[i].key!=='mods'&&packageCandidates!==0)||
+     (!found&&(count!==0||limited||linksSkipped!==0)))fail();
   groups.push({key:expected[i].key,name:expected[i].name,found,count,limited,
    directories,files,packageCandidates,linksSkipped,others});
  }

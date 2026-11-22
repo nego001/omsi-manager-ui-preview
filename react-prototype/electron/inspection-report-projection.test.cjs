@@ -100,3 +100,55 @@ test('group array index getters are refused without invocation',()=>{
  assert.throws(()=>project(report,'omsi'),/Relatório de inspeção inválido/);
  assert.equal(reads,0);
 });
+
+
+test('full scanner breakdown must match the bounded counted entries',()=>{
+ const report=source('ets2');
+ Object.assign(report.groups[0],{
+  count:3,directories:1,files:1,others:1,
+  linksSkipped:2,packageCandidates:1
+ });
+ const good=project(report,'ets2');
+ assert.equal(good.groups[0].count,3);
+ assert.equal(good.groups[0].linksSkipped,2);
+ report.groups[0].count=4;
+ assert.throws(()=>project(report,'ets2'),/Relatório de inspeção inválido/);
+});
+test('partial counters cannot exceed total and OMSI non-mod groups never claim packages',()=>{
+ for(const mutate of [
+  r=>{r.groups[0].directories=1;},
+  r=>{r.groups[0].others=2;},
+  r=>{r.groups[0].packageCandidates=1;}
+ ]){
+  const report=source('omsi');
+  mutate(report);
+  assert.throws(()=>project(report,'omsi'),/Relatório de inspeção inválido/);
+ }
+});
+test('missing folders cannot claim entries, symlink skips or truncation',()=>{
+ for(const mutate of [
+  r=>{r.groups[0].count=1;},
+  r=>{r.groups[0].limited=true;},
+  r=>{r.groups[0].linksSkipped=1;},
+  r=>{r.groups[0].files=1;}
+ ]){
+  const report=source();
+  Object.assign(report.groups[0],{found:false,count:0,files:0,packageCandidates:0});
+  report.recognized=false;
+  mutate(report);
+  assert.throws(()=>project(report,'omsi'),/Relatório de inspeção inválido/);
+ }
+});
+test('a present directory with only skipped symlinks remains a legitimate partial count',()=>{
+ const report=source('ets2');
+ Object.assign(report.groups[0],{
+  found:true,count:0,directories:0,files:0,others:0,
+  packageCandidates:0,linksSkipped:2,limited:true
+ });
+ report.limited=true;
+ const result=project(report,'ets2');
+ assert.equal(result.groups[0].count,0);
+ assert.equal(result.groups[0].linksSkipped,2);
+ assert.ok(result.notices.some(n=>n.code==='links-skipped'));
+ assert.ok(result.notices.some(n=>n.code==='partial-count'));
+});
