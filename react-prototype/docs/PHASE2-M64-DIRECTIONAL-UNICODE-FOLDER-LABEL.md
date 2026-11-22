@@ -25,6 +25,12 @@ mod installation or code execution is claimed.
   M62 policy, as before.
 - Four adversarial tests cover bidi overrides, normal Unicode,
   split surrogates and full executor output.
+- The real Electron IPC E2E now creates a disposable directory whose
+  basename embeds a right-to-left override, lets the mock native picker
+  choose it, and checks the scanner result, on-screen text and an
+  untouched synthetic .bus sentinel. The same test checks ordinary
+  accented/emoji names and that absolute paths remain hidden.
+  This is a genuine desktop IPC/UI regression, not a real OS portal test.
 
 ## Limits / gates
 A conservative list of spoofing controls does not establish that every
