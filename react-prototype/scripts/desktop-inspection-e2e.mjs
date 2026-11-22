@@ -80,6 +80,52 @@ try{
  assert.ok(!JSON.stringify(safeResult).includes(root),'Must not expose absolute paths');
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
 
+ // M64: exercise the real Electron main-owned scanner and IPC projection
+ // using an intentionally deceptive Unicode folder name. The native picker
+ // is mocked, and every path is confined to our disposable test directory.
+ const deceptiveLabel='omsi-\u202Egpj.exe';
+ const deceptiveFolder=join(root,deceptiveLabel);
+ const deceptiveSentinel=join(deceptiveFolder,'Vehicles','Synthetic Bus','do-not-change.bus');
+ await mkdir(join(deceptiveFolder,'Vehicles','Synthetic Bus'),{recursive:true});
+ await writeFile(deceptiveSentinel,'M64_SYNTHETIC_UNCHANGED','utf8');
+ await application.evaluate(patch,{canceled:false,filePaths:[deceptiveFolder]});
+ const deceptiveIPC=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.equal(deceptiveIPC.status,'ok');
+ assert.equal(deceptiveIPC.folderName,'Nome da pasta ocultado por segurança');
+ assert.equal(deceptiveIPC.groups[0].count,1);
+ assert.equal(deceptiveIPC.provenance.canInstall,false);
+ assert.equal(deceptiveIPC.assessment.installationVerified,false);
+ assert.equal(JSON.stringify(deceptiveIPC).includes(deceptiveFolder),false);
+ assert.equal(JSON.stringify(deceptiveIPC).includes(deceptiveLabel),false);
+ // The visible UI must display only the projected label, not the spoofed
+ // basename, even after a real button -> Electron IPC -> main scan cycle.
+ await window.locator('.inspection-game').first()
+  .getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
+ const deceptivePanel=window.locator('.inspection-game').first().locator('.inspection-result');
+ await deceptivePanel.getByText(/Nome da pasta ocultado por segurança/).waitFor({timeout:15000});
+ assert.equal((await deceptivePanel.innerText()).includes(deceptiveLabel),false);
+ assert.equal(await readFile(deceptiveSentinel,'utf8'),'M64_SYNTHETIC_UNCHANGED');
+
+ // Ordinary Unicode must remain intact after the same real IPC boundary.
+ const ordinaryLabel='Ônibus da Serra 🚌';
+ const ordinaryFolder=join(root,ordinaryLabel);
+ await mkdir(join(ordinaryFolder,'Vehicles','Synthetic Bus'),{recursive:true});
+ await application.evaluate(patch,{canceled:false,filePaths:[ordinaryFolder]});
+ const ordinaryIPC=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.equal(ordinaryIPC.status,'ok');
+ assert.equal(ordinaryIPC.folderName,ordinaryLabel);
+ assert.equal(ordinaryIPC.groups[0].count,1);
+ assert.equal(JSON.stringify(ordinaryIPC).includes(ordinaryFolder),false);
+ // Restore the original *UI* inspection, not merely the mocked picker.
+ // Later consolidated-report assertions intentionally expect 2 Vehicles +
+ // 1 Map. Patching the dialog alone leaves React's last report unchanged.
+ await application.evaluate(patch,{canceled:false,filePaths:[sample]});
+ await window.locator('.inspection-game').first()
+  .getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
+ await window.locator('.inspection-game').first().locator('.inspection-result')
+  .getByText(/sample-omsi/).waitFor({timeout:15000});
+ console.log('PASS_M64_REAL_ELECTRON_UNICODE_LABEL_IPC_AND_UI');
+
  // The native portal may fail with private paths or provider details.
  // The renderer must receive only a fixed, path-free IPC error and recover.
  await application.evaluate(({dialog})=>{

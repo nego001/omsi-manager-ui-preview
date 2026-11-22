@@ -152,3 +152,48 @@ test('a present directory with only skipped symlinks remains a legitimate partia
  assert.ok(result.notices.some(n=>n.code==='links-skipped'));
  assert.ok(result.notices.some(n=>n.code==='partial-count'));
 });
+
+test('directional Unicode controls are replaced only in the displayed folder label',()=>{
+ for(const label of [
+  'Normal\u202Egpj.exe',
+  'simulador\u202ATeste',
+  '\u2067mapas\u2069',
+  'ABC\u200E folder',
+  'ABC\u200F folder',
+  'ABC\u061C folder',
+  'ABC\u2028hidden',
+  'ABC\u2029hidden',
+  '\uFEFFsimulador'
+ ]){
+  const report=source('omsi');
+  report.folderName=label;
+  const projected=project(report,'omsi');
+  assert.equal(projected.folderName,'Nome da pasta ocultado por segurança');
+  assert.equal(projected.groups[0].count,1);
+  assert.equal(projected.mode,'read-only');
+  assert.equal(JSON.stringify(projected).includes(label),false);
+ }
+});
+test('ordinary Unicode accents, Arabic names and complete emoji remain visible',()=>{
+ for(const label of ['Ônibus da Serra','ملفات النقل','Mapa 🚌 RJ','Arquivo-中文']){
+  const report=source();
+  report.folderName=label;
+  assert.equal(project(report,'omsi').folderName,label);
+ }
+});
+test('a split UTF-16 surrogate is never echoed to renderer while counts remain',()=>{
+ const report=source('ets2');
+ report.folderName='A\uD83D';
+ const out=project(report,'ets2');
+ assert.equal(out.folderName,'Nome da pasta ocultado por segurança');
+ assert.equal(out.groups[0].packageCandidates,1);
+});
+test('full IPC executor projects a synthetic bidi label without exposing original',async()=>{
+ const report=source();
+ report.folderName='Bus\u202Etest';
+ const executor=createInspectionExecutor({inspect:async()=>report});
+ const result=await executor.inspectSelectedDirectory(selected,'omsi');
+ assert.equal(result.folderName,'Nome da pasta ocultado por segurança');
+ assert.equal(result.provenance.canInstall,false);
+ assert.equal(JSON.stringify(result).includes(report.folderName),false);
+});

@@ -70,13 +70,25 @@ function projectInspectionReport(report,game){
  const folder=own(report,'folderName',false);
  if(folder!==undefined&&(typeof folder!=='string'||folder.length>100||
     /[\\/\x00-\x1f\x7f]/.test(folder)))fail();
+ // M64: Unicode directional controls can visually rewrite a folder label
+ // (e.g. disguise a .zip suffix). Never echo these controls into the UI.
+ // Hide the display label only; do NOT reject or change the selected folder,
+ // its inspection counts, or the filesystem path held privately by main.
+ const directionalControls=/[\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069\ufeff]/u;
+ const malformedUtf16=typeof folder==='string'&&[...folder].some(ch=>{
+   const point=ch.codePointAt(0);
+   return point>=0xd800&&point<=0xdfff;
+ });
+ const safeFolder=folder===undefined?'':(
+   directionalControls.test(folder)||malformedUtf16
+    ?'Nome da pasta ocultado por segurança':folder);
  const recognized=groups.some(g=>g.found),limited=groups.some(g=>g.limited);
  const originalRecognized=own(report,'recognized',false);
  const originalLimited=own(report,'limited',false);
  if(originalRecognized!==undefined&&originalRecognized!==recognized)fail();
  if(originalLimited!==undefined&&originalLimited!==limited)fail();
  return {
-  status:'ok',game,folderName:folder??'',recognized,groups,
+  status:'ok',game,folderName:safeFolder,recognized,groups,
   notices:getInspectionNotices(game,groups,mode),selectionMode:mode,
   assessment:{scope:'directory-structure-only',
    compatibilityVerified:false,installationVerified:false,summary},
