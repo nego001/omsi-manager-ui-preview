@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import { _electron as electron } from 'playwright';
@@ -31,6 +31,45 @@ try{
  const patch=async({dialog},response)=>{
   dialog.showOpenDialog=async()=>response;
  };
+ // M65: only disposable targets and a mocked picker are used. Selecting a
+ // symlinked ROOT must never authorize a scan or disclose the target path.
+ const syntheticRootLink=join(root,'m65-symlinked-root');
+ await symlink(etsSample,syntheticRootLink,'dir');
+ await application.evaluate(patch,{canceled:false,filePaths:[syntheticRootLink]});
+ const rootLinkReply=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(rootLinkReply,{
+  status:'error',message:'Não foi possível inspecionar essa pasta.'
+ });
+ assert.equal(JSON.stringify(rootLinkReply).includes(root),false);
+ assert.equal(JSON.stringify(rootLinkReply).includes('m65-symlinked-root'),false);
+
+ // A symbolic link at a KNOWN group location must not be followed to
+ // enumerate a different directory. This is a distinct case from root-link.
+ const nestedRoot=join(root,'m65-nested-link-test');
+ await mkdir(nestedRoot);
+ await symlink(etsSample,join(nestedRoot,'Vehicles'),'dir');
+ await application.evaluate(patch,{canceled:false,filePaths:[nestedRoot]});
+ const nestedReply=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.equal(nestedReply.status,'ok');
+ assert.equal(nestedReply.groups[0].key,'vehicles');
+ assert.equal(nestedReply.groups[0].found,false);
+ assert.equal(nestedReply.groups[0].count,0);
+ assert.equal(nestedReply.recognized,false);
+ assert.equal(nestedReply.assessment.installationVerified,false);
+ assert.ok(nestedReply.notices.some(n=>n.code==='no-known-folders'));
+ assert.equal(JSON.stringify(nestedReply).includes(etsSample),false);
+ assert.equal(JSON.stringify(nestedReply).includes(root),false);
+
+ // Both link cases must leave the legitimate temporary game folder usable.
+ await application.evaluate(patch,{canceled:false,filePaths:[sample]});
+ const recoveredLinkScan=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.equal(recoveredLinkScan.status,'ok');
+ assert.equal(recoveredLinkScan.groups[0].count,2);
+ assert.equal(recoveredLinkScan.groups[1].count,1);
+ assert.equal(recoveredLinkScan.provenance.operationsEnabled,false);
+ assert.equal(await readFile(join(etsSample,'mod','heavy_sound.SCS'),'utf8'),'SCS_SENTINEL');
+ assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
+ console.log('PASS_M65_ELECTRON_IPC_SYMLINK_DENIAL_RECOVERY');
  await application.evaluate(patch,{canceled:false,filePaths:[sample]});
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
  await window.locator('.inspection-game').first().getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
