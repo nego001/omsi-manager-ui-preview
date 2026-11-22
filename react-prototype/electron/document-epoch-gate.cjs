@@ -4,19 +4,26 @@
 // renderer-controlled token, URL or process ID.
 function createDocumentEpochGate() {
   let current = Object.freeze({});
+  let controller = new AbortController();
   let revoked = false;
   function snapshot() { return revoked ? null : current; }
   function isCurrent(proof) { return !revoked && proof !== null && proof === current; }
+  // This signal is main-process-only and tied to the same opaque epoch proof.
+  // New documents receive a fresh signal; the retired one stays aborted.
+  function signalFor(proof) { return isCurrent(proof) ? controller.signal : null; }
   function invalidate() {
     if (revoked) return false;
+    controller.abort();
+    controller = new AbortController();
     current = Object.freeze({});
     return true;
   }
   function revoke() {
+    if (!revoked) controller.abort();
     revoked = true;
     current = null;
   }
-  return Object.freeze({snapshot,isCurrent,invalidate,revoke});
+  return Object.freeze({snapshot,isCurrent,signalFor,invalidate,revoke});
 }
 // Electron 38 provides a navigation details Event with these two booleans.
 // Missing/malformed evidence is treated as a document change, never as consent.

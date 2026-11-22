@@ -83,3 +83,28 @@ test('the gate has no IO, host policy mutation, Electron dependency or private l
     'exec(','writeFile','console.','sysctl','apparmor_parser','--no-sandbox'])
     assert.equal(source.includes(forbidden),false,forbidden);
 });
+
+test('navigation aborts old work and grants a fresh signal to the next document',()=>{
+ const gate=makeGate(),proof=gate.snapshot(),signal=gate.signalFor(proof);
+ assert.equal(signal.aborted,false);
+ gate.invalidate();
+ assert.equal(signal.aborted,true);
+ assert.equal(gate.signalFor(proof),null);
+ const next=gate.snapshot(),fresh=gate.signalFor(next);
+ assert.equal(fresh.aborted,false);
+ assert.notStrictEqual(fresh,signal);
+ gate.revoke();
+ assert.equal(fresh.aborted,true);
+ assert.equal(gate.signalFor(next),null);
+});
+test('same-document navigation does not rotate or abort the inspection signal',()=>{
+ const gate=makeGate(),proof=gate.snapshot(),signal=gate.signalFor(proof);
+ if(should({isMainFrame:true,isSameDocument:true}))gate.invalidate();
+ assert.strictEqual(gate.signalFor(proof),signal);
+ assert.equal(signal.aborted,false);
+});
+test('main passes a document-owned cancellation signal to one-shot scanner grants',()=>{
+ const source=readFileSync(join(__dirname,'main.cjs'),'utf8');
+ assert.match(source,/documentEpoch\?\.signalFor\(documentProof\)/);
+ assert.match(source,/inspectOnce\(grant, senderId, gameId, documentSignal\)/);
+});
