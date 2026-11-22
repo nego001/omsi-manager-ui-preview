@@ -48,7 +48,7 @@ function projectInspectionReport(report,game){
   const others=number(source,'others',true);
   if(packageCandidates>files||directories>count||files>count||
      others>count||linksSkipped>MAX_ENTRIES_PER_GROUP)fail();
-  return {key:expected[i].key,name:expected[i].name,found,count,limited,
+  groups.push({key:expected[i].key,name:expected[i].name,found,count,limited,
    directories,files,packageCandidates,linksSkipped,others});
  }
  const assessment=own(report,'assessment');
