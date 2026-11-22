@@ -176,6 +176,8 @@ test('unchanged real hierarchy keeps standard counters and read-only assessment'
 
 // M66: a refused filesystem lookup must never be mistaken for a missing
 // optional game directory. All paths and files below are synthetic.
+// Compare the expected group basename within this disposable-only fake fs.
+// Windows realpath() may canonicalize the root's casing or path prefix.
 test('permission denied at initial group lstat aborts rather than reporting absent',async(t)=>{
  const root=await fixture(t);
  await fsp.mkdir(path.join(root,'Vehicles'));
@@ -183,7 +185,7 @@ test('permission denied at initial group lstat aborts rather than reporting abse
  for(const code of ['EACCES','EPERM']){
   let reads=0;
   const fake={...fsp,lstat:async(folder,opts)=>{
-   if(folder===path.join(root,'Vehicles')){
+   if(path.basename(folder).toLowerCase()==='vehicles'){
     reads++;
     throw Object.assign(Error('PRIVATE_SYNTHETIC_DENIED_PATH'),{code});
    }
@@ -214,7 +216,7 @@ test('permission denied during opendir is not silently converted to an absent gr
  await fsp.mkdir(path.join(root,'Vehicles'));
  for(const code of ['EACCES','EPERM']){
   const fake={...fsp,opendir:async(folder,...args)=>{
-   if(folder===path.join(root,'Vehicles'))
+   if(path.basename(folder).toLowerCase()==='vehicles')
     throw Object.assign(Error('PRIVATE_SYNTHETIC_OPEN_DENIED'),{code});
    return fsp.opendir(folder,...args);
   }};
