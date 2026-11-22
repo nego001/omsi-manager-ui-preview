@@ -7,6 +7,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
+import {verifyPackagedCSPRuntime} from './verify-packaged-csp-runtime.mjs';
 import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
 import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
 import {createM47RendererReference} from './auto-x11-m47-renderer-reference.mjs';
@@ -142,6 +143,7 @@ try{
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'})
   .waitFor({timeout:30000});
+ await verifyPackagedCSPRuntime(window);
  // Inspect the OS renderer process selected by Electron's trusted main process,
  // not a title match or a synthetic setting. Read /proc only, no policy edits.
  const rendererSample=await application.evaluate(({BrowserWindow,app})=>{
