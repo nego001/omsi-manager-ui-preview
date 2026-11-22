@@ -233,3 +233,51 @@ test('genuinely absent or non-directory group paths remain informational',async(
  assert.equal(report.recognized,false);
  assert.ok(report.notices.some(n=>n.code==='no-known-folders'));
 });
+
+test('a cancelled scan never begins a directory lookup',async(t)=>{
+ const root=await fixture(t);
+ let lstatCalls=0;
+ const controller=new AbortController();
+ controller.abort();
+ const scanner=createGameDirectoryInspector({...fsp,lstat:async(...args)=>{
+  lstatCalls++;return fsp.lstat(...args);
+ }});
+ await assert.rejects(scanner(root,'omsi',controller.signal),/Inspeção cancelada/);
+ assert.equal(lstatCalls,0);
+});
+test('cancellation after an awaited metadata lookup refuses all counts',async(t)=>{
+ const root=await fixture(t);
+ const controller=new AbortController();
+ const scanner=createGameDirectoryInspector({...fsp,lstat:async(...args)=>{
+  const result=await fsp.lstat(...args);
+  controller.abort();
+  return result;
+ }});
+ await assert.rejects(scanner(root,'omsi',controller.signal),/Inspeção cancelada/);
+});
+test('cancellation during async entry enumeration rejects partial output and closes directory',async(t)=>{
+ const root=await fixture(t),folder=path.join(root,'mod');
+ await fsp.mkdir(folder);
+ await fsp.writeFile(path.join(folder,'one.scs'),'M67_SYNTHETIC_DO_NOT_READ');
+ const controller=new AbortController();
+ let opened=0,closed=0;
+ const counter=createDirectoryCounter({...fsp,opendir:async(...args)=>{
+  const handle=await fsp.opendir(...args);opened++;
+  return {
+   async *[Symbol.asyncIterator](){
+    for await(const entry of handle){
+     controller.abort();
+     yield entry;
+    }
+   },
+   async close(){
+    closed++;
+    try{await handle.close();}catch(e){if(e.code!=='ERR_DIR_CLOSED')throw e;}
+   }
+  };
+ }});
+ await assert.rejects(counter(folder,10,true,controller.signal),/Inspeção cancelada/);
+ assert.equal(opened,1);
+ assert.equal(closed,1);
+ assert.equal(await fsp.readFile(path.join(folder,'one.scs'),'utf8'),'M67_SYNTHETIC_DO_NOT_READ');
+});

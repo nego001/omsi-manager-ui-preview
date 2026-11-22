@@ -222,3 +222,14 @@ test('executor rejects bogus option types rather than activating native accident
  for(const options of [{nativeProbe:1},{inspect:'scan'},{requireNative:'yes'},{platform:42}])
   assert.throws(()=>createInspectionExecutor(options),/inválida/);
 });
+
+test('executor refuses completed test scanner output after document cancellation',async()=>{
+ const controller=new AbortController();
+ let release;
+ const executor=createInspectionExecutor({inspect:()=>new Promise(resolve=>{release=resolve;})});
+ const pending=executor.inspectSelectedDirectory(selected,'omsi',controller.signal);
+ assert.equal(typeof release,'function');
+ controller.abort();
+ release(sample());
+ await assert.rejects(pending,/Inspeção cancelada/);
+});

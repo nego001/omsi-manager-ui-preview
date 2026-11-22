@@ -30,7 +30,7 @@ function createInspectionGrantGate(options={}){
   grants.set(ticket,{selectedDirectory,gameId,ownerId,created,used:false});
   return ticket;
  }
- async function inspectOnce(ticket,ownerId,gameId){
+ async function inspectOnce(ticket,ownerId,gameId,signal){
   // Never inspect a forged/cloned/JSON-provided ticket. No getters read.
   const grant=ticket&&typeof ticket==='object'?grants.get(ticket):null;
   if(!grant||grant.used)deny();
@@ -42,7 +42,12 @@ function createInspectionGrantGate(options={}){
      gameId!==grant.gameId||
      !Number.isSafeInteger(current)||current<grant.created||
      current-grant.created>MAX_GRANT_AGE_MS)deny();
-  return inspect(grant.selectedDirectory,grant.gameId);
+  if(signal?.aborted)deny();
+  // Scanner cooperates with navigation cancellation at awaited boundaries.
+  // Re-check after it settles, even if a test-injected scanner ignores signal.
+  const result=await inspect(grant.selectedDirectory,grant.gameId,signal);
+  if(signal?.aborted)deny();
+  return result;
  }
  function revoke(ticket){
   const grant=ticket&&typeof ticket==='object'?grants.get(ticket):null;

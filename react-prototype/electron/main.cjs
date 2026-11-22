@@ -92,6 +92,7 @@ app.whenReady().then(() => {
     const originalFrame = event.senderFrame;
     const documentEpoch = documentEpochs.get(event.sender);
     const documentProof = documentEpoch?.snapshot();
+    const documentSignal = documentEpoch?.signalFor(documentProof);
     // Dialog interaction is consent for exactly one scan in this webContents.
     // Re-check origin and frame after the native dialog and after the scan:
     // neither a delayed IPC reply nor a navigation may reuse the selection.
@@ -125,7 +126,7 @@ app.whenReady().then(() => {
       try {
         const grant = inspectionGrantGate.issue(choice.selectedPath, gameId, senderId);
         // issue happens only after native user selection. Consume at most once.
-        const result = await inspectionGrantGate.inspectOnce(grant, senderId, gameId);
+        const result = await inspectionGrantGate.inspectOnce(grant, senderId, gameId, documentSignal);
         if (!senderAuthorized())
           return { status: 'error', message: 'Origem da inspeção não autorizada.' };
         return result;

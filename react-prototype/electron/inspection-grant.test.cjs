@@ -162,3 +162,25 @@ test('a grant contains no pathname, owner ID or game identifier',()=>{
  for(const secret of [root,'omsi','79','canary-secret'])
   assert.equal(serialized.includes(secret),false);
 });
+
+test('a retired document signal blocks a scan before any scanner work',async()=>{
+ const controller=new AbortController();
+ let calls=0;
+ const gate=createInspectionGrantGate({inspect:async()=>{calls++;return {status:'ok'};}});
+ const ticket=gate.issue(path.resolve(os.tmpdir(),'m67-synthetic'), 'omsi',77);
+ controller.abort();
+ await assert.rejects(gate.inspectOnce(ticket,77,'omsi',controller.signal),/Autorização/);
+ assert.equal(calls,0);
+ await assert.rejects(gate.inspectOnce(ticket,77,'omsi'),/Autorização/);
+});
+test('an asynchronous scanner may settle after abort but its result is never returned',async()=>{
+ const controller=new AbortController();
+ let release;
+ const gate=createInspectionGrantGate({inspect:()=>new Promise(resolve=>{release=resolve;})});
+ const ticket=gate.issue(path.resolve(os.tmpdir(),'m67-synthetic'), 'omsi',77);
+ const waiting=gate.inspectOnce(ticket,77,'omsi',controller.signal);
+ assert.equal(typeof release,'function');
+ controller.abort();
+ release({status:'ok',secret:'M67_SYNTHETIC_SHOULD_NOT_LEAK'});
+ await assert.rejects(waiting,/Autorização/);
+});

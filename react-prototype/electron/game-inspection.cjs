@@ -7,6 +7,12 @@ const MAX_ENTRIES_PER_GROUP = 2000;
 // incomplete scan, not silently claim that the game folder is missing.
 const MISSING_CODES = Object.freeze(['ENOENT','ENOTDIR']);
 
+// M67: document navigation/death requests cooperative cancellation only.
+// An awaited OS operation cannot be force-interrupted by this check.
+function assertInspectionActive(signal){
+  if(signal?.aborted)throw new Error('Inspeção cancelada após troca de documento.');
+}
+
 // Comparing the same pathname at multiple checkpoints detects many races.
 // It is NOT an atomic directory handle: in particular, ABA is still possible.
 // BigInt metadata avoids truncating inode, device or timestamp values.
@@ -56,10 +62,12 @@ function emptyCount(found=false){
 // BEFORE reading dir entries. This can detect a changed pathname, but does not
 // make fs.opendir atomic or prevent a transient redirect between checkpoints.
 function createDirectoryCounter(fsApi=fs){
-  return async function count(folder,max=MAX_ENTRIES_PER_GROUP,checkPackages=false){
+  return async function count(folder,max=MAX_ENTRIES_PER_GROUP,checkPackages=false,signal){
+    assertInspectionActive(signal);
     if(!Number.isSafeInteger(max)||max<1||max>MAX_ENTRIES_PER_GROUP)
       throw new TypeError('Limite de contagem inválido.');
     const initial=await identityAt(fsApi,folder);
+    assertInspectionActive(signal);
     if(!initial)return emptyCount();
     let dir;
     try{
@@ -71,9 +79,11 @@ function createDirectoryCounter(fsApi=fs){
         throw error;
       }
       await assertIdentity(fsApi,folder,initial);
+      assertInspectionActive(signal);
       const result=emptyCount(true);
       let scanned=0;
       for await(const entry of dir){
+        assertInspectionActive(signal);
         // Budget applies to every entry, including symlinks.
         if(scanned++>=max){result.limited=true;break;}
         if(entry.isSymbolicLink()){
@@ -89,6 +99,7 @@ function createDirectoryCounter(fsApi=fs){
         }else result.others++;
       }
       await assertIdentity(fsApi,folder,initial);
+      assertInspectionActive(signal);
       return result;
     }finally{
       if(dir){
@@ -127,21 +138,27 @@ function getInspectionNotices(game,groups,selectionMode){
 }
 function createGameDirectoryInspector(fsApi=fs){
   const count=createDirectoryCounter(fsApi);
-  return async function inspectGameDirectory(selectedRoot,game){
+  return async function inspectGameDirectory(selectedRoot,game,signal){
   requireGameId(game);
+  assertInspectionActive(signal);
   if(typeof selectedRoot!=='string'||selectedRoot.length===0)
     throw new TypeError('Selecione uma pasta válida.');
   const rootInfo=await fsApi.lstat(selectedRoot,{bigint:true});
+  assertInspectionActive(signal);
   const rootIdentity=directoryIdentity(rootInfo);
   if(!rootIdentity)
     throw new Error('A pasta selecionada não é um diretório normal.');
   const root=await fsApi.realpath(selectedRoot);
+  assertInspectionActive(signal);
   await assertIdentity(fsApi,selectedRoot,rootIdentity);
   await assertIdentity(fsApi,root,rootIdentity);
   const verifyRoot=async()=>{
+    assertInspectionActive(signal);
     if((await fsApi.realpath(selectedRoot))!==root)throw changedDirectory();
+    assertInspectionActive(signal);
     await assertIdentity(fsApi,selectedRoot,rootIdentity);
     await assertIdentity(fsApi,root,rootIdentity);
+    assertInspectionActive(signal);
   };
   const groups=[];
   // ETS2/ATS allow choosing either the parent folder or the mod folder itself.
@@ -152,7 +169,7 @@ function createGameDirectoryInspector(fsApi=fs){
     const target=(spec.key==='mods'&&selectionMode==='direct-mod-folder')
       ? root : path.join(root,spec.folder);
     await verifyRoot();
-    const stats=await count(target,MAX_ENTRIES_PER_GROUP,spec.key==='mods');
+    const stats=await count(target,MAX_ENTRIES_PER_GROUP,spec.key==='mods',signal);
     await verifyRoot();
     groups.push({
       key:spec.key,name:spec.name,found:stats.found,count:stats.count,
@@ -162,6 +179,7 @@ function createGameDirectoryInspector(fsApi=fs){
     });
   }
   await verifyRoot();
+  assertInspectionActive(signal);
   return {
     status:'ok',
     game,
@@ -185,5 +203,5 @@ const inspectGameDirectory=createGameDirectoryInspector();
 module.exports={
   requireGameId,inspectGameDirectory,countDirectChildren,getInspectionNotices,
   GAME_GROUPS,MAX_ENTRIES_PER_GROUP,createDirectoryCounter,
-  createGameDirectoryInspector,directoryIdentity
+  createGameDirectoryInspector,directoryIdentity,assertInspectionActive
 };

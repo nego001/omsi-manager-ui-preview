@@ -3,7 +3,7 @@
 // Only Electron's directory-picker grant calls this with a selected absolute
 // path. The renderer never receives the path, native helper or OS handle.
 const path=require('node:path');
-const {inspectGameDirectory,requireGameId}=require('./game-inspection.cjs');
+const {inspectGameDirectory,requireGameId,assertInspectionActive}=require('./game-inspection.cjs');
 const {projectInspectionReport}=require('./inspection-report-projection.cjs');
 
 const NATIVE_UNAVAILABLE='not-connected';
@@ -38,8 +38,9 @@ function createInspectionExecutor(options={}){
     (options.requireNative!==undefined&&typeof options.requireNative!=='boolean'))
   throw new TypeError('Configuração do executor de inspeção inválida.');
 
- async function inspectSelectedDirectory(selectedRoot,game){
+ async function inspectSelectedDirectory(selectedRoot,game,signal){
   requireGameId(game);
+  assertInspectionActive(signal);
   if(typeof selectedRoot!=='string'||selectedRoot.length===0||
      selectedRoot.length>32767||selectedRoot.includes('\0')||
      !path.isAbsolute(selectedRoot))
@@ -54,6 +55,7 @@ function createInspectionExecutor(options={}){
    // executor does not inject it and does not run PowerShell/child processes.
    // Result fields MUST be read without consulting getters on untrusted data.
    const evidence=await nativeProbe(selectedRoot,game);
+   assertInspectionActive(signal);
    const descriptor=evidence&&typeof evidence==='object'?
     Object.getOwnPropertyDescriptors(evidence):null;
    function data(key){
@@ -69,7 +71,8 @@ function createInspectionExecutor(options={}){
     throw new Error('Evidência nativa inválida. Nenhuma contagem autorizada.');
    nativeStatus=NATIVE_AUXILIARY;
   }
-  const report=await inspect(selectedRoot,game);
+  const report=await inspect(selectedRoot,game,signal);
+  assertInspectionActive(signal);
   // Explicit DTO projection: never spread a privileged or injected scanner
   // object into renderer IPC. Unknown fields/getters are never forwarded.
   const projected=projectInspectionReport(report,game);
