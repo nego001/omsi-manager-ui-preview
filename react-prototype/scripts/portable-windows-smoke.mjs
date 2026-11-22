@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join, resolve, dirname} from 'node:path';
 import { _electron as electron } from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
+import {verifyPackagedCSPRuntime} from './verify-packaged-csp-runtime.mjs';
 
 // This must point to the packaged Windows EXE, not "electron ." from node_modules.
 if(process.platform!=='win32')throw new Error('O smoke do executável portátil exige Windows.');
@@ -56,6 +57,7 @@ try{
  assert.ok(info.windows>0,'Deve abrir uma janela');
  const window=await application.firstWindow();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor({timeout:30000});
+ await verifyPackagedCSPRuntime(window);
  // First keyboard Tab must offer a direct route to the active document content.
  await window.keyboard.press('Tab');
  assert.equal(await window.getByRole('link',{name:'Pular para o conteúdo principal'}).evaluate(el=>el===document.activeElement),true);
