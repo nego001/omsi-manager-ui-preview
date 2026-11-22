@@ -4,6 +4,7 @@
 // path. The renderer never receives the path, native helper or OS handle.
 const path=require('node:path');
 const {inspectGameDirectory,requireGameId}=require('./game-inspection.cjs');
+const {projectInspectionReport}=require('./inspection-report-projection.cjs');
 
 const NATIVE_UNAVAILABLE='not-connected';
 const NATIVE_AUXILIARY='auxiliary-untrusted-observation';
@@ -69,15 +70,10 @@ function createInspectionExecutor(options={}){
    nativeStatus=NATIVE_AUXILIARY;
   }
   const report=await inspect(selectedRoot,game);
-  // Contract validation avoids returning a raw privileged filesystem object.
-  // Existing scanner supplies its own bounded, path-free summary.
-  if(!report||typeof report!=='object'||
-     report.status!=='ok'||report.game!==game||
-     report.mode!=='read-only'||!Array.isArray(report.groups)||
-     !report.assessment||report.assessment.compatibilityVerified!==false||
-     report.assessment.installationVerified!==false)
-   throw new Error('Relatório de inspeção inválido.');
-  return {...report,provenance:makeProvenance(nativeStatus)};
+  // Explicit DTO projection: never spread a privileged or injected scanner
+  // object into renderer IPC. Unknown fields/getters are never forwarded.
+  const projected=projectInspectionReport(report,game);
+  return {...projected,provenance:makeProvenance(nativeStatus)};
  }
  return Object.freeze({inspectSelectedDirectory});
 }

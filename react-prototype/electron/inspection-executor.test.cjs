@@ -9,7 +9,7 @@ const {createInspectionExecutor,
 const {createInspectionGrantGate}=require('./inspection-grant.cjs');
 const selected=path.join(os.tmpdir(),'omsi-executor-fixture');
 function sample(game='omsi'){
- return {status:'ok',game,mode:'read-only',groups:[{key:'vehicles',found:true,count:1}],
+ return {status:'ok',game,mode:'read-only',groups:[{key:game==='omsi'?'vehicles':'mods',found:true,count:1}],
   assessment:{scope:'directory-structure-only',
    compatibilityVerified:false,installationVerified:false}};
 }
