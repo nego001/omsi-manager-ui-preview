@@ -5,12 +5,15 @@ import {promisify} from 'node:util';
 const execFileAsync=promisify(execFile);
 import {packager} from '@electron/packager';
 import {writeBuildManifest} from './portable-build-manifest.mjs';
+import {installedVersion,writeEvidence} from './electron-build-identity.mjs';
 
 // Read-only Linux desktop preview. This is not a service, installer, Wine/
 // Proton integration or an authorisation to modify any game installation.
 if(process.platform!=='linux')throw new Error('Linux package requires Linux host');
 const root=resolve('.');
+const exactElectronVersion=await installedVersion(root);
 const bundled=await packager({
+ electronVersion:exactElectronVersion,
  dir:root,
  name:'OMSI-Manager-Preview',
  platform:'linux',
@@ -62,6 +65,7 @@ await execFileAsync('cc',[
 ],{timeout:30000});
 await chmod(join(bundled[0],'OMSI-Manager-Auto'),0o755);
 await writeBuildManifest(bundled[0],{platform:'linux'});
+await writeEvidence(bundled[0],exactElectronVersion);
 // Optional per-user XDG shortcut helper. The helper is copied alongside
 // the ELF (not inside app.asar) and is NEVER executed during packaging.
 await copyFile(resolve('scripts/linux-desktop-integration.cjs'),
