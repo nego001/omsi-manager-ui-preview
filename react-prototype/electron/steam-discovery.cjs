@@ -13,7 +13,7 @@ const SPEC=Object.freeze({
 });
 const missing=e=>['ENOENT','ENOTDIR'].includes(e?.code);
 const fail=()=>{throw Error('STEAM_DISCOVERY_INCONCLUSIVE');};
-function parseLibraries(text){
+function parseKeyValues(text,expectedRoot){
  if(typeof text!=='string'||Buffer.byteLength(text)>MAX_INDEX)fail();
  // Narrow KeyValues tokenizer: quoted strings, braces and line comments.
  const re=/"((?:\\["\\]|[^"\\\r\n])*)"|([{}])|\/\/[^\r\n]*|\s+/gy;
@@ -36,8 +36,12 @@ function parseLibraries(text){
   }
   brace('}');return o;
  }
- if(word().toLowerCase()!=='libraryfolders')fail();
+ if(word().toLowerCase()!==expectedRoot)fail();
  const root=object(0);if(i!==tokens.length)fail();
+ return root;
+}
+function parseLibraries(text){
+ const root=parseKeyValues(text,'libraryfolders');
  const libraries=[];
  for(const [key,v] of root){
   if(!/^\d+$/.test(key))continue;
@@ -119,4 +123,4 @@ function createSteamDiscovery(fsApi=fs){
   return matches;
  };
 }
-module.exports={parseLibraries,createSteamDiscovery,discoverSteam:createSteamDiscovery()};
+module.exports={parseKeyValues,parseLibraries,createSteamDiscovery,discoverSteam:createSteamDiscovery()};

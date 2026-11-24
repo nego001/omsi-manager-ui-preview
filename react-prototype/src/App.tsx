@@ -185,7 +185,7 @@ export default function App(){
  });
  const [startupDiscoveryError,setStartupDiscoveryError]=useState('');
  const [steamResults,setSteamResults]=useState<Partial<Record<GameId,string>>>({});
- const [steamOptions,setSteamOptions]=useState<Partial<Record<GameId,{id:string;label:string}[]>>>({});
+ const [steamOptions,setSteamOptions]=useState<Partial<Record<GameId,{id:string;label:string;steamBuildId?:string|null}[]>>>({});
  const [chosenSteam,setChosenSteam]=useState<Partial<Record<GameId,string>>>({});
  const [preferredSteam,setPreferredSteam]=useState<Partial<Record<GameId,string>>>(()=> {
   const saved:Partial<Record<GameId,string>>={};
@@ -1309,6 +1309,8 @@ export default function App(){
       </div>}
       <div className="inspection-grid">{(Object.keys(games) as GameId[]).map(id=><div className="inspection-game" key={id}><strong>{games[id].title}</strong>{steamResults[id]&&<small role="status">{steamResults[id]}</small>}{(steamOptions[id]??[]).map(option=><div key={option.id} className="inspection-group">
        {preferredSteamIds[id]===option.id&&<small role="status">Instalação preferida</small>}
+       <small>{option.steamBuildId?'Build Steam declarado: '+option.steamBuildId:'Build Steam não identificado'}</small>
+       <small>Versão comercial e compatibilidade não verificadas.</small>
        <button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void chooseSteamCandidate(id,option.id)}>{option.label} · confirmar pasta</button>
        {typeof window.omsiPreview?.rememberSteam==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void chooseSteamCandidate(id,option.id,true)}>{option.label} · confirmar e lembrar</button>}
       </div>)}{preferredSteam[id]&&<><small>{preferredSteamIds[id]?'Preferência encontrada nesta busca':discovering&&!steamSearchState[id]?'Verificando preferência...':steamSearchState[id]==='complete'?'Preferência não localizada nesta busca':steamSearchState[id]==='inconclusive'?'Não foi possível verificar a preferência':'Preferência salva; detecte novamente'}</small>{!preferredSteamIds[id]&&steamSearchState[id]==='complete'&&<div className="inspection-assessment">

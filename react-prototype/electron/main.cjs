@@ -29,6 +29,7 @@ const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
 const { discoverSteam } = require('./steam-discovery.cjs');
+const { readSteamBuild } = require('./steam-build-reader.cjs');
 const { locateTruckMod } = require('./truck-mod-locator.cjs');
 const { createCandidateStore, preferenceFor, isPreference } = require('./steam-candidate-store.cjs');
 const steamCandidates=createCandidateStore();
@@ -199,7 +200,12 @@ app.whenReady().then(() => {
           if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
           if(mode==='discover-steam')return {status:'discovery',count:candidates.length};
           if(mode==='list-steam'){
-            const rows=steamCandidates.publish(event.sender,documentProof,gameId,candidates);
+            const builds=[];
+            for(const candidate of candidates)
+              builds.push(await readSteamBuild(gameId,candidate,process.platform,documentSignal));
+            if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+            const rows=steamCandidates.publish(event.sender,documentProof,gameId,candidates)
+              .map((row,index)=>({...row,steamBuildId:builds[index]??null}));
             const preferredId=steamCandidates.preferredId(event.sender,documentProof,gameId,candidateId);
             return {status:'candidate-list',candidates:rows,...(isPreference(candidateId)?{preferredId}: {})};
           }
