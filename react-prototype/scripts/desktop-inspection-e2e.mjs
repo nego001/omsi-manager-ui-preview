@@ -290,6 +290,39 @@ try{
  assert.deepEqual(await window.evaluate(()=>window.omsiPreview.discoverCustomTruck('ats')),{status:'cancelled'});
  assert.equal(await readFile(join(etsRoot,'bin','linux_x64','eurotrucks2'),'utf8'),'M71_SYNTHETIC_ETS');
  console.log('PASS_M71_CUSTOM_TRUCK_INSTALLATION_DISCOVERY');
+
+ // M76: temporary profile folders, not the installation root.
+ const modHome=join(root,'m76-profile'),modBase=process.platform==='win32'?modHome:join(modHome,'.local','share');
+ const etsMods=join(modBase,'Euro Truck Simulator 2','mod'),atsMods=join(modBase,'American Truck Simulator','mod');
+ await mkdir(etsMods,{recursive:true});await mkdir(atsMods,{recursive:true});
+ await writeFile(join(etsMods,'fixture.scs'),'M76_SYNTHETIC');
+ await application.evaluate(({app},home)=>{
+  globalThis.__m76OriginalGetPath=app.getPath;
+  app.getPath=function(name){return ['home','documents'].includes(name)?home:globalThis.__m76OriginalGetPath.call(this,name);};
+ },modHome);
+ try{
+  await application.evaluate(({dialog},expected)=>{
+   dialog.showOpenDialog=async(_win,opts)=>{
+    if(opts.defaultPath!==expected)throw Error('M76_WRONG_HINT');
+    return {canceled:false,filePaths:[expected]};
+   };
+  },etsMods);
+  const report=await window.evaluate(()=>window.omsiPreview.locateTruckMod('ets2'));
+  assert.equal(report.status,'ok');
+  assert.equal(report.selectionMode,'direct-mod-folder');
+  assert.equal(report.groups[0].packageCandidates,1);
+  assert.equal(report.assessment.installationVerified,false);
+  assert.equal(report.provenance.operationsEnabled,false);
+  assert.equal(JSON.stringify(report).includes(root),false);
+  await application.evaluate(patch,{canceled:true,filePaths:[]});
+  assert.deepEqual(await window.evaluate(()=>window.omsiPreview.locateTruckMod('ats')),{status:'cancelled'});
+  assert.equal(await readFile(join(etsMods,'fixture.scs'),'utf8'),'M76_SYNTHETIC');
+  console.log('PASS_M76_TRUCK_MOD_PROFILE_NATIVE_CONFIRMATION');
+ }finally{
+  await application.evaluate(({app})=>{
+   app.getPath=globalThis.__m76OriginalGetPath;delete globalThis.__m76OriginalGetPath;
+  });
+ }
  // M65: only disposable targets and a mocked picker are used. Selecting a
  // symlinked ROOT must never authorize a scan or disclose the target path.
  const syntheticRootLink=join(root,'m65-symlinked-root');

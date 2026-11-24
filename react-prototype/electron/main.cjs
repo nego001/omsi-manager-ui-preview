@@ -29,6 +29,7 @@ const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
 const { discoverSteam } = require('./steam-discovery.cjs');
+const { locateTruckMod } = require('./truck-mod-locator.cjs');
 const { createCandidateStore, preferenceFor, isPreference } = require('./steam-candidate-store.cjs');
 const steamCandidates=createCandidateStore();
 const { discoverCustomOmsi, discoverCustomGame } = require('./custom-omsi-discovery.cjs');
@@ -90,7 +91,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual', candidateId) => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam','remember-steam'].includes(mode)||(mode==='discover-custom-truck'&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
+    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam','remember-steam'].includes(mode)||(['discover-custom-truck','locate-truck-mod'].includes(mode)&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -122,6 +123,18 @@ app.whenReady().then(() => {
       // never an inspection grant or a path returned to the renderer.
       let hint=null;
       let title='Selecione a pasta do jogo (somente leitura)';
+      if(mode==='locate-truck-mod'){
+        try{
+          hint=await locateTruckMod(gameId,{
+            platform:process.platform,
+            home:app.getPath('home'),
+            documents:process.platform==='win32'?app.getPath('documents'):undefined
+          },documentSignal);
+          if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+          if(!hint)return {status:'error',message:'Pasta de mods não localizada no local padrão. Use a seleção manual.'};
+          title='Confirme a pasta de mods candidata (somente leitura)';
+        }catch{return {status:'error',message:'Busca de pasta de mods inconclusiva. Use a seleção manual.'};}
+      }
       if(mode==='discover-custom-truck'){
         // Only the scope picker is required for candidate counts. Never send
         // paths to the renderer or issue an inspection grant for a truck root.
@@ -210,7 +223,7 @@ app.whenReady().then(() => {
       if (choice.status === 'cancelled') return { status: 'cancelled' };
       if (choice.status !== 'selected')
         return { status: 'error', message: 'Não foi possível abrir o seletor de pastas.' };
-      if((mode==='choose-steam'||mode==='remember-steam')&&choice.selectedPath!==hint)
+      if(['choose-steam','remember-steam','locate-truck-mod'].includes(mode)&&choice.selectedPath!==hint)
         return {status:'error',message:'A pasta confirmada difere da candidata. Use a seleção manual.'};
       if((mode==='choose-steam'||mode==='remember-steam')&&gameId!=='omsi'){
         const selection={status:'installation-selected',installationVerified:false};
