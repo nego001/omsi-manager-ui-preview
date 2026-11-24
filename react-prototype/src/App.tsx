@@ -177,6 +177,13 @@ export default function App(){
  const [inspections,setInspections]=useState<Partial<Record<GameId,FolderInspection>>>({});
  const [inspecting,setInspecting]=useState<GameId|null>(null);
  const [discovering,setDiscovering]=useState(false);
+ const discoveryBusy=useRef(false);
+ const startupDiscoveryRan=useRef(false);
+ const [discoverAtStartup,setDiscoverAtStartup]=useState(()=>{
+  try{return window.localStorage.getItem('omsi-preview-steam-discovery-at-startup-v1')==='true';}
+  catch{return false;}
+ });
+ const [startupDiscoveryError,setStartupDiscoveryError]=useState('');
  const [steamResults,setSteamResults]=useState<Partial<Record<GameId,string>>>({});
  const [customResults,setCustomResults]=useState<Partial<Record<GameId,string>>>({});
  const inspectorAvailable=typeof window.omsiPreview?.inspectGame==='function';
@@ -964,7 +971,8 @@ export default function App(){
   }
  }
  async function detectSteam(){
-  if(discovering||inspecting||!window.omsiPreview?.discoverSteam)return;
+  if(discoveryBusy.current||inspecting||!window.omsiPreview?.discoverSteam)return;
+  discoveryBusy.current=true;
   setDiscovering(true);setSteamResults({});
   try{
    for(const id of Object.keys(games) as GameId[]){
@@ -974,10 +982,24 @@ export default function App(){
     }catch{}
     setSteamResults(old=>({...old,[id]:label}));
    }
-  }finally{setDiscovering(false);}
+  }finally{discoveryBusy.current=false;setDiscovering(false);}
  }
+ function updateStartupDiscovery(enabled:boolean){
+  try{
+   window.localStorage.setItem('omsi-preview-steam-discovery-at-startup-v1',String(enabled));
+   setDiscoverAtStartup(enabled);setStartupDiscoveryError('');
+  }catch{setStartupDiscoveryError('Não foi possível salvar a preferência de busca automática.');}
+ }
+ // Once per live document. Preference is opt-in and stores only a boolean.
+ // No paths are saved, no picker is launched, and no inspection grant is issued.
+ useEffect(()=>{
+  if(startupDiscoveryRan.current)return;
+  startupDiscoveryRan.current=true;
+  if(discoverAtStartup&&typeof window.omsiPreview?.discoverSteam==='function')
+   void detectSteam();
+ },[]);
  async function detectCustomTruck(gameId:'ets2'|'ats'){
-  if(discovering||inspecting||!window.omsiPreview?.discoverCustomTruck)return;
+  if(discoveryBusy.current||discovering||inspecting||!window.omsiPreview?.discoverCustomTruck)return;
   setInspecting(gameId);
   try{
    const report=await window.omsiPreview.discoverCustomTruck(gameId);
@@ -991,7 +1013,7 @@ export default function App(){
  }
  async function inspectGame(gameId:GameId,autoLocate=false,customLocate=false){
   const bridge=window.omsiPreview;
-  if(discovering||inspecting||!bridge?.inspectGame||(autoLocate&&(gameId!=='omsi'||!bridge.locateOmsi))||(customLocate&&(gameId!=='omsi'||!bridge.locateCustomOmsi)))return;
+  if(discoveryBusy.current||discovering||inspecting||!bridge?.inspectGame||(autoLocate&&(gameId!=='omsi'||!bridge.locateOmsi))||(customLocate&&(gameId!=='omsi'||!bridge.locateCustomOmsi)))return;
   setInspecting(gameId);
   try {
    const report=customLocate?await bridge.locateCustomOmsi!():autoLocate?await bridge.locateOmsi!():await bridge.inspectGame(gameId);
@@ -1204,7 +1226,12 @@ export default function App(){
     {screen==='games'&&<><div className="page-heading"><span className="eyebrow">BIBLIOTECA DE JOGOS</span><h1>Escolha seu simulador</h1><p>Capas online quando disponíveis; cartões identificados mesmo sem internet. A inspeção é opcional. Detecte candidatos na Steam ou selecione uma pasta manualmente.</p></div><div className="game-grid game-grid-large">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id} large/><strong>{games[id].title}</strong><small>Ver mods <ChevronRight size={13}/></small></button>)}</div>
      <section className="inspection-panel" aria-label="Inspeção de pastas de jogos">
       <div className="inspection-header"><div><h2>Inspeção local · somente leitura</h2><p>Escolha a pasta ou procure instalações Steam. A localização de jogos não equivale à inspeção de mods. O app distingue pastas, arquivos e possíveis pacotes de mods apenas pelos nomes, sem abrir conteúdo nem alterar nada.</p></div><span className="pill">{inspectorAvailable?'Seletor nativo disponível':'Disponível apenas no Electron'}</span></div>
-      {typeof window.omsiPreview?.discoverSteam==='function'&&<button className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void detectSteam()}>{discovering?'Procurando na Steam...':'Detectar jogos automaticamente'}</button>}
+      {typeof window.omsiPreview?.discoverSteam==='function'&&<div>
+       <button className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void detectSteam()}>{discovering?'Procurando na Steam...':'Detectar jogos automaticamente'}</button>
+       <label className="inspection-note"><input type="checkbox" checked={discoverAtStartup} onChange={e=>updateStartupDiscovery(e.target.checked)}/> Detectar jogos ao iniciar</label>
+       <p className="inspection-note">Quando ativado, consulta os locais Steam conhecidos na próxima abertura. Nenhuma pasta pessoal é vasculhada recursivamente; não abre seletores nem modifica jogos.</p>
+       {startupDiscoveryError&&<p className="inspection-error" role="alert">{startupDiscoveryError}</p>}
+      </div>}
       <div className="inspection-grid">{(Object.keys(games) as GameId[]).map(id=><div className="inspection-game" key={id}><strong>{games[id].title}</strong>{steamResults[id]&&<small role="status">{steamResults[id]}</small>}{customResults[id]&&<small role="status">{customResults[id]}</small>}<button className="btn secondary" disabled={!inspectorAvailable||discovering||inspecting!==null} onClick={()=>void inspectGame(id)}>{inspecting===id?'Inspecionando...':'Selecionar pasta e inspecionar'}</button>{id==='omsi'&&typeof window.omsiPreview?.locateOmsi==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void inspectGame(id,true)}>Localizar automaticamente</button>}{id==='omsi'&&typeof window.omsiPreview?.locateCustomOmsi==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void inspectGame(id,false,true)}>Procurar em outra pasta</button>}{id!=='omsi'&&typeof window.omsiPreview?.discoverCustomTruck==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void detectCustomTruck(id)}>Procurar instalação em outra pasta</button>}
        {inspections[id]?.status==='ok'&&(()=>{const report=inspections[id];if(!report||report.status!=='ok')return null;return <div className="inspection-result"><p><strong>Pasta:</strong> {report.folderName} · {report.recognized?'Pastas esperadas encontradas':'Nenhuma pasta conhecida encontrada'}</p>
        <div className="inspection-assessment" role="status"><strong>Compatibilidade não verificada</strong><span>{report.assessment.summary}</span>{report.selectionMode==='direct-mod-folder'&&<small>Selecionada diretamente: pasta mod</small>}{report.provenance&&<small>Leitura por metadados de diretório. Enumeração por handle nativo: {report.provenance.nativeDirectoryEnumeration==='not-connected'?'não integrada':'somente observação auxiliar de teste'}. Proteção total contra trocas de pasta não comprovada.</small>}</div>
