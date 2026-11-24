@@ -2256,7 +2256,7 @@ test('M112 native NTFS relative-handle bounded config fixture', {skip:!ready,tim
  const result=await execAsync(exe,['--test-config-read-m112'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:16384}).catch(e=>{
   const sanitized=sanitizeNativeExecError(e);
   const lines=typeof e?.stderr==='string'?e.stderr.trim().split(/\r?\n/):[];
-  const match=lines.find(line=>/^M116_CONFIG_CASE_FAILED:(normal|maximum|empty|oversized|directory-instead|hardlink|reparse|parent-replaced|file-replaced|changed-during-read|cancel-before|cancel-during-read):(setup|ancestor-pin|ntfs-check|parent-open|file-metadata|before-open|content-open|after-open|before-read|positional-read|after-read|snapshot-check)$/.test(line));
+  const match=lines.find(line=>/^M116_CONFIG_CASE_FAILED:(normal|maximum|empty|oversized|directory-instead|hardlink|reparse|parent-replaced|file-replaced|changed-during-read|cancel-before|cancel-during-read):(setup|ancestor-pin|ntfs-check|parent-open|file-metadata|before-open|parent-rename-attempt|parent-replacement-setup|content-open|after-open|before-read|positional-read|after-read|snapshot-check)$/.test(line));
   if(match)throw Error('NATIVE_CONFIG_FIXTURE_REFUSED '+match);
   throw sanitized;
  });
@@ -2271,12 +2271,16 @@ test('M112 native NTFS relative-handle bounded config fixture', {skip:!ready,tim
  const rows=Object.fromEntries(report.cases.map(r=>[r.scenario,r]));
  for(const name of ['normal','maximum'])assert.equal(rows[name].outcome,'matching-two-snapshots');
  assert.equal(rows.maximum.bytesRead,131072);
- for(const name of ['empty','oversized','directory-instead','hardlink','parent-replaced','file-replaced','cancel-before']){
+ for(const name of ['empty','oversized','directory-instead','hardlink','file-replaced','cancel-before']){
   assert.equal(rows[name].outcome,'refused');assert.equal(rows[name].readCalls,0);
  }
  for(const name of ['changed-during-read','cancel-during-read']){
   assert.equal(rows[name].outcome,'refused');assert.equal(rows[name].readCalls,1);
  }
+ await t.test('actual parent replacement refusal',s=>{
+  if(rows['parent-replaced'].outcome==='fixture-unavailable'){s.skip('OS refused rename setup; no replacement evidence');return;}
+  assert.equal(rows['parent-replaced'].outcome,'refused');assert.equal(rows['parent-replaced'].readCalls,0);
+ });
  await t.test('actual file reparse refusal',s=>{
   if(rows.reparse.outcome==='fixture-unavailable'){s.skip('file symlink creation unavailable; no reparse evidence');return;}
   assert.equal(rows.reparse.outcome,'refused');assert.equal(rows.reparse.readCalls,0);
