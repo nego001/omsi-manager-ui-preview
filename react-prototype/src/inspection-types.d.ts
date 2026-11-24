@@ -33,6 +33,7 @@ declare global {
    chooseSteam?: (game:InspectionGameId,id:string)=>Promise<FolderInspection|{status:'installation-selected';installationVerified:false}>;
    rememberSteam?: (game:InspectionGameId,id:string)=>Promise<FolderInspection|{status:'remembered-selection';preference:string;selection:Extract<FolderInspection,{status:'ok'}>|{status:'installation-selected';installationVerified:false}}>;
    locateCustomOmsi?: ()=>Promise<FolderInspection>;
+   locateTruckMod?: (game:'ets2'|'ats')=>Promise<FolderInspection>;
    discoverCustomTruck?: (game:'ets2'|'ats')=>Promise<{status:'custom-discovery';count:number;limited:boolean}|{status:'cancelled'}|{status:'error';message:string}>;
    discoverSteam?: (game:InspectionGameId)=>Promise<{status:'discovery';count:number}|{status:'error';message:string}>;
   };
