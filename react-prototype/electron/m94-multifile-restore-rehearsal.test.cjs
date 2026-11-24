@@ -36,7 +36,7 @@ test('drift in final member after first publication stops remaining batch',async
  assert.equal(r.automaticRollbackAttempted,false);
 });
 test('parallel rehearsals are isolated and do not imply real operation authority',async()=>{
- const reports=await Promise.all(['normal','stop-after-one','partial-stage'].map(run));
+ const reports=await Promise.all(['normal','stop-after-one','partial-stage'].map(scenario=>run(scenario)));
  assert.deepEqual(reports.map(r=>r.publishedCount),[3,1,0]);
  for(const r of reports){
   assert.ok(Object.isFrozen(r));assert.ok(Object.isFrozen(r.members));
