@@ -1,0 +1,5 @@
+# M140 — simulator session overview and inherited IPC test correction
+
+M138 run 45473844828 and M139 45474691783: build/security/browser and Windows standalone/portable passed, Linux IPC failed with 30-second locator timeout at desktop-inspection-e2e.mjs:460. Logs show a filter has locator scoped to the containing library rather than relative to each row. Correct only the two inner locators to page-level getByText (relative evaluation within row); preserve all assertions and timeouts. M139 comparison E2E not reached in these runs. Dependent X11 evidence jobs failed; no strict Ubuntu24 pass inferred.
+
+Actual renderer adds three simulator cards in Games with last observation status, groups found, displayable candidate names or not collected, explicit unknown installation/compatibility, visual jump to existing inspection heading. No new paths, discovery, file access, IPC or persisted state. Browser narrow-width unknown-state/navigation and Electron summary/focus assertions. CI pending. No actual mod content, merge/release or sandbox waiver.

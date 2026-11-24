@@ -1617,3 +1617,18 @@
 .local-comparison p,.local-comparison li,.local-comparison summary{font-size:11px;line-height:1.6;color:var(--muted)}
 .local-comparison summary{cursor:pointer;color:var(--accent);padding:5px 0}
 .local-comparison button,.local-inventory-panel .library-by-game-grid button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+
+/* M140: session overview, no new discovery or inspection authority. */
+.simulator-session-overview{min-width:0;margin:16px 0;padding:14px;border:1px solid var(--edge);border-radius:12px;background:var(--panel);overflow-wrap:anywhere}
+.simulator-session-overview h2{font-size:16px;margin:0}
+.simulator-session-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.simulator-session-card{display:flex;flex-direction:column;gap:8px;min-width:0;padding:12px;border:1px solid var(--edge);border-radius:8px;background:var(--frame)}
+.simulator-session-card h3{font-size:14px;margin:0;color:var(--accent)}
+.simulator-session-card p{font-size:12px;margin:0;color:#cbdcf0}
+.simulator-session-card small,.simulator-session-overview>p{font-size:11px;line-height:1.5;color:var(--muted)}
+.simulator-session-card button{margin-top:auto;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.simulator-session-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin:0}
+.simulator-session-facts dt{font-size:10px;color:var(--muted)}
+.simulator-session-facts dd{font-size:15px;margin:4px 0 0;font-weight:700;color:var(--accent)}
+.inspection-game>strong[id^="simulator-inspection-"]{scroll-margin-top:90px}
+.inspection-game>strong[id^="simulator-inspection-"]:focus{outline:2px solid #9c9aff;outline-offset:4px}

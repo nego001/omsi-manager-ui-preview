@@ -40,6 +40,7 @@ import FixtureCrossPackageLab from './FixtureCrossPackageLab';
 import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declared-status';
 import type {FolderInspection} from './inspection-types';
 import type {LocalObservation} from './local-inventory-comparison.mjs';
+import {SimulatorSessionOverview} from './SimulatorSessionOverview';
 import {LocalInventoryLibrary} from './LocalInventoryLibrary';
 import {OmsiDependencyPreview} from './OmsiDependencyPreview';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu} from 'lucide-react';
@@ -1303,6 +1304,10 @@ export default function App(){
      </div>
     </section><div className="section-title"><h2>Jogos em destaque</h2><button className="link" onClick={()=>goto('games')}>Ver todos <ChevronRight size={14}/></button></div><div className="game-grid">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id}/><strong>{games[id].title}</strong><small>Abrir catálogo</small></button>)}</div><div className="section-title"><h2>Descobrir mods</h2></div>{modCards(catalogMods.slice(0,4))}</>}
     {screen==='games'&&<><div className="page-heading"><span className="eyebrow">BIBLIOTECA DE JOGOS</span><h1>Escolha seu simulador</h1><p>Capas online quando disponíveis; cartões identificados mesmo sem internet. A inspeção é opcional. Detecte candidatos na Steam ou selecione uma pasta manualmente.</p></div><div className="game-grid game-grid-large">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id} large/><strong>{games[id].title}</strong><small>Ver mods <ChevronRight size={13}/></small></button>)}</div>
+     <SimulatorSessionOverview inspections={inspections} inspecting={inspecting} available={!!inspectorAvailable} onReview={id=>{
+      const heading=document.getElementById('simulator-inspection-'+id);
+      heading?.focus({preventScroll:true});heading?.scrollIntoView({block:'start'});
+     }}/>
      <section className="inspection-panel" aria-label="Inspeção de pastas de jogos">
       <div className="inspection-header"><div><h2>Inspeção local · somente leitura</h2><p>Escolha a pasta ou procure instalações Steam. A localização de jogos não equivale à inspeção de mods. O app distingue pastas, arquivos e possíveis pacotes de mods apenas pelos nomes, sem abrir conteúdo nem alterar nada.</p></div><span className="pill">{inspectorAvailable?'Seletor nativo disponível':'Disponível apenas no Electron'}</span></div>
       {typeof window.omsiPreview?.discoverSteam==='function'&&<div>
@@ -1311,7 +1316,7 @@ export default function App(){
        <p className="inspection-note">Quando ativado, consulta os locais Steam conhecidos na próxima abertura. Nenhuma pasta pessoal é vasculhada recursivamente; não abre seletores nem modifica jogos.</p>
        {startupDiscoveryError&&<p className="inspection-error" role="alert">{startupDiscoveryError}</p>}
       </div>}
-      <div className="inspection-grid">{(Object.keys(games) as GameId[]).map(id=><div className="inspection-game" key={id}><strong>{games[id].title}</strong>{steamResults[id]&&<small role="status">{steamResults[id]}</small>}{(steamOptions[id]??[]).map(option=><div key={option.id} className="inspection-group">
+      <div className="inspection-grid">{(Object.keys(games) as GameId[]).map(id=><div className="inspection-game" key={id}><strong id={'simulator-inspection-'+id} tabIndex={-1}>{games[id].title}</strong>{steamResults[id]&&<small role="status">{steamResults[id]}</small>}{(steamOptions[id]??[]).map(option=><div key={option.id} className="inspection-group">
        {preferredSteamIds[id]===option.id&&<small role="status">Instalação preferida</small>}
        <small>{option.steamBuildId?'Build Steam declarado: '+option.steamBuildId:'Build Steam não identificado'}</small>
        <small>Versão comercial e compatibilidade não verificadas.</small>
