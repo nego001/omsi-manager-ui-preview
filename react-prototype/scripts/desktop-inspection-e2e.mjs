@@ -454,8 +454,8 @@ try{
   assert.equal(await localLibrary.getByRole('heading',{name:'Conteúdo local'}).evaluate(el=>document.activeElement===el),true);
   assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
   // M138: expanding candidate details consumes the already observed metadata only.
-  const busRow=localLibrary.locator('.local-inventory-list>li').filter({has:localLibrary.getByText('Bus A',{exact:true})});
-  const packageRow=localLibrary.locator('.local-inventory-list>li').filter({has:localLibrary.getByText('heavy_sound.SCS',{exact:true})});
+  const busRow=localLibrary.locator('.local-inventory-list>li').filter({has:window.getByText('Bus A',{exact:true})});
+  const packageRow=localLibrary.locator('.local-inventory-list>li').filter({has:window.getByText('heavy_sound.SCS',{exact:true})});
   const busDetails=busRow.locator('details');
   assert.equal(await busDetails.getAttribute('open'),null);
   await busDetails.locator('summary').focus();
@@ -525,6 +525,14 @@ try{
  const m135Result=window.locator('.inspection-game').first().locator('.inspection-result');
  const m135Summary=m135Result.getByRole('region',{name:'Resumo da inspeção de estrutura'});
  await m135Summary.waitFor({timeout:15000});
+ const m140Overview=window.getByRole('region',{name:'Central dos simuladores'});
+ const m140Omsi=m140Overview.getByRole('article',{name:'Resumo de OMSI 2'});
+ assert.equal(await m140Omsi.getByText('Observação parcial',{exact:true}).isVisible(),true);
+ assert.equal(await m140Omsi.getByText('25',{exact:true}).isVisible(),true);
+ assert.equal(await m140Overview.getByRole('article',{name:'Resumo de American Truck Simulator'}).getByText('Sem observação nesta sessão',{exact:true}).isVisible(),true);
+ await m140Omsi.getByRole('button',{name:'Ir à inspeção de OMSI 2'}).click();
+ assert.equal(await window.locator('#simulator-inspection-omsi').evaluate(el=>document.activeElement===el),true);
+
  assert.equal(await m135Summary.getByText('25',{exact:true}).count(),2);
  assert.equal(await m135Summary.getByText('1 de 4',{exact:true}).isVisible(),true);
  assert.match(await m135Summary.innerText(),/não representam mods instalados/);
