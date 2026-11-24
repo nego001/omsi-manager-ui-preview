@@ -2369,3 +2369,16 @@ test('M123 Windows metadata processing budget stops before publishing partial re
  });
  assert.doesNotMatch(result.stdout,/\.o3d/);
 });
+
+test('M124 Windows monotonic checkpoint expiry and tracked handle disposal in one process',{skip:!ready,timeout:30000},async()=>{
+ const result=await execAsync(exe,['--test-lifecycle-m124'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:4096}).catch(e=>{throw sanitizeNativeExecError(e);});
+ const r=JSON.parse(result.stdout);
+ assert.equal(r.schema,'omsi-m124-windows-lifecycle-fixture-v1');
+ assert.deepEqual(r.cases.map(c=>[c.scenario,c.outcome,c.configReadCalls,c.referencesObserved,c.trackedHandleCount]),[
+  ['normal','completed',3,2,4],['expired-before','deadline-refused',0,0,1],
+  ['expired-between','deadline-refused',2,0,4],['expired-during','deadline-refused',2,1,4],['cancel-during','cancelled',2,1,4]
+ ]);
+ for(const c of r.cases){assert.equal(c.trackedHandlesClosed,true);assert.equal(c.temporaryRootRemoved,true);}
+ for(const k of ['monotonicCheckpointDeadline','testClockOffsetUsed'])assert.equal(r[k],true);
+ for(const k of ['partialReportPublished','osDeadlineProven','memoryErasureProven','realModValidated','operationsEnabled'])assert.equal(r[k],false);
+});
