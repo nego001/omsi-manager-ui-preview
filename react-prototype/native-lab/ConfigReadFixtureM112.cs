@@ -211,6 +211,48 @@ internal static partial class Program
         finally { Directory.Delete(root,true); }
     }
 
+    private static int RunFormatFixtureM115()
+    {
+        var samples = new (string Role, string Text)[]
+        {
+            ("vehicle-definition", "[model]\r\nmodel\\vehicle.cfg\r\n[sound]\r\nsound.cfg\r\n"),
+            ("vehicle-model", "[mesh]\r\nbody.o3d\r\n[mesh]\r\nmissing.o3d\r\n")
+        };
+        var rows = new List<object>();
+        foreach (var sample in samples)
+        {
+            string root = Directory.CreateTempSubdirectory("omsi-m115-format-").FullName;
+            try
+            {
+                string parent = Path.Combine(root, M112Parent);
+                Directory.CreateDirectory(parent);
+                string source = Path.Combine(parent, M112Name);
+                byte[] expected = System.Text.Encoding.ASCII.GetBytes(sample.Text);
+                File.WriteAllBytes(source, expected);
+                var metrics = new M112Metrics();
+                byte[]? bytes;
+                using (AncestorPins pins = AncestorPins.Pin(root))
+                {
+                    if (!BoundedNativeChangeProbe.HasNtfsVolume(pins.TemporaryHandle)) Deny();
+                    bytes = M112Read(pins, pins.TemporaryHandle, _ => {}, () => false, metrics);
+                }
+                if (bytes is null || !bytes.AsSpan().SequenceEqual(expected) ||
+                    !File.ReadAllBytes(source).AsSpan().SequenceEqual(expected) ||
+                    metrics.Opened != 1 || metrics.Bytes != 2*expected.Length) Deny();
+                // Only these pre-authored, byte-verified fixtures are exported to
+                // the test controller. No caller path or production byte transport.
+                rows.Add(new { role = sample.Role, fixtureBase64 = Convert.ToBase64String(bytes!),
+                    opened = metrics.Opened, readCalls = metrics.Reads, bytesRead = metrics.Bytes });
+            }
+            finally { Directory.Delete(root, true); }
+        }
+        Console.WriteLine(JsonSerializer.Serialize(new {
+            schema = "omsi-m115-fixed-native-format-fixture-v1", platform = "win32",
+            cases = rows, realModRead = false, operationsEnabled = false
+        }));
+        return 0;
+    }
+
     private static int RunConfigReadFixtureM112()
     {
         string[] scenarios = ["normal","maximum","empty","oversized","directory-instead","hardlink",

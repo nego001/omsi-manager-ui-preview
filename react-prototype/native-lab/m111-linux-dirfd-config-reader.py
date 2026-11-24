@@ -188,12 +188,42 @@ def run_case(case):
         return {"scenario": case, "outcome": outcome, **metrics}
 
 
+
+def format_fixture():
+    # Fixed publicly authored bytes only; never export a caller-selected file.
+    # The transport is a test-only wire fixture, not an application protocol.
+    import base64
+    rows = []
+    samples = (
+        ("vehicle-definition", b"[model]\r\nmodel\\vehicle.cfg\r\n[sound]\r\nsound.cfg\r\n"),
+        ("vehicle-model", b"[mesh]\r\nbody.o3d\r\n[mesh]\r\nmissing.o3d\r\n"),
+    )
+    for role, expected in samples:
+        with tempfile.TemporaryDirectory(prefix="omsi-m115-format-") as raw:
+            root = Path(raw)
+            parent = root / PARENT
+            parent.mkdir(mode=0o700)
+            source = parent / NAME
+            source.write_bytes(expected)
+            metrics = {"opened": 0, "readCalls": 0, "bytesRead": 0}
+            result = read_owned_fixture(root, lambda _: None, lambda: False, metrics)
+            require(result == expected and source.read_bytes() == expected)
+            require(metrics["opened"] == 1 and metrics["bytesRead"] == 2*len(expected))
+            rows.append({"role": role, "fixtureBase64": base64.b64encode(result).decode("ascii"),
+                         **metrics})
+    print(json.dumps({"schema": "omsi-m115-fixed-native-format-fixture-v1",
+                      "platform": "linux", "cases": rows, "realModRead": False,
+                      "operationsEnabled": False}, separators=(",", ":")))
+
 def main():
-    require(sys.platform == "linux" and len(sys.argv) == 1)
+    require(sys.platform == "linux" and (len(sys.argv) == 1 or sys.argv[1:] == ["--test-format-m115"]))
     require(all(hasattr(os, name) for name in
                 ("O_DIRECTORY", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC", "pread")))
     require(os.open in os.supports_dir_fd and os.stat in os.supports_dir_fd
             and os.stat in os.supports_follow_symlinks)
+    if sys.argv[1:] == ["--test-format-m115"]:
+        format_fixture()
+        return
     scenarios = ("normal", "maximum", "symlink", "fifo", "hardlink", "oversized",
                  "empty", "parent-replaced", "file-replaced", "changed-during-read",
                  "cancel-before", "cancel-during-read")
