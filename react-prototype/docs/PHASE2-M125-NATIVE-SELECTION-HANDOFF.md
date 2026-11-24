@@ -1,0 +1,11 @@
+# M125 — native selection and consent handoff proposal
+
+M123 run 45413066389 Linux build/security and Windows standalone native job 138511784390 passed. Windows portable build/security/package passed; overall workflow pending. M124 run 45413410973 Linux build/security passed; Windows native compilation and other jobs pending at observation.
+
+New test-only opaque selection handoff contract builds on M113 consent and document epoch. Trusted synthetic controller creates selection object, binds owner/epoch/proof/role/encoding, confirms explicit separate content and metadata scopes, issues one-use ticket and consumes before identity/scope validation. Total 15s monotonic lifetime from selection, document invalidation listener, supersession, explicit cancel/revoke, no path or renderer token. Five regression tests. Ticket redemption only produces a fixed non-authorizing review; no native handle transfer, file opens, subprocess, callbacks, production imports or runtime authorization.
+
+## Required real native handoff design (not implemented)
+- Main-process trusted picker and OS-specific broker must bind the selected file and its retained parent handle to exact owner/document and native consent. Electron pathname alone is not handle provenance. Do not translate a metadata result, fixture report or renderer boolean into permission.
+- Separate explicit consent for configuration content and bounded parent dependency metadata; never broaden file selection into arbitrary directory traversal. Review role and encoding, byte/entry caps and allowed reference scope. Unsupported platform or missing OS identity/portal evidence must refuse, not fall back to weaker pathname reads.
+- Opaque one-use in-process authority, revocation on navigation, supersession, cancellation, expiry, broker failure and cleanup. Broker needs separately reviewed IPC, executable custody, actual peer identity, handle ownership and close semantics. No raw path or file bytes passed to renderer; only validated sanitized report. Hard OS I/O deadlines and memory erasure remain unproven.
+- Independent review, real desktop picker/portal tests, Windows remaining coverage gaps, strict Ubuntu24 sandbox and release policy gates remain required. M126 assesses evidence; no claim that lab tests certify actual desktop. No new production permission, merge, release or host policy change.
