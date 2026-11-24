@@ -1,0 +1,5 @@
+# M141 — candidate card refinement
+
+M140 run 45480526875: Linux build/security and Windows standalone native passed; Windows portable build/security/package passed; browser and IPC pending at observation. The inherited M138 locator correction is not yet validated; no claim that M139 comparison ran.
+
+Actual renderer: decorative folder/archive icons for observed candidate type and bus/truck icons for simulator identity, consistent card title hierarchy and explicit type labels. State styling distinguishes pending, unknown, unavailable, unrecognized, partial and observed without implying installation or compatibility. Pending inspection explicitly labels retained prior counts. Narrow responsive wrapping. Existing candidate and simulator regressions extended to assert visible type and accessible decorative icons/status. No new file operations, native IPC, paths, permissions or persistence. New CI pending. Real content and release remain blocked by independent evidence and mandatory Ubuntu24 strict sandbox. No merge/release.
