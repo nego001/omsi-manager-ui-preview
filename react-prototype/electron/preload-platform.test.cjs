@@ -68,3 +68,8 @@ test('Steam discovery exposes only fixed IPC modes on supported desktop systems'
  assert.equal(invoke('darwin').locateOmsi,undefined);
  assert.equal(invoke('darwin').inspectOmsiCandidate,undefined);
 });
+
+test('config precheck invokes only fixed mode and ignores renderer arguments',async()=>{
+ for(const p of ['linux','win32'])assert.deepEqual(await invoke(p).precheckOmsiConfig('/ignored/path'),{gameId:'omsi',mode:'precheck-omsi-config'});
+ assert.equal(invoke('darwin').precheckOmsiConfig,undefined);
+});

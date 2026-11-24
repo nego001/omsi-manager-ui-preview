@@ -8,7 +8,7 @@ const asar=require('@electron/asar');
 const runtime=Object.freeze([
  'custom-omsi-discovery','document-epoch-gate','game-inspection','inspection-executor',
  'inspection-grant','inspection-report-projection','launch-argument-guard','main',
- 'native-directory-choice','omsi-steam-locator','omsi-structure-hints','preload',
+ 'native-directory-choice','omsi-config-selection','omsi-steam-locator','omsi-structure-hints','preload',
  'preview-mode-policy','security-policy','steam-build-reader','steam-candidate-store',
  'steam-discovery','truck-mod-locator'
 ].map(name=>name+'.cjs'));
