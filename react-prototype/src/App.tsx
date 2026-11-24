@@ -973,14 +973,15 @@ export default function App(){
   }
  }
  async function detectSteam(){
-  if(discoveryBusy.current||inspecting||!window.omsiPreview?.discoverSteam)return;
+  const bridge=window.omsiPreview;
+  if(discoveryBusy.current||inspecting||!bridge?.discoverSteam)return;
+  const discover=bridge.discoverSteam;
   discoveryBusy.current=true;
   setDiscovering(true);setSteamResults({});setSteamOptions({});setChosenSteam({});
   try{
    for(const id of Object.keys(games) as GameId[]){
     let label='Busca inconclusiva';
     try{
-     const bridge=window.omsiPreview;
      if(bridge.listSteam){
       const list=await bridge.listSteam(id);
       if(list.status==='candidate-list'){
@@ -989,7 +990,7 @@ export default function App(){
        setSteamOptions(old=>({...old,[id]:list.candidates}));
       }
      }else{
-      const result=await bridge.discoverSteam(id);
+      const result=await discover(id);
       if(result.status==='discovery')label=result.count>0?result.count+' instalação(ões) candidata(s)':'Nenhuma candidata nos locais consultados';
      }
     }catch{}
