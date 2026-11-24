@@ -28,7 +28,7 @@ const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./sec
 const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
-const { locateOmsiSteam } = require('./omsi-steam-locator.cjs');
+const { discoverSteam } = require('./steam-discovery.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
@@ -87,7 +87,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual') => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(mode!=='locate-omsi-steam'||gameId!=='omsi'||process.platform!=='linux'))
+    if(mode!=='manual'&&(!(mode==='discover-steam'||(mode==='locate-omsi-steam'&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -119,8 +119,16 @@ app.whenReady().then(() => {
       // never an inspection grant or a path returned to the renderer.
       let hint=null;
       let title='Selecione a pasta do jogo (somente leitura)';
-      if(mode==='locate-omsi-steam'){
-        try{hint=await locateOmsiSteam(app.getPath('home'),documentSignal);}
+      if(mode==='locate-omsi-steam'||mode==='discover-steam'){
+        try{
+          const candidates=await discoverSteam(gameId,{
+            home:app.getPath('home'),platform:process.platform,
+            programFiles:[process.env['ProgramFiles(x86)'],process.env.ProgramFiles]
+          },documentSignal);
+          if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+          if(mode==='discover-steam')return {status:'discovery',count:candidates.length};
+          hint=candidates.length===1?candidates[0]:null;
+        }
         catch{return {status:'error',message:'Não foi possível procurar a instalação automaticamente. Tente a seleção manual.'};}
         title=hint?'Confirme a pasta candidata do OMSI 2 (somente leitura)':
           'Localização automática inconclusiva. Selecione a pasta manualmente.';
