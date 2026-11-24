@@ -1610,3 +1610,10 @@
 .local-candidate-facts dt{font-size:10px;color:var(--muted)}
 .local-candidate-facts dd{margin:3px 0 0;line-height:1.5;font-size:11px;color:var(--accent)}
 .local-candidate-details p{font-size:11px;color:var(--muted);line-height:1.6;margin:7px 0 0}
+
+/* M139: bounded ephemeral comparison. */
+.local-comparison{margin:14px 0;padding:12px;border:1px solid var(--edge);border-radius:9px;background:var(--frame);overflow-wrap:anywhere}
+.local-comparison h3{margin:0 0 8px;font-size:14px}
+.local-comparison p,.local-comparison li,.local-comparison summary{font-size:11px;line-height:1.6;color:var(--muted)}
+.local-comparison summary{cursor:pointer;color:var(--accent);padding:5px 0}
+.local-comparison button,.local-inventory-panel .library-by-game-grid button{max-width:100%;white-space:normal;overflow-wrap:anywhere}

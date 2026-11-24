@@ -549,7 +549,28 @@ try{
  assert.equal(await m135Library.getByRole('button',{name:'Página anterior de conteúdo local'}).isDisabled(),true);
  await m135Library.getByRole('button',{name:'Limpar filtros locais'}).click();
  assert.equal(await m135List.count(),20);
+ // M139: save observation, navigate, change only owned disposable fixture, rescan.
+ await m135Library.getByRole('button',{name:'Guardar referência de OMSI 2'}).click();
+ await m135Library.getByText('Referência guardada: OMSI 2 · 25 nomes.',{exact:true}).waitFor({timeout:10000});
+ await m135Library.getByRole('button',{name:'Inspecionar pastas em Jogos'}).click();
+ await rm(join(m135Root,'Vehicles','Fixture 01'),{recursive:true,force:true});
+ await mkdir(join(m135Root,'Vehicles','Fixture 26'));
+ await mkdir(join(m135Root,'Vehicles','Fixture 27'));
+ await application.evaluate(patch,{canceled:false,filePaths:[m135Root]});
+ await window.locator('.inspection-game').first().getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
+ await window.locator('.inspection-game').first().getByRole('region',{name:'Resumo da inspeção de estrutura'}).getByText('26',{exact:true}).first().waitFor({timeout:15000});
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca',exact:true}).click();
+ const m139Compare=m135Library.getByRole('region',{name:'Comparação de observações locais'});
+ await m139Compare.getByText('24',{exact:true}).waitFor({timeout:10000});
+ assert.equal(await m139Compare.getByText('1',{exact:true}).isVisible(),true);
+ assert.equal(await m139Compare.getByText('2',{exact:true}).isVisible(),true);
+ assert.match(await m139Compare.innerText(),/não comprovam ausência/);
+ await m139Compare.getByText('Só na observação atual — exemplos (2 de 2)',{exact:true}).click();
+ assert.equal(await m139Compare.getByText('Fixture 26',{exact:true}).isVisible(),true);
+ assert.equal(await m139Compare.getByText('Fixture 27',{exact:true}).isVisible(),true);
+ console.log('PASS_M139_LOCAL_OBSERVATION_COMPARISON');
  await m135Library.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
+ assert.equal(await m139Compare.getByText('Nenhuma referência guardada nesta sessão.',{exact:true}).isVisible(),true);
  assert.equal(await m135List.count(),0);
  assert.equal(await m135Library.getByRole('heading',{name:'Conteúdo local'}).evaluate(el=>document.activeElement===el),true);
  await m135Library.getByRole('button',{name:'Inspecionar pastas em Jogos'}).click();
