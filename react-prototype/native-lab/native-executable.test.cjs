@@ -2329,3 +2329,34 @@ test('M119 actual Windows fixture reports form a unified non-authorizing review'
  // Fixed public summary of actual test output, not an attestation.
  console.log('M119_WINDOWS_UNIFIED_REVIEW',JSON.stringify(review));
 });
+
+test('M122 linked Windows diagnostic retains source and directory handles across phases',{skip:!ready,timeout:30000},async t=>{
+ const result=await execAsync(exe,['--test-linked-diagnostic-m122'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:8192}).catch(e=>{
+  const lines=typeof e?.stderr==='string'?e.stderr.trim().split(/\r?\n/):[];
+  const category=lines.find(x=>/^M122_FIXED_SCENARIO_FAILED:(normal|case-only|link|parent-replaced|config-replaced|cancel-between|directory-changed|cancel-during-metadata)$/.test(x));
+  if(category)throw Error(category);throw sanitizeNativeExecError(e);
+ });
+ const r=JSON.parse(result.stdout);
+ assert.equal(r.schema,'omsi-m122-linked-windows-diagnostic-fixture-v1');
+ assert.equal(r.sameRetainedHandlesUsed,true);assert.equal(r.cases.length,8);
+ const rows=Object.fromEntries(r.cases.map(x=>[x.scenario,x]));
+ for(const [name,outcome] of [['normal','exact-observed'],['case-only','case-only-observed'],['link','link-refused']]){
+  await t.test(name,s=>{
+   if(name==='link'&&rows[name].status==='fixture-unavailable'){s.skip('symlink fixture unavailable');return;}
+   assert.equal(rows[name].status,'linked-fixture-observed');
+   assert.deepEqual(rows[name].outcomes,[outcome,'not-observed-in-directory']);
+   assert.equal(rows[name].configReadCalls,3);assert.equal(rows[name].referencesObserved,2);
+  });
+ }
+ for(const name of ['parent-replaced','config-replaced','cancel-between','directory-changed','cancel-during-metadata']){
+  await t.test(name,s=>{
+   if(name==='parent-replaced'&&rows[name].status==='fixture-unavailable'){s.skip('OS refused rename setup');return;}
+   assert.equal(rows[name].status,'linked-fixture-refused');assert.deepEqual(rows[name].outcomes,[]);
+   assert.equal(rows[name].configReadCalls,2);
+   assert.equal(rows[name].referencesObserved,['directory-changed','cancel-during-metadata'].includes(name)?1:0);
+  });
+ }
+ for(const row of r.cases)assert.ok(row.entriesScanned<=64);
+ for(const k of ['dependencyContentsRead','realModValidated','atomicContainmentProven','nativeConsentVerified','operationsEnabled'])assert.equal(r[k],false);
+ assert.doesNotMatch(result.stdout,/\.o3d|\.cfg/);
+});
