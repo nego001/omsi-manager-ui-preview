@@ -1,4 +1,5 @@
 import {useMemo,useState} from 'react';
+import {focusInspectionPanel} from './library-inspection-navigation';
 import type {FolderInspection,InspectionGameId,OmsiStructureHints} from './inspection-types';
 
 const gameIds=['omsi','ets2','ats'] as const;
@@ -54,12 +55,17 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
  function resetFilters(){setGame('all');setKind('all');setQuery('');setOrder('name');setPage(0);}
 
  return <section className="library-by-game local-inventory-panel" aria-label="Biblioteca local da sessão">
-  <div className="library-by-game-heading"><h2>Conteúdo local</h2><span>Separado dos favoritos e do catálogo. Apenas nomes observados na última inspeção de cada jogo, nesta sessão.</span></div>
+  <div className="library-by-game-heading"><h2 id="local-inventory-heading" tabIndex={-1}>Conteúdo local</h2><span>Separado dos favoritos e do catálogo. Apenas nomes observados na última inspeção de cada jogo, nesta sessão.</span></div>
   <p>Não confirma instalação, ativação, integridade ou compatibilidade. A lista não é monitorada em tempo real e pode incluir conteúdo original do jogo.</p>
   <div className="library-quick-navigation">
    <button type="button" className="btn secondary" onClick={onOpenGames}>Inspecionar pastas em Jogos</button>
    <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure)} onClick={()=>{setStructure(null);resetFilters();onClear();}}>Limpar inspeções da sessão</button>
   </div>
+  <div className="inspection-panel-links" role="group" aria-label="Atalhos de inspeção local">
+   <button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('metadata')}>Ir à pré-checagem OMSI</button>
+   <button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('demonstration')}>Ver demonstração de dependências</button>
+  </div>
+  <p className="inspection-panel-scope">Os atalhos apenas levam à seção correspondente. Nenhum candidato é aberto ou selecionado automaticamente.</p>
   {snapshots.length===0?<p>Nenhum inventário local nesta sessão. Confirme uma pasta em Jogos para começar.</p>:<>
    <div className="library-by-game-grid">{snapshots.map(s=>{
     const visible=s.groups.reduce((n,g)=>n+(g.inventory?.length??0),0);

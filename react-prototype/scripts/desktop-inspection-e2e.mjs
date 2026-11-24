@@ -436,6 +436,26 @@ try{
  await localLibrary.waitFor({timeout:15000});
  assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
  assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
+ // M136: navigation must not call any picker; preserve current inventory.
+ await application.evaluate(({dialog})=>{
+  globalThis.__m136PickerCalls=0;
+  const original=dialog.showOpenDialog;
+  globalThis.__m136Restore=()=>{dialog.showOpenDialog=original;};
+  dialog.showOpenDialog=async(...args)=>{globalThis.__m136PickerCalls++;return original(...args);};
+ });
+ try{
+  await localLibrary.getByRole('button',{name:'Ir à pré-checagem OMSI'}).click();
+  const metaPanel=window.getByRole('region',{name:'Seleção nativa de configuração OMSI'});
+  assert.equal(await metaPanel.getByRole('heading',{name:'Pré-checagem de configuração local'}).evaluate(el=>document.activeElement===el),true);
+  await metaPanel.getByRole('button',{name:'Ver demonstração de dependências'}).click();
+  const demoPanel=window.getByRole('region',{name:'Prévia de dependências OMSI'});
+  assert.equal(await demoPanel.getByRole('heading',{name:'Diagnóstico de dependências OMSI'}).evaluate(el=>document.activeElement===el),true);
+  await demoPanel.getByRole('button',{name:'Voltar ao conteúdo local'}).click();
+  assert.equal(await localLibrary.getByRole('heading',{name:'Conteúdo local'}).evaluate(el=>document.activeElement===el),true);
+  assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
+  assert.equal(await application.evaluate(()=>globalThis.__m136PickerCalls),0);
+ }finally{await application.evaluate(()=>{globalThis.__m136Restore();delete globalThis.__m136Restore;delete globalThis.__m136PickerCalls;});}
+ console.log('PASS_M136_VISUAL_NAVIGATION_NO_PICKER');
  await localLibrary.getByRole('combobox',{name:'Simulador local'}).selectOption('ets2');
  assert.equal(await localLibrary.getByText('Bus A',{exact:true}).count(),0);
  await localLibrary.getByRole('textbox',{name:'Pesquisar conteúdo local'}).fill('HEAVY_SOUND');
