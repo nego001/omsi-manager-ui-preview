@@ -2312,3 +2312,20 @@ test('M117 Windows native dependency metadata fixture distinguishes exact names 
  for(const key of ['dependencyContentsRead','realModValidated','atomicContainmentProven','operationsEnabled'])assert.equal(report[key],false);
  assert.doesNotMatch(result.stdout,/\.o3d/);
 });
+
+test('M119 actual Windows fixture reports form a unified non-authorizing review',{skip:!ready,timeout:90000},async()=>{
+ const run=async flag=>{
+  const result=await execAsync(exe,[flag],{shell:false,windowsHide:true,timeout:25000,maxBuffer:16384}).catch(e=>{throw sanitizeNativeExecError(e);});
+  return JSON.parse(result.stdout);
+ };
+ const input={reader:await run('--test-config-read-m112'),format:await run('--test-format-m115'),dependencies:await run('--test-dependency-metadata-m117')};
+ const review=require('../scripts/m118-unified-native-diagnostic-review.cjs').createUnifiedReview('win32',input);
+ assert.equal(review.reader.fixtureCases,12);
+ assert.equal(review.format.rows.length,2);
+ assert.equal(review.dependencies.cases,7);
+ assert.equal(review.coverageGaps,review.reader.unavailableCases+review.dependencies.unavailableCases.length);
+ assert.equal(review.contentReadAuthorized,false);assert.equal(review.linkedSameFileIdentityVerified,false);
+ assert.doesNotMatch(JSON.stringify(review),/fixtureBase64|\.o3d|\.cfg|\.bus/);
+ // Fixed public summary of actual test output, not an attestation.
+ console.log('M119_WINDOWS_UNIFIED_REVIEW',JSON.stringify(review));
+});
