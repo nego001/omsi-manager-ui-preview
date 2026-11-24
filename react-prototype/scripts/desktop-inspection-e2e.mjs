@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm,symlink,rename} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm,symlink,rename,realpath} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import { _electron as electron } from 'playwright';
@@ -773,6 +773,111 @@ try{
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),
   'DO_NOT_MODIFY');
  console.log('PASS_M67_REAL_ELECTRON_ABORTED_METADATA_SCAN_AND_RECOVERY');
+
+ // M109: actual renderer/preload/main IPC with a simulated native choice.
+ // No real portal is exercised. Only private disposable fixtures are selected.
+ const configRoot=await realpath(await mkdtemp(join(root,'m109-config-')));
+ const config=join(configRoot,'Fixture.bus'),oversized=join(configRoot,'Large.cfg');
+ const configBytes='[model]\nprivate_fixture.cfg\n';
+ await writeFile(config,configBytes,{flag:'wx'});
+ await writeFile(oversized,Buffer.alloc(65537),{flag:'wx'});
+ await application.evaluate(({dialog},file)=>{
+  const fsp=process.getBuiltinModule('node:fs/promises');
+  const originals={open:fsp.open,readFile:fsp.readFile,opendir:fsp.opendir};
+  globalThis.__m109Restore=()=>{for(const key of Object.keys(originals))fsp[key]=originals[key];};
+  globalThis.__m109ContentCalls=0;globalThis.__m109PickerCalls=0;globalThis.__m109OptionsOK=false;
+  // Observe only attempted access to the selected fixture, never general I/O.
+  for(const name of Object.keys(originals)){
+   fsp[name]=function(target,...args){
+    if(target===file){globalThis.__m109ContentCalls++;throw Error('M109_UNEXPECTED_CONTENT_ACCESS');}
+    return originals[name].call(this,target,...args);
+   };
+  }
+  dialog.showOpenDialog=async(_win,opts)=>{
+   globalThis.__m109PickerCalls++;
+   globalThis.__m109OptionsOK=opts.properties.includes('openFile')&&
+    opts.properties.includes('dontAddToRecent')&&!opts.properties.includes('openDirectory')&&
+    opts.filters.length===1&&opts.filters[0].extensions.join(',')==='bus,ovh,cfg'&&!opts.defaultPath;
+   return {canceled:false,filePaths:[file]};
+  };
+ },config);
+ try{
+  const observed=await window.evaluate(()=>window.omsiPreview.precheckOmsiConfig('/renderer-supplied-path'));
+  assert.deepEqual(observed,{status:'config-metadata-observed',scope:'selected-file-metadata-only',
+   candidateKind:'bus-candidate',byteCount:Buffer.byteLength(configBytes),contentOpened:false,
+   dependencyScanPerformed:false,nativeIdentityVerified:false,compatibilityVerified:false,operationsEnabled:false});
+  assert.equal(await application.evaluate(()=>globalThis.__m109OptionsOK),true);
+  assert.equal(await application.evaluate(()=>globalThis.__m109PickerCalls),1);
+  assert.doesNotMatch(JSON.stringify(observed),/Fixture\.bus|private_fixture/);
+  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca'}).click();
+  const panel=window.getByRole('region',{name:'Seleção nativa de configuração OMSI'});
+  await panel.getByRole('button',{name:'Selecionar arquivo para pré-checagem'}).click();
+  await panel.getByText('.bus · '+Buffer.byteLength(configBytes)+' bytes · conteúdo não aberto.',{exact:true}).waitFor({timeout:10000});
+  assert.equal(await window.getByRole('button',{name:'Selecionar configuração OMSI (bloqueado)'}).isDisabled(),true);
+  assert.equal(await application.evaluate(()=>globalThis.__m109ContentCalls),0);
+ }finally{await application.evaluate(()=>{globalThis.__m109Restore();delete globalThis.__m109Restore;});}
+ for(const selection of [{canceled:true,filePaths:[]},{canceled:false,filePaths:[oversized]},
+  {canceled:false,filePaths:[config,oversized]},{canceled:false,filePaths:[]}]){
+  await application.evaluate(patch,selection);
+  const result=await window.evaluate(()=>window.omsiPreview.precheckOmsiConfig());
+  assert.equal(result.status,selection.canceled?'cancelled':'error');
+  assert.equal(JSON.stringify(result).includes(configRoot),false);
+ }
+ // The content selector shares the one-flight guard with existing folder IPC.
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=()=>new Promise(resolve=>{globalThis.__m109Release=resolve;});
+ });
+ const configPending=window.evaluate(()=>window.omsiPreview.precheckOmsiConfig());
+ await application.evaluate(async()=>{
+  for(let i=0;i<200;i++){if(typeof globalThis.__m109Release==='function')return;await new Promise(r=>setTimeout(r,20));}
+  throw Error('M109_PICKER_NOT_PENDING');
+ });
+ const competingFolder=await window.evaluate(()=>window.omsiPreview.inspectGame('omsi'));
+ assert.deepEqual(competingFolder,{status:'error',message:'Já existe uma inspeção em andamento.'});
+ const competingFile=await window.evaluate(()=>window.omsiPreview.precheckOmsiConfig());
+ assert.deepEqual(competingFile,competingFolder);
+ // Synthetic epoch notification; genuine renderer context remains alive.
+ await application.evaluate(({BrowserWindow},file)=>{
+  const wc=BrowserWindow.getAllWindows()[0].webContents;
+  wc.emit('did-start-navigation',{isMainFrame:true,isSameDocument:false});
+  const release=globalThis.__m109Release;delete globalThis.__m109Release;
+  release({canceled:false,filePaths:[file]});
+ },config);
+ assert.deepEqual(await configPending,{status:'error',message:'Origem da inspeção não autorizada.'});
+ await application.evaluate(patch,{canceled:true,filePaths:[]});
+ assert.deepEqual(await window.evaluate(()=>window.omsiPreview.precheckOmsiConfig()),{status:'cancelled'});
+ // Genuine reload while the config picker is pending. Old renderer cannot
+ // receive a result; new renderer remains blocked until old picker finishes.
+ await application.evaluate(({dialog})=>{
+  dialog.showOpenDialog=()=>new Promise(resolve=>{globalThis.__m109ReloadRelease=resolve;});
+ });
+ const oldConfig=window.evaluate(()=>window.omsiPreview.precheckOmsiConfig()).then(()=> 'reply',()=> 'destroyed');
+ await application.evaluate(async()=>{
+  for(let i=0;i<200;i++){if(typeof globalThis.__m109ReloadRelease==='function')return;await new Promise(r=>setTimeout(r,20));}
+  throw Error('M109_RELOAD_PICKER_NOT_PENDING');
+ });
+ await window.reload({waitUntil:'load',timeout:30000});
+ await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor({timeout:15000});
+ assert.deepEqual(await window.evaluate(()=>window.omsiPreview.precheckOmsiConfig()),{status:'error',message:'Já existe uma inspeção em andamento.'});
+ await application.evaluate((_,file)=>{
+  const release=globalThis.__m109ReloadRelease;delete globalThis.__m109ReloadRelease;
+  release({canceled:false,filePaths:[file]});
+ },config);
+ assert.equal(await oldConfig,'destroyed');
+ await application.evaluate(patch,{canceled:false,filePaths:[config]});
+ let recoveredConfig;
+ for(let i=0;i<100;i++){
+  recoveredConfig=await window.evaluate(()=>window.omsiPreview.precheckOmsiConfig());
+  if(recoveredConfig.status==='config-metadata-observed')break;
+  assert.deepEqual(recoveredConfig,{status:'error',message:'Já existe uma inspeção em andamento.'});
+  await new Promise(r=>setTimeout(r,20));
+ }
+ assert.equal(recoveredConfig.status,'config-metadata-observed');
+ assert.equal(recoveredConfig.contentOpened,false);
+ assert.equal(await readFile(config,'utf8'),configBytes);
+ assert.equal((await readFile(oversized)).length,65537);
+ console.log('PASS_M109_ELECTRON_CONFIG_METADATA_IPC_RELOAD_AND_SHARED_GUARD');
+
  console.log('Native folder IPC E2E: OK. Synthetic epoch notification, actual hash navigation and real reload recovery.');
 }finally{
  await application?.close();
