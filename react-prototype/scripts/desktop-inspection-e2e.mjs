@@ -453,6 +453,28 @@ try{
   await demoPanel.getByRole('button',{name:'Voltar ao conteúdo local'}).click();
   assert.equal(await localLibrary.getByRole('heading',{name:'Conteúdo local'}).evaluate(el=>document.activeElement===el),true);
   assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
+  // M138: expanding candidate details consumes the already observed metadata only.
+  const busRow=localLibrary.locator('.local-inventory-list>li').filter({has:localLibrary.getByText('Bus A',{exact:true})});
+  const packageRow=localLibrary.locator('.local-inventory-list>li').filter({has:localLibrary.getByText('heavy_sound.SCS',{exact:true})});
+  const busDetails=busRow.locator('details');
+  assert.equal(await busDetails.getAttribute('open'),null);
+  await busDetails.locator('summary').focus();
+  await window.keyboard.press('Enter');
+  assert.equal(await busDetails.evaluate(el=>el.open),true);
+  assert.equal(await busDetails.getByText('Diretório',{exact:true}).isVisible(),true);
+  assert.equal(await busDetails.getByText('Não determinado',{exact:true}).isVisible(),true);
+  assert.match(await busDetails.innerText(),/Nenhum conteúdo aberto/);
+  await busDetails.locator('summary').click();
+  assert.equal(await busDetails.evaluate(el=>el.open),false);
+  const packageDetails=packageRow.locator('details');
+  await packageDetails.locator('summary').click();
+  assert.equal(await packageDetails.getByText('.scs',{exact:true}).isVisible(),true);
+  assert.equal(await packageDetails.getByText('Arquivo candidato',{exact:true}).isVisible(),true);
+  assert.equal((await packageDetails.innerText()).includes(etsSample),false);
+  await packageDetails.locator('summary').click();
+  assert.equal(await packageDetails.evaluate(el=>el.open),false);
+  assert.equal(await readFile(join(etsSample,'mod','heavy_sound.SCS'),'utf8'),'SCS_SENTINEL');
+  console.log('PASS_M138_LOCAL_CANDIDATE_DETAILS_NO_PICKER');
   assert.equal(await application.evaluate(()=>globalThis.__m136PickerCalls),0);
  }finally{await application.evaluate(()=>{globalThis.__m136Restore();delete globalThis.__m136Restore;delete globalThis.__m136PickerCalls;});}
  console.log('PASS_M136_VISUAL_NAVIGATION_NO_PICKER');

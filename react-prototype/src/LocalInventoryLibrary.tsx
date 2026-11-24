@@ -51,7 +51,9 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
   return [{id,groups,limited:report.limited}];
  }),[inspections]);
  const rows=useMemo(()=>snapshots.flatMap(s=>s.groups.flatMap(g=>(g.inventory??[]).map(item=>({
-  ...item,game:s.id,group:g.key,groupLabel:g.name
+  ...item,game:s.id,group:g.key,groupLabel:g.name,
+  groupLimited:g.limited,reportLimited:s.limited,groupNames:g.inventory?.length??0,
+  groupCandidates:g.directories+g.packageCandidates
  })))),[snapshots]);
  const shown=useMemo(()=>{
   const matching=rows.filter(row=>(game==='all'||game===row.game)&&
@@ -108,7 +110,22 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
     <button type="button" className="btn secondary" onClick={resetFilters}>Limpar filtros locais</button>
    </div>
    <p role="status">{shown.length} de {rows.length} nomes locais correspondem aos filtros</p>
-   {shown.length===0?<p>Nenhum candidato corresponde aos filtros locais.</p>:<><ul className="inspection-notices local-inventory-list">{visibleRows.map(row=><li key={JSON.stringify([row.game,row.group,row.label])}><strong style={{overflowWrap:'anywhere'}}><bdi>{row.label}</bdi></strong> — {labels[row.game]} · {row.groupLabel} · {row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</li>)}</ul>
+   {shown.length===0?<p>Nenhum candidato corresponde aos filtros locais.</p>:<><ul className="inspection-notices local-inventory-list">{visibleRows.map(row=><li key={JSON.stringify([row.game,row.group,row.label])}>
+     <div className="local-candidate-title"><strong><bdi>{row.label}</bdi></strong><span>{labels[row.game]} · {row.groupLabel} · {row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</span></div>
+     <details className="local-candidate-details">
+      <summary>Detalhes do candidato</summary>
+      <dl className="local-candidate-facts">
+       <div><dt>Simulador da inspeção</dt><dd>{labels[row.game]}</dd></div>
+       <div><dt>Grupo observado</dt><dd>{row.groupLabel}</dd></div>
+       <div><dt>Tipo observado</dt><dd>{row.kind==='directory'?'Diretório':'Arquivo candidato'}</dd></div>
+       <div><dt>Formato aparente</dt><dd>{row.kind==='package'?(row.label.toLowerCase().endsWith('.scs')?'.scs':'.zip'):'Não determinado'}</dd></div>
+       <div><dt>Origem da informação</dt><dd>Última inspeção da sessão, primeiro nível</dd></div>
+       <div><dt>Abrangência do grupo</dt><dd>{row.groupLimited?'Observação parcial':row.groupNames<row.groupCandidates?'Nomes omitidos':'Nomes observados no limite previsto'}</dd></div>
+      </dl>
+      {(row.groupLimited||row.reportLimited||row.groupNames<row.groupCandidates)&&<p>O inventário pode estar incompleto; outros candidatos podem existir.</p>}
+      <p>Não confirma que o candidato seja um mod, nem sua instalação, fabricante, versão, tamanho, integridade ou compatibilidade. Nenhum conteúdo aberto.</p>
+     </details>
+    </li>)}</ul>
     <div className="local-inventory-pagination" aria-label="Paginação dos nomes locais">
      <button type="button" className="btn secondary" disabled={currentPage===0} onClick={()=>changePage(currentPage-1)}>Página anterior de conteúdo local</button>
      <span ref={pageStatus} tabIndex={-1} role="status">Página {currentPage+1} de {pages} · {currentPage*pageSize+1}–{Math.min(shown.length,(currentPage+1)*pageSize)} de {shown.length}</span>
