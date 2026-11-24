@@ -160,6 +160,25 @@ try{
    await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar pasta',exact:true}).click();
    await omsiPanel.getByText('Pasta candidata confirmada nesta sessão.',{exact:true}).waitFor({timeout:15000});
    assert.equal(await readFile(join(secondOmsi,'Omsi.exe'),'utf8'),'M73_SYNTHETIC');
+   // M74: remember only after native confirmation and match the exact
+   // preferred path after reload and a reversed library enumeration order.
+   await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar e lembrar',exact:true}).click();
+   await omsiPanel.getByText('Instalação preferida',{exact:true}).waitFor({timeout:15000});
+   const saved=await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi'));
+   assert.match(saved,/^[0-9a-f]{64}$/);
+   assert.equal(saved.includes(root),false);
+   await writeFile(join(steam,'libraryfolders.vdf'),
+    '"libraryfolders" { "0" { "path" '+JSON.stringify(secondLib)+' } "1" { "path" '+JSON.stringify(library)+' } }');
+   await window.reload({waitUntil:'load',timeout:30000});
+   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).click();
+   await omsiPanel.locator('.inspection-group').filter({hasText:'Instalação preferida'})
+    .getByRole('button',{name:'Instalação Steam 1 · confirmar pasta',exact:true}).waitFor({timeout:15000});
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   await omsiPanel.getByRole('button',{name:'Esquecer instalação preferida'}).click();
+   assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi')),null);
+   assert.equal(await omsiPanel.getByText('Instalação preferida',{exact:true}).count(),0);
+   console.log('PASS_M74_PREFERRED_STEAM_SELECTION_RELOAD_REORDER_FORGET');
    // Clear transient UI reports so prior manual-inspection assertions start clean.
    await window.reload({waitUntil:'load',timeout:30000});
    console.log('PASS_M73_MULTIPLE_STEAM_CANDIDATES_NATIVE_CONFIRMATION');
