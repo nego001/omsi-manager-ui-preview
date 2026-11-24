@@ -430,6 +430,24 @@ try{
  assert.ok(!JSON.stringify(safeResult).includes(root),'Must not expose absolute paths');
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
 
+ // M79: library consumes only reports already obtained by confirmed inspection.
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Biblioteca',exact:true}).click();
+ const localLibrary=window.getByRole('region',{name:'Biblioteca local da sessão'});
+ await localLibrary.waitFor({timeout:15000});
+ assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
+ assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
+ await localLibrary.getByRole('combobox',{name:'Simulador local'}).selectOption('ets2');
+ assert.equal(await localLibrary.getByText('Bus A',{exact:true}).count(),0);
+ await localLibrary.getByRole('textbox',{name:'Pesquisar conteúdo local'}).fill('HEAVY_SOUND');
+ assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
+ assert.equal(await localLibrary.getByText('skin.zip',{exact:true}).count(),0);
+ await localLibrary.getByRole('button',{name:'Limpar filtros locais'}).click();
+ await localLibrary.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
+ assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).count(),0);
+ assert.match(await localLibrary.innerText(),/Nenhum inventário local nesta sessão/);
+ await localLibrary.getByRole('button',{name:'Inspecionar pastas em Jogos'}).click();
+ console.log('PASS_M79_ELECTRON_SESSION_LOCAL_LIBRARY');
+
  // M64: exercise the real Electron main-owned scanner and IPC projection
  // using an intentionally deceptive Unicode folder name. The native picker
  // is mocked, and every path is confined to our disposable test directory.
