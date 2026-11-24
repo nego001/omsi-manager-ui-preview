@@ -5,7 +5,7 @@ const {referenceScope}=require('./m81c-config-format-contract.cjs');
 const MAX_FILES=512,MAX_REFS=256,MAX_PATH=240,MAX_DEPTH=16;
 const refused=()=>{throw Error('M81D_FIXTURE_REFUSED');};
 function segments(raw){
- if(typeof raw!=='string'||raw.length<1||raw.length>MAX_PATH)return null;
+ if(typeof raw!=='string'||raw.length<1||raw.length>MAX_PATH||/[\x00-\x1f\x7f]/.test(raw))return null;
  const parts=raw.replace(/\\/g,'/').split('/');
  if(parts.length>MAX_DEPTH)return null;
  for(const part of parts){
