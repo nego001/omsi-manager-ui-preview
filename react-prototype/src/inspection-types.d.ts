@@ -2,6 +2,7 @@ export type InspectionGameId='omsi'|'ets2'|'ats';
 export type InspectionGroup={
  key:string;name:string;found:boolean;count:number;limited:boolean;
  directories:number;files:number;packageCandidates:number;linksSkipped:number;others:number;
+ inventory?:{kind:'directory'|'package';label:string}[];
 };
 export type InspectionNotice={code:string;level:'info'|'attention';message:string};
 export type FolderInspection=

@@ -3,6 +3,13 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const MAX_ENTRIES_PER_GROUP = 2000;
+const MAX_INVENTORY_LABELS = 100;
+// Display-only basenames, never paths or a subsequent operation authority.
+function isSafeInventoryLabel(name){
+ return typeof name==='string'&&name.length>0&&name.length<=160&&
+  name!=='.'&&name!=='..'&&!/[/\\:\x00-\x1f\x7f-\x9f\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069\ufeff]/u.test(name)&&
+  ![...name].some(ch=>{const cp=ch.codePointAt(0);return cp>=0xd800&&cp<=0xdfff;});
+}
 // Only true absence is an absent group. Permission denial must abort an
 // incomplete scan, not silently claim that the game folder is missing.
 const MISSING_CODES = Object.freeze(['ENOENT','ENOTDIR']);
@@ -56,7 +63,7 @@ function requireGameId(game) {
   return game;
 }
 function emptyCount(found=false){
-  return {count:0,found,limited:false,directories:0,files:0,packageCandidates:0,linksSkipped:0,others:0};
+  return {count:0,found,limited:false,directories:0,files:0,packageCandidates:0,linksSkipped:0,others:0,inventory:[]};
 }
 // Symlinks are never enumerated intentionally. The second identity check runs
 // BEFORE reading dir entries. This can detect a changed pathname, but does not
@@ -91,12 +98,15 @@ function createDirectoryCounter(fsApi=fs){
           continue;
         }
         result.count++;
-        if(entry.isDirectory())result.directories++;
+        let kind;
+        if(entry.isDirectory()){result.directories++;kind='directory';}
         else if(entry.isFile()){
           result.files++;
           if(checkPackages && PACKAGE_EXTENSIONS.some(ext=>
-            entry.name.toLowerCase().endsWith(ext)))result.packageCandidates++;
+            entry.name.toLowerCase().endsWith(ext))){result.packageCandidates++;kind='package';}
         }else result.others++;
+        if(kind&&result.inventory.length<MAX_INVENTORY_LABELS&&isSafeInventoryLabel(entry.name))
+          result.inventory.push({kind,label:entry.name});
       }
       await assertIdentity(fsApi,folder,initial);
       assertInspectionActive(signal);
@@ -175,7 +185,7 @@ function createGameDirectoryInspector(fsApi=fs){
       key:spec.key,name:spec.name,found:stats.found,count:stats.count,
       limited:stats.limited,directories:stats.directories,files:stats.files,
       packageCandidates:stats.packageCandidates,linksSkipped:stats.linksSkipped,
-      others:stats.others
+      others:stats.others,inventory:stats.inventory
     });
   }
   await verifyRoot();
@@ -202,6 +212,6 @@ function createGameDirectoryInspector(fsApi=fs){
 const inspectGameDirectory=createGameDirectoryInspector();
 module.exports={
   requireGameId,inspectGameDirectory,countDirectChildren,getInspectionNotices,
-  GAME_GROUPS,MAX_ENTRIES_PER_GROUP,createDirectoryCounter,
+  GAME_GROUPS,MAX_ENTRIES_PER_GROUP,MAX_INVENTORY_LABELS,isSafeInventoryLabel,createDirectoryCounter,
   createGameDirectoryInspector,directoryIdentity,assertInspectionActive
 };
