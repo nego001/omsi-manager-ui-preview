@@ -40,7 +40,7 @@ function admitNativeFixture(platform,raw){
        (row.scenario==='maximum'&&row.bytesRead!==131072))deny();
     accepted++;continue;
    }
-   if(platform==='win32'&&row.scenario==='reparse'&&row.outcome==='fixture-unavailable'){
+   if(platform==='win32'&&['reparse','parent-replaced'].includes(row.scenario)&&row.outcome==='fixture-unavailable'){
     if(row.opened||row.readCalls||row.bytesRead)deny();
     unavailable++;continue;
    }

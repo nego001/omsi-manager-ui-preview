@@ -154,7 +154,7 @@ internal static partial class Program
                 catch (UnauthorizedAccessException) { return new { scenario, outcome = "fixture-unavailable", opened = 0, readCalls = 0, bytesRead = 0 }; }
             }
 
-            bool cancelled = scenario == "cancel-before", changed = false;
+            bool cancelled = scenario == "cancel-before", changed = false, renameUnavailable = false;
             void Checkpoint(string stage)
             {
                 if (changed) return;
@@ -164,7 +164,19 @@ internal static partial class Program
                 {
                     if (scenario == "parent-replaced" && stage == "before-open")
                     {
-                        Directory.Move(parent, Path.Combine(root,"retired"));
+                        M116Stage = "parent-rename-attempt";
+                        try { Directory.Move(parent, Path.Combine(root,"retired")); }
+                        catch (Exception e) when (
+                            (e is IOException || e is UnauthorizedAccessException) &&
+                            (unchecked((uint)e.HResult) is 0x80070005U or 0x80070020U or 0x80070021U))
+                        {
+                            // No replacement occurred: stop the experiment before
+                            // content open, and report a coverage gap, not a refusal proof.
+                            renameUnavailable = true;
+                            cancelled = true;
+                            return;
+                        }
+                        M116Stage = "parent-replacement-setup";
                         Directory.CreateDirectory(parent);
                         File.WriteAllBytes(source, M112Sentinel);
                     }
@@ -192,6 +204,15 @@ internal static partial class Program
                 M116Stage = "ntfs-check";
                 if (!BoundedNativeChangeProbe.HasNtfsVolume(rootHandle)) Deny();
                 bytes = M112Read(pins,rootHandle,Checkpoint,()=>cancelled,metrics);
+            }
+            if (renameUnavailable)
+            {
+                if (scenario != "parent-replaced" || bytes is not null || changed ||
+                    metrics.Opened != 0 || metrics.Reads != 0 || metrics.Bytes != 0 ||
+                    Directory.Exists(Path.Combine(root,"retired")) ||
+                    !File.ReadAllBytes(source).AsSpan().SequenceEqual(M112Original) ||
+                    !File.ReadAllBytes(sentinel).AsSpan().SequenceEqual(M112Sentinel)) Deny();
+                return new { scenario, outcome = "fixture-unavailable", opened = 0, readCalls = 0, bytesRead = 0 };
             }
             bool normal = scenario is "normal" or "maximum";
             if (normal)
