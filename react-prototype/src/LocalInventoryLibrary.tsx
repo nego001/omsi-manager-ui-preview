@@ -1,5 +1,6 @@
 import {useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {focusInspectionPanel} from './library-inspection-navigation';
+import {captureLocalObservation,compareLocalObservations,type LocalObservation} from './local-inventory-comparison.mjs';
 import type {FolderInspection,InspectionGameId,OmsiStructureHints} from './inspection-types';
 
 const gameIds=['omsi','ets2','ats'] as const;
@@ -9,9 +10,11 @@ type Props={
  busy:boolean;
  onOpenGames:()=>void;
  onClear:()=>void;
+ reference:LocalObservation|null;
+ onReference:(value:LocalObservation|null)=>void;
 };
 const searchKey=(value:string)=>value.normalize('NFD').replace(/\p{M}/gu,'').toLocaleLowerCase('pt-BR');
-export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Props){
+export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear,reference,onReference}:Props){
  const [game,setGame]=useState<InspectionGameId|'all'>('all');
  const [kind,setKind]=useState<'all'|'directory'|'package'>('all');
  const [query,setQuery]=useState('');
@@ -50,6 +53,7 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
   if(!groups.length)return [];
   return [{id,groups,limited:report.limited}];
  }),[inspections]);
+ const comparison=useMemo(()=>reference?compareLocalObservations(reference,captureLocalObservation(inspections[reference.game],reference.game)):null,[reference,inspections]);
  const rows=useMemo(()=>snapshots.flatMap(s=>s.groups.flatMap(g=>(g.inventory??[]).map(item=>({
   ...item,game:s.id,group:g.key,groupLabel:g.name,
   groupLimited:g.limited,reportLimited:s.limited,groupNames:g.inventory?.length??0,
@@ -84,7 +88,7 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
   <p>Não confirma instalação, ativação, integridade ou compatibilidade. A lista não é monitorada em tempo real e pode incluir conteúdo original do jogo.</p>
   <div className="library-quick-navigation">
    <button type="button" className="btn secondary" onClick={onOpenGames}>Inspecionar pastas em Jogos</button>
-   <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure)} onClick={()=>{setStructure(null);resetFilters();onClear();focusInspectionPanel('local');}}>Limpar inspeções da sessão</button>
+   <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure&&!reference)} onClick={()=>{setStructure(null);resetFilters();onClear();focusInspectionPanel('local');}}>Limpar inspeções da sessão</button>
   </div>
   <div className="inspection-panel-links" role="group" aria-label="Atalhos de inspeção local">
    <button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('metadata')}>Ir à pré-checagem OMSI</button>
@@ -95,7 +99,7 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
    <div className="library-by-game-grid">{snapshots.map(s=>{
     const visible=s.groups.reduce((n,g)=>n+(g.inventory?.length??0),0);
     const observed=s.groups.reduce((n,g)=>n+g.directories+g.packageCandidates,0);
-    return <div key={s.id}><strong>{labels[s.id]}</strong><p>{visible} nomes exibíveis de {observed} candidatos observados.</p>{(s.limited||visible<observed)&&<small>Lista incompleta: limite de inspeção ou nomes omitidos.</small>}</div>;
+    return <div key={s.id}><strong>{labels[s.id]}</strong><p>{visible} nomes exibíveis de {observed} candidatos observados.</p><button type="button" className="btn secondary" disabled={busy||structureBusy||!captureLocalObservation(inspections[s.id],s.id)} onClick={()=>{const snapshot=captureLocalObservation(inspections[s.id],s.id);if(snapshot)onReference(snapshot);}}>Guardar referência de {labels[s.id]}</button>{(s.limited||visible<observed)&&<small>Lista incompleta: limite de inspeção ou nomes omitidos.</small>}</div>;
    })}</div>
    <dl className="local-inventory-summary" aria-label="Resumo dos nomes locais">
     <div><dt>Pastas candidatas</dt><dd>{directories}</dd></div>
@@ -132,6 +136,24 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
      <button type="button" className="btn secondary" disabled={currentPage+1>=pages} onClick={()=>changePage(currentPage+1)}>Próxima página de conteúdo local</button>
     </div></>}
   </>}
+  <section className="local-comparison" aria-label="Comparação de observações locais">
+   <h3>Comparar observações da sessão</h3>
+   <p>Guarde uma referência de um simulador e faça outra inspeção em Jogos. A comparação usa somente nomes, tipos e grupos exibíveis; a mesma instalação não é comprovada.</p>
+   {!reference?<p>Nenhuma referência guardada nesta sessão.</p>:<>
+    <p role="status">Referência guardada: {labels[reference.game]} · {reference.rows.length} nomes.</p>
+    <button type="button" className="btn secondary" onClick={()=>{onReference(null);focusInspectionPanel('local');}}>Descartar referência local</button>
+    {!comparison?<p>Observação atual indisponível ou escopo de seleção diferente. Não há comparação.</p>:<>
+     <dl className="local-inventory-summary">
+      <div><dt>Presentes em ambas</dt><dd>{comparison.shared}</dd></div>
+      <div><dt>Só na referência</dt><dd>{comparison.onlyReference.length}</dd></div>
+      <div><dt>Só na observação atual</dt><dd>{comparison.onlyCurrent.length}</dd></div>
+     </dl>
+     {comparison.partial&&<p>Uma ou ambas as observações são parciais. Nomes não exibidos não comprovam ausência.</p>}
+     {([['Só na referência',comparison.onlyReference],['Só na observação atual',comparison.onlyCurrent]] as const).map(([title,items])=>items.length>0&&<details key={title}><summary>{title} — exemplos ({Math.min(10,items.length)} de {items.length})</summary><ul>{items.slice(0,10).map(item=><li key={item.key}><bdi>{item.label}</bdi> · {item.group} · {item.kind==='directory'?'Pasta candidata':'Pacote candidato'}</li>)}</ul></details>)}
+     <p>Não comprova instalação, remoção, atualização, identidade ou igualdade de conteúdo dos mods.</p>
+    </>}
+   </>}
+  </section>
   {window.omsiPreview?.inspectOmsiCandidate&&<section aria-label="Estrutura de um conteúdo OMSI">
    <h3>Identificar estrutura OMSI</h3>
    <p>Escolha diretamente a pasta de um veículo ou mapa. A análise observa somente extensões e nomes fixos no primeiro nível, sem abrir arquivos nem percorrer subpastas.</p>

@@ -1,0 +1,5 @@
+# M139 — compare session-local observations
+
+M137 run 45472104647 completed with build/security/browser/IPC and Windows native/portable passing, strict Ubuntu24 and historical cross-PR audit failing. M138 run 45473844828 Linux build/security, Windows native/portable passed at observation; browser/IPC pending.
+
+Single explicitly saved reference in React App memory, replaced only by another explicit reference capture or cleared by discard/session clear. No path, folder name, file handle or timestamp retained by reference. Compare exact game and selection mode, group/type/name keys only; present in both, reference-only and current-only counts, up to ten examples each. Partial flag if missing group, scanner limit or omitted names. Different selected roots may have identical names; same location, content equality and actual installation/removal cannot be verified. Two Node tests and actual Electron mocked-picker test with 25 then 26 fixed temporary folders, expected 24 shared, one reference-only, two current-only, session clear. No new native IPC, file permissions, persistence, export, repair/install/release. CI pending; no Ubuntu24 waiver.
