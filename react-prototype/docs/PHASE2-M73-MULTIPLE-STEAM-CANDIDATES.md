@@ -1,0 +1,2 @@
+# M73 — Multiple Steam candidates
+Lists opaque IDs and ordinal labels. Main owns paths, bound to webContents, game and document proof. Refresh invalidates IDs. Selection rechecks the hint against fresh discovery and requires native confirmation of the exact candidate. OMSI uses existing one-shot read-only grant; ETS2/ATS return advisory selection only, not mod inspection. Full paths visible in native picker only. No durable selection or authorization yet. Three synthetic unit tests and a real Electron two-candidate regression. Strict Ubuntu24 gate unchanged. Draft only.
