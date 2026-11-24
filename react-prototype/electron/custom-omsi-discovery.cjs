@@ -2,12 +2,13 @@
 // Bounded search only within an explicitly chosen folder. No game contents.
 const fs=require('node:fs/promises');
 const path=require('node:path');
-const {directoryIdentity,assertInspectionActive}=require('./game-inspection.cjs');
+const {directoryIdentity,assertInspectionActive,requireGameId}=require('./game-inspection.cjs');
 const MAX_DEPTH=3,MAX_DIRECTORIES=128,MAX_ENTRIES=1024;
 const missing=e=>['ENOENT','ENOTDIR'].includes(e?.code);
 const changed=()=>{throw Error('CUSTOM_DISCOVERY_INCONCLUSIVE');};
-function createCustomOmsiDiscovery(fsApi=fs){
- return async function discover(root,signal){
+function createCustomGameDiscovery(fsApi=fs){
+ return async function discover(root,game,signal){
+  requireGameId(game);
   assertInspectionActive(signal);
   if(typeof root!=='string'||!path.isAbsolute(root)||root===path.parse(root).root)changed();
   async function metadata(p){
@@ -36,16 +37,34 @@ function createCustomOmsiDiscovery(fsApi=fs){
    if(visited>=MAX_DIRECTORIES){limited=true;break;}
    const {p,depth,id}=pending.shift();visited++;
    await check(p,id);
-   const vehicles=await metadata(path.join(p,'Vehicles'));
-   const maps=await metadata(path.join(p,'maps'));
-   if(vehicles?.isDirectory()&&maps?.isDirectory()){
-    let marker=false;
-    for(const name of ['Omsi.exe','OMSI.exe','omsi.exe']){
-     if((await metadata(path.join(p,name)))?.isFile()){marker=true;break;}
+   let marker=false;
+   if(game==='omsi'){
+    const vehicles=await metadata(path.join(p,'Vehicles'));
+    const maps=await metadata(path.join(p,'maps'));
+    if(vehicles?.isDirectory()&&maps?.isDirectory()){
+     for(const name of ['Omsi.exe','OMSI.exe','omsi.exe']){
+      if((await metadata(path.join(p,name)))?.isFile()){marker=true;break;}
+     }
     }
-    await check(p,id);
-    if(marker){matches.push(p);continue;}
+   }else{
+    // Installation markers only: a Documents/mod folder is not a game.
+    const bin=path.join(p,'bin'),binId=directoryIdentity(await metadata(bin));
+    if(binId){
+     const executable=game==='ets2'?'eurotrucks2':'amtrucks';
+     for(const [sub,name] of [['linux_x64',executable],['win_x64',executable+'.exe']]){
+      const arch=path.join(bin,sub),archId=directoryIdentity(await metadata(arch));
+      if(!archId)continue;
+      await check(bin,binId);
+      await check(arch,archId);
+      const found=(await metadata(path.join(arch,name)))?.isFile();
+      await check(arch,archId);
+      await check(bin,binId);
+      if(found){marker=true;break;}
+     }
+    }
    }
+   await check(p,id);
+   if(marker){matches.push(p);continue;}
    // Do not open directories beyond the documented depth.
    if(depth>=MAX_DEPTH){limited=true;continue;}
    let dir;
@@ -77,4 +96,9 @@ function createCustomOmsiDiscovery(fsApi=fs){
   return {matches,limited};
  };
 }
-module.exports={createCustomOmsiDiscovery,discoverCustomOmsi:createCustomOmsiDiscovery(),MAX_DEPTH,MAX_DIRECTORIES,MAX_ENTRIES};
+function createCustomOmsiDiscovery(fsApi=fs){
+ const discover=createCustomGameDiscovery(fsApi);
+ return (root,signal)=>discover(root,'omsi',signal);
+}
+module.exports={createCustomOmsiDiscovery,discoverCustomOmsi:createCustomOmsiDiscovery(),
+ createCustomGameDiscovery,discoverCustomGame:createCustomGameDiscovery(),MAX_DEPTH,MAX_DIRECTORIES,MAX_ENTRIES};

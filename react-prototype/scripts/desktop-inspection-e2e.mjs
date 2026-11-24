@@ -140,6 +140,28 @@ try{
  assert.equal(JSON.stringify(customConfirmed).includes(root),false);
  assert.equal(await readFile(join(customGame,'Omsi.exe'),'utf8'),'M70_SYNTHETIC_MARKER');
  console.log('PASS_M70_CUSTOM_SCOPE_DISCOVERY_AND_CONFIRMATION');
+
+ // M71: truck installations in non-Steam folders are not mod directories.
+ const truckScope=join(root,'m71-custom-trucks'),etsRoot=join(truckScope,'Renamed ETS'),atsRoot=join(truckScope,'Renamed ATS');
+ await mkdir(join(etsRoot,'bin','linux_x64'),{recursive:true});
+ await mkdir(join(atsRoot,'bin','win_x64'),{recursive:true});
+ await writeFile(join(etsRoot,'bin','linux_x64','eurotrucks2'),'M71_SYNTHETIC_ETS');
+ await writeFile(join(atsRoot,'bin','win_x64','amtrucks.exe'),'M71_SYNTHETIC_ATS');
+ await application.evaluate(({dialog},scope)=>{
+  globalThis.__m71PickerCalls=0;
+  dialog.showOpenDialog=async()=>{globalThis.__m71PickerCalls++;return {canceled:false,filePaths:[scope]};};
+ },truckScope);
+ for(const id of ['ets2','ats']){
+  const r=await window.evaluate(id=>window.omsiPreview.discoverCustomTruck(id),id);
+  assert.deepEqual(r,{status:'custom-discovery',count:1,limited:true});
+  assert.equal(JSON.stringify(r).includes(root),false);
+ }
+ assert.equal(await application.evaluate(()=>globalThis.__m71PickerCalls),2);
+ // Each count required exactly one scope picker, never an inspection grant.
+ await application.evaluate(patch,{canceled:true,filePaths:[]});
+ assert.deepEqual(await window.evaluate(()=>window.omsiPreview.discoverCustomTruck('ats')),{status:'cancelled'});
+ assert.equal(await readFile(join(etsRoot,'bin','linux_x64','eurotrucks2'),'utf8'),'M71_SYNTHETIC_ETS');
+ console.log('PASS_M71_CUSTOM_TRUCK_INSTALLATION_DISCOVERY');
  // M65: only disposable targets and a mocked picker are used. Selecting a
  // symlinked ROOT must never authorize a scan or disclose the target path.
  const syntheticRootLink=join(root,'m65-symlinked-root');
