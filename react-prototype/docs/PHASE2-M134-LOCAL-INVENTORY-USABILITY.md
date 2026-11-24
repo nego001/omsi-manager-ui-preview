@@ -1,0 +1,5 @@
+# M134 — session-local inventory usability
+
+M133 run 45467031679 completed: Linux build/security/browser/IPC, Windows portable and standalone passed; mandatory strict Ubuntu24 X11 job 138710270696 failed. No full workflow success.
+
+Actual renderer changes only: local candidate summary by directory/package, accent-insensitive existing search, deterministic name/game/group ordering, 20 rows per page, navigation controls, filter resets including when clearing inspection state. Preserves original names, groups and existing upper bounds; counts refer to displayable observations, not installed mods. Separates local toolbar CSS from declarative favorite toolbar so browser filter contracts remain distinct. The local inventory remains only in the session and no new paths, persistence, export, reads, IPC or filesystem permissions were added. Existing Electron E2E fixture now exercises type filter, sort, reset and single-page bounds. Multi-page behavior still needs a larger fixture in subsequent tests. New CI pending. No real desktop validation on the user's machine, actual mod content, repair, install, merge/release or strict Ubuntu24 waiver.
