@@ -29,6 +29,7 @@ const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
 const { discoverSteam } = require('./steam-discovery.cjs');
+const { discoverCustomOmsi } = require('./custom-omsi-discovery.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
@@ -87,7 +88,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual') => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(!(mode==='discover-steam'||(mode==='locate-omsi-steam'&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
+    if(mode!=='manual'&&(!(mode==='discover-steam'||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -119,6 +120,26 @@ app.whenReady().then(() => {
       // never an inspection grant or a path returned to the renderer.
       let hint=null;
       let title='Selecione a pasta do jogo (somente leitura)';
+      if(mode==='locate-custom-omsi'){
+        // First picker authorizes only bounded metadata search in its scope.
+        const scope=await requestNativeDirectory(()=>dialog.showOpenDialog(win,{
+          title:'Escolha uma pasta ou unidade montada para procurar OMSI 2',
+          properties:['openDirectory','dontAddToRecent']
+        }));
+        if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+        if(scope.status==='cancelled')return {status:'cancelled'};
+        if(scope.status!=='selected')return {status:'error',message:'Não foi possível abrir o seletor de pastas.'};
+        try{
+          const result=await discoverCustomOmsi(scope.selectedPath,documentSignal);
+          if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+          if(result.limited)return {status:'error',message:'Busca parcial: limite atingido. Escolha uma pasta mais específica.'};
+          if(result.matches.length!==1)return {status:'error',message:result.matches.length===0?
+            'Nenhuma candidata na pasta consultada. Tente outra pasta.':
+            'Mais de uma candidata encontrada. Use a seleção manual.'};
+          hint=result.matches[0];
+          title='Confirme a pasta candidata do OMSI 2 (somente leitura)';
+        }catch{return {status:'error',message:'Busca inconclusiva. Escolha uma pasta acessível mais específica.'};}
+      }
       if(mode==='locate-omsi-steam'||mode==='discover-steam'){
         try{
           const candidates=await discoverSteam(gameId,{

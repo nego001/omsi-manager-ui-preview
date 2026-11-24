@@ -29,6 +29,7 @@ declare global {
    capabilities:{readGameFiles:false;inspectDirectories?:boolean;installMods:false;uninstallMods:false;executeCommands:false};
    inspectGame?: (game:InspectionGameId)=>Promise<FolderInspection>;
    locateOmsi?: ()=>Promise<FolderInspection>;
+   locateCustomOmsi?: ()=>Promise<FolderInspection>;
    discoverSteam?: (game:InspectionGameId)=>Promise<{status:'discovery';count:number}|{status:'error';message:string}>;
   };
  }

@@ -21,5 +21,5 @@ contextBridge.exposeInMainWorld('omsiPreview', Object.freeze({
     executeCommands: false
   }),
   inspectGame: (gameId) => ipcRenderer.invoke('preview:inspect-game', gameId),
-  ...(operatingSystem!=='unsupported'?{locateOmsi:()=>ipcRenderer.invoke('preview:inspect-game','omsi','locate-omsi-steam'),discoverSteam:(gameId)=>ipcRenderer.invoke('preview:inspect-game',gameId,'discover-steam')}:{})
+  ...(operatingSystem!=='unsupported'?{locateOmsi:()=>ipcRenderer.invoke('preview:inspect-game','omsi','locate-omsi-steam'),discoverSteam:(gameId)=>ipcRenderer.invoke('preview:inspect-game',gameId,'discover-steam'),locateCustomOmsi:()=>ipcRenderer.invoke('preview:inspect-game','omsi','locate-custom-omsi')}:{})
 }));
