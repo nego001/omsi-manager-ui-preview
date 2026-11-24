@@ -1546,3 +1546,20 @@
  outline:2px solid #9bb9ef;
  outline-offset:4px;
 }
+
+/* M131: separate local metadata from the fictional example without changing toolbar counts. */
+.config-metadata-panel,.config-demo-panel{padding:16px;border:1px solid var(--edge);border-radius:12px;background:var(--panel);min-width:0;overflow-wrap:anywhere}
+.config-demo-panel{border-style:dashed;background:transparent}
+.config-metadata-panel .library-by-game-heading,.config-demo-panel .library-by-game-heading{align-items:center}
+.config-metadata-panel h2,.config-demo-panel h2{margin:0;font-size:16px;line-height:1.4}
+.config-metadata-panel p,.config-demo-panel>p{font-size:12px;line-height:1.65;color:var(--muted);margin:8px 0}
+.config-metadata-tag{padding:4px 7px;border:1px solid #526579;border-radius:5px;color:#d1deed!important;font-size:10px!important;font-weight:700;letter-spacing:.04em}
+.config-metadata-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));gap:8px;margin:12px 0}
+.config-metadata-facts>div{min-width:0;padding:10px;border:1px solid var(--edge);border-radius:8px;background:var(--frame)}
+.config-metadata-facts dt{font-size:10px;color:var(--muted);margin-bottom:4px}
+.config-metadata-facts dd{margin:0;font-size:13px;font-weight:650;color:var(--accent)}
+.config-metadata-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.config-metadata-actions button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.config-metadata-result{margin-top:12px;padding:10px 12px;border:1px solid #536b7d;border-radius:8px;background:#202d37}
+.config-metadata-result p[role=status]{color:#d1e5f8;font-weight:700;font-variant-numeric:tabular-nums}
+.config-metadata-panel .config-metadata-note{margin:10px 0 0;font-size:11px}

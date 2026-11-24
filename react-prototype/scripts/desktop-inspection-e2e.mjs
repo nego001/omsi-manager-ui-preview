@@ -815,6 +815,13 @@ try{
   await panel.getByText('.bus · '+Buffer.byteLength(configBytes)+' bytes · conteúdo não aberto.',{exact:true}).waitFor({timeout:10000});
   assert.equal(await window.getByRole('button',{name:'Selecionar configuração OMSI (bloqueado)'}).isDisabled(),true);
   assert.equal(await application.evaluate(()=>globalThis.__m109ContentCalls),0);
+  // M131 clear only the local presentation: no additional native dialog or I/O.
+  const pickerCount=await application.evaluate(()=>globalThis.__m109PickerCalls);
+  await panel.getByRole('button',{name:'Limpar resultado da pré-checagem'}).click();
+  await panel.getByText('.bus · '+Buffer.byteLength(configBytes)+' bytes · conteúdo não aberto.',{exact:true}).waitFor({state:'detached',timeout:5000});
+  assert.equal(await application.evaluate(()=>globalThis.__m109PickerCalls),pickerCount);
+  assert.equal(await application.evaluate(()=>globalThis.__m109ContentCalls),0);
+  assert.equal(await panel.getByRole('button',{name:'Selecionar arquivo para pré-checagem'}).isEnabled(),true);
  }finally{await application.evaluate(()=>{globalThis.__m109Restore();delete globalThis.__m109Restore;});}
  for(const selection of [{canceled:true,filePaths:[]},{canceled:false,filePaths:[oversized]},
   {canceled:false,filePaths:[config,oversized]},{canceled:false,filePaths:[]}]){
