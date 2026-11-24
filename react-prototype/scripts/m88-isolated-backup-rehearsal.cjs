@@ -4,7 +4,7 @@
 const fs=require('node:fs/promises');
 const os=require('node:os');
 const path=require('node:path');
-const {createHash}=require('node:crypto');
+const {createHash,randomBytes}=require('node:crypto');
 const PREFIX='omsi-m88-backup-fixture-';
 const MAX_BYTES=4096;
 const original=Buffer.from('M88 synthetic configuration: original\n');
@@ -90,4 +90,73 @@ async function runSyntheticBackupRehearsal(scenario='normal'){
   if(closed.some(x=>x.status==='rejected'))refuse();
  }
 }
-module.exports={runSyntheticBackupRehearsal};
+// M89: manifest bytes must match a trusted in-memory expectation from the
+// same rehearsal. A hash stored next to a backup is not authentication.
+const manifestScenarios=Object.freeze(['normal','corrupt-backup','changed-target',
+ 'manifest-revision','manifest-session','manifest-rehash','manifest-malformed','manifest-target']);
+const manifestBytes=record=>Buffer.from(JSON.stringify(record)+'\n','utf8');
+async function runSyntheticManifestRehearsal(scenario='normal'){
+ if(!manifestScenarios.includes(scenario))refuse();
+ const root=await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()),'omsi-m89-manifest-fixture-'));
+ let target,backup,manifest;
+ try{
+  target=await fs.open(path.join(root,'target.fixture'),'wx+',0o600);
+  backup=await fs.open(path.join(root,'backup.fixture'),'wx+',0o600);
+  manifest=await fs.open(path.join(root,'manifest.fixture'),'wx+',0o600);
+  await write(target,original);
+  const captured=await read(target);
+  if(!captured.equals(original))refuse();
+  const expected=Object.freeze({schema:'omsi-m89-synthetic-manifest-v1',
+   scope:'self-created-fixture-only',session:randomBytes(16).toString('hex'),
+   originalRevision:1,expectedTargetRevision:2,backupRole:'original-fixture',
+   targetRole:'edited-fixture',backupSize:captured.length,backupSha256:digest(captured),
+   targetSize:modified.length,targetSha256:digest(modified)});
+  const trustedManifest=manifestBytes(expected);
+  await write(backup,captured);
+  await write(manifest,trustedManifest);
+  if(!(await read(backup)).equals(captured)||!(await read(manifest)).equals(trustedManifest))refuse();
+  await write(target,modified);
+  if(!(await read(target)).equals(modified))refuse();
+  // These intentionally controlled mutations affect only laboratory files.
+  if(scenario==='corrupt-backup'||scenario==='manifest-rehash'){
+   const corrupt=Buffer.from(captured);corrupt[0]^=1;await write(backup,corrupt);
+   if(scenario==='manifest-rehash')await write(manifest,manifestBytes({...expected,backupSha256:digest(corrupt)}));
+  }
+  if(scenario==='changed-target')await write(target,Buffer.from('M89 unrelated synthetic revision\n'));
+  if(scenario==='manifest-revision')await write(manifest,manifestBytes({...expected,expectedTargetRevision:3}));
+  if(scenario==='manifest-session'){
+   // Guarantee a different session value, without a probabilistic assertion.
+   const other=(expected.session[0]==='0'?'1':'0')+expected.session.slice(1);
+   await write(manifest,manifestBytes({...expected,session:other}));
+  }
+  if(scenario==='manifest-malformed')await write(manifest,Buffer.from('{"schema":'));
+  if(scenario==='manifest-target')await write(manifest,manifestBytes({...expected,targetRole:'other-fixture'}));
+  const current=await read(target),candidate=await read(backup),storedManifest=await read(manifest);
+  // Strict canonical byte comparison also rejects malformed, duplicate,
+  // extra or reordered fields. No untrusted JSON or path is interpreted.
+  const manifestMatches=storedManifest.equals(trustedManifest);
+  const backupMatches=candidate.length===expected.backupSize&&digest(candidate)===expected.backupSha256&&candidate.equals(captured);
+  const targetMatches=current.length===expected.targetSize&&digest(current)===expected.targetSha256&&current.equals(modified);
+  let restorationAttempted=false,restoredBytesMatch=false;
+  if(manifestMatches&&backupMatches&&targetMatches){
+   restorationAttempted=true;
+   await write(target,candidate);
+   const restored=await read(target);
+   restoredBytesMatch=restored.equals(captured)&&digest(restored)===expected.backupSha256;
+   if(!restoredBytesMatch)refuse();
+  }
+  const final=await read(target);
+  return Object.freeze({schema:'omsi-manager-synthetic-manifest-rehearsal-v1',
+   scope:'self-created-temporary-fixture-only',scenario,
+   outcome:restoredBytesMatch?'fixture-restored':!manifestMatches?'manifest-mismatch-refused':!backupMatches?'backup-mismatch-refused':'target-changed-refused',
+   initialManifestMatched:true,manifestMatches,backupMatches,targetMatches,
+   restorationAttempted,restoredBytesMatch,refusedTargetUnchanged:!restorationAttempted&&final.equals(current),
+   manifestAuthenticated:false,crossRestartTrustProven:false,atomicRestoreProven:false,durabilityProven:false,
+   realFilesInspected:false,realBackupVerified:false,realRollbackVerified:false,operationsEnabled:false,filesModifiedInGames:0});
+ }finally{
+  const closed=await Promise.allSettled([target?.close(),backup?.close(),manifest?.close()]);
+  await fs.rm(root,{recursive:true,force:true});
+  if(closed.some(x=>x.status==='rejected'))refuse();
+ }
+}
+module.exports={runSyntheticBackupRehearsal,runSyntheticManifestRehearsal};
