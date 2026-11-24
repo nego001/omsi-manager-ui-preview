@@ -32,7 +32,8 @@ internal static partial class Program
 
     private static M112StandardInfo M112Standard(SafeFileHandle handle)
     {
-        if (M112FileType(handle) != 1 || !M112QueryStandard(handle, 1, out var info,
+        if (M112FileType(handle) != 1) Deny();
+        if (!M112QueryStandard(handle, 1, out var info,
                 (uint)Marshal.SizeOf<M112StandardInfo>()) ||
             info.Directory != 0 || info.DeletePending != 0 || info.NumberOfLinks != 1 ||
             info.EndOfFile < 1 || info.EndOfFile > M112Max) Deny();
