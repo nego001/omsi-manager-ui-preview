@@ -132,6 +132,37 @@ try{
    assert.equal(await application.evaluate(()=>globalThis.__m72UnexpectedPickers),0);
    await window.evaluate(()=>localStorage.removeItem('omsi-preview-steam-discovery-at-startup-v1'));
    console.log('PASS_M72_OPT_IN_STARTUP_DISCOVERY_RELOAD_AND_DISABLE');
+
+   // M73: two Steam candidates, opaque IDs and native confirmation.
+   const secondLib=join(root,'m73-second-library');
+   const secondOmsi=join(secondLib,'steamapps','common','OMSI 2');
+   await mkdir(join(secondOmsi,'Vehicles','Synthetic second bus'),{recursive:true});
+   await mkdir(join(secondOmsi,'maps'),{recursive:true});
+   await writeFile(join(secondOmsi,'Omsi.exe'),'M73_SYNTHETIC');
+   await writeFile(join(steam,'libraryfolders.vdf'),
+    '"libraryfolders" { "0" { "path" '+JSON.stringify(library)+' } "1" { "path" '+JSON.stringify(secondLib)+' } }');
+   const list=await window.evaluate(()=>window.omsiPreview.listSteam('omsi'));
+   assert.equal(list.status,'candidate-list');assert.equal(list.candidates.length,2);
+   assert.equal(JSON.stringify(list).includes(root),false);
+   const stale=list.candidates[0].id;
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).click();
+   const omsiPanel=window.locator('.inspection-game').first();
+   await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar pasta',exact:true}).waitFor({timeout:15000});
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   const denied=await window.evaluate(id=>window.omsiPreview.chooseSteam('omsi',id),stale);
+   assert.equal(denied.status,'error');
+   await application.evaluate(({dialog},expected)=>{
+    dialog.showOpenDialog=async(_win,opts)=>{
+     if(opts.defaultPath!==expected)throw Error('M73_WRONG_HINT');
+     return {canceled:false,filePaths:[expected]};
+    };
+   },secondOmsi);
+   await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar pasta',exact:true}).click();
+   await omsiPanel.getByText('Pasta candidata confirmada nesta sessão.',{exact:true}).waitFor({timeout:15000});
+   assert.equal(await readFile(join(secondOmsi,'Omsi.exe'),'utf8'),'M73_SYNTHETIC');
+   // Clear transient UI reports so prior manual-inspection assertions start clean.
+   await window.reload({waitUntil:'load',timeout:30000});
+   console.log('PASS_M73_MULTIPLE_STEAM_CANDIDATES_NATIVE_CONFIRMATION');
   }finally{
    await application.evaluate(({app})=>{
     app.getPath=globalThis.__m69OriginalGetPath;

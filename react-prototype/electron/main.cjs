@@ -29,6 +29,8 @@ const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
 const { discoverSteam } = require('./steam-discovery.cjs');
+const { createCandidateStore } = require('./steam-candidate-store.cjs');
+const steamCandidates=createCandidateStore();
 const { discoverCustomOmsi, discoverCustomGame } = require('./custom-omsi-discovery.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
@@ -85,10 +87,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual') => {
+  ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual', candidateId) => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(!(mode==='discover-steam'||(mode==='discover-custom-truck'&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
+    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam'].includes(mode)||(mode==='discover-custom-truck'&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -156,7 +158,26 @@ app.whenReady().then(() => {
           title='Confirme a pasta candidata do OMSI 2 (somente leitura)';
         }catch{return {status:'error',message:'Busca inconclusiva. Escolha uma pasta acessível mais específica.'};}
       }
-      if(mode==='locate-omsi-steam'||mode==='discover-steam'){
+      if(mode==='choose-steam'){
+        hint=steamCandidates.resolve(event.sender,documentProof,gameId,candidateId);
+        if(!hint)return {status:'error',message:'Candidata expirada. Detecte novamente.'};
+        try{
+          const current=await discoverSteam(gameId,{
+            home:app.getPath('home'),platform:process.platform,
+            programFiles:[process.env['ProgramFiles(x86)'],process.env.ProgramFiles]
+          },documentSignal);
+          if(!senderAuthorized()||!current.includes(hint)){
+            steamCandidates.clear(event.sender,gameId);
+            return {status:'error',message:'Candidata indisponível. Detecte novamente.'};
+          }
+        }catch{
+          steamCandidates.clear(event.sender,gameId);
+          return {status:'error',message:'Busca inconclusiva. Detecte novamente.'};
+        }
+        title='Confirme a instalação Steam candidata (somente leitura)';
+      }
+      if(mode==='locate-omsi-steam'||mode==='discover-steam'||mode==='list-steam'){
+        steamCandidates.clear(event.sender,gameId);
         try{
           const candidates=await discoverSteam(gameId,{
             home:app.getPath('home'),platform:process.platform,
@@ -164,6 +185,7 @@ app.whenReady().then(() => {
           },documentSignal);
           if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
           if(mode==='discover-steam')return {status:'discovery',count:candidates.length};
+          if(mode==='list-steam')return {status:'candidate-list',candidates:steamCandidates.publish(event.sender,documentProof,gameId,candidates)};
           hint=candidates.length===1?candidates[0]:null;
         }
         catch{return {status:'error',message:'Não foi possível procurar a instalação automaticamente. Tente a seleção manual.'};}
@@ -184,6 +206,10 @@ app.whenReady().then(() => {
       if (choice.status === 'cancelled') return { status: 'cancelled' };
       if (choice.status !== 'selected')
         return { status: 'error', message: 'Não foi possível abrir o seletor de pastas.' };
+      if(mode==='choose-steam'&&choice.selectedPath!==hint)
+        return {status:'error',message:'A pasta confirmada difere da candidata. Use a seleção manual.'};
+      if(mode==='choose-steam'&&gameId!=='omsi')
+        return {status:'installation-selected',installationVerified:false};
       try {
         const grant = inspectionGrantGate.issue(choice.selectedPath, gameId, senderId);
         // issue happens only after native user selection. Consume at most once.
