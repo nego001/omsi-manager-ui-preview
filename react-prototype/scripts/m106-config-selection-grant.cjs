@@ -7,8 +7,6 @@ const {admitRole}=require('./m103-omsi-config-format-admission.cjs');
 const {observeDependencies}=require('./m104-bounded-local-dependency-observation.cjs');
 const MAX_AGE=15000;
 const encodings=['utf-8','windows-1250','windows-1251','windows-1252'];
-const statuses=['exact-observed','case-only-observed','ambiguous-case','invalid-reference','not-observed-in-directory','not-regular-path','link-refused','budget-limited','unresolved-argument'];
-const flags=['dependencyContentsRead','fullGrammarVerified','compatibilityVerified','atomicContainmentVerified','nativeIdentityVerified','realModValidated','operationsEnabled'];
 const deny=()=>{throw Error('M106_CONFIG_GRANT_REFUSED');};
 const bounded=(n,max)=>Number.isSafeInteger(n)&&n>=0&&n<=max;
 function record(v,keys){
@@ -22,19 +20,11 @@ function record(v,keys){
  }
  return out;
 }
-function sanitize(raw,role,encoding){
- const d=record(raw,['schema','scope','role','encoding','referenceKind','referenceOccurrences','unexaminedKnownMarkers','entriesScanned','entryBudget','counts','budgetLimited',...flags]);
- if(d.schema!=='omsi-m104-dependency-observation-v1'||d.scope!=='bounded-selected-directory-candidate'||
-    d.role!==role||d.encoding!==encoding||d.referenceKind!==(role==='vehicle-definition'?'model':'mesh')||
-    !flags.every(k=>d[k]===false)||d.entryBudget!==4096||!bounded(d.entriesScanned,4096)||
-    !bounded(d.referenceOccurrences,256)||!bounded(d.unexaminedKnownMarkers,256)||
-    d.referenceOccurrences+d.unexaminedKnownMarkers>256)deny();
- const values=record(d.counts,statuses);
- if(!statuses.every(k=>bounded(values[k],256))||
-    statuses.reduce((n,k)=>n+values[k],0)!==d.referenceOccurrences||
-    d.budgetLimited!==(values['budget-limited']>0)||
-    (d.budgetLimited&&d.entriesScanned!==4096))deny();
- return Object.freeze({...d,counts:Object.freeze({...values})});
+async function sanitize(raw,role,encoding){
+ const {validateDependencyObservation}=await import('../src/omsi-dependency-contract.mjs');
+ const result=validateDependencyObservation(raw);
+ if(!result||result.role!==role||result.encoding!==encoding)deny();
+ return result;
 }
 function identity(s,kind){
  if(kind==='directory'?!s.isDirectory()||s.isSymbolicLink():
@@ -102,7 +92,7 @@ function createConfigSelectionGate({picker,observe=observeDependencies,api=fs,no
    const signal=checkOwner(owner,epoch,proof);
    const result=await observe(g.parent,g.basename,g.role,g.encoding,signal);
    await verify(g);
-   const safe=sanitize(result,g.role,g.encoding);
+   const safe=await sanitize(result,g.role,g.encoding);
    checkOwner(owner,epoch,proof);checkTime(g.created);
    return safe;
   }catch{deny();}finally{active.delete(owner);}
