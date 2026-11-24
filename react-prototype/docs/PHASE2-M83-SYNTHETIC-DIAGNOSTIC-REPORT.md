@@ -1,0 +1,3 @@
+# M83 — synthetic dependency report
+
+Test-only versioned JSON and Portuguese plain-text serializers. Recompute M82 diagnostic from M81D bounded synthetic fixture; no supplied verdict, paths, arbitrary strings, filenames, timestamps or host metadata included. Fixed schema and deterministic finding ordering; counts are reference occurrences, not unique files. Preserves complete/incomplete inventory, no evidence, limitations and false verification/operation flags. 16 KiB UTF-8 export budget. No actual file writing, download UI, IPC, production imports or real mod access. Six tests via security glob. M84: explain review suggestions from fixed evidence categories; never execute repair. Ubuntu24 strict gate remains mandatory; no merge/release.
