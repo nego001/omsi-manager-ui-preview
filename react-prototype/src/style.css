@@ -1577,3 +1577,12 @@
 .local-inventory-pagination{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0;font-size:11px;color:var(--muted)}
 .local-inventory-pagination button,.local-inventory-toolbar button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
 .local-inventory-list{overflow-wrap:anywhere}
+
+/* M135: bounded metadata observation summary, not installation status. */
+.inspection-overview{min-width:0;margin:12px 0;padding:11px;border:1px solid var(--edge);border-radius:9px;background:var(--panel);overflow-wrap:anywhere}
+.inspection-overview h4{margin:0 0 9px;font-size:12px;color:var(--accent)}
+.inspection-overview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0}
+.inspection-overview-grid>div{min-width:0;padding:8px;border:1px solid var(--edge);border-radius:6px;background:var(--frame)}
+.inspection-overview-grid dt{font-size:10px;line-height:1.4;color:var(--muted)}
+.inspection-overview-grid dd{margin:4px 0 0;font-size:15px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+.inspection-overview>p{font-size:11px;line-height:1.5;color:var(--muted);margin:9px 0 0}

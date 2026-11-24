@@ -466,6 +466,43 @@ try{
  assert.match(await localLibrary.innerText(),/Nenhum inventário local nesta sessão/);
  await localLibrary.getByRole('button',{name:'Inspecionar pastas em Jogos'}).click();
  console.log('PASS_M79_ELECTRON_SESSION_LOCAL_LIBRARY');
+ // M135: independent larger fixture, actual main scan and renderer pagination.
+ const m135Root=join(root,'m135-pagination-fixture');
+ await mkdir(join(m135Root,'Vehicles'),{recursive:true});
+ for(let i=1;i<=25;i++)await mkdir(join(m135Root,'Vehicles','Fixture '+String(i).padStart(2,'0')));
+ await application.evaluate(patch,{canceled:false,filePaths:[m135Root]});
+ await window.locator('.inspection-game').first().getByRole('button',{name:'Selecionar pasta e inspecionar'}).click();
+ const m135Result=window.locator('.inspection-game').first().locator('.inspection-result');
+ const m135Summary=m135Result.getByRole('region',{name:'Resumo da inspeção de estrutura'});
+ await m135Summary.waitFor({timeout:15000});
+ assert.equal(await m135Summary.getByText('25',{exact:true}).count(),2);
+ assert.equal(await m135Summary.getByText('1 de 4',{exact:true}).isVisible(),true);
+ assert.match(await m135Summary.innerText(),/não representam mods instalados/);
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca',exact:true}).click();
+ const m135Library=window.getByRole('region',{name:'Biblioteca local da sessão'});
+ const m135List=m135Library.locator('.local-inventory-list li');
+ await m135Library.getByText('Fixture 01',{exact:true}).waitFor({timeout:10000});
+ assert.equal(await m135List.count(),20);
+ assert.equal(await m135Library.getByText('Fixture 21',{exact:true}).count(),0);
+ await m135Library.getByRole('button',{name:'Próxima página de conteúdo local'}).click();
+ assert.equal(await m135List.count(),5);
+ assert.equal(await m135Library.getByText('Fixture 21',{exact:true}).isVisible(),true);
+ assert.equal(await m135Library.getByText('Fixture 25',{exact:true}).isVisible(),true);
+ assert.equal(await m135Library.getByRole('button',{name:'Próxima página de conteúdo local'}).isDisabled(),true);
+ await m135Library.getByRole('button',{name:'Página anterior de conteúdo local'}).click();
+ assert.equal(await m135List.count(),20);
+ await m135Library.getByRole('button',{name:'Próxima página de conteúdo local'}).click();
+ await m135Library.getByRole('textbox',{name:'Pesquisar conteúdo local'}).fill('fixture 25');
+ assert.equal(await m135List.count(),1);
+ assert.equal(await m135Library.getByText('Fixture 25',{exact:true}).isVisible(),true);
+ assert.equal(await m135Library.getByRole('button',{name:'Página anterior de conteúdo local'}).isDisabled(),true);
+ await m135Library.getByRole('button',{name:'Limpar filtros locais'}).click();
+ assert.equal(await m135List.count(),20);
+ await m135Library.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
+ assert.equal(await m135List.count(),0);
+ await m135Library.getByRole('button',{name:'Inspecionar pastas em Jogos'}).click();
+ console.log('PASS_M135_ELECTRON_INSPECTION_SUMMARY_AND_MULTIPAGE');
+
 
  // M64: exercise the real Electron main-owned scanner and IPC projection
  // using an intentionally deceptive Unicode folder name. The native picker
