@@ -201,7 +201,7 @@ try{
   .getByRole('button',{name:'Configurações'}).click();
  await window.getByText('Sistema detectado automaticamente: Linux',{exact:true})
   .waitFor({timeout:12000});
- assert.match(await window.locator('.settings-panel').innerText(),
+ assert.match(await window.getByRole('region',{name:'Plataforma',exact:true}).innerText(),
   /Instalação e remoção de mods permanecem bloqueadas/);
  await window.getByRole('navigation',{name:'Navegação principal'})
   .getByRole('button',{name:'Detalhes'}).click();
