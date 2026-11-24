@@ -5,6 +5,7 @@ import {promisify} from 'node:util';
 const execFileAsync=promisify(execFile);
 import {packager} from '@electron/packager';
 import {writeBuildManifest} from './portable-build-manifest.mjs';
+import boundary from './m101-runtime-boundary.cjs';
 import {installedVersion,writeEvidence} from './electron-build-identity.mjs';
 
 // Read-only Linux desktop preview. This is not a service, installer, Wine/
@@ -23,6 +24,7 @@ const bundled=await packager({
  prune:true,
  asar:true,
  ignore:[
+  /[/\\]electron[/\\][^/\\]+\.test\.cjs$/,
   /[/\\](tests|examples|scripts|native-lab|native-launcher|test-results|playwright-report|release)([/\\]|$)/,
   /[/\\](\.git|\.github)([/\\]|$)/
  ]
@@ -64,6 +66,7 @@ await execFileAsync('cc',[
  '-o',join(bundled[0],'OMSI-Manager-Auto')
 ],{timeout:30000});
 await chmod(join(bundled[0],'OMSI-Manager-Auto'),0o755);
+console.log('M101_PACKAGED_BOUNDARY',JSON.stringify(boundary.auditPackagedRuntime(join(bundled[0],'resources','app.asar'))));
 await writeBuildManifest(bundled[0],{platform:'linux'});
 await writeEvidence(bundled[0],exactElectronVersion);
 // Optional per-user XDG shortcut helper. The helper is copied alongside
