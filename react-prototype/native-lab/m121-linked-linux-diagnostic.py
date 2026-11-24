@@ -128,6 +128,9 @@ def run_case(scenario):
         elif scenario == "link":
             target.unlink()
             target.symlink_to(sentinel)
+        elif scenario == "hardlink":
+            target.unlink()
+            os.link(sentinel, target)
         cancelled = False
         changed = False
         def checkpoint(stage):
@@ -161,7 +164,7 @@ def run_case(scenario):
                    "entriesScanned": 0, "referencesObserved": 0}
         result = observe(root, checkpoint, lambda: cancelled, metrics)
         expected = {"normal": "exact-observed", "case-only": "case-only-observed",
-                    "link": "link-refused"}
+                    "link": "link-refused", "hardlink": "not-regular-path"}
         if scenario in expected:
             require(result == [expected[scenario], "not-observed-in-directory"])
             require(metrics["configBytesRead"] == 3*len(FIXED) and
@@ -179,8 +182,14 @@ def run_case(scenario):
         return {"scenario": scenario, "status": status, "outcomes": result or [], **metrics}
 
 def main():
-    require(sys.platform == "linux" and len(sys.argv) == 1)
+    require(sys.platform == "linux" and (len(sys.argv) == 1 or sys.argv[1:] == ["--test-hardlink-m123"]))
     require(os.open in os.supports_dir_fd and os.stat in os.supports_dir_fd and os.scandir in os.supports_fd)
+    if sys.argv[1:] == ["--test-hardlink-m123"]:
+        row = run_case("hardlink")
+        print(json.dumps({"schema": "omsi-m123-linux-dependency-hardlink-fixture-v1",
+                          "case": row, "dependencyContentsRead": False,
+                          "realModValidated": False, "operationsEnabled": False}, separators=(",", ":")))
+        return
     cases = []
     for scenario in ("normal", "case-only", "link", "parent-replaced",
                      "config-replaced", "cancel-between", "directory-changed", "cancel-during-metadata"):

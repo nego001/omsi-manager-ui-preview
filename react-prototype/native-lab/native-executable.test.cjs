@@ -2360,3 +2360,12 @@ test('M122 linked Windows diagnostic retains source and directory handles across
  for(const k of ['dependencyContentsRead','realModValidated','atomicContainmentProven','nativeConsentVerified','operationsEnabled'])assert.equal(r[k],false);
  assert.doesNotMatch(result.stdout,/\.o3d|\.cfg/);
 });
+
+test('M123 Windows metadata processing budget stops before publishing partial results',{skip:!ready,timeout:30000},async()=>{
+ const result=await execAsync(exe,['--test-entry-budget-m123'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:4096}).catch(e=>{throw sanitizeNativeExecError(e);});
+ assert.deepEqual(JSON.parse(result.stdout),{
+  schema:'omsi-m123-windows-entry-budget-fixture-v1',status:'budget-limited',processedEntries:2,entryBudget:2,controlCompleteEntries:3,
+  partialResultsPublished:false,missingClaimMade:false,kernelBufferBoundProven:false,dependencyContentsRead:false,realModValidated:false,operationsEnabled:false
+ });
+ assert.doesNotMatch(result.stdout,/\.o3d/);
+});

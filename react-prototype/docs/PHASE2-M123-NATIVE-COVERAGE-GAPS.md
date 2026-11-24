@@ -1,0 +1,5 @@
+# M123 — native coverage gap fixtures
+
+M121 corrected run 45412676357 and M122 run 45412817850 Linux build/security passed. M122 Windows standalone native test not yet executed at snapshot. No full workflow success inferred.
+
+New Linux fixed hardlink mode links the synthetic dependency to the fixture sentinel outside model directory but inside disposable root. Existing linked reader must return not-regular-path without dependency content opens. Three config reads remain required; sentinel unchanged. Existing eight-case protocol preserved. Windows fixed processing-budget mode exercises existing native handle enumeration with a test-only budget of two accepted records, a third record triggers explicit limit exception. Partial metadata discarded; positive control sees three entries. Original 128-entry refusal default remains unchanged. This is a parsed-entry bound, not a kernel buffer or OS time guarantee. Both dedicated tests pending. Windows actual parent rename and case collision remain gaps; no OS policy changes to force them. No real mod permission, production IPC, merge/release or strict Ubuntu24 waiver. Next M124 cancellation and resource cleanup.
