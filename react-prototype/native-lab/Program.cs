@@ -1123,6 +1123,8 @@ internal static partial class Program
     {
         try
         {
+            if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-format-m115")
+                return RunFormatFixtureM115();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-config-read-m112")
                 return RunConfigReadFixtureM112();
             // Extra flags only select a safer synthetic diagnostic; they

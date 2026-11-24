@@ -2277,3 +2277,10 @@ test('M112 native NTFS relative-handle bounded config fixture', {skip:!ready,tim
  });
  for(const key of ['nativeIdentityVerifiedForRealMods','atomicContainmentProven','abaRuledOut','osDeadlineProven','realModRead','operationsEnabled'])assert.equal(report[key],false);
 });
+
+test('M115 native Windows fixed format fixture reaches shared parser and virtual resolver',{skip:!ready,timeout:30000},async()=>{
+ const result=await execAsync(exe,['--test-format-m115'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:4096}).catch(e=>{throw sanitizeNativeExecError(e);});
+ const report=require('../scripts/m115-fixed-native-format-bridge.cjs').reviewFixedNativeFormat(JSON.parse(result.stdout),'win32');
+ assert.deepEqual(report.rows,[{role:'vehicle-definition',knownMarkers:2,references:1,exact:1,absentFromVirtualFixture:0},{role:'vehicle-model',knownMarkers:2,references:2,exact:1,absentFromVirtualFixture:1}]);
+ assert.equal(report.actualDependencyFilesInspected,false);assert.equal(report.operationsEnabled,false);
+});
