@@ -45,3 +45,11 @@ test('missing path, wrong epoch and arbitrary path cannot be used as preferences
   assert.equal(s.preferredId(owner,proof,'omsi',pref),null);
  assert.equal(s.preferredId(owner,{},'omsi',preferenceFor('omsi',p)),null);
 });
+
+test('a moved path never inherits a preference, even if it is the only candidate',()=>{
+ const owner={},proof={},store=createCandidateStore();
+ const pref=preferenceFor('omsi',p);
+ const [moved]=store.publish(owner,proof,'omsi',[q]);
+ assert.equal(store.preferredId(owner,proof,'omsi',pref),null);
+ assert.equal(store.preferredId(owner,proof,'omsi',preferenceFor('omsi',q)),moved.id);
+});

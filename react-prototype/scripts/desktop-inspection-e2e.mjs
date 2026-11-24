@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,writeFile,readFile,rm,symlink} from 'node:fs/promises';
+import {mkdtemp,mkdir,writeFile,readFile,rm,symlink,rename} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import { _electron as electron } from 'playwright';
@@ -175,6 +175,46 @@ try{
    await omsiPanel.locator('.inspection-group').filter({hasText:'Instalação preferida'})
     .getByRole('button',{name:'Instalação Steam 1 · confirmar pasta',exact:true}).waitFor({timeout:15000});
    await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   // M75: actually move the disposable installation to a third library.
+   // A failed index read must not be presented as a missing installation.
+   await writeFile(join(steam,'libraryfolders.vdf'),'"libraryfolders" {');
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).click();
+   await omsiPanel.getByText('Não foi possível verificar a preferência',{exact:true}).waitFor({timeout:15000});
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   assert.equal(await omsiPanel.getByText('Localização preferida não encontrada',{exact:true}).count(),0);
+   assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi')),saved);
+   const movedLib=join(root,'m75-moved-library');
+   const movedOmsi=join(movedLib,'steamapps','common','OMSI 2');
+   await mkdir(join(movedLib,'steamapps','common'),{recursive:true});
+   await rename(secondOmsi,movedOmsi);
+   await writeFile(join(steam,'libraryfolders.vdf'),
+    '"libraryfolders" { "0" { "path" '+JSON.stringify(library)+' } "1" { "path" '+JSON.stringify(movedLib)+' } }');
+   await omsiPanel.getByRole('button',{name:'Tentar verificar novamente',exact:true}).click();
+   await omsiPanel.getByText('Localização preferida não encontrada',{exact:true}).waitFor({timeout:15000});
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   assert.equal(await omsiPanel.getByText('Instalação preferida',{exact:true}).count(),0);
+   assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi')),saved);
+   // Cancel replacement; old preference must survive. A second, explicit
+   // native confirmation can remember the new candidate.
+   await application.evaluate(patch,{canceled:true,filePaths:[]});
+   await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar e lembrar',exact:true}).click();
+   await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar e lembrar',exact:true}).waitFor({timeout:15000});
+   // The global busy button is enabled only when the IPC has settled.
+   await window.waitForFunction(()=>!document.querySelector('.inspection-game button')?.disabled);
+   assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi')),saved);
+   await application.evaluate(({dialog},expected)=>{
+    dialog.showOpenDialog=async(_win,opts)=>{
+     if(opts.defaultPath!==expected)throw Error('M75_WRONG_HINT');
+     return {canceled:false,filePaths:[expected]};
+    };
+   },movedOmsi);
+   await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar e lembrar',exact:true}).click();
+   await omsiPanel.getByText('Instalação preferida',{exact:true}).waitFor({timeout:15000});
+   const replacement=await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi'));
+   assert.match(replacement,/^[0-9a-f]{64}$/);
+   assert.notEqual(replacement,saved);
+   assert.equal(await readFile(join(movedOmsi,'Omsi.exe'),'utf8'),'M73_SYNTHETIC');
+   console.log('PASS_M75_MOVED_FIXTURE_INCONCLUSIVE_AND_EXPLICIT_REPLACEMENT');
    await omsiPanel.getByRole('button',{name:'Esquecer instalação preferida'}).click();
    assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-preferred-steam-v1-omsi')),null);
    assert.equal(await omsiPanel.getByText('Instalação preferida',{exact:true}).count(),0);
