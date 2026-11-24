@@ -45,18 +45,28 @@ async function observe(root,name){
   return {kind:'observed',bytes};
  }catch{return {kind:'unsafe'};}finally{if(h)await h.close();}
 }
-async function interrupt(root,nonce,point){
- if(!POINTS.includes(point))refuse();
+async function interrupt(root,nonce,point,mode='cooperative'){
+ if(!POINTS.includes(point)||!['cooperative','external'].includes(mode))refuse();
+ if(mode==='external'&&(point==='complete'||typeof process.send!=='function'||!process.connected))refuse();
  root=await checkedRoot(root,nonce);
  for(const name of NAMES)if((await observe(root,name)).kind!=='missing')refuse();
- const stop=stage=>{if(point===stage)process.exit(CRASH_EXIT);};
- await exclusive(root,NAMES[0],EDITED);stop('after-target');
- await exclusive(root,NAMES[1],ORIGINAL);stop('after-backup');
- await exclusive(root,NAMES[2],intent(nonce));stop('after-intent');
- await exclusive(root,NAMES[3],ORIGINAL);stop('after-stage');
+ const stop=async stage=>{
+  if(point!==stage)return;
+  if(mode==='cooperative')process.exit(CRASH_EXIT);
+  // Never resume after an external-termination checkpoint, even if the
+  // controller disconnects. IPC is only a test handshake, not authorization.
+  await new Promise((resolve,reject)=>{
+   process.once('disconnect',()=>reject(Error('M91_CONTROLLER_DISCONNECTED')));
+   process.send({kind:'fixture-checkpoint',stage},error=>{if(error)reject(error);});
+  });
+ };
+ await exclusive(root,NAMES[0],EDITED);await stop('after-target');
+ await exclusive(root,NAMES[1],ORIGINAL);await stop('after-backup');
+ await exclusive(root,NAMES[2],intent(nonce));await stop('after-intent');
+ await exclusive(root,NAMES[3],ORIGINAL);await stop('after-stage');
  // Same-directory publication in this private fixture only. No directory fsync
  // or guarantee of filesystem atomicity, crash consistency or durable metadata.
- await fs.rename(path.join(root,NAMES[3]),path.join(root,NAMES[0]));stop('after-publish');
+ await fs.rename(path.join(root,NAMES[3]),path.join(root,NAMES[0]));await stop('after-publish');
  return {scope:'synthetic-fixture-only',operationsEnabled:false};
 }
 async function inspectAfterRestart(root,nonce){
