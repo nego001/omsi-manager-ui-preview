@@ -28,6 +28,7 @@ const { SECURE_WEB_PREFERENCES, DEV_URL, isAllowedTopLevelURL } = require('./sec
 const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
+const { locateOmsiSteam } = require('./omsi-steam-locator.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
@@ -83,9 +84,11 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle('preview:inspect-game', async (event, gameId) => {
+  ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual') => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
+    if(mode!=='manual'&&(mode!=='locate-omsi-steam'||gameId!=='omsi'||process.platform!=='linux'))
+      throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
       ? DEV_URL : pathToFileURL(path.join(__dirname, '..', 'dist', 'index.html')).href;
@@ -112,8 +115,21 @@ app.whenReady().then(() => {
       return { status: 'error', message: 'Já existe uma inspeção em andamento.' };
     activeInspections.add(senderId);
     try {
+      // Explicit locate action only. Candidate is a native dialog hint,
+      // never an inspection grant or a path returned to the renderer.
+      let hint=null;
+      let title='Selecione a pasta do jogo (somente leitura)';
+      if(mode==='locate-omsi-steam'){
+        try{hint=await locateOmsiSteam(app.getPath('home'),documentSignal);}
+        catch{return {status:'error',message:'Não foi possível procurar a instalação automaticamente. Tente a seleção manual.'};}
+        title=hint?'Confirme a pasta candidata do OMSI 2 (somente leitura)':
+          'Localização automática inconclusiva. Selecione a pasta manualmente.';
+      }
+      if (!senderAuthorized())
+        return { status: 'error', message: 'Origem da inspeção não autorizada.' };
       const choice = await requestNativeDirectory(() => dialog.showOpenDialog(win, {
-        title: 'Selecione a pasta do jogo (somente leitura)',
+        title,
+        ...(hint?{defaultPath:hint}:{}),
         properties: ['openDirectory', 'dontAddToRecent']
       }));
       // Origin and epoch validation always happens after the awaited dialog,

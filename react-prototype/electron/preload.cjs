@@ -20,5 +20,6 @@ contextBridge.exposeInMainWorld('omsiPreview', Object.freeze({
     uninstallMods: false,
     executeCommands: false
   }),
-  inspectGame: (gameId) => ipcRenderer.invoke('preview:inspect-game', gameId)
+  inspectGame: (gameId) => ipcRenderer.invoke('preview:inspect-game', gameId),
+  ...(operatingSystem==='linux'?{locateOmsi:()=>ipcRenderer.invoke('preview:inspect-game','omsi','locate-omsi-steam')}:{})
 }));

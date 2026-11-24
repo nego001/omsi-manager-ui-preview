@@ -138,7 +138,9 @@ No **aplicativo Electron**, em **Jogos → Inspeção local**, clique em `Seleci
 - Nenhum dado da inspeção é persistido ou enviado à rede. Uma pasta sem estrutura conhecida é exibida como **não reconhecida**, sem afirmar que o jogo está instalado.
 - No navegador comum, os três botões de inspeção ficam desabilitados.
 
-A inspeção é **experimental e somente leitura**, não substitui detecção automática de instalações e não comprova a compatibilidade dos mods. A inspeção de arquivos reais do usuário ainda precisa ser homologada num Windows físico; os testes de CI usam exclusivamente pastas temporárias sintéticas.
+No Linux, o botão **Localizar automaticamente** do OMSI 2 consulta somente três locais conhecidos da Steam (normal, Flatpak e legado), usando metadados fixos de diretórios e do executável, sem abrir arquivos, enumerar discos ou seguir intencionalmente links. Uma única candidata é sugerida no seletor nativo, exigindo confirmação explícita antes da inspeção. Ausência ou ambiguidade pede seleção manual. Não lê bibliotecas adicionais nem confirma instalação ou compatibilidade; Windows e os outros simuladores permanecem manuais.
+
+A inspeção é **experimental e somente leitura**, não substitui detecção completa de instalações e não comprova a compatibilidade dos mods. A inspeção de arquivos reais do usuário ainda precisa ser homologada num Windows físico; os testes de CI usam exclusivamente pastas temporárias sintéticas.
 
 Comandos de validação: `npm run test:security`, `npm test` e `npm run test:desktop`.
 
