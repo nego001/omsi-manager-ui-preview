@@ -138,7 +138,9 @@ No **aplicativo Electron**, em **Jogos → Inspeção local**, clique em `Seleci
 - Nenhum dado da inspeção é persistido ou enviado à rede. Uma pasta sem estrutura conhecida é exibida como **não reconhecida**, sem afirmar que o jogo está instalado.
 - No navegador comum, os três botões de inspeção ficam desabilitados.
 
-A inspeção é **experimental e somente leitura**, não substitui detecção automática de instalações e não comprova a compatibilidade dos mods. A inspeção de arquivos reais do usuário ainda precisa ser homologada num Windows físico; os testes de CI usam exclusivamente pastas temporárias sintéticas.
+**Detectar jogos automaticamente** busca candidatos OMSI 2, ETS2 e ATS na Steam. No Linux consulta três raízes conhecidas e o índice libraryfolders.vdf limitado a 512 KiB e 24 bibliotecas por índice; no Windows consulta Steam sob Program Files e Program Files (x86), sem interpretar índices adicionais. Só consulta metadados de marcadores fixos, sem abrir executáveis, arquivos de mods ou enumerar discos. A localização assistida de OMSI 2 sugere uma única candidata ao seletor nativo, exigindo confirmação. Contagem de candidatas não confirma instalação ou compatibilidade. ETS2/ATS continuam com seleção separada da pasta de mods. Links e caminhos ambíguos não são seguidos intencionalmente; não há prova de contenção atômica.
+
+A inspeção é **experimental e somente leitura**, não substitui detecção completa de instalações e não comprova a compatibilidade dos mods. A inspeção de arquivos reais do usuário ainda precisa ser homologada num Windows físico; os testes de CI usam exclusivamente pastas temporárias sintéticas.
 
 Comandos de validação: `npm run test:security`, `npm test` e `npm run test:desktop`.
 
