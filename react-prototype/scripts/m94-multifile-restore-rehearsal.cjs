@@ -36,7 +36,8 @@ async function create(file,bytes){
 }
 const matches=(a,b)=>a!==null&&a.bytes.equals(b)&&a.hash===hash(b);
 const same=(a,b)=>a!==null&&b!==null&&a.key===b.key&&a.bytes.equals(b.bytes);
-async function rehearseMultifileRestore(scenario='normal'){
+async function rehearseMultifileRestore(scenario='normal',assessmentMode='none'){
+ if(!['none','observe','drift-between-observations','missing-backup-after-publication'].includes(assessmentMode))refuse();
  if(!SCENARIOS.includes(scenario))refuse();
  const root=await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()),'omsi-m94-multifile-'));
  try{
@@ -97,10 +98,21 @@ async function rehearseMultifileRestore(scenario='normal'){
   const divergentCount=members.length-originalCount-editedCount;
   if(originalCount!==published)refuse();
   if(published===SLOTS.length&&!members.every(m=>m.backupIntact&&!m.stagePresent))refuse();
+  let assessment;
+  if(assessmentMode!=='none'){
+   const {assessPrivateFixture}=require('./m95-multifile-consistency-assessment.cjs');
+   // Only this self-created fixture is passed; no public root argument.
+   if(assessmentMode==='drift-between-observations')
+    await fs.writeFile(slots[0].target,Buffer.from('M95 controlled drift\n'));
+   if(assessmentMode==='missing-backup-after-publication')
+    await fs.unlink(slots[0].backup);
+   assessment=await assessPrivateFixture(root,members);
+  }
   return Object.freeze({schema:'omsi-m94-multifile-rehearsal-v1',scope:'self-created-temporary-fixture-only',scenario,
    outcome:published===SLOTS.length?'all-original-observed':published===0?'no-publication-observed':'mixed-state-observed',
    reason,allPreflightPassed,preflightPassedCount:preflight.filter(Boolean).length,memberCount:SLOTS.length,
    publishedCount:published,originalCount,editedCount,divergentCount,members:Object.freeze(members),
+   ...(assessment?{assessment}:{}),
    automaticRollbackAttempted:false,externalTerminationTested:false,groupAtomicityProven:false,durabilityProven:false,
    realFilesInspected:false,operationsEnabled:false,filesModifiedInGames:0});
  }finally{await fs.rm(root,{recursive:true,force:true});}
