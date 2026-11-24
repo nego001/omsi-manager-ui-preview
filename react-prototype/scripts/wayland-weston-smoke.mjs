@@ -87,7 +87,7 @@ try{
   .evaluate(button=>button.click());
  await win.getByText('Sistema detectado automaticamente: Linux',{exact:true})
   .waitFor({timeout:12000});
- assert.match(await win.locator('.settings-panel').innerText(),
+ assert.match(await win.getByRole('region',{name:'Plataforma',exact:true}).innerText(),
   /Instalação e remoção de mods permanecem bloqueadas/);
  // This proves the existing native-dialog IPC flow works on Wayland, but
  // mocks the native chooser return value. It does NOT attest that a real

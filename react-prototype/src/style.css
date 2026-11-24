@@ -1681,3 +1681,34 @@
 .local-activity-list{display:grid;gap:7px;padding:0;margin:12px 0;list-style:none}
 .local-activity-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;padding:9px 11px;border:1px solid var(--edge);border-radius:7px;background:var(--frame);font-size:12px}
 .local-activity-list li span{font-size:11px;color:var(--muted)}
+
+/* M145: shared visual rhythm for the recent read-only session panels.
+   Keep the fictional demonstration visibly distinct from local observation. */
+:root{--session-space:16px;--session-gap:10px;--session-radius:12px;--session-card-radius:8px;--session-title:16px;--session-copy:12px}
+:is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity,.settings-section-grid .settings-section){
+ padding:var(--session-space);border-radius:var(--session-radius);min-width:0;overflow-wrap:anywhere
+}
+:is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity) .library-by-game-heading{
+ display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:6px var(--session-gap);margin-bottom:10px
+}
+:is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity) .library-by-game-heading h2{
+ margin:0;font-size:var(--session-title);line-height:1.4;font-weight:700
+}
+:is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity)>p{
+ font-size:var(--session-copy);line-height:1.65;margin:8px 0;color:var(--muted)
+}
+:is(.local-inventory-summary,.config-metadata-facts,.simulator-session-grid,.local-diagnostic-grid,.settings-section-grid,.local-activity-list){gap:var(--session-gap)}
+:is(.local-inventory-summary>div,.config-metadata-facts>div,.simulator-session-card,.local-diagnostic-grid article,.local-activity-list li,.local-inventory-list>li,.settings-data-scope>div){
+ border-radius:var(--session-card-radius)
+}
+:is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity,.settings-section-grid) .btn{
+ min-height:36px;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.45
+}
+:is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity,.settings-section-grid) .btn:focus-visible{
+ outline:2px solid #b8c7ff;outline-offset:3px
+}
+.config-demo-panel{border-style:dashed;background:transparent}
+@media(max-width:480px){
+ :root{--session-space:12px;--session-gap:8px}
+ :is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity) .library-by-game-heading{flex-direction:column;align-items:flex-start}
+}
