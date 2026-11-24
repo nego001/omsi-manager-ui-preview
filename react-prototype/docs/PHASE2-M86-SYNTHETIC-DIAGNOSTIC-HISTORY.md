@@ -1,0 +1,3 @@
+# M86 — synthetic diagnostic revision history
+
+Test-only, ephemeral session history of up to 16 internally computed M83 reports and M85 review rehearsals. Immutable snapshots retain prior revisions and distinguish review acknowledgements from real activity, consent, backup/rollback verification, and compatibility. Exact active ticket identity; cloned, stale and cross-session tickets refused. Failed new fixture does not advance the revision; closed sessions cannot resume. No path names, source data, timestamps, persistence, real activity, IPC, UI or mutation. Six tests. M87 will compare fixed categories across revisions with uncertainty preservation; strict Ubuntu24 gate mandatory, no merge/release.
