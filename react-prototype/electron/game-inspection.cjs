@@ -69,7 +69,7 @@ function emptyCount(found=false){
 // BEFORE reading dir entries. This can detect a changed pathname, but does not
 // make fs.opendir atomic or prevent a transient redirect between checkpoints.
 function createDirectoryCounter(fsApi=fs){
-  return async function count(folder,max=MAX_ENTRIES_PER_GROUP,checkPackages=false,signal){
+  return async function count(folder,max=MAX_ENTRIES_PER_GROUP,checkPackages=false,signal,includeInventory=false){
     assertInspectionActive(signal);
     if(!Number.isSafeInteger(max)||max<1||max>MAX_ENTRIES_PER_GROUP)
       throw new TypeError('Limite de contagem inválido.');
@@ -105,7 +105,7 @@ function createDirectoryCounter(fsApi=fs){
           if(checkPackages && PACKAGE_EXTENSIONS.some(ext=>
             entry.name.toLowerCase().endsWith(ext))){result.packageCandidates++;kind='package';}
         }else result.others++;
-        if(kind&&result.inventory.length<MAX_INVENTORY_LABELS&&isSafeInventoryLabel(entry.name))
+        if(includeInventory&&kind&&result.inventory.length<MAX_INVENTORY_LABELS&&isSafeInventoryLabel(entry.name))
           result.inventory.push({kind,label:entry.name});
       }
       await assertIdentity(fsApi,folder,initial);
@@ -179,7 +179,7 @@ function createGameDirectoryInspector(fsApi=fs){
     const target=(spec.key==='mods'&&selectionMode==='direct-mod-folder')
       ? root : path.join(root,spec.folder);
     await verifyRoot();
-    const stats=await count(target,MAX_ENTRIES_PER_GROUP,spec.key==='mods',signal);
+    const stats=await count(target,MAX_ENTRIES_PER_GROUP,spec.key==='mods',signal,true);
     await verifyRoot();
     groups.push({
       key:spec.key,name:spec.name,found:stats.found,count:stats.count,

@@ -20,7 +20,8 @@ test('metadata only, no nested scan, package names and directories only, bounded
  await fs.writeFile(path.join(mod,'b.zip'),'SECRET');
  await fs.writeFile(path.join(mod,'notes.txt'),'SECRET');
  // Allowlist filesystem calls: a content read or child scan fails this test.
- const allowed=new Set([root,mod]);
+ const canonical=await fs.realpath(root);
+ const allowed=new Set([root,mod,canonical,path.join(canonical,'mod')]);
  const api={};
  for(const method of ['lstat','realpath','opendir'])api[method]=async(p,...args)=>{
   assert.ok(allowed.has(p));return fs[method](p,...args);
