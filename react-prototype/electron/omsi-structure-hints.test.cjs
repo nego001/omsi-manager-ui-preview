@@ -49,9 +49,17 @@ test('cancellation and changed selected identity fail closed',async t=>{
  const root=await fixture(t),controller=new AbortController();
  controller.abort();
  await assert.rejects(createOmsiStructureInspector()(root,'omsi',controller.signal));
- const scan=createOmsiStructureInspector({...fs,opendir:async p=>{
+ let changed=false;
+ const scan=createOmsiStructureInspector({...fs,lstat:async(p,opts)=>{
+  const info=await fs.lstat(p,opts);
+  if(changed)info.mtimeNs+=1n;
+  return info;
+ },opendir:async p=>{
   const dir=await fs.opendir(p);
   await fs.mkdir(path.join(root,'changed'));
+  // A real mutation may share a filesystem clock tick. Inject an observed
+  // metadata difference below, independently of timestamp granularity.
+  changed=true;
   return dir;
  }});
  await assert.rejects(scan(root,'omsi'),/identidade/);
