@@ -40,6 +40,8 @@ internal static partial class Program
         return info;
     }
 
+    private static string M116Stage = "setup";
+
     private sealed class M112Metrics
     {
         public int Opened, Reads, Bytes;
@@ -51,9 +53,11 @@ internal static partial class Program
         void Active() { if (cancelled()) Deny(); }
         try
         {
+            M116Stage = "parent-open";
             Active();
             using SafeFileHandle parent = OpenChildDirectory(root, M112Parent);
             var parentId = Identity(parent);
+            M116Stage = "file-metadata";
             using SafeFileHandle initial = OpenChildFileIdentity(parent, M112Name);
             var initialId = Identity(initial);
             var initialBasic = Basic(initial);
@@ -76,12 +80,15 @@ internal static partial class Program
                     M112Standard(current).EndOfFile != size) Deny();
                 Active();
             }
+            M116Stage = "before-open";
             checkpoint("before-open");
             VerifyFile(initial);
             // Relative native open with FILE_READ_DATA; existing helper rejects
             // reparse points before any content read and shares delete for tests.
+            M116Stage = "content-open";
             using SafeFileHandle file = OpenRelative(parent, M112Name, false);
             metrics.Opened++;
+            M116Stage = "after-open";
             checkpoint("after-open");
             VerifyFile(file);
             byte[][] snapshots = [new byte[(int)size], new byte[(int)size]];
@@ -90,17 +97,21 @@ internal static partial class Program
                 int offset = 0;
                 while (offset < snapshot.Length)
                 {
+                    M116Stage = "before-read";
                     VerifyFile(file);
                     int length = Math.Min(M112Chunk, snapshot.Length-offset);
+                    M116Stage = "positional-read";
                     int received = RandomAccess.Read(file, snapshot.AsSpan(offset, length), offset);
                     metrics.Reads++;
                     metrics.Bytes += received;
                     if (received < 1 || received > length) Deny();
                     offset += received;
+                    M116Stage = "after-read";
                     if (metrics.Reads == 1) checkpoint("after-first-read");
                     VerifyFile(file);
                 }
             }
+            M116Stage = "snapshot-check";
             VerifyFile(file);
             if (!snapshots[0].AsSpan().SequenceEqual(snapshots[1])) Deny();
             return snapshots[0];
@@ -111,6 +122,7 @@ internal static partial class Program
     private static object M112Case(string scenario)
     {
         // Fresh self-created directory; no caller pathname or external target.
+        M116Stage = "setup";
         string root = Directory.CreateTempSubdirectory("omsi-m112-").FullName;
         string parent = Path.Combine(root, M112Parent);
         string source = Path.Combine(parent, M112Name);
@@ -173,9 +185,11 @@ internal static partial class Program
 
             var metrics = new M112Metrics();
             byte[]? bytes;
+            M116Stage = "ancestor-pin";
             using (AncestorPins pins = AncestorPins.Pin(root))
             {
                 var rootHandle = pins.TemporaryHandle;
+                M116Stage = "ntfs-check";
                 if (!BoundedNativeChangeProbe.HasNtfsVolume(rootHandle)) Deny();
                 bytes = M112Read(pins,rootHandle,Checkpoint,()=>cancelled,metrics);
             }
@@ -257,7 +271,17 @@ internal static partial class Program
     {
         string[] scenarios = ["normal","maximum","empty","oversized","directory-instead","hardlink",
             "reparse","parent-replaced","file-replaced","changed-during-read","cancel-before","cancel-during-read"];
-        object[] cases = scenarios.Select(M112Case).ToArray();
+        var cases = new List<object>();
+        foreach (string scenario in scenarios)
+        {
+            try { cases.Add(M112Case(scenario)); }
+            catch
+            {
+                // Fixed scenario and stage names only. Preserve original refusal.
+                Console.Error.WriteLine("M116_CONFIG_CASE_FAILED:" + scenario + ":" + M116Stage);
+                throw;
+            }
+        }
         Console.WriteLine(JsonSerializer.Serialize(new {
             schema = "omsi-m112-windows-handle-fixture-v1", cases,
             relativeNativeOpenUsed = true, nativeFileIdChecked = true,

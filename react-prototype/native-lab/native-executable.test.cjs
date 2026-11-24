@@ -2253,7 +2253,13 @@ test('first invocation telemetry is coarse, bounded, privacy-safe and never proo
 });
 
 test('M112 native NTFS relative-handle bounded config fixture', {skip:!ready,timeout:30000},async t=>{
- const result=await execAsync(exe,['--test-config-read-m112'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:16384}).catch(e=>{throw sanitizeNativeExecError(e);});
+ const result=await execAsync(exe,['--test-config-read-m112'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:16384}).catch(e=>{
+  const sanitized=sanitizeNativeExecError(e);
+  const lines=typeof e?.stderr==='string'?e.stderr.trim().split(/\r?\n/):[];
+  const match=lines.find(line=>/^M116_CONFIG_CASE_FAILED:(normal|maximum|empty|oversized|directory-instead|hardlink|reparse|parent-replaced|file-replaced|changed-during-read|cancel-before|cancel-during-read):(setup|ancestor-pin|ntfs-check|parent-open|file-metadata|before-open|content-open|after-open|before-read|positional-read|after-read|snapshot-check)$/.test(line));
+  if(match)throw Error('NATIVE_CONFIG_FIXTURE_REFUSED '+match);
+  throw sanitized;
+ });
  const report=JSON.parse(result.stdout);
  assert.equal(report.schema,'omsi-m112-windows-handle-fixture-v1');
  const review=require('../scripts/m114-native-reader-evidence-boundary.cjs').admitNativeFixture('win32',report);
