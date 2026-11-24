@@ -481,6 +481,14 @@ try{
  assert.ok(!((await structurePanel.innerText()).includes('vehicle.bus')));
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
  console.log('PASS_M80_ELECTRON_OMSI_STRUCTURE_HINTS');
+ // M137: cancellation discards previous structure observation and restores focus.
+ await application.evaluate(patch,{canceled:true,filePaths:[]});
+ const structureSelect=localLibrary.getByRole('button',{name:'Selecionar pasta de veículo ou mapa'});
+ await structureSelect.focus();
+ await window.keyboard.press('Enter');
+ await structurePanel.getByText('Seleção de estrutura cancelada.',{exact:true}).waitFor({timeout:10000});
+ assert.equal(await structurePanel.getByText('Estrutura candidata de veículo',{exact:true}).count(),0);
+ assert.equal(await structureSelect.evaluate(el=>document.activeElement===el),true);
  await localLibrary.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
  assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).count(),0);
  assert.match(await localLibrary.innerText(),/Nenhum inventário local nesta sessão/);
@@ -506,6 +514,7 @@ try{
  assert.equal(await m135Library.getByText('Fixture 21',{exact:true}).count(),0);
  await m135Library.getByRole('button',{name:'Próxima página de conteúdo local'}).click();
  assert.equal(await m135List.count(),5);
+ assert.equal(await m135Library.getByText('Página 2 de 2 · 21–25 de 25',{exact:true}).evaluate(el=>document.activeElement===el),true);
  assert.equal(await m135Library.getByText('Fixture 21',{exact:true}).isVisible(),true);
  assert.equal(await m135Library.getByText('Fixture 25',{exact:true}).isVisible(),true);
  assert.equal(await m135Library.getByRole('button',{name:'Próxima página de conteúdo local'}).isDisabled(),true);
@@ -520,6 +529,7 @@ try{
  assert.equal(await m135List.count(),20);
  await m135Library.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
  assert.equal(await m135List.count(),0);
+ assert.equal(await m135Library.getByRole('heading',{name:'Conteúdo local'}).evaluate(el=>document.activeElement===el),true);
  await m135Library.getByRole('button',{name:'Inspecionar pastas em Jogos'}).click();
  console.log('PASS_M135_ELECTRON_INSPECTION_SUMMARY_AND_MULTIPAGE');
 
@@ -890,6 +900,7 @@ try{
   assert.equal(await application.evaluate(()=>globalThis.__m109PickerCalls),pickerCount);
   assert.equal(await application.evaluate(()=>globalThis.__m109ContentCalls),0);
   assert.equal(await panel.getByRole('button',{name:'Selecionar arquivo para pré-checagem'}).isEnabled(),true);
+  assert.equal(await panel.getByRole('button',{name:'Selecionar arquivo para pré-checagem'}).evaluate(el=>document.activeElement===el),true);
  }finally{await application.evaluate(()=>{globalThis.__m109Restore();delete globalThis.__m109Restore;});}
  for(const selection of [{canceled:true,filePaths:[]},{canceled:false,filePaths:[oversized]},
   {canceled:false,filePaths:[config,oversized]},{canceled:false,filePaths:[]}]){

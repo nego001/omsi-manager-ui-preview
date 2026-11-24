@@ -1,4 +1,4 @@
-import {useRef,useState} from 'react';
+import {useLayoutEffect,useRef,useState} from 'react';
 import {dependencyPreviewExample,projectDependencyObservation} from './omsi-dependency-report';
 import {dependencyReviewGuidance} from './omsi-dependency-guidance';
 import {projectConfigMetadata} from './omsi-config-metadata-view.mjs';
@@ -9,10 +9,19 @@ function ConfigMetadataSelection({hasLocalInventory}:{hasLocalInventory:boolean}
  const [busy,setBusy]=useState(false);
  const [result,setResult]=useState<OmsiConfigMetadata|null>(null);
  const inFlight=useRef(false);
+ const selectButton=useRef<HTMLButtonElement>(null);
+ const restoreFocus=useRef(false);
+ useLayoutEffect(()=>{
+  if(!busy&&restoreFocus.current){
+   restoreFocus.current=false;
+   if(document.activeElement===document.body||document.activeElement===selectButton.current)
+    selectButton.current?.focus({preventScroll:true});
+  }
+ },[busy]);
  const available=typeof window.omsiPreview?.precheckOmsiConfig==='function';
  async function select(){
   if(!available||inFlight.current)return;
-  inFlight.current=true;setBusy(true);setResult(null);
+  inFlight.current=true;restoreFocus.current=document.activeElement===selectButton.current;setBusy(true);setResult(null);
   try{setResult(projectConfigMetadata(await window.omsiPreview!.precheckOmsiConfig!()));}
   catch{setResult(projectConfigMetadata(null));}
   finally{inFlight.current=false;setBusy(false);}
@@ -32,8 +41,8 @@ function ConfigMetadataSelection({hasLocalInventory}:{hasLocalInventory:boolean}
    <div><dt>Escopo</dt><dd>Um arquivo selecionado</dd></div>
   </dl>
   <div className="config-metadata-actions">
-   <button type="button" className="btn secondary" disabled={!available||busy} onClick={()=>void select()}>{busy?'Conferindo metadados...':'Selecionar arquivo para pré-checagem'}</button>
-   {result&&!busy&&<button type="button" className="btn secondary" onClick={()=>setResult(null)}>Limpar resultado da pré-checagem</button>}
+   <button ref={selectButton} type="button" className="btn secondary" disabled={!available||busy} onClick={()=>void select()}>{busy?'Conferindo metadados...':'Selecionar arquivo para pré-checagem'}</button>
+   {result&&!busy&&<button type="button" className="btn secondary" onClick={()=>{setResult(null);selectButton.current?.focus({preventScroll:true});}}>Limpar resultado da pré-checagem</button>}
   </div>
   {!available&&<p className="config-metadata-note">Seleção nativa disponível apenas no desktop compatível.</p>}
   {busy&&<p role="status" className="config-metadata-note">Aguardando seleção e conferência do arquivo.</p>}
