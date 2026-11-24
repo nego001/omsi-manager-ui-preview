@@ -431,7 +431,7 @@ try{
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
 
  // M79: library consumes only reports already obtained by confirmed inspection.
- await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Biblioteca',exact:true}).click();
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Minha biblioteca',exact:true}).click();
  const localLibrary=window.getByRole('region',{name:'Biblioteca local da sessão'});
  await localLibrary.waitFor({timeout:15000});
  assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
