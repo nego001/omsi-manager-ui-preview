@@ -2256,6 +2256,10 @@ test('M112 native NTFS relative-handle bounded config fixture', {skip:!ready,tim
  const result=await execAsync(exe,['--test-config-read-m112'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:16384}).catch(e=>{throw sanitizeNativeExecError(e);});
  const report=JSON.parse(result.stdout);
  assert.equal(report.schema,'omsi-m112-windows-handle-fixture-v1');
+ const review=require('../scripts/m114-native-reader-evidence-boundary.cjs').admitNativeFixture('win32',report);
+ assert.equal(review.matchingSnapshots,2);
+ assert.equal(review.contentReadAuthorized,false);
+ assert.equal(review.productionReaderAvailable,false);
  assert.equal(report.relativeNativeOpenUsed,true);assert.equal(report.nativeFileIdChecked,true);
  assert.equal(report.cases.length,12);
  const rows=Object.fromEntries(report.cases.map(r=>[r.scenario,r]));
