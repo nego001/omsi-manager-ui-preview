@@ -989,14 +989,18 @@ internal static partial class Program
         SafeFileHandle parent, string directory, Action? pauseForMutation = null,
         List<string>? syntheticNames = null,
         Dictionary<string, FileIdInfo>? syntheticIdentity = null,
-        Dictionary<string, uint>? syntheticAttributes = null)
+        Dictionary<string, uint>? syntheticAttributes = null,
+        SafeFileHandle? pinnedDirectory = null)
     {
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
         int nameOffset = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileName");
         if (attrs != 56 || nameSize != 60 || nameOffset != 104) Deny();
 
-        using SafeFileHandle held = OpenChildDirectory(parent, Path.GetFileName(directory));
+        using SafeFileHandle? owned = pinnedDirectory is null ? OpenChildDirectory(parent, Path.GetFileName(directory)) : null;
+        SafeFileHandle held = pinnedDirectory ?? owned!;
+        using (SafeFileHandle current = OpenChildDirectory(parent, Path.GetFileName(directory)))
+            if (!Same(Identity(held), Identity(current))) Deny();
         FileIdInfo initial = Identity(held);
         FileBasicInfo initialBasic = Basic(held);
         // A Windows-only test barrier permits a second process to mutate the
@@ -1126,6 +1130,8 @@ internal static partial class Program
     {
         try
         {
+            if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-linked-diagnostic-m122")
+                return RunLinkedDiagnosticFixtureM122();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-dependency-metadata-m117")
                 return RunDependencyMetadataFixtureM117();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-format-m115")
