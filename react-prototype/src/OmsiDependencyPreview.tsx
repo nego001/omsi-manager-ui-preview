@@ -1,34 +1,44 @@
-import {useState} from 'react';
+import {useRef,useState} from 'react';
 import {dependencyPreviewExample,projectDependencyObservation} from './omsi-dependency-report';
 import {dependencyReviewGuidance} from './omsi-dependency-guidance';
-
+import {projectConfigMetadata} from './omsi-config-metadata-view.mjs';
 import type {OmsiConfigMetadata} from './inspection-types';
+
 function ConfigMetadataSelection(){
  const [busy,setBusy]=useState(false);
  const [result,setResult]=useState<OmsiConfigMetadata|null>(null);
+ const inFlight=useRef(false);
  const available=typeof window.omsiPreview?.precheckOmsiConfig==='function';
  async function select(){
-  if(!available||busy)return;
-  setBusy(true);setResult(null);
-  try{const r=await window.omsiPreview!.precheckOmsiConfig!();
-   if(r.status==='config-metadata-observed'&&r.scope==='selected-file-metadata-only'&&
-      ['bus-candidate','ovh-candidate','cfg-candidate'].includes(r.candidateKind)&&
-      Number.isSafeInteger(r.byteCount)&&r.byteCount>=1&&r.byteCount<=65536&&
-      r.contentOpened===false&&r.dependencyScanPerformed===false&&r.nativeIdentityVerified===false&&
-      r.compatibilityVerified===false&&r.operationsEnabled===false)setResult(r);
-   else if(r.status==='cancelled')setResult({status:'cancelled'});
-   else setResult({status:'error',message:'Não foi possível conferir a configuração selecionada.'});
-  }catch{setResult({status:'error',message:'Não foi possível conferir a configuração selecionada.'});}
-  finally{setBusy(false);}
+  if(!available||inFlight.current)return;
+  inFlight.current=true;setBusy(true);setResult(null);
+  try{setResult(projectConfigMetadata(await window.omsiPreview!.precheckOmsiConfig!()));}
+  catch{setResult(projectConfigMetadata(null));}
+  finally{inFlight.current=false;setBusy(false);}
  }
- return <section className="library-by-game" aria-label="Seleção nativa de configuração OMSI">
-  <h2>Pré-checagem de configuração local</h2>
+ const observed=result?.status==='config-metadata-observed'?result:null;
+ const extension=observed?.candidateKind==='bus-candidate'?'.bus':observed?.candidateKind==='ovh-candidate'?'.ovh':'.cfg';
+ return <section className="library-by-game config-metadata-panel" aria-label="Seleção nativa de configuração OMSI">
+  <div className="library-by-game-heading"><h2>Pré-checagem de configuração local</h2><span className="config-metadata-tag">METADADOS LOCAIS · SOMENTE LEITURA</span></div>
   <p>Selecione um arquivo .bus, .ovh ou .cfg para conferir apenas o tipo candidato e o tamanho. O conteúdo e as dependências não são abertos.</p>
-  <button type="button" className="btn secondary" disabled={!available||busy} onClick={()=>void select()}>{busy?'Conferindo metadados...':'Selecionar arquivo para pré-checagem'}</button>
-  {!available&&<p>Seleção nativa disponível apenas no desktop compatível.</p>}
-  {result?.status==='config-metadata-observed'&&<p role="status">{result.candidateKind==='bus-candidate'?'.bus':result.candidateKind==='ovh-candidate'?'.ovh':'.cfg'} · {result.byteCount} bytes · conteúdo não aberto.</p>}
-  {result?.status==='cancelled'&&<p role="status">Seleção cancelada.</p>}
-  {result?.status==='error'&&<p role="alert">{result.message}</p>}
+  <dl className="config-metadata-facts" aria-label="Limites da pré-checagem">
+   <div><dt>Formatos aceitos</dt><dd>.bus / .ovh / .cfg</dd></div>
+   <div><dt>Limite por arquivo</dt><dd>64 KiB</dd></div>
+   <div><dt>Escopo</dt><dd>Um arquivo selecionado</dd></div>
+  </dl>
+  <div className="config-metadata-actions">
+   <button type="button" className="btn secondary" disabled={!available||busy} onClick={()=>void select()}>{busy?'Conferindo metadados...':'Selecionar arquivo para pré-checagem'}</button>
+   {result&&!busy&&<button type="button" className="btn secondary" onClick={()=>setResult(null)}>Limpar resultado da pré-checagem</button>}
+  </div>
+  {!available&&<p className="config-metadata-note">Seleção nativa disponível apenas no desktop compatível.</p>}
+  {busy&&<p role="status" className="config-metadata-note">Aguardando seleção e conferência do arquivo.</p>}
+  {observed&&<div className="config-metadata-result" aria-label="Resultado local">
+   <p role="status">{extension} · {observed.byteCount} bytes · conteúdo não aberto.</p>
+   <p>Tipo candidato identificado pela extensão. Nenhuma compatibilidade foi confirmada.</p>
+  </div>}
+  {result?.status==='cancelled'&&<p role="status" className="config-metadata-note">Seleção cancelada.</p>}
+  {result?.status==='error'&&<p role="alert" className="config-metadata-note">{result.message}</p>}
+  <p className="config-metadata-note">Diagnóstico de dependências, instalação e correção de mods reais continuam indisponíveis. Nenhum nome ou caminho é exibido.</p>
  </section>;
 }
 export function OmsiDependencyPreview(){
@@ -36,7 +46,7 @@ export function OmsiDependencyPreview(){
  const example=dependencyPreviewExample(mode);
  const report=projectDependencyObservation(example);
  const guidance=dependencyReviewGuidance(example);
- return <><ConfigMetadataSelection/><section className="library-by-game" aria-label="Prévia de dependências OMSI" data-demo-only="true">
+ return <><ConfigMetadataSelection/><section className="library-by-game config-demo-panel" aria-label="Prévia de dependências OMSI" data-demo-only="true">
   <div className="library-by-game-heading"><h2>Diagnóstico de dependências OMSI</h2><span>DEMONSTRAÇÃO FICTÍCIA · somente leitura</span></div>
   <p>Exemplos de resultados possíveis da verificação de referências. Nenhum arquivo do seu jogo é aberto por esta tela.</p>
   <div className="library-toolbar">
