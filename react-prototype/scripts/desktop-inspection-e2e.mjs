@@ -442,6 +442,14 @@ try{
  assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
  assert.equal(await localLibrary.getByText('skin.zip',{exact:true}).count(),0);
  await localLibrary.getByRole('button',{name:'Limpar filtros locais'}).click();
+ await application.evaluate(patch,{canceled:false,filePaths:[join(sample,'Vehicles','Bus A')]});
+ await localLibrary.getByRole('button',{name:'Selecionar pasta de veículo ou mapa'}).click();
+ const structurePanel=localLibrary.getByRole('region',{name:'Estrutura de um conteúdo OMSI'});
+ await structurePanel.getByText('Estrutura candidata de veículo',{exact:true}).waitFor({timeout:15000});
+ assert.match(await structurePanel.innerText(),/1 nomes .bus/);
+ assert.ok(!((await structurePanel.innerText()).includes('vehicle.bus')));
+ assert.equal(await readFile(join(sample,'Vehicles','Bus A','vehicle.bus'),'utf8'),'DO_NOT_MODIFY');
+ console.log('PASS_M80_ELECTRON_OMSI_STRUCTURE_HINTS');
  await localLibrary.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
  assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).count(),0);
  assert.match(await localLibrary.innerText(),/Nenhum inventário local nesta sessão/);

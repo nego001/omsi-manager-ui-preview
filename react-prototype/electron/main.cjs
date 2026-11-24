@@ -35,6 +35,8 @@ const { createCandidateStore, preferenceFor, isPreference } = require('./steam-c
 const steamCandidates=createCandidateStore();
 const { discoverCustomOmsi, discoverCustomGame } = require('./custom-omsi-discovery.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
+const {inspectOmsiCandidate}=require('./omsi-structure-hints.cjs');
+const structureGrantGate=createInspectionGrantGate({inspect:inspectOmsiCandidate});
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
 // Main-process-only identity: each window owns a separate document epoch.
@@ -92,7 +94,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual', candidateId) => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam','remember-steam'].includes(mode)||(['discover-custom-truck','locate-truck-mod'].includes(mode)&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
+    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam','remember-steam'].includes(mode)||(['discover-custom-truck','locate-truck-mod'].includes(mode)&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi','inspect-omsi-candidate'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -123,7 +125,7 @@ app.whenReady().then(() => {
       // Explicit locate action only. Candidate is a native dialog hint,
       // never an inspection grant or a path returned to the renderer.
       let hint=null;
-      let title='Selecione a pasta do jogo (somente leitura)';
+      let title=mode==='inspect-omsi-candidate'?'Escolha a pasta de um veículo ou mapa OMSI (somente nomes de arquivos)':'Selecione a pasta do jogo (somente leitura)';
       if(mode==='locate-truck-mod'){
         try{
           hint=await locateTruckMod(gameId,{
@@ -236,9 +238,10 @@ app.whenReady().then(() => {
         return mode==='remember-steam'?{status:'remembered-selection',preference:preferenceFor(gameId,hint),selection}:selection;
       }
       try {
-        const grant = inspectionGrantGate.issue(choice.selectedPath, gameId, senderId);
+        const gate=mode==='inspect-omsi-candidate'?structureGrantGate:inspectionGrantGate;
+        const grant = gate.issue(choice.selectedPath, gameId, senderId);
         // issue happens only after native user selection. Consume at most once.
-        const result = await inspectionGrantGate.inspectOnce(grant, senderId, gameId, documentSignal);
+        const result = await gate.inspectOnce(grant, senderId, gameId, documentSignal);
         if (!senderAuthorized())
           return { status: 'error', message: 'Origem da inspeção não autorizada.' };
         if(mode==='remember-steam'&&result.status==='ok')
