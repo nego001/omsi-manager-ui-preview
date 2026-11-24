@@ -1,0 +1,3 @@
+# M107 — dependency review guidance
+
+Pure UI guidance derives from strict M105 projection. Nine fixed categories, review/attention/information priorities, partial/no-evidence/limited scope, no unique-file counts or full compatibility claim. Explicitly fictitious library presentation with no execution, file access, native picker or automated repair. Three Playwright tests. Inherited M105 responsive test corrected on M105/M106 branches to check all five selects including new demo scenario, retaining bounds and overflow checks. M108 requires separate native integration boundary review; do not reuse folder grants, add unrestricted filesystem access or ship laboratory scripts. Strict Ubuntu24 gate mandatory. No merge/release.
