@@ -1,0 +1,5 @@
+# M136 — library / diagnostic visual navigation
+
+M134 45470701898 and M135 45470951817 at observation: Linux build/security and Windows standalone/portable passed, browser/IPC pending. No completed overall certification.
+
+Actual renderer: in-page contextual navigation between local session inventory, individual OMSI metadata precheck and explicitly fictional dependency diagnosis. Stable heading IDs, keyboard focus, scroll positioning, responsive wrapped actions. Return to local inventory appears only if it exists in this screen. Navigation does not select a candidate, carry a pathname, call a picker, alter filters or initiate inspection. Browser test verifies keyboard focus, blocked native controls and narrow layout; Electron mocked-picker E2E verifies no picker call and preserved existing candidates. New CI pending. No runtime permission, real content/dependency read, installation, merge, release or sandbox waiver. M137 may improve focus continuity on clear/cancel and pagination.

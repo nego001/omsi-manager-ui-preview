@@ -1586,3 +1586,10 @@
 .inspection-overview-grid dt{font-size:10px;line-height:1.4;color:var(--muted)}
 .inspection-overview-grid dd{margin:4px 0 0;font-size:15px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
 .inspection-overview>p{font-size:11px;line-height:1.5;color:var(--muted);margin:9px 0 0}
+
+/* M136: in-page links are navigation, not inspection actions. */
+.inspection-panel-links{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.inspection-panel-links button{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.inspection-panel-scope{font-size:11px;line-height:1.5;color:var(--muted)}
+#local-inventory-heading,#local-config-metadata-heading,#omsi-dependency-demo-heading{scroll-margin-top:90px}
+#local-inventory-heading:focus,#local-config-metadata-heading:focus,#omsi-dependency-demo-heading:focus{outline:2px solid #9c9aff;outline-offset:4px;border-radius:3px}

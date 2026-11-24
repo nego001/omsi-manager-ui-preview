@@ -1734,7 +1734,7 @@ export default function App(){
   </div>
  </div>
  {inspectorAvailable&&<LocalInventoryLibrary inspections={inspections} busy={inspecting!==null||discovering} onOpenGames={()=>goto('games')} onClear={()=>setInspections({})}/>}
- <OmsiDependencyPreview/>
+ <OmsiDependencyPreview hasLocalInventory={!!inspectorAvailable}/>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
    <div className="library-by-game-heading">

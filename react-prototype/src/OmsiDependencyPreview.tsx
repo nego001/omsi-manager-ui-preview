@@ -2,9 +2,10 @@ import {useRef,useState} from 'react';
 import {dependencyPreviewExample,projectDependencyObservation} from './omsi-dependency-report';
 import {dependencyReviewGuidance} from './omsi-dependency-guidance';
 import {projectConfigMetadata} from './omsi-config-metadata-view.mjs';
+import {focusInspectionPanel} from './library-inspection-navigation';
 import type {OmsiConfigMetadata} from './inspection-types';
 
-function ConfigMetadataSelection(){
+function ConfigMetadataSelection({hasLocalInventory}:{hasLocalInventory:boolean}){
  const [busy,setBusy]=useState(false);
  const [result,setResult]=useState<OmsiConfigMetadata|null>(null);
  const inFlight=useRef(false);
@@ -19,8 +20,12 @@ function ConfigMetadataSelection(){
  const observed=result?.status==='config-metadata-observed'?result:null;
  const extension=observed?.candidateKind==='bus-candidate'?'.bus':observed?.candidateKind==='ovh-candidate'?'.ovh':'.cfg';
  return <section className="library-by-game config-metadata-panel" aria-label="Seleção nativa de configuração OMSI">
-  <div className="library-by-game-heading"><h2>Pré-checagem de configuração local</h2><span className="config-metadata-tag">METADADOS LOCAIS · SOMENTE LEITURA</span></div>
+  <div className="library-by-game-heading"><h2 id="local-config-metadata-heading" tabIndex={-1}>Pré-checagem de configuração local</h2><span className="config-metadata-tag">METADADOS LOCAIS · SOMENTE LEITURA</span></div>
   <p>Selecione um arquivo .bus, .ovh ou .cfg para conferir apenas o tipo candidato e o tamanho. O conteúdo e as dependências não são abertos.</p>
+  <div className="inspection-panel-links" role="group" aria-label="Atalhos da pré-checagem">
+   {hasLocalInventory&&<button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('local')}>Voltar ao conteúdo local</button>}
+   <button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('demonstration')}>Ver demonstração de dependências</button>
+  </div>
   <dl className="config-metadata-facts" aria-label="Limites da pré-checagem">
    <div><dt>Formatos aceitos</dt><dd>.bus / .ovh / .cfg</dd></div>
    <div><dt>Limite por arquivo</dt><dd>64 KiB</dd></div>
@@ -41,14 +46,18 @@ function ConfigMetadataSelection(){
   <p className="config-metadata-note">Diagnóstico de dependências, instalação e correção de mods reais continuam indisponíveis. Nenhum nome ou caminho é exibido.</p>
  </section>;
 }
-export function OmsiDependencyPreview(){
+export function OmsiDependencyPreview({hasLocalInventory=false}:{hasLocalInventory?:boolean}){
  const [mode,setMode]=useState<'mixed'|'limited'|'empty'>('mixed');
  const example=dependencyPreviewExample(mode);
  const report=projectDependencyObservation(example);
  const guidance=dependencyReviewGuidance(example);
- return <><ConfigMetadataSelection/><section className="library-by-game config-demo-panel" aria-label="Prévia de dependências OMSI" data-demo-only="true">
-  <div className="library-by-game-heading"><h2>Diagnóstico de dependências OMSI</h2><span>DEMONSTRAÇÃO FICTÍCIA · somente leitura</span></div>
+ return <><ConfigMetadataSelection hasLocalInventory={hasLocalInventory}/><section className="library-by-game config-demo-panel" aria-label="Prévia de dependências OMSI" data-demo-only="true">
+  <div className="library-by-game-heading"><h2 id="omsi-dependency-demo-heading" tabIndex={-1}>Diagnóstico de dependências OMSI</h2><span>DEMONSTRAÇÃO FICTÍCIA · somente leitura</span></div>
   <p>Exemplos de resultados possíveis da verificação de referências. Nenhum arquivo do seu jogo é aberto por esta tela.</p>
+  <div className="inspection-panel-links" role="group" aria-label="Atalhos do diagnóstico demonstrativo">
+   {hasLocalInventory&&<button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('local')}>Voltar ao conteúdo local</button>}
+   <button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('metadata')}>Voltar à pré-checagem OMSI</button>
+  </div>
   <div className="library-toolbar">
    <label>Cenário de exemplo<select aria-label="Cenário de dependências fictícias" value={mode} onChange={e=>setMode(e.target.value as typeof mode)}>
     <option value="mixed">Referências variadas</option><option value="limited">Busca incompleta</option><option value="empty">Sem referências</option>
