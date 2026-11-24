@@ -11,7 +11,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Win32.SafeHandles;
 
-internal static class Program
+internal static partial class Program
 {
     private const int EntryLimit = 128;
     private const int BufferSize = 65536;
@@ -1123,6 +1123,8 @@ internal static class Program
     {
         try
         {
+            if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-config-read-m112")
+                return RunConfigReadFixtureM112();
             // Extra flags only select a safer synthetic diagnostic; they
             // never enable actual game access or any mutation operation.
             bool raceBarrier = args.Length >= 5 &&

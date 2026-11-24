@@ -2251,3 +2251,25 @@ test('first invocation telemetry is coarse, bounded, privacy-safe and never proo
   assert.equal(displayed.includes('ETIMEDOUT'),false);
  }
 });
+
+test('M112 native NTFS relative-handle bounded config fixture', {skip:!ready,timeout:30000},async t=>{
+ const result=await execAsync(exe,['--test-config-read-m112'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:16384}).catch(e=>{throw sanitizeNativeExecError(e);});
+ const report=JSON.parse(result.stdout);
+ assert.equal(report.schema,'omsi-m112-windows-handle-fixture-v1');
+ assert.equal(report.relativeNativeOpenUsed,true);assert.equal(report.nativeFileIdChecked,true);
+ assert.equal(report.cases.length,12);
+ const rows=Object.fromEntries(report.cases.map(r=>[r.scenario,r]));
+ for(const name of ['normal','maximum'])assert.equal(rows[name].outcome,'matching-two-snapshots');
+ assert.equal(rows.maximum.bytesRead,131072);
+ for(const name of ['empty','oversized','directory-instead','hardlink','parent-replaced','file-replaced','cancel-before']){
+  assert.equal(rows[name].outcome,'refused');assert.equal(rows[name].readCalls,0);
+ }
+ for(const name of ['changed-during-read','cancel-during-read']){
+  assert.equal(rows[name].outcome,'refused');assert.equal(rows[name].readCalls,1);
+ }
+ await t.test('actual file reparse refusal',s=>{
+  if(rows.reparse.outcome==='fixture-unavailable'){s.skip('file symlink creation unavailable; no reparse evidence');return;}
+  assert.equal(rows.reparse.outcome,'refused');assert.equal(rows.reparse.readCalls,0);
+ });
+ for(const key of ['nativeIdentityVerifiedForRealMods','atomicContainmentProven','abaRuledOut','osDeadlineProven','realModRead','operationsEnabled'])assert.equal(report[key],false);
+});
