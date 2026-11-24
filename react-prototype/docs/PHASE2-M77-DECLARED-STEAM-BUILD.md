@@ -1,0 +1,3 @@
+# M77 — Declared Steam build metadata
+
+Linux-only bounded read of the exact appmanifest_<appid>.acf adjacent to the freshly discovered Steam candidate. Uses a 128 KiB cap, lstat chain, no-follow/nonblocking open and before/after file metadata comparison. Returns only matching numeric buildid or null. No owner, raw ACF, arbitrary paths, game executable contents or mod content returned. Build ID is not a commercial version, verified executable identity, or compatibility verdict. Windows manifest reading deferred until reparse-point policy validated. Metadata races/ABA not ruled out. Tests cover wrong appid, install dir, malformed values, symlink, missing manifest, cancellation, per-library build UI. No writes/permissions changes/release.

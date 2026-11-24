@@ -141,13 +141,22 @@ try{
    await writeFile(join(secondOmsi,'Omsi.exe'),'M73_SYNTHETIC');
    await writeFile(join(steam,'libraryfolders.vdf'),
     '"libraryfolders" { "0" { "path" '+JSON.stringify(library)+' } "1" { "path" '+JSON.stringify(secondLib)+' } }');
+   // M77: each library has its own declared build. Do not expose owner data.
+   await writeFile(join(library,'steamapps','appmanifest_252530.acf'),
+    '"AppState" { "appid" "252530" "installdir" "OMSI 2" "buildid" "12345678" "LastOwner" "M77_PRIVATE_OWNER" }');
+   await writeFile(join(secondLib,'steamapps','appmanifest_252530.acf'),
+    '"AppState" { "appid" "252530" "installdir" "OMSI 2" "buildid" "87654321" }');
    const list=await window.evaluate(()=>window.omsiPreview.listSteam('omsi'));
    assert.equal(list.status,'candidate-list');assert.equal(list.candidates.length,2);
    assert.equal(JSON.stringify(list).includes(root),false);
+   assert.deepEqual(list.candidates.map(c=>c.steamBuildId),['12345678','87654321']);
+   assert.equal(JSON.stringify(list).includes('M77_PRIVATE_OWNER'),false);
    const stale=list.candidates[0].id;
    await window.getByRole('button',{name:'Detectar jogos automaticamente'}).click();
    const omsiPanel=window.locator('.inspection-game').first();
    await omsiPanel.getByRole('button',{name:'Instalação Steam 2 · confirmar pasta',exact:true}).waitFor({timeout:15000});
+   await omsiPanel.getByText('Build Steam declarado: 87654321',{exact:true}).waitFor({timeout:15000});
+   console.log('PASS_M77_DECLARED_STEAM_BUILD_PER_LIBRARY_UI');
    await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
    const denied=await window.evaluate(id=>window.omsiPreview.chooseSteam('omsi',id),stale);
    assert.equal(denied.status,'error');

@@ -29,7 +29,7 @@ declare global {
    capabilities:{readGameFiles:false;inspectDirectories?:boolean;installMods:false;uninstallMods:false;executeCommands:false};
    inspectGame?: (game:InspectionGameId)=>Promise<FolderInspection>;
    locateOmsi?: ()=>Promise<FolderInspection>;
-   listSteam?: (game:InspectionGameId,preference?:string)=>Promise<{status:'candidate-list';candidates:{id:string;label:string}[];preferredId?:string|null}|{status:'error';message:string}>;
+   listSteam?: (game:InspectionGameId,preference?:string)=>Promise<{status:'candidate-list';candidates:{id:string;label:string;steamBuildId?:string|null}[];preferredId?:string|null}|{status:'error';message:string}>;
    chooseSteam?: (game:InspectionGameId,id:string)=>Promise<FolderInspection|{status:'installation-selected';installationVerified:false}>;
    rememberSteam?: (game:InspectionGameId,id:string)=>Promise<FolderInspection|{status:'remembered-selection';preference:string;selection:Extract<FolderInspection,{status:'ok'}>|{status:'installation-selected';installationVerified:false}}>;
    locateCustomOmsi?: ()=>Promise<FolderInspection>;
