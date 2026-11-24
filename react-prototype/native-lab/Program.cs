@@ -988,7 +988,8 @@ internal static partial class Program
     private static int[] Inspect(
         SafeFileHandle parent, string directory, Action? pauseForMutation = null,
         List<string>? syntheticNames = null,
-        Dictionary<string, FileIdInfo>? syntheticIdentity = null)
+        Dictionary<string, FileIdInfo>? syntheticIdentity = null,
+        Dictionary<string, uint>? syntheticAttributes = null)
     {
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
@@ -1044,6 +1045,8 @@ internal static partial class Program
                         // these names. A count-only audit misses an equal-sized
                         // replacement of a fake .scs file.
                         syntheticNames?.Add(name);
+                        if (syntheticAttributes is not null &&
+                            !syntheticAttributes.TryAdd(name, unchecked((uint)attributes))) Deny();
                         if (syntheticIdentity is not null)
                         {
                             // Test-only: inspect identity by pinned parent,
@@ -1123,6 +1126,8 @@ internal static partial class Program
     {
         try
         {
+            if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-dependency-metadata-m117")
+                return RunDependencyMetadataFixtureM117();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-format-m115")
                 return RunFormatFixtureM115();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-config-read-m112")

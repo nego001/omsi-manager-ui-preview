@@ -2290,3 +2290,21 @@ test('M115 native Windows fixed format fixture reaches shared parser and virtual
  assert.deepEqual(report.rows,[{role:'vehicle-definition',knownMarkers:2,references:1,exact:1,absentFromVirtualFixture:0},{role:'vehicle-model',knownMarkers:2,references:2,exact:1,absentFromVirtualFixture:1}]);
  assert.equal(report.actualDependencyFilesInspected,false);assert.equal(report.operationsEnabled,false);
 });
+
+test('M117 Windows native dependency metadata fixture distinguishes exact names and refused entries',{skip:!ready,timeout:30000},async t=>{
+ const result=await execAsync(exe,['--test-dependency-metadata-m117'],{shell:false,windowsHide:true,timeout:25000,maxBuffer:4096}).catch(e=>{throw sanitizeNativeExecError(e);});
+ const report=JSON.parse(result.stdout);
+ assert.equal(report.schema,'omsi-m117-windows-dependency-metadata-fixture-v1');
+ assert.equal(report.cases.length,7);
+ const rows=Object.fromEntries(report.cases.map(c=>[c.scenario,c.outcome]));
+ for(const [scenario,outcome] of Object.entries({exact:'exact-observed','case-only':'case-only-observed',missing:'not-observed-in-directory',directory:'not-regular-path',hardlink:'not-regular-path'}))assert.equal(rows[scenario],outcome);
+ for(const [scenario,outcome] of [['ambiguous','ambiguous-case'],['link','link-refused']]){
+  await t.test(scenario,s=>{
+   if(rows[scenario]==='fixture-unavailable'){s.skip('fixture unavailable; no refusal proof');return;}
+   assert.equal(rows[scenario],outcome);
+  });
+ }
+ assert.equal(report.nativeDirectoryEnumerationByHandle,true);
+ for(const key of ['dependencyContentsRead','realModValidated','atomicContainmentProven','operationsEnabled'])assert.equal(report[key],false);
+ assert.doesNotMatch(result.stdout,/\.o3d/);
+});
