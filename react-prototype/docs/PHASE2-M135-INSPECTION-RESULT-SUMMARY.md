@@ -1,0 +1,5 @@
+# M135 — inspection observation summary and multipage fixture
+
+M134 run 45470701898 Linux build/security passed at observation; browser, IPC, Windows native and portable pending. No whole workflow success inferred.
+
+Games inspection result now contains separate summary of groups found, classified entries, displayable candidate names (or not collected), and ignored links. Partial results use lower-bound indicators and an explicit explanation. The numbers are metadata observations, never installed or validated mod totals. Existing per-group breakdowns, notices and candidate inventory remain intact. Responsive two-column summary; no new IPC, paths, filesystem operation, permission or persistence. Extended existing actual Electron main/renderer mocked-dialog E2E with independent 25-directory fixture, 20+5 pagination, previous/next bounds, search reset, filter reset, and session clear. All test folders are self-created and removed by the existing harness. New CI pending. Real desktop, native consent and strict Ubuntu24 gate remain blocked. No real mod content, merge or release.
