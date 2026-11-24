@@ -16,6 +16,8 @@ A visão transversal de automação do usuário foi registrada em [ECOSYSTEM-VIS
 
 Consulte [o estado da candidata M132](docs/PHASE2-M132-PREVIEW-CANDIDATE-READINESS.md) para a matriz de funcionalidades e CI, e [o roteiro de aceitação M127](docs/PHASE2-M127-DESKTOP-ACCEPTANCE-RUNBOOK.md) para as condições de teste externo. Artefatos da CI são temporários e sem assinatura, não releases. A revisão independente, a validação de desktop/seletores, a proveniência de handles e o gate obrigatório Ubuntu 24.04 com sandbox estrito continuam pendentes ou bloqueados. Nenhuma instalação, correção, remoção ou atualização de mods reais está liberada.
 
+**Candidata M131 — resultados e artefatos:** [consolidação M133](docs/PHASE2-M133-PREVIEW-ARTIFACT-CONSOLIDATION.md). Os pacotes sem assinatura foram publicados pela CI; compilação, segurança, interface e IPC passaram nos ambientes de teste, mas o gate Ubuntu 24.04 e uma auditoria histórica reprovaram. Não é uma versão beta nem autorização para instalação. A documentação M127 refere-se ao candidato anterior M125; os hashes não são intercambiáveis.
+
 ## Telas
 
 1. Início
