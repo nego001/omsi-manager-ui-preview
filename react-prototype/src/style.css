@@ -1593,3 +1593,6 @@
 .inspection-panel-scope{font-size:11px;line-height:1.5;color:var(--muted)}
 #local-inventory-heading,#local-config-metadata-heading,#omsi-dependency-demo-heading{scroll-margin-top:90px}
 #local-inventory-heading:focus,#local-config-metadata-heading:focus,#omsi-dependency-demo-heading:focus{outline:2px solid #9c9aff;outline-offset:4px;border-radius:3px}
+
+/* M137: accessible pagination announcement, not a new action. */
+.local-inventory-pagination [role=status]:focus{outline:2px solid #9c9aff;outline-offset:3px;border-radius:3px}

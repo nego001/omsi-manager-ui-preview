@@ -1,4 +1,4 @@
-import {useMemo,useState} from 'react';
+import {useLayoutEffect,useMemo,useRef,useState} from 'react';
 import {focusInspectionPanel} from './library-inspection-navigation';
 import type {FolderInspection,InspectionGameId,OmsiStructureHints} from './inspection-types';
 
@@ -20,14 +20,28 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
  const pageSize=20;
  const [structure,setStructure]=useState<OmsiStructureHints|null>(null);
  const [structureBusy,setStructureBusy]=useState(false);
+ const structureFlight=useRef(false);
+ const structureButton=useRef<HTMLButtonElement>(null);
+ const structureRestoreFocus=useRef(false);
+ const pageStatus=useRef<HTMLSpanElement>(null);
+ const pageFocus=useRef(false);
+ useLayoutEffect(()=>{
+  if(!structureBusy&&structureRestoreFocus.current){
+   structureRestoreFocus.current=false;
+   if(document.activeElement===document.body||document.activeElement===structureButton.current)
+    structureButton.current?.focus({preventScroll:true});
+  }
+ },[structureBusy]);
  async function inspectStructure(){
-  if(busy||structureBusy||!window.omsiPreview?.inspectOmsiCandidate)return;
-  setStructureBusy(true);
+  if(busy||structureFlight.current||!window.omsiPreview?.inspectOmsiCandidate)return;
+  structureFlight.current=true;
+  structureRestoreFocus.current=document.activeElement===structureButton.current;
+  setStructure(null);setStructureBusy(true);
   try{
    const result=await window.omsiPreview.inspectOmsiCandidate();
-   if(result.status!=='cancelled')setStructure(result);
+   setStructure(result);
   }catch{setStructure({status:'error',message:'Não foi possível verificar os nomes da pasta.'});}
-  finally{setStructureBusy(false);}
+  finally{structureFlight.current=false;setStructureBusy(false);}
  }
  const snapshots=useMemo(()=>gameIds.flatMap(id=>{
   const report=inspections[id];
@@ -49,6 +63,15 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
  },[rows,game,kind,query,order]);
  const pages=Math.max(1,Math.ceil(shown.length/pageSize));
  const currentPage=Math.min(page,pages-1);
+ useLayoutEffect(()=>{
+  if(pageFocus.current){
+   pageFocus.current=false;
+   pageStatus.current?.focus({preventScroll:true});
+  }
+ },[currentPage]);
+ function changePage(next:number){
+  pageFocus.current=true;setPage(next);
+ }
  const visibleRows=shown.slice(currentPage*pageSize,(currentPage+1)*pageSize);
  const directories=rows.filter(row=>row.kind==='directory').length;
  const packages=rows.length-directories;
@@ -59,7 +82,7 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
   <p>Não confirma instalação, ativação, integridade ou compatibilidade. A lista não é monitorada em tempo real e pode incluir conteúdo original do jogo.</p>
   <div className="library-quick-navigation">
    <button type="button" className="btn secondary" onClick={onOpenGames}>Inspecionar pastas em Jogos</button>
-   <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure)} onClick={()=>{setStructure(null);resetFilters();onClear();}}>Limpar inspeções da sessão</button>
+   <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure)} onClick={()=>{setStructure(null);resetFilters();onClear();focusInspectionPanel('local');}}>Limpar inspeções da sessão</button>
   </div>
   <div className="inspection-panel-links" role="group" aria-label="Atalhos de inspeção local">
    <button type="button" className="btn secondary" onClick={()=>focusInspectionPanel('metadata')}>Ir à pré-checagem OMSI</button>
@@ -87,15 +110,16 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
    <p role="status">{shown.length} de {rows.length} nomes locais correspondem aos filtros</p>
    {shown.length===0?<p>Nenhum candidato corresponde aos filtros locais.</p>:<><ul className="inspection-notices local-inventory-list">{visibleRows.map(row=><li key={JSON.stringify([row.game,row.group,row.label])}><strong style={{overflowWrap:'anywhere'}}><bdi>{row.label}</bdi></strong> — {labels[row.game]} · {row.groupLabel} · {row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</li>)}</ul>
     <div className="local-inventory-pagination" aria-label="Paginação dos nomes locais">
-     <button type="button" className="btn secondary" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)}>Página anterior de conteúdo local</button>
-     <span role="status">Página {currentPage+1} de {pages} · {currentPage*pageSize+1}–{Math.min(shown.length,(currentPage+1)*pageSize)} de {shown.length}</span>
-     <button type="button" className="btn secondary" disabled={currentPage+1>=pages} onClick={()=>setPage(currentPage+1)}>Próxima página de conteúdo local</button>
+     <button type="button" className="btn secondary" disabled={currentPage===0} onClick={()=>changePage(currentPage-1)}>Página anterior de conteúdo local</button>
+     <span ref={pageStatus} tabIndex={-1} role="status">Página {currentPage+1} de {pages} · {currentPage*pageSize+1}–{Math.min(shown.length,(currentPage+1)*pageSize)} de {shown.length}</span>
+     <button type="button" className="btn secondary" disabled={currentPage+1>=pages} onClick={()=>changePage(currentPage+1)}>Próxima página de conteúdo local</button>
     </div></>}
   </>}
   {window.omsiPreview?.inspectOmsiCandidate&&<section aria-label="Estrutura de um conteúdo OMSI">
    <h3>Identificar estrutura OMSI</h3>
    <p>Escolha diretamente a pasta de um veículo ou mapa. A análise observa somente extensões e nomes fixos no primeiro nível, sem abrir arquivos nem percorrer subpastas.</p>
-   <button type="button" className="btn secondary" disabled={busy||structureBusy} onClick={()=>void inspectStructure()}>{structureBusy?'Verificando estrutura...':'Selecionar pasta de veículo ou mapa'}</button>
+   <button ref={structureButton} type="button" className="btn secondary" disabled={busy||structureBusy} onClick={()=>void inspectStructure()}>{structureBusy?'Verificando estrutura...':'Selecionar pasta de veículo ou mapa'}</button>
+   {structure?.status==='cancelled'&&<p role="status">Seleção de estrutura cancelada.</p>}
    {structure?.status==='error'&&<p role="alert">{structure.message}</p>}
    {structure?.status==='structure-hints'&&<div className="inspection-assessment" role="status">
     <strong>{{'vehicle-candidate':'Estrutura candidata de veículo','map-candidate':'Estrutura candidata de mapa',mixed:'Indícios mistos',inconclusive:'Estrutura inconclusiva'}[structure.kind]}</strong>
