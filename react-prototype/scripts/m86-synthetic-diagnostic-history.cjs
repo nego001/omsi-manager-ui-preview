@@ -51,9 +51,44 @@ function createDiagnosticHistory(){
  function reviewRequirement(ticket,id){
   requireActive(ticket);planning.reviewRequirement(active.plan,id);updateReview();return snapshot();
  }
+ // Compare internally retained reports, never caller-supplied snapshots.
+ function compare(beforeRevision,afterRevision){
+  requireOpen();
+  if(!Number.isSafeInteger(beforeRevision)||!Number.isSafeInteger(afterRevision)||
+     beforeRevision<1||afterRevision>records.length||beforeRevision>=afterRevision)refuse();
+  const before=records[beforeRevision-1].report,after=records[afterRevision-1].report;
+  const codes=['invalid-reference','ambiguous-case','not-file-path','absent-from-fixture',
+   'case-only','source-unconfirmed','not-observed','unsupported-reference','exact'];
+  const count=(report,code)=>report.findings.find(item=>item.code===code)?.count??0;
+  const categories=codes.map(code=>{
+   const a=count(before,code),b=count(after,code);
+   return {code,before:a,after:b,delta:b-a,direction:b>a?'increased':b<a?'decreased':'unchanged'};
+  });
+  const priorities=['high','review','info'].map(priority=>({
+   priority,before:before.counts[priority],after:after.counts[priority],
+   delta:after.counts[priority]-before.counts[priority]
+  }));
+  const limitations=['Comparação de contagens agregadas de referências fictícias, não de arquivos identificados.',
+   'Contagens iguais não provam referências iguais; reduções não comprovam correção.'];
+  if(!before.inventoryComplete||!after.inventoryComplete)limitations.push('Ao menos um inventário é incompleto.');
+  if(before.totalReferences!==after.totalReferences)limitations.push('O total de referências avaliadas mudou.');
+  if(before.totalReferences===0||after.totalReferences===0)limitations.push('Ao menos uma revisão não possui evidência de referências.');
+  if(before.state==='review-required'||after.state==='review-required'||
+    categories.some(c=>['unsupported-reference','source-unconfirmed','not-observed','invalid-reference'].includes(c.code)&&(c.before+c.after)>0))
+   limitations.push('Existem limitações de avaliação ou referências que exigem revisão.');
+  return freeze({schema:'omsi-manager-synthetic-diagnostic-comparison-v1',
+   scope:'synthetic-session-only',beforeRevision,afterRevision,
+   beforeState:before.state,afterState:after.state,
+   coverage:{beforeComplete:before.inventoryComplete,afterComplete:after.inventoryComplete,
+    beforeReferences:before.totalReferences,afterReferences:after.totalReferences,
+    equalReferenceCounts:before.totalReferences===after.totalReferences},
+   categories,priorities,limitations,
+   sameReferencesVerified:false,correctionVerified:false,realFilesInspected:false,
+   compatibilityVerified:false,operationsEnabled:false});
+ }
  function close(){
   planning.close();active=null;records=[];closed=true;
  }
- return Object.freeze({begin,snapshot,reviewStep,reviewRequirement,close});
+ return Object.freeze({begin,snapshot,reviewStep,reviewRequirement,compare,close});
 }
 module.exports={createDiagnosticHistory,MAX_REVISIONS};

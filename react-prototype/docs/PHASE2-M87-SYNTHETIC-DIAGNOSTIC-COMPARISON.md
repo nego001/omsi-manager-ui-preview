@@ -1,0 +1,3 @@
+# M87 — synthetic diagnostic revision comparison
+
+Test-only comparison method on M86 history. Reads internally retained immutable reports, not user-supplied verdicts or snapshots. Only ordered valid revision numbers within the same open session. Fixed nine categories and three priorities with counts and signed deltas; equal reference counts do not establish identity, lower counts do not establish repairs. Explicit coverage, empty evidence and unsupported-reference caveats. No private names, target identity, real file reads, actual operation history, persistence, UI or IPC. Six tests. M88: isolated synthetic backup/reversal rehearsal; real backup and repair remain blocked. Strict Ubuntu24 gate mandatory; no merge/release.
