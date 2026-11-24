@@ -30,3 +30,33 @@ test('a canceled search fails closed before directory access',async()=>{
  const ctl=new AbortController();ctl.abort();
  await assert.rejects(discoverSteam('omsi',{home:os.homedir(),platform:process.platform},ctl.signal),/cancelada/);
 });
+
+test('Linux refuses link targets, incomplete folders and duplicate library aliases',async t=>{
+ if(process.platform!=='linux'){t.skip('Linux VDF contract');return;}
+ const temp=await fs.mkdtemp(path.join(os.tmpdir(),'m69-links-'));
+ t.after(()=>fs.rm(temp,{recursive:true,force:true}));
+ const home=await fs.realpath(temp),steam=path.join(home,'.local','share','Steam','steamapps');
+ const lib=path.join(home,'library'),alias=path.join(home,'linked-library');
+ await fs.mkdir(steam,{recursive:true});
+ const candidate=path.join(lib,'steamapps','common','OMSI 2');
+ await fs.mkdir(path.join(candidate,'Vehicles'),{recursive:true});
+ await fs.mkdir(path.join(candidate,'maps'));
+ await fs.symlink(lib,alias,'dir');
+ const index=path.join(steam,'libraryfolders.vdf');
+ await fs.writeFile(index,'"libraryfolders" { "0" '+JSON.stringify(lib)+' "1" '+JSON.stringify(lib)+' "2" '+JSON.stringify(alias)+' }');
+ assert.deepEqual(await discoverSteam('omsi',{home,platform:'linux'}),[]);
+ await fs.writeFile(path.join(candidate,'Omsi.exe'),'SYNTHETIC');
+ assert.deepEqual(await discoverSteam('omsi',{home,platform:'linux'}),[candidate]);
+});
+test('malformed or oversized Steam index never returns an apparently complete result',async t=>{
+ if(process.platform!=='linux'){t.skip('Linux VDF contract');return;}
+ const temp=await fs.mkdtemp(path.join(os.tmpdir(),'m69-bad-index-'));
+ t.after(()=>fs.rm(temp,{recursive:true,force:true}));
+ const home=await fs.realpath(temp),steam=path.join(home,'.local','share','Steam','steamapps');
+ await fs.mkdir(steam,{recursive:true});
+ const index=path.join(steam,'libraryfolders.vdf');
+ for(const bytes of ['"libraryfolders" {','x'.repeat(524289)]){
+  await fs.writeFile(index,bytes);
+  await assert.rejects(discoverSteam('omsi',{home,platform:'linux'}),/INCONCLUSIVE/);
+ }
+});

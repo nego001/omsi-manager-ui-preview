@@ -18,9 +18,9 @@ function invoke(platform){
      assert.equal(name,'omsiPreview');
      exposed=value;
     }},
-    ipcRenderer:{invoke:(channel,gameId)=>{
+    ipcRenderer:{invoke:(channel,gameId,mode)=>{
      assert.equal(channel,'preview:inspect-game');
-     return Promise.resolve({gameId});
+     return Promise.resolve({gameId,mode});
     }}
    };
   }
@@ -55,4 +55,14 @@ test('no platform input becomes a path, environment or command capability',async
  }
  const result=await bridge.inspectGame('omsi');
  assert.equal(result.gameId,'omsi');
+});
+
+test('Steam discovery exposes only fixed IPC modes on supported desktop systems',async()=>{
+ for(const platform of ['linux','win32']){
+  const bridge=invoke(platform);
+  assert.deepEqual(await bridge.discoverSteam('ets2'),{gameId:'ets2',mode:'discover-steam'});
+  assert.deepEqual(await bridge.locateOmsi('/ignored/path'),{gameId:'omsi',mode:'locate-omsi-steam'});
+ }
+ assert.equal(invoke('darwin').discoverSteam,undefined);
+ assert.equal(invoke('darwin').locateOmsi,undefined);
 });

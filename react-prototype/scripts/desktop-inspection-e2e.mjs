@@ -31,6 +31,80 @@ try{
  const patch=async({dialog},response)=>{
   dialog.showOpenDialog=async()=>response;
  };
+ // M69: real Electron IPC and UI, synthetic Steam home and external library.
+ // The test substitutes only app.getPath('home') and the picker in the main
+ // process. No discovery request can touch the runner's real Steam folders.
+ if(process.platform==='linux'){
+  const home=join(root,'m69-home'),steam=join(home,'.local','share','Steam','steamapps');
+  const library=join(root,'m69-other-disk'),common=join(library,'steamapps','common');
+  const omsi=join(common,'OMSI 2');
+  await mkdir(steam,{recursive:true});
+  await writeFile(join(steam,'libraryfolders.vdf'),
+   '"libraryfolders" { "0" { "path" '+JSON.stringify(library)+' } }');
+  await mkdir(join(omsi,'Vehicles','Synthetic Bus'),{recursive:true});
+  await mkdir(join(omsi,'maps','Synthetic Map'),{recursive:true});
+  await writeFile(join(omsi,'Omsi.exe'),'M69_SYNTHETIC_EXECUTABLE_MARKER');
+  for(const [folder,marker] of [
+   ['Euro Truck Simulator 2','eurotrucks2'],['American Truck Simulator','amtrucks']
+  ]){
+   const bin=join(common,folder,'bin','linux_x64');
+   await mkdir(bin,{recursive:true});
+   await writeFile(join(bin,marker),'M69_SYNTHETIC_EXECUTABLE_MARKER');
+  }
+  await application.evaluate(({app,dialog},payload)=>{
+   const original=app.getPath;
+   globalThis.__m69OriginalGetPath=original;
+   app.getPath=function(name){return name==='home'?payload.home:original.call(this,name);};
+   globalThis.__m69PickerCalls=0;
+   globalThis.__m69HintMatches=false;
+   dialog.showOpenDialog=async(_window,options)=>{
+    globalThis.__m69PickerCalls++;
+    globalThis.__m69HintMatches=options.defaultPath===payload.omsi;
+    return {canceled:true,filePaths:[]};
+   };
+  },{home,omsi});
+  try{
+   for(const game of ['omsi','ets2','ats']){
+    const report=await window.evaluate(game=>window.omsiPreview.discoverSteam(game),game);
+    assert.deepEqual(report,{status:'discovery',count:1});
+   }
+   assert.equal(await application.evaluate(()=>globalThis.__m69PickerCalls),0);
+   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+   const detect=window.getByRole('button',{name:'Detectar jogos automaticamente'});
+   await detect.click();
+   await window.getByText('1 instalação(ões) candidata(s)',{exact:true}).nth(2).waitFor({timeout:15000});
+   assert.equal(await window.getByText('1 instalação(ões) candidata(s)',{exact:true}).count(),3);
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   assert.equal(await application.evaluate(()=>globalThis.__m69PickerCalls),0);
+   const canceled=await window.evaluate(()=>window.omsiPreview.locateOmsi());
+   assert.deepEqual(canceled,{status:'cancelled'});
+   assert.deepEqual(await application.evaluate(()=>({
+    calls:globalThis.__m69PickerCalls,hint:globalThis.__m69HintMatches
+   })),{calls:1,hint:true});
+   await application.evaluate(({dialog},folder)=>{
+    dialog.showOpenDialog=async(_window,options)=>{
+     if(options.defaultPath!==folder)throw Error('M69_EXPECTED_NATIVE_HINT');
+     return {canceled:false,filePaths:[folder]};
+    };
+   },omsi);
+   const confirmed=await window.evaluate(()=>window.omsiPreview.locateOmsi());
+   assert.equal(confirmed.status,'ok');
+   assert.equal(confirmed.groups[0].count,1);
+   assert.equal(confirmed.groups[1].count,1);
+   assert.equal(confirmed.assessment.installationVerified,false);
+   assert.equal(confirmed.provenance.operationsEnabled,false);
+   assert.equal(JSON.stringify(confirmed).includes(root),false);
+   assert.equal(await readFile(join(omsi,'Omsi.exe'),'utf8'),'M69_SYNTHETIC_EXECUTABLE_MARKER');
+   console.log('PASS_M69_ELECTRON_STEAM_DISCOVERY_UI_CONFIRMATION');
+  }finally{
+   await application.evaluate(({app})=>{
+    app.getPath=globalThis.__m69OriginalGetPath;
+    delete globalThis.__m69OriginalGetPath;
+    delete globalThis.__m69PickerCalls;
+    delete globalThis.__m69HintMatches;
+   });
+  }
+ }
  // M65: only disposable targets and a mocked picker are used. Selecting a
  // symlinked ROOT must never authorize a scan or disclose the target path.
  const syntheticRootLink=join(root,'m65-symlinked-root');
