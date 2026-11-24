@@ -10,6 +10,12 @@ A visão transversal de automação do usuário foi registrada em [ECOSYSTEM-VIS
 
 **Etapa em desenvolvimento:** acabamento visual e informativo da Biblioteca e Detalhes. A Biblioteca filtra **favoritos declarativos** por jogo e categoria; não representa um inventário de mods realmente instalados. Detalhes mostra **arte ilustrativa do próprio registro de mod**, identificada como ilustração, em vez de exibir erroneamente a capa do jogo como foto do mod. Estados de compatibilidade e instalação reais permanecem não verificados. Não existe instalador ou atualizador habilitado.
 
+## Estado da prévia — M132 (24/11/2026)
+
+**Candidata experimental, não beta liberada.** A interface pode apresentar favoritos e catálogos declarativos, detecção limitada de jogos e pastas, inventário local não recursivo da sessão, indícios de estrutura OMSI e pré-checagem individual de arquivos .bus/.ovh/.cfg (somente tipo candidato e tamanho, até 64 KiB). O diagnóstico de dependências permanece fictício; nenhum conteúdo de configuração real é aberto por essa função. Os laboratórios de leitura nativa, autorização e recuperação não fazem parte do aplicativo empacotado.
+
+Consulte [o estado da candidata M132](docs/PHASE2-M132-PREVIEW-CANDIDATE-READINESS.md) para a matriz de funcionalidades e CI, e [o roteiro de aceitação M127](docs/PHASE2-M127-DESKTOP-ACCEPTANCE-RUNBOOK.md) para as condições de teste externo. Artefatos da CI são temporários e sem assinatura, não releases. A revisão independente, a validação de desktop/seletores, a proveniência de handles e o gate obrigatório Ubuntu 24.04 com sandbox estrito continuam pendentes ou bloqueados. Nenhuma instalação, correção, remoção ou atualização de mods reais está liberada.
+
 ## Telas
 
 1. Início
