@@ -54,7 +54,11 @@ try{
   await application.evaluate(({app,dialog},payload)=>{
    const original=app.getPath;
    globalThis.__m69OriginalGetPath=original;
-   app.getPath=function(name){return name==='home'?payload.home:original.call(this,name);};
+   globalThis.__m72HomeReads=0;
+   app.getPath=function(name){
+    if(name==='home'){globalThis.__m72HomeReads++;return payload.home;}
+    return original.call(this,name);
+   };
    globalThis.__m69PickerCalls=0;
    globalThis.__m69HintMatches=false;
    dialog.showOpenDialog=async(_window,options)=>{
@@ -96,12 +100,46 @@ try{
    assert.equal(JSON.stringify(confirmed).includes(root),false);
    assert.equal(await readFile(join(omsi,'Omsi.exe'),'utf8'),'M69_SYNTHETIC_EXECUTABLE_MARKER');
    console.log('PASS_M69_ELECTRON_STEAM_DISCOVERY_UI_CONFIRMATION');
+
+   // M72: explicitly opt in, reload the actual document, and confirm all
+   // three counts appear without a manual detect click or native picker.
+   const setting=window.getByRole('checkbox',{name:'Detectar jogos ao iniciar'});
+   assert.equal(await setting.isChecked(),false);
+   const before=await application.evaluate(()=>globalThis.__m72HomeReads);
+   await setting.check();
+   assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-steam-discovery-at-startup-v1')),'true');
+   await application.evaluate(({dialog})=>{
+    globalThis.__m72UnexpectedPickers=0;
+    dialog.showOpenDialog=async()=>{globalThis.__m72UnexpectedPickers++;return {canceled:true,filePaths:[]};};
+   });
+   await window.reload({waitUntil:'load',timeout:30000});
+   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+   await window.getByText('1 instalação(ões) candidata(s)',{exact:true}).nth(2).waitFor({timeout:15000});
+   assert.equal(await window.getByText('1 instalação(ões) candidata(s)',{exact:true}).count(),3);
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   assert.equal(await application.evaluate(()=>globalThis.__m72HomeReads),before+3);
+   assert.equal(await application.evaluate(()=>globalThis.__m72UnexpectedPickers),0);
+   assert.equal(await setting.isChecked(),true);
+   // Disable, reload again, and verify preference + empty result state.
+   await setting.uncheck();
+   assert.equal(await window.evaluate(()=>localStorage.getItem('omsi-preview-steam-discovery-at-startup-v1')),'false');
+   await window.reload({waitUntil:'load',timeout:30000});
+   await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
+   await window.getByRole('button',{name:'Detectar jogos automaticamente'}).waitFor({timeout:15000});
+   assert.equal(await setting.isChecked(),false);
+   assert.equal(await window.getByText('1 instalação(ões) candidata(s)',{exact:true}).count(),0);
+   assert.equal(await application.evaluate(()=>globalThis.__m72HomeReads),before+3);
+   assert.equal(await application.evaluate(()=>globalThis.__m72UnexpectedPickers),0);
+   await window.evaluate(()=>localStorage.removeItem('omsi-preview-steam-discovery-at-startup-v1'));
+   console.log('PASS_M72_OPT_IN_STARTUP_DISCOVERY_RELOAD_AND_DISABLE');
   }finally{
    await application.evaluate(({app})=>{
     app.getPath=globalThis.__m69OriginalGetPath;
     delete globalThis.__m69OriginalGetPath;
     delete globalThis.__m69PickerCalls;
     delete globalThis.__m69HintMatches;
+    delete globalThis.__m72HomeReads;
+    delete globalThis.__m72UnexpectedPickers;
    });
   }
  }

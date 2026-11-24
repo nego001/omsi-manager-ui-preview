@@ -377,3 +377,6 @@ habilitação de escrita ou recuperação.
 ### Diagnóstico nativo opcional de sandbox no Linux
 
 O ELF portátil `OMSI-Manager-Auto` aceita exclusivamente a opção de inspeção `--diagnose-sandbox` além da inicialização sem argumentos. O diagnóstico lê passivamente três indicadores fixos de *user namespaces* e emite apenas categorias (`restriction-indicated`, `no-obvious-restriction` ou `undetermined`), com flags explícitas de que o sandbox **não foi verificado** e a política do host **não foi alterada**. Não inicia Electron, não executa scripts, não acessa arquivos de mods, não necessita Node.js e não oferece bypass. Mesmo `no-obvious-restriction` não garante funcionamento. Comando e limitações em [LINUX_PREVIEW.md](LINUX_PREVIEW.md).
+
+### Busca Steam ao iniciar (M72)
+Em Jogos, marque **Detectar jogos ao iniciar** para repetir a consulta Steam limitada na próxima abertura. A preferência local guarda apenas um booleano; o padrão é desligado. Os resultados são recalculados, sem salvar caminhos, sem abrir seletor nativo e sem autorização de inspeção ou operações de mods. Desmarcar impede novas buscas de início; a busca manual continua disponível. A busca automática mantém as mesmas limitações de diretórios Steam do M69. Não percorre discos inteiros nem inclui pastas personalizadas.
