@@ -41,6 +41,8 @@ import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declare
 import type {FolderInspection} from './inspection-types';
 import type {LocalObservation} from './local-inventory-comparison.mjs';
 import {SimulatorSessionOverview} from './SimulatorSessionOverview';
+import {appendLocalActivity,type LocalActivity,type LocalActivityAction} from './local-session-activity.mjs';
+import {LocalSessionActivity} from './LocalSessionActivity';
 import {LocalDiagnosticCenter} from './LocalDiagnosticCenter';
 import {LocalInventoryLibrary} from './LocalInventoryLibrary';
 import {OmsiDependencyPreview} from './OmsiDependencyPreview';
@@ -181,6 +183,19 @@ export default function App(){
  const [pendingCatalogReplacement,setPendingCatalogReplacement]=useState<PendingCatalogReplacement|null>(null);
  const [inspections,setInspections]=useState<Partial<Record<GameId,FolderInspection>>>({});
  const [localReference,setLocalReference]=useState<LocalObservation|null>(null);
+ const [localActivity,setLocalActivity]=useState<LocalActivity[]>([]);
+ function recordLocalActivity(game:GameId,action:LocalActivityAction){
+  setLocalActivity(previous=>appendLocalActivity(previous,game,action));
+ }
+ function acceptLocalInspection(game:GameId,report:FolderInspection){
+  recordLocalActivity(game,report.status==='ok'?'inspection-observed':report.status==='cancelled'?'inspection-cancelled':'inspection-unavailable');
+  if(report.status!=='cancelled')setInspections(old=>({...old,[game]:report}));
+ }
+ function changeLocalReference(next:LocalObservation|null){
+  if(next)recordLocalActivity(next.game,'reference-saved');
+  else if(localReference)recordLocalActivity(localReference.game,'reference-discarded');
+  setLocalReference(next);
+ }
  const [inspecting,setInspecting]=useState<GameId|null>(null);
  const [discovering,setDiscovering]=useState(false);
  const discoveryBusy=useRef(false);
@@ -1061,12 +1076,12 @@ export default function App(){
    if(result.status==='installation-selected'){
     setChosenSteam(old=>({...old,[gameId]:'Pasta candidata confirmada nesta sessão. Mods não verificados.'}));
    }else{
-    setInspections(old=>({...old,[gameId]:result}));
+    acceptLocalInspection(gameId,result);
     if(result.status==='ok')setChosenSteam(old=>({...old,[gameId]:'Pasta candidata confirmada nesta sessão.'}));
     else setChosenSteam(old=>({...old,[gameId]:undefined}));
    }
   }catch{
-   setInspections(old=>({...old,[gameId]:{status:'error',message:'Seleção indisponível. Detecte novamente.'}}));
+   acceptLocalInspection(gameId,{status:'error',message:'Seleção indisponível. Detecte novamente.'});
   }finally{setInspecting(null);}
  }
  async function detectCustomTruck(gameId:'ets2'|'ats'){
@@ -1088,8 +1103,8 @@ export default function App(){
   setInspecting(gameId);
   try{
    const report=await bridge.locateTruckMod(gameId);
-   if(report.status!=='cancelled')setInspections(old=>({...old,[gameId]:report}));
-  }catch{setInspections(old=>({...old,[gameId]:{status:'error',message:'Busca de pasta de mods indisponível.'}}));}
+   acceptLocalInspection(gameId,report);
+  }catch{acceptLocalInspection(gameId,{status:'error',message:'Busca de pasta de mods indisponível.'});}
   finally{setInspecting(null);}
  }
  async function inspectGame(gameId:GameId,autoLocate=false,customLocate=false){
@@ -1098,9 +1113,9 @@ export default function App(){
   setInspecting(gameId);
   try {
    const report=customLocate?await bridge.locateCustomOmsi!():autoLocate?await bridge.locateOmsi!():await bridge.inspectGame(gameId);
-   if(report.status!=='cancelled')setInspections(all=>({...all,[gameId]:report}));
+   acceptLocalInspection(gameId,report);
   }catch{
-   setInspections(all=>({...all,[gameId]:{status:'error',message:'Inspeção não autorizada ou indisponível.'}}));
+   acceptLocalInspection(gameId,{status:'error',message:'Inspeção não autorizada ou indisponível.'});
   }finally{setInspecting(null)}
  }
  function restoreDemo(){
@@ -1742,7 +1757,7 @@ export default function App(){
   </div>
  </div>
  <LocalDiagnosticCenter inspections={inspections} available={!!inspectorAvailable} busy={inspecting!==null||discovering} onGames={()=>goto('games')}/>
- {inspectorAvailable&&<LocalInventoryLibrary inspections={inspections} busy={inspecting!==null||discovering} onOpenGames={()=>goto('games')} reference={localReference} onReference={setLocalReference} onClear={()=>{setInspections({});setLocalReference(null);}}/>}
+ {inspectorAvailable&&<LocalInventoryLibrary inspections={inspections} busy={inspecting!==null||discovering} onOpenGames={()=>goto('games')} reference={localReference} onReference={changeLocalReference} onClear={()=>{setInspections({});setLocalReference(null);setLocalActivity([]);}}/>}
  <OmsiDependencyPreview hasLocalInventory={!!inspectorAvailable}/>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
@@ -2143,6 +2158,7 @@ export default function App(){
  </section></>}
     {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
     {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1 id="history-heading" tabIndex={-1}>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
+ <LocalSessionActivity events={localActivity} onClear={()=>{setLocalActivity([]);document.getElementById('history-heading')?.focus({preventScroll:true});}} onLibrary={()=>goto('library')}/>
  <section className="session-import-review" aria-label="Consulta de arquivos exportados">
   <h2>Consultar JSON exportado</h2>
   <p>Abra um resumo, coleção ou comparação JSON exportada anteriormente. Consulta local e temporária: não importa para o Histórico, não altera favoritos nem verifica instalações.</p>
