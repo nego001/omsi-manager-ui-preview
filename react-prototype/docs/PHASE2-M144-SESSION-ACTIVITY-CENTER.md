@@ -1,0 +1,5 @@
+# M144 — session activity center
+
+M143 run 45484172177 Linux build/security and Windows standalone passed, Windows portable build/security passed with packaging pending, browser/IPC pending at observation.
+
+Adds fixed-vocabulary recent events from accepted game inspection responses and explicit local reference actions. At most 30 items in App memory, no path/name/error string/time stored, no filesystem/log export/persistence. History shows latest first, independent clear and library navigation. Session inspection clear also clears local activity. Cancelled folder observation preserves prior inspection instead of replacing it; Steam discovery and individual configuration/structure prechecks are not included in this first activity scope. No synthetic operation completions, audit evidence or background activity. Unit, browser and actual Electron mocked-picker tests prepared. CI pending; no new IPC, content reading, install/release/merge or strict Ubuntu24 waiver.

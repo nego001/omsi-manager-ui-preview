@@ -1673,3 +1673,11 @@
 .settings-data-scope>div{min-width:0;padding:9px;border:1px solid var(--edge);border-radius:7px;background:var(--frame)}
 .settings-data-scope dt{font-size:12px;font-weight:650;color:var(--accent)}
 .settings-data-scope dd{margin:5px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+
+/* M144: transient, non-operational activity history. */
+.local-session-activity{min-width:0;padding:14px;margin:14px 0;border:1px solid var(--edge);border-radius:12px;background:var(--panel);overflow-wrap:anywhere}
+.local-session-activity h2{font-size:16px;margin:0}
+.local-session-activity>p,.local-session-activity>small{font-size:12px;line-height:1.6;color:var(--muted)}
+.local-activity-list{display:grid;gap:7px;padding:0;margin:12px 0;list-style:none}
+.local-activity-list li{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px;padding:9px 11px;border:1px solid var(--edge);border-radius:7px;background:var(--frame);font-size:12px}
+.local-activity-list li span{font-size:11px;color:var(--muted)}

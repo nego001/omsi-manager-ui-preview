@@ -589,6 +589,20 @@ try{
  assert.equal(await m139Compare.getByText('Fixture 26',{exact:true}).isVisible(),true);
  assert.equal(await m139Compare.getByText('Fixture 27',{exact:true}).isVisible(),true);
  console.log('PASS_M139_LOCAL_OBSERVATION_COMPARISON');
+ // M144: observed events, no paths or names; clearing activity preserves comparison.
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Histórico',exact:true}).click();
+ const m144Activity=window.getByRole('region',{name:'Atividades locais da sessão'});
+ assert.equal(await m144Activity.getByText('Referência de comparação guardada',{exact:true}).isVisible(),true);
+ assert.equal(await m144Activity.getByText('Observação de estrutura recebida',{exact:true}).count(),2);
+ assert.equal((await m144Activity.innerText()).includes(m135Root),false);
+ assert.equal((await m144Activity.innerText()).includes('Fixture 26'),false);
+ await m144Activity.getByRole('button',{name:'Limpar atividades locais'}).click();
+ assert.equal(await m144Activity.getByText('Nenhuma atividade local registrada nesta sessão.').isVisible(),true);
+ await m144Activity.getByRole('button',{name:'Consultar biblioteca local'}).click();
+ await m135Library.getByText('Referência guardada: OMSI 2 · 25 nomes.',{exact:true}).waitFor({timeout:10000});
+ assert.equal(await m139Compare.getByText('24',{exact:true}).isVisible(),true);
+ console.log('PASS_M144_LOCAL_ACTIVITY');
+
  await m135Library.getByRole('button',{name:'Limpar inspeções da sessão'}).click();
  assert.equal(await m139Compare.getByText('Nenhuma referência guardada nesta sessão.',{exact:true}).isVisible(),true);
  assert.equal(await m135List.count(),0);
