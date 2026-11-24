@@ -1,0 +1,3 @@
+# M84 — synthetic review guidance
+
+Test-only manual review suggestions computed from M83, not supplied verdicts. Eight fixed categories; exact matches never trigger suggestions. Reference occurrence counts, deterministic priority order and prerequisites for incomplete inventory, no evidence, unconfirmed source and unsupported grammar. No private names, paths, commands, download targets, automatic selection, mutation, permission or compatibility claim. Six tests. No UI, filesystem, network, IPC or real mod inspection. M85 remains blocked for real repair; next stage may model non-executable repair-plan prerequisites and dry-run refusal on synthetic fixtures only. Strict Ubuntu24 gate mandatory, no merge/release.
