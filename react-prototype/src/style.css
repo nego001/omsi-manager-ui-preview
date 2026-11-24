@@ -1596,3 +1596,17 @@
 
 /* M137: accessible pagination announcement, not a new action. */
 .local-inventory-pagination [role=status]:focus{outline:2px solid #9c9aff;outline-offset:3px;border-radius:3px}
+
+/* M138: compact, expandable details of already observed candidate names. */
+.local-inventory-list>li{padding:11px 12px;border:1px solid var(--edge);border-left:3px solid #667f97;border-radius:8px;background:var(--frame);color:var(--accent)}
+.local-candidate-title{display:flex;flex-direction:column;gap:3px;min-width:0}
+.local-candidate-title strong{font-size:13px;color:#edf2f8;overflow-wrap:anywhere}
+.local-candidate-title span{font-size:11px;color:var(--muted)}
+.local-candidate-details{margin-top:8px;border-top:1px solid var(--edge);padding-top:6px}
+.local-candidate-details summary{cursor:pointer;color:#cadff3;font-size:11px;font-weight:650;padding:3px 0}
+.local-candidate-details summary:focus-visible{outline:2px solid #9c9aff;outline-offset:3px;border-radius:3px}
+.local-candidate-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,145px),1fr));gap:6px;margin:9px 0}
+.local-candidate-facts>div{min-width:0;border:1px solid var(--edge);border-radius:6px;padding:7px}
+.local-candidate-facts dt{font-size:10px;color:var(--muted)}
+.local-candidate-facts dd{margin:3px 0 0;line-height:1.5;font-size:11px;color:var(--accent)}
+.local-candidate-details p{font-size:11px;color:var(--muted);line-height:1.6;margin:7px 0 0}
