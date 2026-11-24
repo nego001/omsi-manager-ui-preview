@@ -14,6 +14,9 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
  const [game,setGame]=useState<InspectionGameId|'all'>('all');
  const [kind,setKind]=useState<'all'|'directory'|'package'>('all');
  const [query,setQuery]=useState('');
+ const [order,setOrder]=useState<'name'|'game'|'group'>('name');
+ const [page,setPage]=useState(0);
+ const pageSize=20;
  const [structure,setStructure]=useState<OmsiStructureHints|null>(null);
  const [structureBusy,setStructureBusy]=useState(false);
  async function inspectStructure(){
@@ -35,14 +38,27 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
  const rows=useMemo(()=>snapshots.flatMap(s=>s.groups.flatMap(g=>(g.inventory??[]).map(item=>({
   ...item,game:s.id,group:g.key,groupLabel:g.name
  })))),[snapshots]);
- const shown=useMemo(()=>rows.filter(row=>(game==='all'||game===row.game)&&
-  (kind==='all'||kind===row.kind)&&searchKey(row.label).includes(searchKey(query.trim()))),[rows,game,kind,query]);
- return <section className="library-by-game" aria-label="Biblioteca local da sessão">
+ const shown=useMemo(()=>{
+  const matching=rows.filter(row=>(game==='all'||game===row.game)&&
+   (kind==='all'||kind===row.kind)&&searchKey(row.label).includes(searchKey(query.trim())));
+  const compare=(a:string,b:string)=>a.localeCompare(b,'pt-BR',{sensitivity:'base',numeric:true})||(a<b?-1:a>b?1:0);
+  return matching.sort((a,b)=>(order==='game'?gameIds.indexOf(a.game)-gameIds.indexOf(b.game):
+   order==='group'?compare(a.groupLabel,b.groupLabel):0)||compare(a.label,b.label)||
+   gameIds.indexOf(a.game)-gameIds.indexOf(b.game)||compare(a.group,b.group));
+ },[rows,game,kind,query,order]);
+ const pages=Math.max(1,Math.ceil(shown.length/pageSize));
+ const currentPage=Math.min(page,pages-1);
+ const visibleRows=shown.slice(currentPage*pageSize,(currentPage+1)*pageSize);
+ const directories=rows.filter(row=>row.kind==='directory').length;
+ const packages=rows.length-directories;
+ function resetFilters(){setGame('all');setKind('all');setQuery('');setOrder('name');setPage(0);}
+
+ return <section className="library-by-game local-inventory-panel" aria-label="Biblioteca local da sessão">
   <div className="library-by-game-heading"><h2>Conteúdo local</h2><span>Separado dos favoritos e do catálogo. Apenas nomes observados na última inspeção de cada jogo, nesta sessão.</span></div>
   <p>Não confirma instalação, ativação, integridade ou compatibilidade. A lista não é monitorada em tempo real e pode incluir conteúdo original do jogo.</p>
   <div className="library-quick-navigation">
    <button type="button" className="btn secondary" onClick={onOpenGames}>Inspecionar pastas em Jogos</button>
-   <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure)} onClick={()=>{setStructure(null);onClear();}}>Limpar inspeções da sessão</button>
+   <button type="button" className="btn secondary" disabled={busy||structureBusy||(Object.keys(inspections).length===0&&!structure)} onClick={()=>{setStructure(null);resetFilters();onClear();}}>Limpar inspeções da sessão</button>
   </div>
   {snapshots.length===0?<p>Nenhum inventário local nesta sessão. Confirme uma pasta em Jogos para começar.</p>:<>
    <div className="library-by-game-grid">{snapshots.map(s=>{
@@ -50,14 +66,25 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear}:Pro
     const observed=s.groups.reduce((n,g)=>n+g.directories+g.packageCandidates,0);
     return <div key={s.id}><strong>{labels[s.id]}</strong><p>{visible} nomes exibíveis de {observed} candidatos observados.</p>{(s.limited||visible<observed)&&<small>Lista incompleta: limite de inspeção ou nomes omitidos.</small>}</div>;
    })}</div>
-   <div className="library-toolbar" aria-label="Filtros de conteúdo local">
-    <label>Simulador<select aria-label="Simulador local" value={game} onChange={e=>setGame(e.target.value as typeof game)}><option value="all">Todos</option>{gameIds.map(id=><option key={id} value={id}>{labels[id]}</option>)}</select></label>
-    <label>Tipo<select aria-label="Tipo de conteúdo local" value={kind} onChange={e=>setKind(e.target.value as typeof kind)}><option value="all">Todos</option><option value="directory">Pastas</option><option value="package">Pacotes .SCS/.ZIP</option></select></label>
-    <label>Pesquisar<input aria-label="Pesquisar conteúdo local" value={query} maxLength={160} onChange={e=>setQuery(e.target.value)}/></label>
-    <button type="button" className="btn secondary" onClick={()=>{setGame('all');setKind('all');setQuery('');}}>Limpar filtros locais</button>
+   <dl className="local-inventory-summary" aria-label="Resumo dos nomes locais">
+    <div><dt>Pastas candidatas</dt><dd>{directories}</dd></div>
+    <div><dt>Pacotes candidatos</dt><dd>{packages}</dd></div>
+    <div><dt>Nomes exibíveis</dt><dd>{rows.length}</dd></div>
+   </dl>
+   <div className="local-inventory-toolbar" aria-label="Filtros de conteúdo local">
+    <label>Simulador<select aria-label="Simulador local" value={game} onChange={e=>{setGame(e.target.value as typeof game);setPage(0);}}><option value="all">Todos</option>{gameIds.map(id=><option key={id} value={id}>{labels[id]}</option>)}</select></label>
+    <label>Tipo<select aria-label="Tipo de conteúdo local" value={kind} onChange={e=>{setKind(e.target.value as typeof kind);setPage(0);}}><option value="all">Todos</option><option value="directory">Pastas</option><option value="package">Pacotes .SCS/.ZIP</option></select></label>
+    <label>Pesquisar<input aria-label="Pesquisar conteúdo local" value={query} maxLength={160} onChange={e=>{setQuery(e.target.value);setPage(0);}}/></label>
+    <label>Ordenar<select aria-label="Ordenar conteúdo local" value={order} onChange={e=>{setOrder(e.target.value as typeof order);setPage(0);}}><option value="name">Nome (A–Z)</option><option value="game">Simulador</option><option value="group">Grupo de inspeção</option></select></label>
+    <button type="button" className="btn secondary" onClick={resetFilters}>Limpar filtros locais</button>
    </div>
-   <p role="status">{shown.length} de {rows.length} nomes locais exibidos</p>
-   {shown.length===0?<p>Nenhum candidato corresponde aos filtros locais.</p>:<ul className="inspection-notices">{shown.map(row=><li key={JSON.stringify([row.game,row.group,row.label])}><strong style={{overflowWrap:'anywhere'}}><bdi>{row.label}</bdi></strong> — {labels[row.game]} · {row.groupLabel} · {row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</li>)}</ul>}
+   <p role="status">{shown.length} de {rows.length} nomes locais correspondem aos filtros</p>
+   {shown.length===0?<p>Nenhum candidato corresponde aos filtros locais.</p>:<><ul className="inspection-notices local-inventory-list">{visibleRows.map(row=><li key={JSON.stringify([row.game,row.group,row.label])}><strong style={{overflowWrap:'anywhere'}}><bdi>{row.label}</bdi></strong> — {labels[row.game]} · {row.groupLabel} · {row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</li>)}</ul>
+    <div className="local-inventory-pagination" aria-label="Paginação dos nomes locais">
+     <button type="button" className="btn secondary" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)}>Página anterior de conteúdo local</button>
+     <span role="status">Página {currentPage+1} de {pages} · {currentPage*pageSize+1}–{Math.min(shown.length,(currentPage+1)*pageSize)} de {shown.length}</span>
+     <button type="button" className="btn secondary" disabled={currentPage+1>=pages} onClick={()=>setPage(currentPage+1)}>Próxima página de conteúdo local</button>
+    </div></>}
   </>}
   {window.omsiPreview?.inspectOmsiCandidate&&<section aria-label="Estrutura de um conteúdo OMSI">
    <h3>Identificar estrutura OMSI</h3>

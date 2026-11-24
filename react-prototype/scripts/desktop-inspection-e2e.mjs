@@ -442,6 +442,17 @@ try{
  assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
  assert.equal(await localLibrary.getByText('skin.zip',{exact:true}).count(),0);
  await localLibrary.getByRole('button',{name:'Limpar filtros locais'}).click();
+ // M134: existing small fixture, local sorting and pagination controls.
+ await localLibrary.getByRole('combobox',{name:'Ordenar conteúdo local'}).selectOption('game');
+ assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
+ assert.equal(await localLibrary.getByRole('button',{name:'Página anterior de conteúdo local'}).isDisabled(),true);
+ assert.equal(await localLibrary.getByRole('button',{name:'Próxima página de conteúdo local'}).isDisabled(),true);
+ await localLibrary.getByRole('combobox',{name:'Tipo de conteúdo local'}).selectOption('package');
+ assert.equal(await localLibrary.getByText('Bus A',{exact:true}).count(),0);
+ assert.equal(await localLibrary.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
+ await localLibrary.getByRole('button',{name:'Limpar filtros locais'}).click();
+ assert.equal(await localLibrary.getByRole('combobox',{name:'Ordenar conteúdo local'}).inputValue(),'name');
+ assert.equal(await localLibrary.getByText('Bus A',{exact:true}).isVisible(),true);
  await application.evaluate(patch,{canceled:false,filePaths:[join(sample,'Vehicles','Bus A')]});
  await localLibrary.getByRole('button',{name:'Selecionar pasta de veículo ou mapa'}).click();
  const structurePanel=localLibrary.getByRole('region',{name:'Estrutura de um conteúdo OMSI'});
