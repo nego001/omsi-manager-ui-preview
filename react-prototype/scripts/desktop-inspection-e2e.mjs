@@ -456,6 +456,10 @@ try{
   // M138: expanding candidate details consumes the already observed metadata only.
   const busRow=localLibrary.locator('.local-inventory-list>li').filter({has:window.getByText('Bus A',{exact:true})});
   const packageRow=localLibrary.locator('.local-inventory-list>li').filter({has:window.getByText('heavy_sound.SCS',{exact:true})});
+  assert.equal(await busRow.getByText('Pasta candidata',{exact:true}).isVisible(),true);
+  assert.equal(await packageRow.getByText('Pacote candidato',{exact:true}).isVisible(),true);
+  assert.equal(await busRow.locator('.local-candidate-icon[aria-hidden=true]').count(),1);
+  assert.equal(await packageRow.locator('.local-candidate-icon[aria-hidden=true]').count(),1);
   const busDetails=busRow.locator('details');
   assert.equal(await busDetails.getAttribute('open'),null);
   await busDetails.locator('summary').focus();

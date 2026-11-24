@@ -1,4 +1,5 @@
 import {useLayoutEffect,useMemo,useRef,useState} from 'react';
+import {Folder,Archive} from 'lucide-react';
 import {focusInspectionPanel} from './library-inspection-navigation';
 import {captureLocalObservation,compareLocalObservations,type LocalObservation} from './local-inventory-comparison.mjs';
 import type {FolderInspection,InspectionGameId,OmsiStructureHints} from './inspection-types';
@@ -115,7 +116,11 @@ export function LocalInventoryLibrary({inspections,busy,onOpenGames,onClear,refe
    </div>
    <p role="status">{shown.length} de {rows.length} nomes locais correspondem aos filtros</p>
    {shown.length===0?<p>Nenhum candidato corresponde aos filtros locais.</p>:<><ul className="inspection-notices local-inventory-list">{visibleRows.map(row=><li key={JSON.stringify([row.game,row.group,row.label])}>
-     <div className="local-candidate-title"><strong><bdi>{row.label}</bdi></strong><span>{labels[row.game]} · {row.groupLabel} · {row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</span></div>
+     <div className="local-candidate-header">
+      <span className="local-candidate-icon" aria-hidden="true">{row.kind==='directory'?<Folder size={20}/>:<Archive size={20}/>}</span>
+      <div className="local-candidate-title"><strong><bdi>{row.label}</bdi></strong><span>{labels[row.game]} · {row.groupLabel}</span></div>
+      <span className="local-candidate-type">{row.kind==='directory'?'Pasta candidata':'Pacote candidato'}</span>
+     </div>
      <details className="local-candidate-details">
       <summary>Detalhes do candidato</summary>
       <dl className="local-candidate-facts">

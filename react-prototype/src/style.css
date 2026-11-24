@@ -1632,3 +1632,17 @@
 .simulator-session-facts dd{font-size:15px;margin:4px 0 0;font-weight:700;color:var(--accent)}
 .inspection-game>strong[id^="simulator-inspection-"]{scroll-margin-top:90px}
 .inspection-game>strong[id^="simulator-inspection-"]:focus{outline:2px solid #9c9aff;outline-offset:4px}
+
+/* M141: distinguish observed metadata types from actual mod classification. */
+.local-candidate-header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.local-candidate-icon,.simulator-session-icon{display:inline-flex;align-items:center;justify-content:center;flex:0 0 38px;width:38px;height:38px;border-radius:8px;border:1px solid #43576b;background:#24303d;color:#c4daef}
+.local-candidate-title{flex:1 1 110px;min-width:0}
+.local-candidate-type{flex:0 1 auto;max-width:100%;border:1px solid #485666;border-radius:5px;padding:4px 7px;color:#c7d6e6;font-size:10px;line-height:1.4}
+.local-candidate-details summary{min-height:30px;line-height:24px}
+.simulator-session-card-heading{display:flex;align-items:center;gap:10px;min-width:0}
+.simulator-session-card-heading h3{min-width:0;line-height:1.45}
+.simulator-session-status{align-self:flex-start;max-width:100%;padding:5px 8px;border:1px solid #4c5a6a;border-radius:6px;background:#222b35}
+.simulator-session-status[data-observation=partial],.simulator-session-status[data-observation=unrecognized],.simulator-session-status[data-observation=unavailable]{color:#f2d6a3;border-color:#786746;background:#302a22}
+.simulator-session-status[data-observation=pending]{color:#c7def5;border-color:#506d88}
+.simulator-session-boundary{padding-top:8px;border-top:1px solid var(--edge)}
+@media(max-width:480px){.local-candidate-header{gap:8px}.local-candidate-type{margin-left:46px}}

@@ -5,6 +5,8 @@ test('M140 browser overview keeps three simulators unknown and navigates without
  await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos',exact:true}).click();
  const overview=page.getByRole('region',{name:'Central dos simuladores'});
  await expect(overview.getByRole('article')).toHaveCount(3);
+ await expect(overview.locator('.simulator-session-icon[aria-hidden=true]')).toHaveCount(3);
+ await expect(overview.locator('[data-observation=unknown]')).toHaveCount(3);
  await expect(overview.getByText('Sem observação nesta sessão',{exact:true})).toHaveCount(3);
  await overview.getByRole('button',{name:'Ir à inspeção de OMSI 2'}).click();
  await expect(page.locator('#simulator-inspection-omsi')).toBeFocused();
