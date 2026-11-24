@@ -8,6 +8,7 @@ import os
 import stat
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 MAX_BYTES = 65536
@@ -181,9 +182,73 @@ def run_case(scenario):
         require(cfg.read_bytes() == FIXED)
         return {"scenario": scenario, "status": status, "outcomes": result or [], **metrics}
 
+def lifecycle_fixture_m124():
+    # Actual monotonic clock with deterministic test-only offset at barriers.
+    # A cooperative deadline cannot interrupt a blocked kernel syscall.
+    rows = []
+    def descriptor_count():
+        return len(os.listdir("/proc/self/fd"))
+    for scenario in ("normal", "expired-before", "expired-between",
+                     "expired-during", "cancel-during"):
+        before_count = descriptor_count()
+        with tempfile.TemporaryDirectory(prefix="omsi-m124-lifecycle-") as tmp:
+            root = Path(tmp)
+            model = root / "model"
+            model.mkdir(mode=0o700)
+            cfg = model / CONFIG
+            cfg.write_bytes(FIXED)
+            (model / "body.o3d").write_bytes(b"fixture")
+            start = time.monotonic_ns()
+            budget = 60_000_000_000
+            offset = budget if scenario == "expired-before" else 0
+            cancelled = False
+            reached = scenario in ("normal", "expired-before")
+            def stop():
+                now = time.monotonic_ns()
+                return cancelled or now < start or now - start + offset >= budget
+            def checkpoint(stage):
+                nonlocal offset, cancelled, reached
+                if scenario == "expired-between" and stage == "between-content-and-metadata":
+                    offset = budget
+                    reached = True
+                elif scenario == "expired-during" and stage == "after-first-dependency":
+                    offset = budget
+                    reached = True
+                elif scenario == "cancel-during" and stage == "after-first-dependency":
+                    cancelled = True
+                    reached = True
+            metrics = {"configReadCalls": 0, "configBytesRead": 0,
+                       "entriesScanned": 0, "referencesObserved": 0}
+            result = observe(root, checkpoint, stop, metrics)
+            require(reached and descriptor_count() == before_count)
+            if scenario == "normal":
+                require(result == ["exact-observed", "not-observed-in-directory"] and
+                        metrics["configReadCalls"] == 3 and metrics["referencesObserved"] == 2)
+            else:
+                require(result is None and stop())
+                expected_reads = 0 if scenario == "expired-before" else 2
+                expected_refs = 1 if scenario in ("expired-during", "cancel-during") else 0
+                require(metrics["configReadCalls"] == expected_reads and
+                        metrics["referencesObserved"] == expected_refs)
+            require(cfg.read_bytes() == FIXED)
+        require(not root.exists() and descriptor_count() == before_count)
+        rows.append({"scenario": scenario, "outcome": "completed" if scenario == "normal" else
+                     "cancelled" if scenario == "cancel-during" else "deadline-refused",
+                     "configReadCalls": metrics["configReadCalls"],
+                     "referencesObserved": metrics["referencesObserved"],
+                     "descriptorCountRestored": True, "temporaryRootRemoved": True})
+    print(json.dumps({"schema": "omsi-m124-linux-lifecycle-fixture-v1", "cases": rows,
+                      "monotonicCheckpointDeadline": True, "testClockOffsetUsed": True,
+                      "partialReportPublished": False, "osDeadlineProven": False,
+                      "memoryErasureProven": False, "realModValidated": False,
+                      "operationsEnabled": False}, separators=(",", ":")))
+
 def main():
-    require(sys.platform == "linux" and (len(sys.argv) == 1 or sys.argv[1:] == ["--test-hardlink-m123"]))
+    require(sys.platform == "linux" and (len(sys.argv) == 1 or sys.argv[1:] in (["--test-hardlink-m123"], ["--test-lifecycle-m124"])))
     require(os.open in os.supports_dir_fd and os.stat in os.supports_dir_fd and os.scandir in os.supports_fd)
+    if sys.argv[1:] == ["--test-lifecycle-m124"]:
+        lifecycle_fixture_m124()
+        return
     if sys.argv[1:] == ["--test-hardlink-m123"]:
         row = run_case("hardlink")
         print(json.dumps({"schema": "omsi-m123-linux-dependency-hardlink-fixture-v1",

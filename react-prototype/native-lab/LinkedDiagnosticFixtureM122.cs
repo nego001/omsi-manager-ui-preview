@@ -10,7 +10,8 @@ internal static partial class Program
     private sealed class M122Metrics { public int Reads, Bytes, Entries, References; }
 
     private static string[]? M122Observe(AncestorPins pins, string model,
-        Action<string> checkpoint, Func<bool> cancelled, M122Metrics metrics)
+        Action<string> checkpoint, Func<bool> cancelled, M122Metrics metrics,
+        Action<SafeFileHandle>? trackFixtureHandle = null)
     {
         var root = pins.TemporaryHandle;
         void Active() { if (cancelled()) Deny(); }
@@ -18,13 +19,16 @@ internal static partial class Program
         {
             Active();
             using var directory = OpenChildDirectory(root, "model");
+            trackFixtureHandle?.Invoke(directory);
             var directoryId = Identity(directory);
             var directoryBasic = Basic(directory);
             using var initial = OpenChildFileIdentity(directory, M122Config);
+            trackFixtureHandle?.Invoke(initial);
             var sourceId = Identity(initial);
             var sourceBasic = Basic(initial);
             var size = M112Standard(initial).EndOfFile;
             using var config = OpenRelative(directory, M122Config, false);
+            trackFixtureHandle?.Invoke(config);
             void Verify()
             {
                 Active();

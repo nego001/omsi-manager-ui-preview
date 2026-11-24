@@ -1133,6 +1133,8 @@ internal static partial class Program
     {
         try
         {
+            if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-lifecycle-m124")
+                return RunLifecycleFixtureM124();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-entry-budget-m123")
                 return RunEntryBudgetFixtureM123();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-linked-diagnostic-m122")
