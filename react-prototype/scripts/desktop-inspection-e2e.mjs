@@ -387,6 +387,10 @@ try{
  assert.equal(safeResult.groups[1].count,1);
  assert.equal(safeResult.groups[0].directories,2);
  assert.equal(safeResult.groups[0].files,0);
+ assert.ok(safeResult.groups[0].inventory.some(x=>x.kind==='directory'&&x.label==='Bus A'));
+ assert.ok(!JSON.stringify(safeResult).includes('vehicle.bus'));
+ await result.locator('.inspection-inventory').first().locator('summary').click();
+ assert.equal(await result.getByText('Bus A',{exact:true}).isVisible(),true);
  assert.equal(safeResult.notices.some(n=>n.code==='omsi-structure-incomplete'),true);
  await application.evaluate(patch,{canceled:false,filePaths:[etsSample]});
  const etsReport=await window.evaluate(()=>window.omsiPreview.inspectGame('ets2'));
@@ -395,6 +399,9 @@ try{
  assert.equal(etsReport.groups[0].directories,1);
  assert.equal(etsReport.groups[0].files,3);
  assert.equal(etsReport.groups[0].packageCandidates,2);
+ assert.ok(etsReport.groups[0].inventory.some(x=>x.kind==='package'&&x.label==='heavy_sound.SCS'));
+ assert.ok(!JSON.stringify(etsReport).includes('notes.txt'));
+ assert.ok(!JSON.stringify(etsReport).includes('SCS_SENTINEL'));
  assert.equal(etsReport.notices.some(n=>n.code==='mods-not-verified'),true);
  assert.equal(etsReport.assessment.compatibilityVerified,false);
  assert.equal(etsReport.assessment.installationVerified,false);
@@ -414,6 +421,9 @@ try{
  assert.match(await etsPanel.innerText(),/2 candidatos .scs\/\.zip/);
  assert.match(await etsPanel.innerText(),/não confirma validade/);
  assert.match(await etsPanel.innerText(),/Compatibilidade não verificada/);
+ await etsPanel.locator('.inspection-inventory summary').click();
+ assert.equal(await etsPanel.getByText('heavy_sound.SCS',{exact:true}).isVisible(),true);
+ console.log('PASS_M78_ELECTRON_LOCAL_CANDIDATE_INVENTORY');
  assert.ok(!JSON.stringify(etsReport).includes(etsSample));
  assert.equal(await readFile(join(etsSample,'mod','heavy_sound.SCS'),'utf8'),'SCS_SENTINEL');
  await application.evaluate(patch,{canceled:false,filePaths:[sample]});

@@ -1326,10 +1326,17 @@ export default function App(){
        {report.groups.map(g=><div className="inspection-group" key={g.key}>
         <div className="inspection-stat"><span>{g.name}</span><strong>{g.found?g.count+(g.limited?'+':''):'Não encontrada'}</strong></div>
         {g.found&&<div className="inspection-breakdown"><span>{g.directories} pastas</span><span>{g.files} arquivos</span>{id!=='omsi'&&<span>{g.packageCandidates} candidatos .scs/.zip</span>}{g.linksSkipped>0&&<span>{g.linksSkipped} links ignorados</span>}</div>}
+        {g.found&&g.inventory!==undefined&&<details className="inspection-inventory">
+         <summary>Inventário local — {g.inventory.length} de {g.directories+g.packageCandidates} candidatos observados</summary>
+         <small>Somente nomes de pastas e arquivos candidatos. Conteúdo, ativação e compatibilidade não verificados.</small>
+         {g.inventory.length<g.directories+g.packageCandidates&&<p>Alguns nomes foram omitidos por segurança ou pelo limite de 100 por grupo.</p>}
+         {g.limited&&<p>Inspeção parcial: outras entradas podem existir.</p>}
+         {g.inventory.length>0?<ul>{g.inventory.map(item=><li key={item.label} style={{overflowWrap:'anywhere'}}><bdi>{item.label}</bdi> — {item.kind==='directory'?'Pasta candidata':'Pacote candidato'}</li>)}</ul>:<p>Nenhum nome candidato disponível.</p>}
+        </details>}
        </div>)}
        {report.notices.length>0&&<ul className="inspection-notices">{report.notices.map(n=><li key={n.code} className={n.level}>{n.message}</li>)}</ul>}</div>})()}
        {inspections[id]?.status==='error'&&<p className="inspection-error" role="alert">{inspections[id]?.status==='error'?inspections[id].message:''}</p>}</div>)}</div>
-      <p className="inspection-note">No ETS2/ATS, escolha a própria pasta mod ou a pasta acima dela, geralmente nos Documentos do jogo, não necessariamente na Steam. Contagens são apenas pistas de estrutura, nunca prova de instalação, ativação ou compatibilidade. Não enviamos caminhos completos nem nomes de arquivos à interface. Instalar e remover seguem bloqueados.</p>
+      <p className="inspection-note">No ETS2/ATS, escolha a própria pasta mod ou a pasta acima dela, geralmente nos Documentos do jogo, não necessariamente na Steam. Contagens são apenas pistas de estrutura, nunca prova de instalação, ativação ou compatibilidade. Exibimos somente nomes locais de candidatos, sem caminhos completos; este inventário não é o catálogo de demonstração. Instalar e remover seguem bloqueados.</p>
      </section></>}
     {screen==='catalog'&&<>{dependencyLookup&&<section className="catalog-dependency-return"
  aria-label="Consulta de dependência declarada">

@@ -1,7 +1,7 @@
 'use strict';
 // M62: output-only, allowlisted DTO; no privileged directory path, scanner
 // object, getter or unrecognized property is allowed through renderer IPC.
-const {GAME_GROUPS,MAX_ENTRIES_PER_GROUP,getInspectionNotices,requireGameId}=
+const {GAME_GROUPS,MAX_ENTRIES_PER_GROUP,MAX_INVENTORY_LABELS,isSafeInventoryLabel,getInspectionNotices,requireGameId}=
   require('./game-inspection.cjs');
 const fail=()=>{throw Error('Relatório de inspeção inválido.');};
 const plain=x=>x!==null&&typeof x==='object'&&!Array.isArray(x)&&
@@ -57,8 +57,30 @@ function projectInspectionReport(report,game){
      (complete&&classified!==count)||
      (expected[i].key!=='mods'&&packageCandidates!==0)||
      (!found&&(count!==0||limited||linksSkipped!==0)))fail();
+  const rawInventory=own(source,'inventory',false);
+  let inventory;
+  if(rawInventory!==undefined){
+   if(!Array.isArray(rawInventory)||rawInventory.length>MAX_INVENTORY_LABELS)fail();
+   inventory=[];
+   const seen=new Set();
+   let directoryLabels=0,packageLabels=0;
+   for(let j=0;j<rawInventory.length;j++){
+    const row=own(rawInventory,String(j));
+    if(!plain(row))fail();
+    const kind=own(row,'kind'),label=own(row,'label');
+    if(!isSafeInventoryLabel(label)||seen.has(label))fail();
+    seen.add(label);
+    if(kind==='directory')directoryLabels++;
+    else if(kind==='package'&&expected[i].key==='mods'&&/\.(scs|zip)$/i.test(label))packageLabels++;
+    else fail();
+    inventory.push({kind,label});
+   }
+   if(directoryLabels>directories||packageLabels>packageCandidates)fail();
+   inventory.sort((a,b)=>a.label<b.label?-1:a.label>b.label?1:0);
+  }
   groups.push({key:expected[i].key,name:expected[i].name,found,count,limited,
-   directories,files,packageCandidates,linksSkipped,others});
+   directories,files,packageCandidates,linksSkipped,others,
+   ...(inventory===undefined?{}:{inventory})});
  }
  const assessment=own(report,'assessment');
  if(!plain(assessment)||own(assessment,'scope')!=='directory-structure-only'||
