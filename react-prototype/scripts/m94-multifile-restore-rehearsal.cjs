@@ -1,0 +1,108 @@
+'use strict';
+// Test-only. All paths and bytes are fixed by this disposable rehearsal.
+// Sequential rename is deliberately NOT represented as group atomicity.
+const fs=require('node:fs/promises');
+const {constants}=require('node:fs');
+const os=require('node:os');
+const path=require('node:path');
+const {createHash}=require('node:crypto');
+const SLOTS=Object.freeze(['definition','model','sound']);
+const SCENARIOS=Object.freeze(['normal','partial-stage','changed-backup','changed-target','stop-after-one','stop-after-two','drift-after-one']);
+const refuse=()=>{throw Error('M94_FIXTURE_REFUSED');};
+const hash=b=>createHash('sha256').update(b).digest('hex');
+function key(s){
+ if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1n||s.size<1n||s.size>4096n)refuse();
+ return [s.dev,s.ino,s.mode,s.size,s.nlink,s.mtimeNs,s.ctimeNs].join(':');
+}
+async function observe(file){
+ let before;
+ try{before=await fs.lstat(file,{bigint:true});}
+ catch(e){if(e.code==='ENOENT')return null;throw e;}
+ const k=key(before),h=await fs.open(file,constants.O_RDONLY|(constants.O_NOFOLLOW||0));
+ try{
+  if(key(await h.stat({bigint:true}))!==k)refuse();
+  const bytes=Buffer.alloc(Number(before.size));let offset=0;
+  while(offset<bytes.length){
+   const {bytesRead}=await h.read(bytes,offset,bytes.length-offset,offset);
+   if(!bytesRead)refuse();offset+=bytesRead;
+  }
+  if(key(await h.stat({bigint:true}))!==k||key(await fs.lstat(file,{bigint:true}))!==k)refuse();
+  return {key:k,bytes,hash:hash(bytes)};
+ }finally{await h.close();}
+}
+async function create(file,bytes){
+ const h=await fs.open(file,'wx',0o600);
+ try{await h.writeFile(bytes);await h.sync();}finally{await h.close();}
+}
+const matches=(a,b)=>a!==null&&a.bytes.equals(b)&&a.hash===hash(b);
+const same=(a,b)=>a!==null&&b!==null&&a.key===b.key&&a.bytes.equals(b.bytes);
+async function rehearseMultifileRestore(scenario='normal'){
+ if(!SCENARIOS.includes(scenario))refuse();
+ const root=await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()),'omsi-m94-multifile-'));
+ try{
+  const slots=[];
+  for(const name of SLOTS){
+   const original=Buffer.from('M94 '+name+' original fixture\n');
+   const edited=Buffer.from('M94 '+name+' edited fixture\n');
+   const target=path.join(root,name+'.target'),backup=path.join(root,name+'.backup'),stage=path.join(root,name+'.stage');
+   await create(target,edited);await create(backup,original);await create(stage,original);
+   slots.push({name,original,edited,target,backup,stage,expectedTarget:await observe(target),
+    expectedBackup:await observe(backup),expectedStage:await observe(stage)});
+  }
+  // Damage the final member to test whether the entire batch is checked
+  // before the first publication rather than discovering it halfway through.
+  const last=slots.at(-1);
+  if(scenario==='partial-stage')await fs.writeFile(last.stage,last.original.subarray(0,5));
+  if(scenario==='changed-backup')await fs.writeFile(last.backup,Buffer.alloc(last.original.length,0x58));
+  if(scenario==='changed-target')await fs.writeFile(last.target,Buffer.from('M94 unrelated target revision\n'));
+  const preflight=[];
+  for(const s of slots){
+   const [target,backup,stage]=await Promise.all([observe(s.target),observe(s.backup),observe(s.stage)]);
+   preflight.push(same(target,s.expectedTarget)&&matches(target,s.edited)&&
+    same(backup,s.expectedBackup)&&matches(backup,s.original)&&
+    same(stage,s.expectedStage)&&matches(stage,s.original));
+  }
+  const allPreflightPassed=preflight.every(Boolean);
+  let published=0,reason=allPreflightPassed?'complete':'preflight-refused';
+  if(allPreflightPassed){
+   for(const s of slots){
+    // Recheck remaining members before each publication. Already published
+    // targets cannot be rolled back automatically on a later failure.
+    let remainingValid=true;
+    for(const next of slots.slice(published)){
+     const [target,backup,stage]=await Promise.all([observe(next.target),observe(next.backup),observe(next.stage)]);
+     if(!same(target,next.expectedTarget)||!same(backup,next.expectedBackup)||!same(stage,next.expectedStage)){
+      remainingValid=false;break;
+     }
+    }
+    if(!remainingValid){reason='drift-refused';break;}
+    await fs.rename(s.stage,s.target);published++;
+    if(!matches(await observe(s.target),s.original)||await observe(s.stage)!==null)refuse();
+    if(scenario==='drift-after-one'&&published===1)
+     await fs.writeFile(last.target,Buffer.from('M94 intervening fixture revision\n'));
+    if((scenario==='stop-after-one'&&published===1)||(scenario==='stop-after-two'&&published===2)){
+     reason='controlled-stop';break;
+    }
+   }
+  }
+  const members=[];
+  for(const s of slots){
+   const [target,backup,stage]=await Promise.all([observe(s.target),observe(s.backup),observe(s.stage)]);
+   const state=matches(target,s.original)?'original-observed':matches(target,s.edited)?'edited-observed':target===null?'missing':'divergent';
+   members.push(Object.freeze({slot:s.name,state,backupIntact:matches(backup,s.original),stagePresent:stage!==null,
+    stageIntact:matches(stage,s.original)}));
+  }
+  const originalCount=members.filter(m=>m.state==='original-observed').length;
+  const editedCount=members.filter(m=>m.state==='edited-observed').length;
+  const divergentCount=members.length-originalCount-editedCount;
+  if(originalCount!==published)refuse();
+  if(published===SLOTS.length&&!members.every(m=>m.backupIntact&&!m.stagePresent))refuse();
+  return Object.freeze({schema:'omsi-m94-multifile-rehearsal-v1',scope:'self-created-temporary-fixture-only',scenario,
+   outcome:published===SLOTS.length?'all-original-observed':published===0?'no-publication-observed':'mixed-state-observed',
+   reason,allPreflightPassed,preflightPassedCount:preflight.filter(Boolean).length,memberCount:SLOTS.length,
+   publishedCount:published,originalCount,editedCount,divergentCount,members:Object.freeze(members),
+   automaticRollbackAttempted:false,externalTerminationTested:false,groupAtomicityProven:false,durabilityProven:false,
+   realFilesInspected:false,operationsEnabled:false,filesModifiedInGames:0});
+ }finally{await fs.rm(root,{recursive:true,force:true});}
+}
+module.exports={rehearseMultifileRestore};
