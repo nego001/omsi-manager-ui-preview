@@ -36,7 +36,72 @@ async function create(file,bytes){
 }
 const matches=(a,b)=>a!==null&&a.bytes.equals(b)&&a.hash===hash(b);
 const same=(a,b)=>a!==null&&b!==null&&a.key===b.key&&a.bytes.equals(b.bytes);
-async function rehearseMultifileRestore(scenario='normal',assessmentMode='none'){
+
+// M96: explicit rehearsal only. Retains pre-publication edited bytes in
+// controller memory; original backups are not the rollback source.
+async function rehearseRollback(slots,published,assessment,mode){
+ const refuseReport=(reason,count=0)=>Object.freeze({
+  schema:'omsi-m96-rollback-v1',scope:'self-created-temporary-fixture-only',
+  outcome:reason,rollbackCount:count,allEditedObserved:false,
+  automaticRollbackAttempted:false,groupAtomicityProven:false,durabilityProven:false,
+  realFilesInspected:false,operationsEnabled:false,filesModifiedInGames:0});
+ if(mode==='lost-anchor')return refuseReport('independent-anchor-unavailable');
+ if(!assessment||assessment.disposition!=='ordered-partial-publication-review'||
+    published<1||published>=slots.length)return refuseReport('ineligible-state-refused');
+ const targets=slots.map((s,i)=>i<published?s.publishedTarget:s.expectedTarget);
+ const stages=new Map();
+ // All expected target identities and edited bytes were retained before
+ // entering this rehearsal. Verify every member before any rollback rename.
+ async function verifyAll(){
+  for(let i=0;i<slots.length;i++){
+   const s=slots[i];
+   if(!same(await observe(s.target),targets[i])||!same(await observe(s.backup),s.expectedBackup))
+    return false;
+   const stage=await observe(s.stage);
+   if(i<published?stage!==null:!same(stage,s.expectedStage))return false;
+   if(stages.has(i)){
+    const stageRecord=stages.get(i);
+    if(!same(await observe(stageRecord.file),stageRecord.snapshot)||
+       !matches(stageRecord.snapshot,s.edited))return false;
+   }
+  }
+  return true;
+ }
+ if(mode==='changed-target')await fs.writeFile(slots[0].target,Buffer.from('M96 unrelated synthetic revision\n'));
+ if(!await verifyAll())return refuseReport('target-or-backup-divergence-refused');
+ for(let i=0;i<published;i++){
+  const s=slots[i],file=s.target+'.rollback';
+  await create(file,s.expectedTarget.bytes);
+  stages.set(i,{file,snapshot:await observe(file)});
+ }
+ if(mode==='corrupt-rollback-stage'){
+  const stage=stages.get(0);
+  await fs.writeFile(stage.file,Buffer.from('M96 corrupted stage\n'));
+ }
+ if(!await verifyAll())return refuseReport('rollback-stage-divergence-refused');
+ let count=0;
+ // Reversal in reverse publication order. A later refusal does not undo
+ // previously completed reversals or claim transaction-level atomicity.
+ for(let i=published-1;i>=0;i--){
+  if(!await verifyAll())return refuseReport('partial-rollback-refused',count);
+  const s=slots[i],stage=stages.get(i);
+  await fs.rename(stage.file,s.target);stages.delete(i);
+  const restored=await observe(s.target);
+  if(!matches(restored,s.edited)||await observe(stage.file)!==null)refuse();
+  targets[i]=restored;count++;
+  if(mode==='drift-after-first-reversal'&&count===1&&published>1)
+   await fs.writeFile(slots[0].target,Buffer.from('M96 intervening rollback drift\n'));
+ }
+ const allEditedObserved=(await verifyAll())&&targets.every((t,i)=>matches(t,slots[i].edited));
+ if(!allEditedObserved)refuse();
+ return Object.freeze({schema:'omsi-m96-rollback-v1',scope:'self-created-temporary-fixture-only',
+  outcome:'all-edited-observed',rollbackCount:count,allEditedObserved:true,
+  automaticRollbackAttempted:false,groupAtomicityProven:false,durabilityProven:false,
+  realFilesInspected:false,operationsEnabled:false,filesModifiedInGames:0});
+}
+async function rehearseMultifileRestore(scenario='normal',assessmentMode='none',rollbackMode='none'){
+ if(!['none','explicit','lost-anchor','changed-target','corrupt-rollback-stage','drift-after-first-reversal'].includes(rollbackMode))refuse();
+ if(rollbackMode!=='none'&&assessmentMode!=='observe')refuse();
  if(!['none','observe','drift-between-observations','missing-backup-after-publication'].includes(assessmentMode))refuse();
  if(!SCENARIOS.includes(scenario))refuse();
  const root=await fs.mkdtemp(path.join(await fs.realpath(os.tmpdir()),'omsi-m94-multifile-'));
@@ -78,7 +143,8 @@ async function rehearseMultifileRestore(scenario='normal',assessmentMode='none')
     }
     if(!remainingValid){reason='drift-refused';break;}
     await fs.rename(s.stage,s.target);published++;
-    if(!matches(await observe(s.target),s.original)||await observe(s.stage)!==null)refuse();
+    s.publishedTarget=await observe(s.target);
+    if(!matches(s.publishedTarget,s.original)||await observe(s.stage)!==null)refuse();
     if(scenario==='drift-after-one'&&published===1)
      await fs.writeFile(last.target,Buffer.from('M94 intervening fixture revision\n'));
     if((scenario==='stop-after-one'&&published===1)||(scenario==='stop-after-two'&&published===2)){
@@ -108,11 +174,13 @@ async function rehearseMultifileRestore(scenario='normal',assessmentMode='none')
     await fs.unlink(slots[0].backup);
    assessment=await assessPrivateFixture(root,members);
   }
+  const rollback=rollbackMode==='none'?null:await rehearseRollback(slots,published,assessment,rollbackMode);
+  // M94 fields describe the pre-reversal observation; M96 reports its own result.
   return Object.freeze({schema:'omsi-m94-multifile-rehearsal-v1',scope:'self-created-temporary-fixture-only',scenario,
    outcome:published===SLOTS.length?'all-original-observed':published===0?'no-publication-observed':'mixed-state-observed',
    reason,allPreflightPassed,preflightPassedCount:preflight.filter(Boolean).length,memberCount:SLOTS.length,
    publishedCount:published,originalCount,editedCount,divergentCount,members:Object.freeze(members),
-   ...(assessment?{assessment}:{}),
+   ...(assessment?{assessment}:{}),...(rollback?{rollback}:{}),
    automaticRollbackAttempted:false,externalTerminationTested:false,groupAtomicityProven:false,durabilityProven:false,
    realFilesInspected:false,operationsEnabled:false,filesModifiedInGames:0});
  }finally{await fs.rm(root,{recursive:true,force:true});}
