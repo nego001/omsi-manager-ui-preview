@@ -40,3 +40,10 @@ test('fixture inventory rejects duplicates, path conflicts and resource overflow
   assert.throws(()=>run(files,[]),/M81D_FIXTURE_REFUSED/);
  assert.throws(()=>run(['bus.bus'],Array.from({length:257},()=>model('a.cfg'))),/M81D_FIXTURE_REFUSED/);
 });
+
+test('trailing line breaks and control characters cannot pass path grammar',()=>{
+ for(const value of ['a.cfg\n','a.cfg\r','model\t/a.cfg','a.cfg\0']){
+  assert.deepEqual(run(['bus.bus'],[model(value)]).results,['invalid-reference']);
+  assert.throws(()=>run([value],[]),/M81D_FIXTURE_REFUSED/);
+ }
+});
