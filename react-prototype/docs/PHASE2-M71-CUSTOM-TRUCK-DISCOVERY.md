@@ -1,0 +1,3 @@
+# M71 — Custom truck installation discovery
+
+Extends the M70 user-selected bounded directory search to ETS2 and ATS. Uses fixed bin/linux_x64 and bin/win_x64 executable-name markers, with metadata only and link checks. Returns only candidate count and explicit partial-coverage flag; truck installation discovery does not issue a mod inspection grant or reveal paths. A scope selection is required per search. Four new synthetic unit tests and real Electron IPC regression; no actual game data. Depth/directory/entry limits inherited from M70, so nonmatching subtrees may produce partial coverage. Existing manual mod-folder inspection remains separate. Not full disk discovery, no startup scan or compatibility verification. Ubuntu24 strict native gate unchanged; Draft only.

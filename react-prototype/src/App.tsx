@@ -178,6 +178,7 @@ export default function App(){
  const [inspecting,setInspecting]=useState<GameId|null>(null);
  const [discovering,setDiscovering]=useState(false);
  const [steamResults,setSteamResults]=useState<Partial<Record<GameId,string>>>({});
+ const [customResults,setCustomResults]=useState<Partial<Record<GameId,string>>>({});
  const inspectorAvailable=typeof window.omsiPreview?.inspectGame==='function';
  const runtime=window.omsiPreview?.runtime;
  const osLabel=runtime?.operatingSystem==='windows'?'Windows':
@@ -975,6 +976,19 @@ export default function App(){
    }
   }finally{setDiscovering(false);}
  }
+ async function detectCustomTruck(gameId:'ets2'|'ats'){
+  if(discovering||inspecting||!window.omsiPreview?.discoverCustomTruck)return;
+  setInspecting(gameId);
+  try{
+   const report=await window.omsiPreview.discoverCustomTruck(gameId);
+   if(report.status==='cancelled')return;
+   const label=report.status==='custom-discovery'
+    ? 'Busca em pasta escolhida: '+report.count+' candidata(s)'+(report.limited?' · busca parcial':'')+'. Pasta de mods não verificada.'
+    : report.message;
+   setCustomResults(old=>({...old,[gameId]:label}));
+  }catch{setCustomResults(old=>({...old,[gameId]:'Busca personalizada inconclusiva.'}));}
+  finally{setInspecting(null);}
+ }
  async function inspectGame(gameId:GameId,autoLocate=false,customLocate=false){
   const bridge=window.omsiPreview;
   if(discovering||inspecting||!bridge?.inspectGame||(autoLocate&&(gameId!=='omsi'||!bridge.locateOmsi))||(customLocate&&(gameId!=='omsi'||!bridge.locateCustomOmsi)))return;
@@ -1191,7 +1205,7 @@ export default function App(){
      <section className="inspection-panel" aria-label="Inspeção de pastas de jogos">
       <div className="inspection-header"><div><h2>Inspeção local · somente leitura</h2><p>Escolha a pasta ou procure instalações Steam. A localização de jogos não equivale à inspeção de mods. O app distingue pastas, arquivos e possíveis pacotes de mods apenas pelos nomes, sem abrir conteúdo nem alterar nada.</p></div><span className="pill">{inspectorAvailable?'Seletor nativo disponível':'Disponível apenas no Electron'}</span></div>
       {typeof window.omsiPreview?.discoverSteam==='function'&&<button className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void detectSteam()}>{discovering?'Procurando na Steam...':'Detectar jogos automaticamente'}</button>}
-      <div className="inspection-grid">{(Object.keys(games) as GameId[]).map(id=><div className="inspection-game" key={id}><strong>{games[id].title}</strong>{steamResults[id]&&<small role="status">{steamResults[id]}</small>}<button className="btn secondary" disabled={!inspectorAvailable||discovering||inspecting!==null} onClick={()=>void inspectGame(id)}>{inspecting===id?'Inspecionando...':'Selecionar pasta e inspecionar'}</button>{id==='omsi'&&typeof window.omsiPreview?.locateOmsi==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void inspectGame(id,true)}>Localizar automaticamente</button>}{id==='omsi'&&typeof window.omsiPreview?.locateCustomOmsi==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void inspectGame(id,false,true)}>Procurar em outra pasta</button>}
+      <div className="inspection-grid">{(Object.keys(games) as GameId[]).map(id=><div className="inspection-game" key={id}><strong>{games[id].title}</strong>{steamResults[id]&&<small role="status">{steamResults[id]}</small>}{customResults[id]&&<small role="status">{customResults[id]}</small>}<button className="btn secondary" disabled={!inspectorAvailable||discovering||inspecting!==null} onClick={()=>void inspectGame(id)}>{inspecting===id?'Inspecionando...':'Selecionar pasta e inspecionar'}</button>{id==='omsi'&&typeof window.omsiPreview?.locateOmsi==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void inspectGame(id,true)}>Localizar automaticamente</button>}{id==='omsi'&&typeof window.omsiPreview?.locateCustomOmsi==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void inspectGame(id,false,true)}>Procurar em outra pasta</button>}{id!=='omsi'&&typeof window.omsiPreview?.discoverCustomTruck==='function'&&<button type="button" className="btn secondary" disabled={discovering||inspecting!==null} onClick={()=>void detectCustomTruck(id)}>Procurar instalação em outra pasta</button>}
        {inspections[id]?.status==='ok'&&(()=>{const report=inspections[id];if(!report||report.status!=='ok')return null;return <div className="inspection-result"><p><strong>Pasta:</strong> {report.folderName} · {report.recognized?'Pastas esperadas encontradas':'Nenhuma pasta conhecida encontrada'}</p>
        <div className="inspection-assessment" role="status"><strong>Compatibilidade não verificada</strong><span>{report.assessment.summary}</span>{report.selectionMode==='direct-mod-folder'&&<small>Selecionada diretamente: pasta mod</small>}{report.provenance&&<small>Leitura por metadados de diretório. Enumeração por handle nativo: {report.provenance.nativeDirectoryEnumeration==='not-connected'?'não integrada':'somente observação auxiliar de teste'}. Proteção total contra trocas de pasta não comprovada.</small>}</div>
        {report.groups.map(g=><div className="inspection-group" key={g.key}>

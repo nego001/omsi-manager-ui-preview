@@ -29,7 +29,7 @@ const { requireGameId } = require('./game-inspection.cjs');
 const { createInspectionGrantGate } = require('./inspection-grant.cjs');
 const { requestNativeDirectory } = require('./native-directory-choice.cjs');
 const { discoverSteam } = require('./steam-discovery.cjs');
-const { discoverCustomOmsi } = require('./custom-omsi-discovery.cjs');
+const { discoverCustomOmsi, discoverCustomGame } = require('./custom-omsi-discovery.cjs');
 const inspectionGrantGate = createInspectionGrantGate();
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
@@ -88,7 +88,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual') => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(!(mode==='discover-steam'||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
+    if(mode!=='manual'&&(!(mode==='discover-steam'||(mode==='discover-custom-truck'&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -120,6 +120,22 @@ app.whenReady().then(() => {
       // never an inspection grant or a path returned to the renderer.
       let hint=null;
       let title='Selecione a pasta do jogo (somente leitura)';
+      if(mode==='discover-custom-truck'){
+        // Only the scope picker is required for candidate counts. Never send
+        // paths to the renderer or issue an inspection grant for a truck root.
+        const scope=await requestNativeDirectory(()=>dialog.showOpenDialog(win,{
+          title:'Escolha uma pasta para procurar a instalação do simulador',
+          properties:['openDirectory','dontAddToRecent']
+        }));
+        if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+        if(scope.status==='cancelled')return {status:'cancelled'};
+        if(scope.status!=='selected')return {status:'error',message:'Não foi possível abrir o seletor de pastas.'};
+        try{
+          const result=await discoverCustomGame(scope.selectedPath,gameId,documentSignal);
+          if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+          return {status:'custom-discovery',count:result.matches.length,limited:result.limited};
+        }catch{return {status:'error',message:'Busca inconclusiva. Escolha uma pasta acessível mais específica.'};}
+      }
       if(mode==='locate-custom-omsi'){
         // First picker authorizes only bounded metadata search in its scope.
         const scope=await requestNativeDirectory(()=>dialog.showOpenDialog(win,{

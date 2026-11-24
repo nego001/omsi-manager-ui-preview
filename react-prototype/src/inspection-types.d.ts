@@ -30,6 +30,7 @@ declare global {
    inspectGame?: (game:InspectionGameId)=>Promise<FolderInspection>;
    locateOmsi?: ()=>Promise<FolderInspection>;
    locateCustomOmsi?: ()=>Promise<FolderInspection>;
+   discoverCustomTruck?: (game:'ets2'|'ats')=>Promise<{status:'custom-discovery';count:number;limited:boolean}|{status:'cancelled'}|{status:'error';message:string}>;
    discoverSteam?: (game:InspectionGameId)=>Promise<{status:'discovery';count:number}|{status:'error';message:string}>;
   };
  }
