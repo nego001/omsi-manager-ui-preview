@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const path=require('node:path');
-const {createCandidateStore}=require('./steam-candidate-store.cjs');
+const {createCandidateStore,preferenceFor,isPreference}=require('./steam-candidate-store.cjs');
 const p=path.resolve('private-fixture','Steam','OMSI 2'),q=path.resolve('another-private','OMSI 2');
 test('multiple candidates expose only opaque IDs and ordinal labels',()=>{
  const s=createCandidateStore(),owner={},proof={};
@@ -23,4 +23,25 @@ test('refresh and explicit invalidation retire old IDs',()=>{
  assert.equal(s.resolve(owner,proof,'omsi',a.id),null);
  assert.equal(s.resolve(owner,proof,'omsi',b.id),q);
  s.clear(owner,'omsi');assert.equal(s.resolve(owner,proof,'omsi',b.id),null);
+});
+
+test('saved preference matches a freshly discovered path, not the old ordinal or ID',()=>{
+ const owner={},proof={},s=createCandidateStore();
+ const [a,b]=s.publish(owner,proof,'omsi',[p,q]);
+ const pref=preferenceFor('omsi',q);
+ assert.equal(isPreference(pref),true);
+ assert.equal(s.preferredId(owner,proof,'omsi',pref),b.id);
+ const newer=createCandidateStore(),nextProof={};
+ const [first,second]=newer.publish(owner,nextProof,'omsi',[q,p]);
+ assert.notEqual(first.id,b.id);
+ assert.equal(newer.preferredId(owner,nextProof,'omsi',pref),first.id);
+ assert.equal(newer.resolve(owner,nextProof,'omsi',pref),null);
+ assert.equal(newer.preferredId(owner,nextProof,'ats',pref),null);
+});
+test('missing path, wrong epoch and arbitrary path cannot be used as preferences',()=>{
+ const owner={},proof={},s=createCandidateStore();
+ s.publish(owner,proof,'omsi',[p]);
+ for(const pref of [preferenceFor('omsi',q),preferenceFor('ats',p),q,null,'a'.repeat(65)])
+  assert.equal(s.preferredId(owner,proof,'omsi',pref),null);
+ assert.equal(s.preferredId(owner,{},'omsi',preferenceFor('omsi',p)),null);
 });
