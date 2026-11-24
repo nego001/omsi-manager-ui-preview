@@ -147,7 +147,11 @@ def run_case(scenario):
                 else:
                     return
             elif stage == "after-first-dependency" and scenario == "directory-changed":
+                previous = model.stat()
                 (model / "new.o3d").write_bytes(b"changed")
+                # Fixture-only deterministic metadata drift even on filesystems
+                # with coarse timestamp resolution. Not an ABA guarantee.
+                os.utime(model, ns=(previous.st_atime_ns, previous.st_mtime_ns - 2000000000))
             elif stage == "after-first-dependency" and scenario == "cancel-during-metadata":
                 cancelled = True
             else:
@@ -177,8 +181,14 @@ def run_case(scenario):
 def main():
     require(sys.platform == "linux" and len(sys.argv) == 1)
     require(os.open in os.supports_dir_fd and os.stat in os.supports_dir_fd and os.scandir in os.supports_fd)
-    cases = [run_case(s) for s in ("normal", "case-only", "link", "parent-replaced",
-             "config-replaced", "cancel-between", "directory-changed", "cancel-during-metadata")]
+    cases = []
+    for scenario in ("normal", "case-only", "link", "parent-replaced",
+                     "config-replaced", "cancel-between", "directory-changed", "cancel-during-metadata"):
+        try:
+            cases.append(run_case(scenario))
+        except Exception:
+            print("M121_FIXED_SCENARIO_FAILED:" + scenario, file=sys.stderr)
+            raise
     print(json.dumps({"schema": "omsi-m121-linked-linux-diagnostic-fixture-v1",
                       "scope": "fixed-synthetic-tree-only", "cases": cases,
                       "sameRetainedHandlesUsed": True, "dependencyContentsRead": False,
