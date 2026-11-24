@@ -37,6 +37,7 @@ const { discoverCustomOmsi, discoverCustomGame } = require('./custom-omsi-discov
 const inspectionGrantGate = createInspectionGrantGate();
 const {inspectOmsiCandidate}=require('./omsi-structure-hints.cjs');
 const structureGrantGate=createInspectionGrantGate({inspect:inspectOmsiCandidate});
+const {precheckConfigMetadata}=require('./omsi-config-selection.cjs');
 // At most one native folder dialog per renderer at a time.
 const activeInspections = new Set();
 // Main-process-only identity: each window owns a separate document epoch.
@@ -94,7 +95,7 @@ app.whenReady().then(() => {
   ipcMain.handle('preview:inspect-game', async (event, gameId, mode='manual', candidateId) => {
     // Renderer chooses only a game identifier. The native dialog owns folder choice.
     requireGameId(gameId);
-    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam','remember-steam'].includes(mode)||(['discover-custom-truck','locate-truck-mod'].includes(mode)&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi','inspect-omsi-candidate'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
+    if(mode!=='manual'&&(!(['discover-steam','list-steam','choose-steam','remember-steam'].includes(mode)||(['discover-custom-truck','locate-truck-mod'].includes(mode)&&['ets2','ats'].includes(gameId))||(['locate-omsi-steam','locate-custom-omsi','inspect-omsi-candidate','precheck-omsi-config'].includes(mode)&&gameId==='omsi'))||!['linux','win32'].includes(process.platform)))
       throw new Error('Modo de localização inválido.');
     const win = BrowserWindow.fromWebContents(event.sender);
     const expectedURL = isDevelopment
@@ -124,6 +125,16 @@ app.whenReady().then(() => {
     try {
       // Explicit locate action only. Candidate is a native dialog hint,
       // never an inspection grant or a path returned to the renderer.
+      if(mode==='precheck-omsi-config'){
+        if(candidateId!==undefined)return {status:'error',message:'Seleção de configuração inválida.'};
+        const result=await precheckConfigMetadata(()=>dialog.showOpenDialog(win,{
+          title:'Selecione uma configuração OMSI (somente metadados, sem abrir conteúdo)',
+          properties:['openFile','dontAddToRecent'],
+          filters:[{name:'Configurações OMSI',extensions:['bus','ovh','cfg']}]
+        }),senderAuthorized,documentSignal);
+        if(!senderAuthorized())return {status:'error',message:'Origem da inspeção não autorizada.'};
+        return result;
+      }
       let hint=null;
       let title=mode==='inspect-omsi-candidate'?'Escolha a pasta de um veículo ou mapa OMSI (somente nomes de arquivos)':'Selecione a pasta do jogo (somente leitura)';
       if(mode==='locate-truck-mod'){

@@ -4,6 +4,9 @@ export type InspectionGroup={
  directories:number;files:number;packageCandidates:number;linksSkipped:number;others:number;
  inventory?:{kind:'directory'|'package';label:string}[];
 };
+export type OmsiConfigMetadata=
+ | {status:'config-metadata-observed';scope:'selected-file-metadata-only';candidateKind:'bus-candidate'|'ovh-candidate'|'cfg-candidate';byteCount:number;contentOpened:false;dependencyScanPerformed:false;nativeIdentityVerified:false;compatibilityVerified:false;operationsEnabled:false}
+ | {status:'cancelled'}|{status:'error';message:string};
 export type OmsiStructureHints=
  | {status:'structure-hints';scope:'direct-entry-names-only';kind:'vehicle-candidate'|'map-candidate'|'mixed'|'inconclusive';busFiles:number;aiVehicleFiles:number;mapTiles:number;globalConfig:boolean;limited:boolean;linksSkipped:number;contentVerified:false;compatibilityVerified:false}
  | {status:'cancelled'}|{status:'error';message:string};
@@ -31,6 +34,7 @@ declare global {
    runtime?:{operatingSystem:'windows'|'linux'|'unsupported';
     platformSelection:'automatic';gameOperations:'disabled'};
    capabilities:{readGameFiles:false;inspectDirectories?:boolean;installMods:false;uninstallMods:false;executeCommands:false};
+   precheckOmsiConfig?: ()=>Promise<OmsiConfigMetadata>;
    inspectOmsiCandidate?: ()=>Promise<OmsiStructureHints>;
    inspectGame?: (game:InspectionGameId)=>Promise<FolderInspection>;
    locateOmsi?: ()=>Promise<FolderInspection>;

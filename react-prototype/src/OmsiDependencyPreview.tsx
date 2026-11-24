@@ -2,12 +2,41 @@ import {useState} from 'react';
 import {dependencyPreviewExample,projectDependencyObservation} from './omsi-dependency-report';
 import {dependencyReviewGuidance} from './omsi-dependency-guidance';
 
+import type {OmsiConfigMetadata} from './inspection-types';
+function ConfigMetadataSelection(){
+ const [busy,setBusy]=useState(false);
+ const [result,setResult]=useState<OmsiConfigMetadata|null>(null);
+ const available=typeof window.omsiPreview?.precheckOmsiConfig==='function';
+ async function select(){
+  if(!available||busy)return;
+  setBusy(true);setResult(null);
+  try{const r=await window.omsiPreview!.precheckOmsiConfig!();
+   if(r.status==='config-metadata-observed'&&r.scope==='selected-file-metadata-only'&&
+      ['bus-candidate','ovh-candidate','cfg-candidate'].includes(r.candidateKind)&&
+      Number.isSafeInteger(r.byteCount)&&r.byteCount>=1&&r.byteCount<=65536&&
+      r.contentOpened===false&&r.dependencyScanPerformed===false&&r.nativeIdentityVerified===false&&
+      r.compatibilityVerified===false&&r.operationsEnabled===false)setResult(r);
+   else if(r.status==='cancelled')setResult({status:'cancelled'});
+   else setResult({status:'error',message:'Não foi possível conferir a configuração selecionada.'});
+  }catch{setResult({status:'error',message:'Não foi possível conferir a configuração selecionada.'});}
+  finally{setBusy(false);}
+ }
+ return <section className="library-by-game" aria-label="Seleção nativa de configuração OMSI">
+  <h2>Pré-checagem de configuração local</h2>
+  <p>Selecione um arquivo .bus, .ovh ou .cfg para conferir apenas o tipo candidato e o tamanho. O conteúdo e as dependências não são abertos.</p>
+  <button type="button" className="btn secondary" disabled={!available||busy} onClick={()=>void select()}>{busy?'Conferindo metadados...':'Selecionar arquivo para pré-checagem'}</button>
+  {!available&&<p>Seleção nativa disponível apenas no desktop compatível.</p>}
+  {result?.status==='config-metadata-observed'&&<p role="status">{result.candidateKind==='bus-candidate'?'.bus':result.candidateKind==='ovh-candidate'?'.ovh':'.cfg'} · {result.byteCount} bytes · conteúdo não aberto.</p>}
+  {result?.status==='cancelled'&&<p role="status">Seleção cancelada.</p>}
+  {result?.status==='error'&&<p role="alert">{result.message}</p>}
+ </section>;
+}
 export function OmsiDependencyPreview(){
  const [mode,setMode]=useState<'mixed'|'limited'|'empty'>('mixed');
  const example=dependencyPreviewExample(mode);
  const report=projectDependencyObservation(example);
  const guidance=dependencyReviewGuidance(example);
- return <section className="library-by-game" aria-label="Prévia de dependências OMSI" data-demo-only="true">
+ return <><ConfigMetadataSelection/><section className="library-by-game" aria-label="Prévia de dependências OMSI" data-demo-only="true">
   <div className="library-by-game-heading"><h2>Diagnóstico de dependências OMSI</h2><span>DEMONSTRAÇÃO FICTÍCIA · somente leitura</span></div>
   <p>Exemplos de resultados possíveis da verificação de referências. Nenhum arquivo do seu jogo é aberto por esta tela.</p>
   <div className="library-toolbar">
@@ -30,5 +59,5 @@ export function OmsiDependencyPreview(){
    <ul className="inspection-notices">{guidance.items.map(item=><li key={item.status}><strong>{item.title} · {item.count}</strong> — {item.detail}</li>)}</ul>
    <small>{guidance.notice} Orientações fictícias; nenhuma operação autorizada.</small>
   </section>}
- </section>;
+ </section></>;
 }
