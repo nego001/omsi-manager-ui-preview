@@ -1657,3 +1657,19 @@
 .local-diagnostic-grid .local-diagnostic-state{font-size:12px;color:#cbdcf0;margin:0 0 7px}
 .local-diagnostic-grid ul{padding-left:16px;margin:7px 0;font-size:11px;line-height:1.55;color:var(--muted)}
 .local-diagnostic-grid small{font-size:10px;color:var(--muted)}
+
+/* M143: settings scope and existing preference controls. */
+.settings-section-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));gap:12px;align-items:start;min-width:0}
+.settings-section-grid .settings-section{width:100%;max-width:none;min-width:0;margin:0;padding:16px;overflow-wrap:anywhere}
+.settings-section h3{margin:0 0 8px;font-size:15px}
+.settings-section>p{font-size:12px;line-height:1.6;color:var(--muted);margin:8px 0}
+.settings-section .switch-row{gap:12px;min-width:0}
+.settings-section .switch-row span{min-width:0;overflow-wrap:anywhere}
+.settings-section .switch-row input{flex-shrink:0}
+.settings-section .disabled-integration{min-width:0;align-items:flex-start}
+.settings-section .disabled-integration svg{flex-shrink:0}
+.settings-section .btn{max-width:100%;white-space:normal;overflow-wrap:anywhere;margin-top:8px}
+.settings-data-scope{display:grid;gap:9px;margin:9px 0}
+.settings-data-scope>div{min-width:0;padding:9px;border:1px solid var(--edge);border-radius:7px;background:var(--frame)}
+.settings-data-scope dt{font-size:12px;font-weight:650;color:var(--accent)}
+.settings-data-scope dd{margin:5px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}

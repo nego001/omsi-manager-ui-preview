@@ -1,0 +1,5 @@
+# M143 — settings organization
+
+M141 run 45480996088 and M142 45482204342 completed: Linux build/security/browser/IPC and Windows portable/standalone passed, mandatory Ubuntu24 strict X11 failed in both. No overall workflow success.
+
+Settings now organized into five semantic sections: appearance, simulator discovery, platform, privacy/data scope and integration/security. Existing appearance preference state and Steam startup discovery boolean are reused; the latter is rendered only when the native discovery bridge is available. No new preference key or automatic scan trigger. Privacy text distinguishes stored appearance/demo favorites/Steam preferences from ephemeral local observations and comparison reference. Navigation actions only open existing screens. Browser regression for semantic groups, narrow layout, existing preference persistence and blocked native selection; actual native desktop preference behavior remains to be verified on this revision. New CI pending. No actual mod content read, installation, repair, permission expansion, merge/release or Ubuntu24 waiver.
