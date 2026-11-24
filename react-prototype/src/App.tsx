@@ -41,6 +41,7 @@ import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declare
 import type {FolderInspection} from './inspection-types';
 import type {LocalObservation} from './local-inventory-comparison.mjs';
 import {SimulatorSessionOverview} from './SimulatorSessionOverview';
+import {LocalDiagnosticCenter} from './LocalDiagnosticCenter';
 import {LocalInventoryLibrary} from './LocalInventoryLibrary';
 import {OmsiDependencyPreview} from './OmsiDependencyPreview';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu} from 'lucide-react';
@@ -1740,6 +1741,7 @@ export default function App(){
    </button>}
   </div>
  </div>
+ <LocalDiagnosticCenter inspections={inspections} available={!!inspectorAvailable} busy={inspecting!==null||discovering} onGames={()=>goto('games')}/>
  {inspectorAvailable&&<LocalInventoryLibrary inspections={inspections} busy={inspecting!==null||discovering} onOpenGames={()=>goto('games')} reference={localReference} onReference={setLocalReference} onClear={()=>{setInspections({});setLocalReference(null);}}/>}
  <OmsiDependencyPreview hasLocalInventory={!!inspectorAvailable}/>
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>

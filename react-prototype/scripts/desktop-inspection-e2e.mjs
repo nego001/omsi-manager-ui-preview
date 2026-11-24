@@ -544,6 +544,14 @@ try{
  const m135Library=window.getByRole('region',{name:'Biblioteca local da sessão'});
  const m135List=m135Library.locator('.local-inventory-list li');
  await m135Library.getByText('Fixture 01',{exact:true}).waitFor({timeout:10000});
+ const m142Center=window.getByRole('region',{name:'Central de diagnóstico local'});
+ const m142Omsi=m142Center.getByRole('article',{name:'Diagnóstico de OMSI 2'});
+ assert.equal(await m142Omsi.getByText('Observação parcial',{exact:true}).isVisible(),true);
+ assert.equal(await m142Omsi.getByText('25 nomes exibíveis',{exact:true}).isVisible(),true);
+ assert.equal(await m142Omsi.getByText('3 grupos esperados não observados.',{exact:true}).isVisible(),true);
+ await m142Center.getByRole('button',{name:'Consultar conteúdo local'}).click();
+ assert.equal(await m135Library.getByRole('heading',{name:'Conteúdo local'}).evaluate(el=>document.activeElement===el),true);
+
  assert.equal(await m135List.count(),20);
  assert.equal(await m135Library.getByText('Fixture 21',{exact:true}).count(),0);
  await m135Library.getByRole('button',{name:'Próxima página de conteúdo local'}).click();

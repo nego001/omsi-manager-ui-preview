@@ -1646,3 +1646,14 @@
 .simulator-session-status[data-observation=pending]{color:#c7def5;border-color:#506d88}
 .simulator-session-boundary{padding-top:8px;border-top:1px solid var(--edge)}
 @media(max-width:480px){.local-candidate-header{gap:8px}.local-candidate-type{margin-left:46px}}
+
+/* M142: count-only local diagnostic overview. */
+.local-diagnostic-center{padding:14px;margin:14px 0;border:1px solid var(--edge);border-radius:12px;background:var(--panel);min-width:0;overflow-wrap:anywhere}
+.local-diagnostic-center h2{font-size:16px;margin:0}
+.local-diagnostic-center>p{font-size:12px;line-height:1.6;color:var(--muted);margin:8px 0}
+.local-diagnostic-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,185px),1fr));gap:8px}
+.local-diagnostic-grid article{min-width:0;padding:11px;border:1px solid var(--edge);border-radius:8px;background:var(--frame)}
+.local-diagnostic-grid h3{font-size:13px;margin:0 0 6px;color:var(--accent)}
+.local-diagnostic-grid .local-diagnostic-state{font-size:12px;color:#cbdcf0;margin:0 0 7px}
+.local-diagnostic-grid ul{padding-left:16px;margin:7px 0;font-size:11px;line-height:1.55;color:var(--muted)}
+.local-diagnostic-grid small{font-size:10px;color:var(--muted)}

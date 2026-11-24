@@ -1,0 +1,5 @@
+# M142 — local diagnostic center
+
+M140 run 45480526875 Linux build/security/browser/IPC and Windows standalone/portable passed; packaged Weston step in progress. This validates inherited M138/M139 IPC scenarios in the M140 descendant. M141 45480996088 Linux build/security and Windows standalone/portable passed, browser/IPC pending. No full CI pass inferred.
+
+M142 adds a count-only summary of existing local folder observations to Library. Distinguishes unknown, unavailable, unrecognized, partial and observed; lists omitted names, missing groups, scan limit and skipped links, with no personal path/name or content copied into the summary. Attention counts refer to simulators, not diagnosed defects. Explicit navigation to existing sections does not trigger inspection. Browser narrow test, two count-only unit tests and Electron fixture summary/focus checks. No new native capability, real mod reading, persistence, merge/release or sandbox waiver. New CI pending.
