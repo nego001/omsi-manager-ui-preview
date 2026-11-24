@@ -990,8 +990,9 @@ internal static partial class Program
         List<string>? syntheticNames = null,
         Dictionary<string, FileIdInfo>? syntheticIdentity = null,
         Dictionary<string, uint>? syntheticAttributes = null,
-        SafeFileHandle? pinnedDirectory = null)
+        SafeFileHandle? pinnedDirectory = null, int? syntheticEntryBudget = null)
     {
+        if (syntheticEntryBudget is not null && (syntheticEntryBudget < 1 || syntheticEntryBudget >= EntryLimit)) Deny();
         int attrs = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileAttributes");
         int nameSize = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileNameLength");
         int nameOffset = (int)Marshal.OffsetOf<FileIdBothDirectoryLayout>("FileName");
@@ -1044,6 +1045,8 @@ internal static partial class Program
                     {
                         // Conservative fence: 128 is refused, not accepted, because
                         // a filesystem may report only a truncated 128-record view.
+                        if (syntheticEntryBudget is int budget && entries == budget)
+                            throw new M123EntryBudgetReached(entries);
                         if (++entries >= EntryLimit) Deny();
                         // Synthetic-only comparison: never serialize or print
                         // these names. A count-only audit misses an equal-sized
@@ -1130,6 +1133,8 @@ internal static partial class Program
     {
         try
         {
+            if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-entry-budget-m123")
+                return RunEntryBudgetFixtureM123();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-linked-diagnostic-m122")
                 return RunLinkedDiagnosticFixtureM122();
             if (OperatingSystem.IsWindows() && args.Length == 1 && args[0] == "--test-dependency-metadata-m117")
