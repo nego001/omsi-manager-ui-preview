@@ -57,3 +57,42 @@ test('deadline spans selection and confirmation; backwards clock and unsupported
  assert.throws(()=>createFixtureHandoff({platform:'darwin'}));
  assert.throws(()=>createFixtureHandoff({platform:'linux',now:1}));
 });
+
+test('M130 refuses rollback within the total lifetime, not just before creation',()=>{
+ const f=fixture();const q=f.begin();f.advance(500);const t=f.confirm(q);
+ f.advance(-1);assert.throws(()=>f.consume(t),/M125_HANDOFF_REFUSED/);
+ assert.equal(f.gate.cancel(t),false);
+});
+test('M130 exact expiry boundary refuses both confirmation and redemption',()=>{
+ const f=fixture();let q=f.begin();f.advance(MAX_AGE);
+ assert.throws(()=>f.confirm(q));assert.equal(f.gate.cancel(q),false);
+ q=f.begin();const t=f.confirm(q);f.advance(MAX_AGE);
+ assert.throws(()=>f.consume(t));assert.equal(f.gate.cancel(t),false);
+});
+test('M130 replacing the epoch signal without changing its proof is refused',()=>{
+ const owner={},selection={},proof={},original=new AbortController(),replacement=new AbortController();
+ let signal=original.signal;
+ const epoch={isCurrent:p=>p===proof,signalFor:p=>p===proof?signal:null};
+ const gate=createFixtureHandoff({platform:'linux',now:()=>0});
+ const args=[owner,epoch,proof,selection];
+ let q=gate.begin(...args,'vehicle-definition','utf-8');
+ signal=replacement.signal;
+ assert.throws(()=>gate.confirm(q,...args,true,false));assert.equal(gate.cancel(q),false);
+ signal=original.signal;
+ q=gate.begin(...args,'vehicle-definition','utf-8');
+ const t=gate.confirm(q,...args,true,false);
+ signal=replacement.signal;
+ assert.throws(()=>gate.consume(t,...args,'selected-content-only'));
+ assert.equal(gate.cancel(t),false);
+});
+test('M130 revocation during the injected clock check prevents publishing a ticket',()=>{
+ const owner={},selection={},epoch=createDocumentEpochGate(),proof=epoch.snapshot();
+ let invalidate=false;
+ const gate=createFixtureHandoff({platform:'linux',now:()=>{
+  if(invalidate){invalidate=false;epoch.invalidate();}
+  return 0;
+ }});
+ const args=[owner,epoch,proof,selection],q=gate.begin(...args,'vehicle-definition','utf-8');
+ invalidate=true;
+ assert.throws(()=>gate.confirm(q,...args,true,false));assert.equal(gate.cancel(q),false);
+});

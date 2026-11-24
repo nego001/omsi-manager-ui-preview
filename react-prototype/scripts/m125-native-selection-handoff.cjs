@@ -23,8 +23,10 @@ function createFixtureHandoff({platform,now=()=>performance.now()}={}){
  }
  function live(g){
   const n=clock();
-  if(g.released||n<g.created||n-g.created>MAX_AGE||
-    !g.epoch.isCurrent(g.proof)||g.signal.aborted)deny();
+  if(g.released||n<g.lastObserved||n<g.created||n-g.created>=MAX_AGE||
+    owners.get(g.owner)!==g||!g.epoch.isCurrent(g.proof)||
+    g.epoch.signalFor(g.proof)!==g.signal||g.signal.aborted)deny();
+  g.lastObserved=n;
  }
  function begin(owner,epoch,proof,selection,role,encoding){
   if(!object(owner)||!object(selection)||!epoch||!proof)deny();
@@ -33,11 +35,14 @@ function createFixtureHandoff({platform,now=()=>performance.now()}={}){
   const old=owners.get(owner);if(old)release(old);
   const created=clock();
   const request=consent.request(owner,epoch,proof,selection,role,encoding);
-  const g={owner,epoch,proof,selection,signal,created,request,released:false,ticket:null,abort:null};
+  const g={owner,epoch,proof,selection,signal,created,lastObserved:created,request,released:false,ticket:null,abort:null};
   g.abort=()=>release(g);
   pending.set(request,g);owners.set(owner,g);
-  signal.addEventListener('abort',g.abort,{once:true});
-  return request;
+  try{
+   signal.addEventListener('abort',g.abort,{once:true});
+   live(g);
+   return request;
+  }catch{release(g);deny();}
  }
  function confirm(request,owner,epoch,proof,selection,content,dependencyMetadata){
   const g=object(request)?pending.get(request):null;
@@ -46,6 +51,7 @@ function createFixtureHandoff({platform,now=()=>performance.now()}={}){
   try{
    live(g);
    const review=consent.confirm(request,owner,epoch,proof,selection,content,dependencyMetadata);
+   live(g);
    if(!scopes.includes(review.requestedScope))deny();
    const ticket=Object.freeze({kind:'fixture-handoff-ticket',operationsEnabled:false});
    g.ticket=ticket;g.scope=review.requestedScope;g.role=review.role;g.encoding=review.encoding;
@@ -60,6 +66,7 @@ function createFixtureHandoff({platform,now=()=>performance.now()}={}){
   try{
    live(g);
    if(g.owner!==owner||g.epoch!==epoch||g.proof!==proof||g.selection!==selection||g.scope!==scope)deny();
+   live(g);
    // This projection is deliberately non-authorizing. No file API, callback,
    // caller bytes, OS descriptor, path or child process is accepted.
    return Object.freeze({schema:'omsi-m125-fixture-handoff-review-v1',platform,scope,role:g.role,encoding:g.encoding,
