@@ -39,6 +39,7 @@ import SyntheticGateLab from './SyntheticGateLab';
 import FixtureCrossPackageLab from './FixtureCrossPackageLab';
 import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declared-status';
 import type {FolderInspection} from './inspection-types';
+import {LocalInventoryLibrary} from './LocalInventoryLibrary';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu} from 'lucide-react';
 
 type GameId='omsi'|'ets2'|'ats';
@@ -1721,6 +1722,7 @@ export default function App(){
    </button>}
   </div>
  </div>
+ {inspectorAvailable&&<LocalInventoryLibrary inspections={inspections} busy={inspecting!==null||discovering} onOpenGames={()=>goto('games')} onClear={()=>setInspections({})}/>}
  <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
    <div className="library-by-game-heading">
