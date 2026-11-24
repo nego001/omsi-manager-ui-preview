@@ -59,9 +59,12 @@ test('main always rechecks origin and document epoch after the awaited picker',(
   const picker=source.indexOf('const choice = await requestNativeDirectory(');
   const auth=source.indexOf('if (!senderAuthorized())',picker);
   const selected=source.indexOf("choice.status === 'cancelled'",picker);
-  const issue=source.indexOf('inspectionGrantGate.issue(choice.selectedPath',picker);
+  const selectGate=source.indexOf("const gate=mode==='inspect-omsi-candidate'?structureGrantGate:inspectionGrantGate;",picker);
+  const issue=source.indexOf('gate.issue(choice.selectedPath',picker);
+  const consume=source.indexOf('await gate.inspectOnce(grant, senderId, gameId, documentSignal)',issue);
+  const replyAuth=source.indexOf('if (!senderAuthorized())',consume);
   const release=source.indexOf('activeInspections.delete(senderId)',picker);
-  assert.ok(picker>0&&auth>picker&&selected>auth&&issue>selected&&release>issue);
+  assert.ok(picker>0&&auth>picker&&selected>auth&&selectGate>selected&&issue>selectGate&&consume>issue&&replyAuth>consume&&release>replyAuth);
   assert.match(source,/documentEpoch\.isCurrent\(documentProof\)/);
 });
 test('request wrapper is pure and cannot change host security policies or write game files',()=>{

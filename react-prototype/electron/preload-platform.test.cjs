@@ -62,7 +62,9 @@ test('Steam discovery exposes only fixed IPC modes on supported desktop systems'
   const bridge=invoke(platform);
   assert.deepEqual(await bridge.discoverSteam('ets2'),{gameId:'ets2',mode:'discover-steam'});
   assert.deepEqual(await bridge.locateOmsi('/ignored/path'),{gameId:'omsi',mode:'locate-omsi-steam'});
+  assert.deepEqual(await bridge.inspectOmsiCandidate('/ignored/path'),{gameId:'omsi',mode:'inspect-omsi-candidate'});
  }
  assert.equal(invoke('darwin').discoverSteam,undefined);
  assert.equal(invoke('darwin').locateOmsi,undefined);
+ assert.equal(invoke('darwin').inspectOmsiCandidate,undefined);
 });
