@@ -16,6 +16,7 @@ test('actual Linux lab outputs produce a count-only combined review, not authori
  assert.throws(()=>review('linux',{...data,format:{...data.format,operationsEnabled:true}}));
  assert.throws(()=>review('win32',data));
  assert.doesNotMatch(JSON.stringify(r),/fixtureBase64|\.o3d|\.cfg|\.bus/);
+ console.log('M119_LINUX_UNIFIED_REVIEW',JSON.stringify(r));
 });
 function windowsDeps(){
  return {schema:'omsi-m117-windows-dependency-metadata-fixture-v1',nativeDirectoryEnumerationByHandle:true,dependencyContentsRead:false,realModValidated:false,atomicContainmentProven:false,operationsEnabled:false,
