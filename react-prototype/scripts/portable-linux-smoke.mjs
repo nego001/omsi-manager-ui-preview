@@ -9,7 +9,7 @@ import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
 import {verifyPackagedCSPRuntime} from './verify-packaged-csp-runtime.mjs';
 import {verifyHomeLayout} from './desktop-layout-contract.mjs';
-import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
+import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS,COMMAND_LINE_SHAPES} from './electron-renderer-kernel-evidence.mjs';
 import {createM47RendererReference} from './auto-x11-m47-renderer-reference.mjs';
 import {probeM48NamespaceRelation,createM48NamespaceReference} from './auto-x11-m48-namespace-relation.mjs';
 import {probeM49RendererPrivilegeStatus,createM49RendererPrivilegeReference} from './auto-x11-m49-renderer-privilege.mjs';
@@ -32,7 +32,8 @@ async function requireRendererKernelEvidence(sample,scenario){
   const reason=PACKAGED_RENDERER_REFUSAL_REASONS.includes(error?.reason)?
    error.reason:'kernel-restrictions-incomplete-or-unexpected';
   console.error('PACKAGED_RENDERER_KERNEL_PROBE_REFUSED',JSON.stringify({
-   scenario,reason,fullElectronSandboxCertified:false,
+   scenario,reason,commandLineShape:COMMAND_LINE_SHAPES.includes(error?.commandLineShape)?
+    error.commandLineShape:null,fullElectronSandboxCertified:false,
    hostPolicyChanged:false,rawProcessDataExposed:false
   }));
   throw Error('PACKAGED_RENDERER_KERNEL_EVIDENCE_NOT_VERIFIED');

@@ -20,6 +20,31 @@ const refuse=reason=>{
 };
 export const PACKAGED_RENDERER_REFUSAL_REASONS=Object.freeze([...allowedReasons]);
 const max=65536;
+// Diagnostic only. Fixed categories distinguish a new Chromium argv layout
+// from a missing or malformed /proc record. Never return bytes or arguments.
+export function categorizeCommandLineShape(cmdline){
+ if(!Buffer.isBuffer(cmdline))return 'not-buffer';
+ if(cmdline.length<20)return 'too-short';
+ if(cmdline.length>max)return 'too-long';
+ if(cmdline.at(-1)!==0)return 'missing-terminal-nul';
+ const argv=cmdline.toString('utf8').split('\0');argv.pop();
+ if(!argv[0])return 'empty-executable';
+ if(argv.length<2)return 'single-argument';
+ if(argv.some(a=>!a)){
+  const firstEmpty=argv.indexOf('');
+  return argv.slice(firstEmpty).every(a=>a==='')?'trailing-nul-padding':'interior-empty-argument';
+ }
+ return 'nonempty-arguments';
+}
+function refuseCommandLine(cmdline){
+ const shape=categorizeCommandLineShape(cmdline);
+ try{refuse('invalid-proc-command-line');}
+ catch(error){Object.defineProperty(error,'commandLineShape',{value:shape});throw error;}
+}
+export const COMMAND_LINE_SHAPES=Object.freeze(['not-buffer','too-short','too-long',
+ 'missing-terminal-nul','empty-executable','single-argument','trailing-nul-padding',
+ 'interior-empty-argument','nonempty-arguments']);
+
 // Parse only a read-only /proc/<renderer>/attr/current snapshot. The actual
 // AppArmor profile name can contain private paths; it is never returned.
 export function categorizeRendererAppArmorLabel(raw){
@@ -63,12 +88,12 @@ export function classifyPackagedRendererKernelEvidence(status,cmdline,metricProo
  if(typeof status!=='string'||status.length<20||status.length>max)
   refuse('invalid-proc-status');
  if(!Buffer.isBuffer(cmdline)||cmdline.length<20||cmdline.length>max||
-    cmdline.at(-1)!==0)refuse('invalid-proc-command-line');
+    cmdline.at(-1)!==0)refuseCommandLine(cmdline);
  const argv=cmdline.toString('utf8').split('\0');
- if(argv.at(-1)!=='')refuse('invalid-proc-command-line');
+ if(argv.at(-1)!=='')refuseCommandLine(cmdline);
  argv.pop();
  if(argv.length<2||!argv[0]||argv.some(a=>!a))
-  refuse('invalid-proc-command-line');
+  refuseCommandLine(cmdline);
  if(basename(argv[0])!=='OMSI-Manager-Preview')
   refuse('unexpected-executable');
  const declaredRoles=argv.filter(a=>a.startsWith('--type='));
