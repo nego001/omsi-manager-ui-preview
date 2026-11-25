@@ -107,6 +107,7 @@ try{
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Início'}).click();
  await simulatorCards.getByRole('button',{name:'Mostrar OMSI 2 no destaque'}).click();
  await window.getByRole('heading',{name:'Seu universo de simulação, organizado.'}).waitFor();
+ await window.evaluate(()=>window.scrollTo(0,0));
  await window.screenshot({path:join(shots,'01-inicio.png'),animations:'disabled'});
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos'}).click();
  await window.getByRole('heading',{name:'Escolha seu simulador'}).waitFor({timeout:12000});
