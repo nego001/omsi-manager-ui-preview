@@ -41,7 +41,9 @@ function inspect(input){
  if(pmd.counts.pieces!==pmg.counts.pieces)issue('PIECE_COUNT_MISMATCH',{descriptor:pmd.counts.pieces,geometry:pmg.counts.pieces});
  if(pmd.counts.parts!==pmg.counts.parts)issue('PART_COUNT_MISMATCH',{descriptor:pmd.counts.parts,geometry:pmg.counts.parts});
  if(pmg.pieces.length&&pmd.counts.looks===0)issue('NO_MATERIAL_LOOK');
- const links=[];
+ const links=[];let expandedCandidateCount=0;
+ // Bound repeated candidate serialization as well as unique references.
+ if(pmg.pieces.length>4096)fail();
  // Index once; no quadratic search over material references.
  const materialPaths=new Map();
  for(const ref of pmd.references){
@@ -54,6 +56,8 @@ function inspect(input){
   const valid=p.materialIndex<pmd.counts.materials;
   if(!valid)issue('MATERIAL_SLOT_OUT_OF_RANGE',{pieceIndex:p.index,materialIndex:p.materialIndex});
   const refs=valid?materialPaths.get(p.materialIndex):undefined;
+  expandedCandidateCount+=refs?.length??0;
+  if(expandedCandidateCount>4096)fail();
   links.push(Object.freeze({pieceIndex:p.index,materialIndex:p.materialIndex,status:!valid?'invalid-slot':refs?'candidate-linked':'no-look-reference',
    candidates:refs??Object.freeze([])}));
  }
