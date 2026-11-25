@@ -1,0 +1,7 @@
+# F2.03 — Shared bounded resource accounting
+
+F2.02 Core run 45670461535 completed successfully: 20 tests on Windows, 20 on Ubuntu22; no failures. F1 remains open on PR168: packaged renderer diagnostic single-argument, actual kernel security not established. No F1 files changed.
+
+Add one cooperative synthetic budget per analysis. Modules share cumulative bytes, entries and steps; depth is maximum, not additive; a monotonic deadline begins at scope creation. Every charge is checked atomically before accounting; exceeding a dimension latches a global refusal, aborts the shared signal and revokes further charges. Duplicate module handles refuse, module closure does not refund consumed work, global cancellation/closure irreversible. Immutable reports expose counters and fixed reasons only. Independent queue integration test shows two workers cannot each consume the whole budget. Ten new tests, pending CI. Existing queue continues controlling logical memory reservations and task count.
+
+These numbers are fixture accounting units, not measured real reads, CPU cycles, RAM or OS enforcement. Deadline checked cooperatively at calls; a hung worker cannot be preempted by this module. No real game data, disk, archive extraction, IPC, package integration or authorization. Future isolated worker lifecycle and real byte-metered reader remain separate gates. Next: evaluate persistent storage schema and recovery with synthetic fixtures; do not choose a DB dependency without compatibility evidence.
