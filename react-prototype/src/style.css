@@ -1958,3 +1958,68 @@
  .gamer-premium .premium-hero .featured-game-name{font-size:32px}
  .gamer-premium .premium-choice{padding:10px;font-size:14px}
 }
+
+
+/* N02: approved Negresco Tools red/amber composition. Existing controls remain live. */
+.gamer-premium.negresco-tools{background:#100d0e;color:#fff4ed}
+.negresco-tools .sidebar{background:linear-gradient(165deg,#1e0c08,#100c0b 52%,#251009);border-color:#65432b}
+.negresco-tools .sidebar .brand{background:transparent;gap:9px}
+.negresco-tools .brand-mark{color:#ff795c;border-color:#b25335;background:#32120c;box-shadow:0 0 16px #ff3b2529}
+.negresco-tools .brand-mark img{width:100%;height:100%;object-fit:contain}
+.negresco-tools .brand strong span{color:#ff7155}
+.negresco-tools .brand small,.negresco-tools .sidebar-bottom{color:#e0c9ba}
+.negresco-tools .nav-link{color:#f1e3db}
+.negresco-tools .nav-link.active{background:#573006;background-image:linear-gradient(100deg,#744006,#372014);box-shadow:inset 3px 0 #ffb13c,inset 0 0 0 1px #e29a41,0 0 14px #ff9f241f}
+.negresco-tools .nav-link.active svg{color:#ffe3aa}
+.negresco-tools .negresco-sidebar-art{display:block;width:100%;height:auto;max-height:240px;object-fit:cover;margin-top:auto;pointer-events:none}
+.negresco-tools .sidebar.collapsed .negresco-sidebar-art{display:none}
+.negresco-tools .sidebar-bottom{background:#201411;border-color:#694b37}
+.negresco-tools .topbar,.negresco-tools .footer{background:#171213;border-color:#694b37;color:#e3c9bb}
+.negresco-tools .content{background:radial-gradient(ellipse at 90% 0,#361b1560,transparent 60%),#100d0e}
+.gamer-premium.negresco-tools .premium-hero{display:block}
+.negresco-tools .premium-hero-main{border:1px solid #865230;background:#241610;box-shadow:0 0 20px #f5732620}
+.negresco-tools .premium-hero-main[data-approved-art=true]{padding:0}
+.negresco-tools .premium-hero-main[data-approved-art=true]:after{display:none}
+.negresco-tools .premium-hero-main[data-approved-art=true] .hero-art{display:none}
+.negresco-tools .negresco-banner{display:block;width:100%;height:auto;aspect-ratio:1332/290;object-fit:contain}
+.negresco-tools .premium-hero-main[data-approved-art=true] .hero-copy{max-width:none;padding:12px 15px;background:#1d1511}
+.negresco-tools .premium-hero h1{color:#fff3e7}
+.negresco-tools .premium-hero .eyebrow{background:#49271a;color:#ffe1ad;border-color:#9b6038}
+.negresco-tools .premium-hero p{color:#f2e3d4}
+.negresco-tools .premium-dashboard{display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,29%);gap:10px}
+.negresco-tools .premium-stats{grid-column:1;grid-row:1}
+.negresco-tools .negresco-simulator-section{grid-column:1;grid-row:2;min-width:0;padding:12px;border:1px solid #76503c;background:#211917;border-radius:10px}
+.negresco-tools .negresco-quick-panel{grid-column:1;grid-row:3}
+.negresco-tools .premium-dashboard>section.premium-panel{grid-column:1;grid-row:4}
+.negresco-tools .premium-bottom-grid{grid-column:2;grid-row:1 / span 4;display:flex;flex-direction:column;min-width:0}
+.negresco-tools .premium-busy{grid-column:1/-1;grid-row:auto}
+.gamer-premium.negresco-tools .premium-selector{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.gamer-premium.negresco-tools .premium-choice,.gamer-premium.negresco-tools .premium-choice.selected{display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;min-width:0;padding:0;gap:0;border-color:#bc6538;background-color:#3c2016;background-image:none;font-size:14px;text-align:left;overflow:hidden;box-shadow:0 0 9px #ed742a20}
+.negresco-tools .premium-choice .negresco-simulator-art{width:100%;aspect-ratio:2/1;object-fit:cover;display:block}
+.negresco-tools .premium-choice span{padding:10px;color:#fff0df;overflow-wrap:anywhere}
+.negresco-tools .premium-choice svg{display:none}
+.gamer-premium.negresco-tools .premium-choice.selected{border-color:#ffae37;box-shadow:0 0 0 1px #ffae37,0 0 12px #f8942540}
+.negresco-tools .premium-stat,.negresco-tools .premium-stat.premium-accent-1{background:#342014;background-image:radial-gradient(ellipse at 95% 100%,#91460b5c,transparent 70%);border-color:#bc7843;color:#ffca73;padding:10px;gap:9px}
+.negresco-tools .premium-stat.premium-accent-1{background-color:#361716;background-image:radial-gradient(ellipse at 95% 100%,#a735235c,transparent 70%);border-color:#b84d3b;color:#ff9a86}
+.negresco-tools .premium-stat small{color:#ffe7cf}
+.negresco-tools .premium-panel,.negresco-tools .premium-local-card,.negresco-tools .premium-diagnostic-card,.negresco-tools .premium-events li{background:#211918;border-color:#73503e}
+.negresco-tools .premium-panel-header,.negresco-tools .premium-link{color:#ffd178}
+.negresco-tools .premium-panel-header p,.negresco-tools .premium-panel-note,.negresco-tools .premium-empty-activity{color:#e5cabc}
+.negresco-tools .premium-diagnostic-grid{grid-template-columns:1fr}
+.negresco-tools .premium-diagnostic-card>span svg{color:#ffc36b}
+.negresco-tools .negresco-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.negresco-tools .negresco-quick-grid button{display:flex;align-items:center;gap:7px;white-space:normal;text-align:left;min-width:0;overflow-wrap:anywhere}
+.negresco-tools .btn.primary{background:linear-gradient(110deg,#a33e16,#8b261d);color:#fff5e9;border-color:#d87b45}
+.negresco-tools .btn.secondary{border-color:#93613f}
+.negresco-tools .premium-empty{border-color:#805b40}
+.negresco-tools .premium-diagnostic-card{border-left-color:#db9849}
+.negresco-tools .premium-choice:focus-visible,.negresco-tools .nav-link:focus-visible{outline:2px solid #ffe1b1;outline-offset:2px}
+@media(max-width:1100px){.negresco-tools .premium-dashboard{grid-template-columns:minmax(0,1fr)}.negresco-tools .premium-dashboard>*{grid-column:auto!important;grid-row:auto!important}.negresco-tools .premium-bottom-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.negresco-tools .premium-diagnostic-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:760px){.negresco-tools .negresco-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.negresco-tools .premium-bottom-grid{grid-template-columns:1fr}.negresco-tools .premium-diagnostic-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.gamer-premium.negresco-tools .premium-selector{grid-template-columns:1fr}.negresco-tools .premium-choice .negresco-simulator-art{max-height:130px}.negresco-tools .negresco-quick-grid{grid-template-columns:1fr}}
+
+/* Keep deterministic fallback identification when no approved binary is available. */
+.negresco-tools .premium-choice:not(:has(.negresco-simulator-art)){min-height:64px;justify-content:center}
+.negresco-tools .premium-hero-main[data-approved-art=true] .hero-art{display:block;visibility:hidden;pointer-events:none}
+
+.negresco-tools .negresco-art-pending{margin:0 0 10px;padding:8px 12px;border:1px solid #9b693e;background:#362413;border-radius:6px;color:#ffe0ae;font-size:12px;line-height:1.5}

@@ -47,6 +47,7 @@ import {LocalSessionActivity} from './LocalSessionActivity';
 import {LocalDiagnosticCenter} from './LocalDiagnosticCenter';
 import {LocalInventoryLibrary} from './LocalInventoryLibrary';
 import {OmsiDependencyPreview} from './OmsiDependencyPreview';
+import {approvedArt,approvedArtComplete} from './negresco-art';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu,Bus,Truck,Map as MapIcon,AudioLines,Sparkles} from 'lucide-react';
 
 type GameId='omsi'|'ets2'|'ats';
@@ -1297,17 +1298,19 @@ export default function App(){
   setDetailFocus('overview');
  },[screen,detailFocus,selectedMod]);
  const title=nav.find(n=>n.id===screen)?.label??'Início';
- return <><a className="skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a><div className="shell gamer-premium">
+ return <><a className="skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a><div className="shell gamer-premium negresco-tools">
   <aside className={'sidebar '+(!sidebar?'collapsed':'')}>
-   <div className="brand"><span className="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.3"><rect x="6" y="8" width="36" height="28" rx="6"/><path d="M6 24h36M15 9v15m18-15v15M9 36v5m30-5v5M13 30h4m14 0h4"/></svg></span><div><strong>Negresco <span>Tools</span></strong><small>GERENCIADOR DE SIMULADORES</small></div></div>
+   <div className="brand"><span className="brand-mark" aria-hidden="true">{approvedArt.mark?<img src={approvedArt.mark} alt=""/>:<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.3"><rect x="6" y="8" width="36" height="28" rx="6"/><path d="M6 24h36M15 9v15m18-15v15M9 36v5m30-5v5M13 30h4m14 0h4"/></svg>}</span><div><strong>Negresco <span>Tools</span></strong><small>GERENCIADOR DE SIMULADORES</small></div></div>
    <p className="nav-caption">EXPLORAR</p><nav aria-label="Navegação principal">{nav.map(({id,label,icon:Icon})=><button key={id} className={'nav-link '+(screen===id?'active':'')} aria-label={label} aria-current={screen===id?'page':undefined} onClick={()=>goto(id)} title={label}><Icon size={19}/><span>{label}</span></button>)}</nav>
-   <div className="sidebar-bottom"><div className="safety-status"><ShieldCheck size={17}/><span>Modo seguro ativo</span></div><small>Sem leitura de conteúdo ou alterações nos jogos</small></div>
+   {approvedArt.sidebarBus&&<img className="negresco-sidebar-art" src={approvedArt.sidebarBus} alt=""/>}<div className="sidebar-bottom"><div className="safety-status"><ShieldCheck size={17}/><span>Modo seguro ativo</span></div><small>Sem leitura de conteúdo ou alterações nos jogos</small></div>
   </aside>
   <div className="workspace"><header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" aria-label="Alternar menu" onClick={()=>setSidebar(v=>!v)}><Menu size={20}/></button><div className="breadcrumb">Negresco Tools <ChevronRight size={13}/> <strong>{title}</strong></div></div><div className="top-actions"><label className="search"><Search size={17}/><input placeholder={screen==='library'?'Buscar favoritos...':'Buscar mods...'} aria-label={screen==='library'?'Buscar favoritos':'Buscar mods'} value={screen==='library'?librarySearch:search} onChange={e=>screen==='library'?setLibrarySearch(e.target.value.slice(0,100)):setSearch(e.target.value.slice(0,100))} onFocus={()=>screen!=='catalog'&&screen!=='library'&&goto('catalog',true)}/></label><span className="mode-indicator"><LockKeyhole size={13}/> Protótipo</span></div></header>
    <main id="conteudo-principal" tabIndex={-1} className="content" data-screen={screen}>
     {screen==='home'&&<>
+     {!approvedArtComplete&&<p className="negresco-art-pending" role="note">Prévia visual — as seis artes aprovadas ainda não estão integradas.</p>}
      <section className="hero hero-spotlight premium-hero" aria-label="Destaque de simuladores" style={{'--spotlight':games[featuredGame].color} as React.CSSProperties}>
-      <div className="premium-hero-main" data-game={featuredGame}>
+      <div className="premium-hero-main" data-game={featuredGame} data-approved-art={!!approvedArt.hero}>
+       {approvedArt.hero&&<img className="negresco-banner" src={approvedArt.hero} alt="Arte conceitual: ônibus e caminhões dos três simuladores"/>}
        <div className="hero-art hero-spotlight-art" aria-hidden="true"><GameCover key={featuredGame} id={featuredGame} panoramic large/></div>
        <div className="hero-copy">
         <div className="eyebrow">SIMULADOR EM DESTAQUE</div>
@@ -1324,11 +1327,11 @@ export default function App(){
         </div>
        </div>
       </div>
-      <div className="featured-selector premium-selector" role="group" aria-label="Escolher simulador em destaque">
-       {(Object.keys(games) as GameId[]).map(id=><button type="button" key={id} aria-label={'Mostrar '+games[id].title+' no destaque'} aria-pressed={featuredGame===id} className={'featured-choice premium-choice '+(featuredGame===id?'selected':'')} data-game={id} onClick={()=>setFeaturedGame(id)}><span>{games[id].title}</span><ChevronRight size={18}/></button>)}
-      </div>
+
      </section>
-     <PremiumDashboard inspections={inspections} events={localActivity} busy={inspecting!==null||discovering} onLibrary={()=>goto('library')} onDiagnostic={()=>{premiumDiagnosticJump.current=true;goto('library')}} onHistory={()=>goto('history')} onGames={()=>goto('games')}/>
+     <PremiumDashboard simulatorCards={<div className="featured-selector premium-selector" role="group" aria-label="Escolher simulador em destaque">
+       {(Object.keys(games) as GameId[]).map(id=><button type="button" key={id} aria-label={'Mostrar '+games[id].title+' no destaque'} aria-pressed={featuredGame===id} className={'featured-choice premium-choice '+(featuredGame===id?'selected':'')} data-game={id} onClick={()=>setFeaturedGame(id)}>{approvedArt[id]&&<img src={approvedArt[id]} alt="" className="negresco-simulator-art"/>}<span>{games[id].title}</span><ChevronRight size={18}/></button>)}
+      </div>} inspections={inspections} events={localActivity} busy={inspecting!==null||discovering} onLibrary={()=>goto('library')} onDiagnostic={()=>{premiumDiagnosticJump.current=true;goto('library')}} onHistory={()=>goto('history')} onGames={()=>goto('games')}/>
      <div className="section-title"><h2>Descobrir mods</h2><button className="link" onClick={()=>goto('games')}>Ver jogos <ChevronRight size={14}/></button></div>{modCards(catalogMods.slice(0,4))}
     </>}
     {screen==='games'&&<><div className="page-heading"><span className="eyebrow">BIBLIOTECA DE JOGOS</span><h1>Escolha seu simulador</h1><p>Capas online quando disponíveis; cartões identificados mesmo sem internet. A inspeção é opcional. Detecte candidatos na Steam ou selecione uma pasta manualmente.</p></div><div className="game-grid game-grid-large">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id} large/><strong>{games[id].title}</strong><small>Ver mods <ChevronRight size={13}/></small></button>)}</div>
