@@ -2123,3 +2123,31 @@
  .gamer-premium.negresco-tools .premium-hero-main[data-approved-art=true] .premium-hero-secondary{grid-column:2;grid-row:4;align-self:start}
 }
 @media(max-width:760px){.gamer-premium.negresco-tools .negresco-footer-facts{gap:5px 8px}.gamer-premium.negresco-tools .negresco-footer-facts>span+span{padding-left:8px}}
+
+
+/* N07.4 — approved artwork first, live controls after primary dashboard. */
+.gamer-premium.negresco-tools .premium-hero-main[data-approved-art=true]{overflow:visible;border:0;box-shadow:none;background:transparent}
+.gamer-premium.negresco-tools .premium-hero-main[data-approved-art=true] .negresco-banner{border:1px solid #865230;border-radius:9px}
+.gamer-premium.negresco-tools .negresco-live-controls{min-width:0;grid-column:1/-1;grid-row:4}
+.gamer-premium.negresco-tools .negresco-live-controls .hero-copy{border:1px solid #76503c;border-radius:9px;background:#1d1511}
+.gamer-premium.negresco-tools .premium-dashboard>section.premium-panel{grid-column:1/-1;grid-row:5}
+.gamer-premium.negresco-tools .premium-dashboard .premium-busy{grid-column:1/-1;grid-row:6}
+@media(min-width:1200px){
+ .gamer-premium.negresco-tools .topbar{height:42px;min-height:42px}
+ .gamer-premium.negresco-tools .workspace{padding-top:42px;padding-bottom:61px}
+ .gamer-premium.negresco-tools .sidebar{top:42px;height:calc(100vh - 103px)}
+ .gamer-premium.negresco-tools .footer{height:61px;min-height:61px}
+ html:has(.negresco-tools){scroll-padding-top:54px;scroll-padding-bottom:73px}
+ .gamer-premium.negresco-tools .premium-dashboard{grid-template-rows:auto auto auto auto auto}
+ .gamer-premium.negresco-tools .premium-bottom-grid{grid-row:1 / span 3}
+ .gamer-premium.negresco-tools .premium-stat{min-height:92px}
+ .gamer-premium.negresco-tools .premium-hero-main[data-approved-art=true] .negresco-banner{border-radius:4px}
+ .gamer-premium.negresco-tools .premium-hero-main[data-approved-art=true] .premium-dashboard{margin-top:12px}
+ .gamer-premium.negresco-tools .premium-choice .negresco-simulator-art{aspect-ratio:2.08/1}
+}
+@media(min-width:1101px) and (max-width:1199px){
+ .gamer-premium.negresco-tools .premium-bottom-grid{grid-row:1 / span 3}
+}
+@media(max-width:1100px){
+ .gamer-premium.negresco-tools .premium-dashboard>.negresco-live-controls,.gamer-premium.negresco-tools .premium-dashboard>section.premium-panel,.gamer-premium.negresco-tools .premium-dashboard .premium-busy{grid-row:auto!important;grid-column:auto!important}
+}
