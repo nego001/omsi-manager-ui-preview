@@ -8,9 +8,9 @@ const u32=n=>{const b=Buffer.alloc(4);b.writeUInt32LE(n);return b;};
 const floats=a=>{const b=Buffer.alloc(a.length*4);a.forEach((v,i)=>b.writeFloatLE(v,i*4));return b;};
 const vertices=[[-2,0,1,0,1,0,0,0],[3,1,1,0,1,0,1,0],[0,4,-1,0,1,0,0,2]];
 const identity=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
-function mesh({version=1,flags=0,verts=vertices,tris=[[0,1,2,0]],names=['body.dds'],matrix=identity}={}){
- const count=version===3?u32:u16,idx=flags===1?u32:u16;
- return Buffer.concat([u8(0x84),u8(0x19),u8(version),...(version===3?[u8(flags)]:[]),
+function mesh({version=1,flags=0,key=0xffffffff,verts=vertices,tris=[[0,1,2,0]],names=['body.dds'],matrix=identity}={}){
+ const count=version>=3?u32:u16,idx=flags===1?u32:u16;
+ return Buffer.concat([u8(0x84),u8(0x19),u8(version),...(version>=3?[u8(flags)]:[]),...(version>=4?[u32(key)]:[]),
  u8(0x17),count(verts.length),...verts.map(floats),u8(0x49),count(tris.length),
  ...tris.flatMap(t=>[idx(t[0]),idx(t[1]),idx(t[2]),u16(t[3])]),
  u8(0x26),u16(names.length),...names.flatMap(n=>{const b=Buffer.from(n);return [floats(Array(11).fill(1)),u8(b.length),b];}),
@@ -55,7 +55,7 @@ test('unsafe texture paths rejected without resolution',()=>{
  for(const n of ['../x.dds','/a.dds','C:\\a.dds','NUL.dds','a//b.dds','é.dds','a\0.dds'])assert.throws(()=>inspect(input(mesh({names:[n]}))),refuse);
 });
 test('unsupported versions, flags, sections and trailing bytes refused',()=>{
- for(const version of [0,2,4,5,7])assert.throws(()=>inspect(input(mesh({version}))),refuse);
+ for(const version of [0,2,6,8,255])assert.throws(()=>inspect(input(mesh({version}))),refuse);
  assert.throws(()=>inspect(input(mesh({version:3,flags:2}))),refuse);
  const b=mesh(),tag=Buffer.from(b);tag[3]=0x54;const magic=Buffer.from(b);magic[0]=0;
  for(const x of [tag,magic,Buffer.concat([b,Buffer.from([0x54,0,0])]),Buffer.concat([b,Buffer.from([0])])])assert.throws(()=>inspect(input(x)),refuse);
@@ -77,4 +77,16 @@ test('evidence deterministic, immutable and never authorizes operations',()=>{
  for(const o of [r,r.source,r.bounds,r.bounds.min,r.bounds.size,r.uvBounds,r.uvBounds.max,r.pivotMatrix,r.materials,r.materials[0]])assert.ok(Object.isFrozen(o));
  for(const k of ['fullO3dSupport','geometryRendered','dependenciesResolved','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
  x.bytes.fill(0);assert.equal(r.vertexCount,3);
+});
+
+test('v4, v5 and v7 accept explicit no-scrambling marker and both index widths',()=>{
+ for(const version of [4,5,7])for(const flags of [0,1]){
+  const r=inspect(input(mesh({version,flags})));assert.equal(r.version,version);assert.equal(r.indexBits,flags?32:16);assert.equal(r.vertexCount,3);
+ }
+});
+test('v4+ refuses zero or non-sentinel keys and unsupported flag bits',()=>{
+ for(const version of [4,5,7]){
+  for(const key of [0,1,0x12345678])assert.throws(()=>inspect(input(mesh({version,key}))),refuse);
+  for(const flags of [2,3,128])assert.throws(()=>inspect(input(mesh({version,flags}))),refuse);
+ }
 });
