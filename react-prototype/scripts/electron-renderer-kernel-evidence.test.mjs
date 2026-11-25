@@ -311,3 +311,24 @@ test('renderer kernel evidence includes read-only AppArmor label category, not a
   assert.equal(Object.isFrozen(evidence),true);
  }
 });
+
+test('command-line shape diagnostic preserves strict refusal and hides raw arguments',async()=>{
+ const {categorizeCommandLineShape:shape,COMMAND_LINE_SHAPES}=await import('./electron-renderer-kernel-evidence.mjs');
+ const executable='/private/SECRET/OMSI-Manager-Preview';
+ const cases=[
+  [null,'not-buffer'],[Buffer.alloc(0),'too-short'],[Buffer.alloc(65537),'too-long'],
+  [Buffer.from(executable+'\0--type=renderer'),'missing-terminal-nul'],
+  [Buffer.from('\0'+executable+'\0'),'empty-executable'],
+  [Buffer.from(executable+'\0'),'single-argument'],
+  [Buffer.from(executable+'\0--type=renderer\0\0\0'),'trailing-nul-padding'],
+  [Buffer.from(executable+'\0\0--type=renderer\0'),'interior-empty-argument']
+ ];
+ for(const [raw,expected] of cases){
+  assert.equal(shape(raw),expected);
+  assert.ok(COMMAND_LINE_SHAPES.includes(expected));
+  assert.throws(()=>classify(status(),raw),e=>e.reason==='invalid-proc-command-line'&&e.commandLineShape===expected&&
+   !JSON.stringify({shape:e.commandLineShape}).includes('SECRET'));
+ }
+ assert.equal(shape(cmd()),'nonempty-arguments');
+ assert.equal(classify(status(),cmd()).category,'renderer-kernel-restrictions-observed');
+});

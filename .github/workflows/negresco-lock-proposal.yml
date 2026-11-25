@@ -1,0 +1,113 @@
+name: Negresco dependency lock proposal
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/negresco-lock-proposal.yml'
+      - 'react-prototype/package.json'
+      - 'react-prototype/package-lock.json'
+      - '.gitattributes'
+      - 'react-prototype/scripts/verify-negresco-lock-proposal.mjs'
+      - 'react-prototype/scripts/verify-negresco-lock-proposal.test.mjs'
+permissions:
+  contents: read
+concurrency:
+  group: negresco-lock-proposal-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  resolve:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Resolve npm graph without lifecycle scripts
+        shell: bash
+        run: |
+          set -eu
+          test ! -e node_modules
+          if [ ! -f package-lock.json ]; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
+          fi
+          node -e 'const p=require("./package.json"),l=require("./package-lock.json");if(l.lockfileVersion!==3||l.name!==p.name||l.version!==p.version||!l.packages?.[""])throw Error("LOCK_ROOT_MISMATCH");for(const k of ["dependencies","devDependencies"]){const a=p[k]||{},b=l.packages[""][k]||{};if(JSON.stringify(Object.entries(a).sort())!==JSON.stringify(Object.entries(b).sort()))throw Error("LOCK_DIRECT_DEPENDENCY_MISMATCH")}for(const [key,v] of Object.entries(l.packages)){if(!key)continue;if(!key.startsWith("node_modules/")||v.link||typeof v.version!=="string"||typeof v.resolved!=="string"||!v.resolved.startsWith("https://registry.npmjs.org/")||typeof v.integrity!=="string"||!/^sha(512|384|256|1)-[A-Za-z0-9+/=]+$/.test(v.integrity))throw Error("LOCK_UNSUPPORTED_PACKAGE_SOURCE");}console.log("LOCK_GRAPH_PROPOSAL_ENTRIES",Object.keys(l.packages).length-1)'
+          mkdir -m 700 lock-proposal
+          cp package-lock.json lock-proposal/package-lock.json
+          cp package.json lock-proposal/package.json
+          node -e 'const fs=require("node:fs"),crypto=require("node:crypto"),cp=require("node:child_process");const sha=n=>crypto.createHash("sha256").update(fs.readFileSync(n)).digest("hex");fs.writeFileSync("lock-proposal/resolution.json",JSON.stringify({schema:1,sourceRevision:process.env.GITHUB_SHA,node:process.version,npm:cp.execFileSync("npm",["--version"],{encoding:"utf8"}).trim(),manifestSha256:sha("package.json"),lockSha256:sha("package-lock.json"),lifecycleScriptsExecuted:false,buildValidated:false,releaseAuthorized:false},null,2)+"\n")'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: negresco-npm-lock-proposal
+          path: react-prototype/lock-proposal/
+          if-no-files-found: error
+          retention-days: 7
+  verify:
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: negresco-npm-lock-proposal
+          path: react-prototype/lock-proposal
+      - name: Verify lock proposal refusal contracts
+        run: node --test scripts/verify-negresco-lock-proposal.test.mjs
+      - name: Verify proposal provenance and use identical lock bytes
+        run: node scripts/verify-negresco-lock-proposal.mjs
+      - name: Test clean install without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
+      - name: Ensure npm did not rewrite the proposal
+        run: node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const r=JSON.parse(fs.readFileSync("lock-proposal/resolution.json","utf8"));if(crypto.createHash("sha256").update(fs.readFileSync("package-lock.json")).digest("hex")!==r.lockSha256)throw Error("LOCK_MUTATED");console.log("LOCK_PROPOSAL_CLEAN_INSTALL_VERIFIED",process.platform)'
+  handoff:
+    needs: verify
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: negresco-npm-lock-proposal
+          path: lock-proposal
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify and emit public registry lock bytes
+        shell: bash
+        run: |
+          node -e 'const fs=require("node:fs"),c=require("node:crypto");const r=JSON.parse(fs.readFileSync("lock-proposal/resolution.json","utf8"));const b=fs.readFileSync("lock-proposal/package-lock.json");if(r.sourceRevision!==process.env.GITHUB_SHA||r.lifecycleScriptsExecuted!==false||r.releaseAuthorized!==false||b.length>262144||c.createHash("sha256").update(b).digest("hex")!==r.lockSha256)throw Error("LOCK_HANDOFF_REFUSED");const l=JSON.parse(b);if(l.lockfileVersion!==3||!l.packages?.[""])throw Error("LOCK_SCHEMA_REFUSED");for(const [k,v] of Object.entries(l.packages)){if(k&&(!k.startsWith("node_modules/")||v.link||typeof v.resolved!=="string"||!v.resolved.startsWith("https://registry.npmjs.org/")||!/^sha(512|384|256|1)-[A-Za-z0-9+/=]+$/.test(v.integrity||"")))throw Error("LOCK_SOURCE_REFUSED");}const e=b.toString("base64");console.log("LOCK_HANDOFF_META",JSON.stringify({bytes:b.length,sha256:r.lockSha256,gitBlobSha:c.createHash("sha1").update("blob "+b.length+"\0").update(b).digest("hex"),chunks:Math.ceil(e.length/2048)}));for(let i=0;i<e.length;i+=2048)console.log("LOCK_HANDOFF_CHUNK",String(i/2048).padStart(4,"0"),e.slice(i,i+2048));'
+      - name: Review npm advisories without lifecycle scripts
+        working-directory: lock-proposal
+        shell: bash
+        run: |
+          set -eu
+          set +e
+          npm audit --package-lock-only --ignore-scripts --json --registry=https://registry.npmjs.org/ > npm-audit.json
+          status=$?
+          set -e
+          node -e 'const r=require("./npm-audit.json");if(r.error||!r.metadata?.vulnerabilities||!r.vulnerabilities)throw Error("NPM_AUDIT_UNAVAILABLE");console.log("NPM_AUDIT_COUNTS",JSON.stringify(r.metadata.vulnerabilities))'
+          printf '%s\n' "$status" > npm-audit-exit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: negresco-npm-advisory-review
+          path: |
+            lock-proposal/npm-audit.json
+            lock-proposal/npm-audit-exit.txt
+          if-no-files-found: error
+          retention-days: 7

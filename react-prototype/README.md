@@ -1,4 +1,17 @@
-# OMSI Manager | Protótipo React + Electron isolado
+# Negresco Tools | Prévia React + Electron isolada
+
+## Ponto de partida — plano mestre aprovado (25/11/2026)
+
+O desenvolvimento passa a seguir o [plano mestre #167](https://github.com/nego001/omsi-manager-ui-preview/issues/167), com dez fases e critérios de entrega. F1 consolida a prévia e F2 prepara o Core isolado; trabalho de infraestrutura com dados sintéticos não depende da homologação presencial, mas esta continua obrigatória antes de uma release.
+
+- Interface de nove telas, biblioteca declarativa, inspeção limitada e relatórios: prévia somente leitura.
+- Revisão N09.6.1 `bc400895`, [CI 45629327169](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/45629327169): 1128 Playwright, Windows, Linux empacotado Xvfb/Weston, Arch ABI e Ubuntu 22.04 X11 estrito aprovados; 21/22 jobs. Ubuntu 24.04 X11 estrito falhou, sem prova causal única.
+- N09.8 `f772920`, [CI 45641594439](https://github.com/nego001/omsi-manager-ui-preview/actions/runs/45641594439): Windows passou; demais verificações em andamento no momento do registro. Não herdar automaticamente a aprovação da revisão anterior.
+- Pacotes portáteis da CI são experimentais e não assinados. Não há release, instalador de mods, leitura real do conteúdo de mods ou confirmação de funcionamento em desktops reais.
+- Identificadores de pacote, contratos IPC e nome do executável antigos são deliberadamente preservados nesta etapa. A identidade visível é Negresco Tools.
+- A base estável M145 permanece intacta. Os registros históricos abaixo conservam a nomenclatura e a evidência da época, não substituem o estado atual.
+
+[Plano de execução e critérios de entrega](docs/NEGRESCO-TOOLS-DELIVERY-PLAN.md)
 
 Este projeto contém nove telas navegáveis de uma futura interface do OMSI Manager, em uma pasta separada do aplicativo original. **Não é a aplicação principal, nem uma restauração validada do backup.**
 

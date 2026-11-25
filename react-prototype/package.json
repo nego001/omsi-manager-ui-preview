@@ -51,7 +51,7 @@
     "typescript": "^5.7.3",
     "vite": "^6.0.0",
     "@playwright/test": "^1.59.0",
-    "electron": "^38.0.0",
+    "electron": "45.5.0",
     "@electron/packager": "^20.3.0"
   },
   "main": "electron/main.cjs"
