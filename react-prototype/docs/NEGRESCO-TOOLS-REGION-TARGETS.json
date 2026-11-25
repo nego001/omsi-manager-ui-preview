@@ -1,0 +1,91 @@
+{
+  "schema": "NEGRESCO_REFERENCE_REGIONS_V1",
+  "viewport": [
+    1586,
+    992
+  ],
+  "units": "CSS px at matched reference dimensions",
+  "method": "Manually traced approximate panel boundaries on approved reference; not a pixel-exact threshold. Live data and controls may require documented differences.",
+  "regions": [
+    {
+      "name": "titlebar",
+      "selector": ".topbar",
+      "rect": [
+        0,
+        0,
+        1586,
+        39
+      ]
+    },
+    {
+      "name": "sidebar",
+      "selector": ".sidebar",
+      "rect": [
+        0,
+        39,
+        251,
+        892
+      ]
+    },
+    {
+      "name": "panorama",
+      "selector": ".negresco-banner",
+      "rect": [
+        252,
+        39,
+        1332,
+        290
+      ]
+    },
+    {
+      "name": "indicators",
+      "selector": ".premium-stats",
+      "rect": [
+        264,
+        348,
+        1005,
+        92
+      ]
+    },
+    {
+      "name": "simulatorPanel",
+      "selector": ".negresco-simulator-section",
+      "rect": [
+        264,
+        458,
+        1005,
+        284
+      ]
+    },
+    {
+      "name": "quickActions",
+      "selector": ".negresco-quick-panel",
+      "rect": [
+        264,
+        756,
+        1005,
+        155
+      ]
+    },
+    {
+      "name": "rightRail",
+      "selector": ".premium-bottom-grid",
+      "rect": [
+        1286,
+        347,
+        292,
+        513
+      ]
+    },
+    {
+      "name": "footer",
+      "selector": ".footer",
+      "rect": [
+        0,
+        931,
+        1586,
+        61
+      ]
+    }
+  ]
+}
