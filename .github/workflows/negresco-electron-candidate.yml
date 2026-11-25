@@ -1,0 +1,81 @@
+name: Negresco Electron security upgrade candidate
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/negresco-electron-candidate.yml'
+      - 'react-prototype/scripts/electron-upgrade-candidate.mjs'
+      - 'react-prototype/package.json'
+      - 'react-prototype/package-lock.json'
+permissions:
+  contents: read
+concurrency:
+  group: negresco-electron-candidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  resolve:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Prepare exact upgrade manifest in isolated workspace
+        run: node scripts/electron-upgrade-candidate.mjs prepare
+      - name: Resolve candidate without lifecycle scripts
+        working-directory: react-prototype/electron-candidate
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
+      - name: Validate candidate dependency graph
+        run: node scripts/electron-upgrade-candidate.mjs seal
+      - name: Audit candidate dependencies
+        working-directory: react-prototype/electron-candidate
+        shell: bash
+        run: |
+          set +e
+          npm audit --package-lock-only --ignore-scripts --json --registry=https://registry.npmjs.org/ > npm-audit.json
+          status=$?
+          set -e
+          printf '%s\n' "$status" > npm-audit-exit.txt
+      - name: Publish proposal and advisory evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: negresco-electron-45-candidate
+          path: react-prototype/electron-candidate/
+          if-no-files-found: error
+          retention-days: 7
+      - name: Reject high or critical advisories or invalid audit
+        run: node scripts/electron-upgrade-candidate.mjs audit
+  verify:
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: react-prototype
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: negresco-electron-45-candidate
+          path: react-prototype/electron-candidate
+      - name: Verify manifest, lock and advisory report
+        run: node scripts/electron-upgrade-candidate.mjs verify
+      - name: Clean install, without binary downloads or lifecycle scripts
+        working-directory: react-prototype/electron-candidate
+        run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
+      - name: Verify unchanged lock and exact installed Electron version
+        run: node scripts/electron-upgrade-candidate.mjs installed
