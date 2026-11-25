@@ -7,7 +7,7 @@ type Props={inspections:Partial<Record<InspectionGameId,FolderInspection>>;avail
 export function LocalDiagnosticCenter({inspections,available,busy,onGames}:Props){
  const summary=summarizeLocalDiagnostics(inspections);
  return <section className="local-diagnostic-center" aria-label="Central de diagnóstico local">
-  <div className="library-by-game-heading"><h2>Central de diagnóstico</h2><span>Observações da sessão · metadados</span></div>
+  <div className="library-by-game-heading"><h2 id="premium-diagnostic-heading" tabIndex={-1}>Central de diagnóstico</h2><span>Observações da sessão · metadados</span></div>
   <p>Reúne indícios de estrutura já observados. Não é uma análise do conteúdo dos mods, nem um diagnóstico de compatibilidade.</p>
   {busy&&<p role="status">Inspeção em andamento. Os dados abaixo podem pertencer à observação anterior.</p>}
   <dl className="local-inventory-summary">
