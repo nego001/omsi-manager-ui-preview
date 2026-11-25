@@ -1,0 +1,3 @@
+# R03 — Premium library
+
+Derived from R02 d8c3cb5f6c845e4ead7b0db6c6471c409c3c8c08 in a separate stacked draft to preserve PR 153's active CI. Library header, actual favorite counts and read-only trust notice are prominent. Focus shortcuts use existing diagnostic and local inventory headings; local inventory shortcut appears only when the native inspector is available. Simulator favorite cards reuse original offline artwork. Filters, selection, export, review, local observations and fictional labs retain existing behavior and labels. No new access, IPC, persistence, workflow or release changes. Added Playwright coverage for empty and populated favorites, focus, filter and narrow viewport. Runtime and reference comparison pending.
