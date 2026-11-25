@@ -1927,3 +1927,33 @@
 
 /* Reduced motion: remove displacement, not just its transition. */
 @media(prefers-reduced-motion:reduce){.gamer-premium :is(.game-tile,.mod-card):hover{transform:none!important}.gamer-premium :is(.premium-choice,.premium-stat,.nav-link){transition:none!important}}
+
+
+/* R06: refinement from actual R05 Windows capture, not a pixel-identical claim. */
+.gamer-premium .premium-hero-main{box-shadow:0 0 0 1px #397bc51a,0 8px 28px #0005,0 0 24px #278af11d}
+.gamer-premium .premium-hero-main:after{background:linear-gradient(90deg,#091225f5 0%,#0c152adf 39%,#0c152a85 74%,#11182d25)}
+.gamer-premium .premium-choice:not(.selected){box-shadow:0 4px 14px #0004}
+.gamer-premium .premium-choice:not(.selected)>span{text-shadow:0 2px 5px #000,0 0 9px #000}
+.gamer-premium .premium-stat{box-shadow:inset 0 1px #ffffff0d,0 4px 13px #0003}
+.gamer-premium .premium-panel{background:linear-gradient(145deg,#172036,#141a2c 75%);box-shadow:0 4px 16px #0003}
+.gamer-premium .nav-link.active{box-shadow:inset 3px 0 #54d1ff,inset 0 0 0 1px #6c73c4,0 0 12px #3787fb20}
+.gamer-premium .premium-stat:hover,.gamer-premium .premium-diagnostic-card:hover{border-color:#8bb6ee}
+@media(min-width:1101px){.gamer-premium .premium-hero-main{min-height:270px}.gamer-premium .premium-hero-main .hero-copy{max-width:470px}}
+@media(min-width:761px) and (max-width:1100px){
+ .gamer-premium .sidebar:not(.collapsed){width:190px}
+ .gamer-premium .sidebar:not(.collapsed) .brand{padding-left:12px;padding-right:8px;gap:8px}
+ .gamer-premium .sidebar:not(.collapsed) .brand strong{font-size:14px}
+ .gamer-premium .sidebar:not(.collapsed) .brand small{font-size:8px;letter-spacing:.3px}
+ .gamer-premium .sidebar:not(.collapsed) .nav-link{gap:9px;padding:0 10px}
+ .gamer-premium .sidebar:not(.collapsed) .sidebar-bottom{padding:13px}
+ .gamer-premium .content{padding-left:18px;padding-right:18px}
+ .gamer-premium .premium-hero-main{padding:17px}
+ .gamer-premium .premium-hero .hero-actions{gap:6px}
+ .gamer-premium .premium-hero .hero-actions .btn{padding:8px 10px;min-height:36px}
+ .gamer-premium .premium-hero .premium-hero-secondary .btn{min-height:30px}
+}
+@media(min-width:761px) and (max-width:900px){
+ .gamer-premium .premium-hero{grid-template-columns:minmax(0,1.8fr) minmax(0,1fr)}
+ .gamer-premium .premium-hero .featured-game-name{font-size:32px}
+ .gamer-premium .premium-choice{padding:10px;font-size:14px}
+}
