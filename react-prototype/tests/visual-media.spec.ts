@@ -33,42 +33,47 @@ test('gradiente do destaque mantém contraste próximo do texto em pixels realme
  await expect(hero).toBeVisible();
  // Capture the actual background under the live text, with only glyph paint hidden.
  // The approved panorama is a separate image; pixels on it are not a background for these labels.
- await page.locator('.hero-copy').scrollIntoViewIfNeeded();
- const targets=await page.evaluate(()=>[
+ const targets=[
   {name:'hero-title',selector:'.hero h1',min:3},
   {name:'hero-description',selector:'.hero p',min:4.5}
- ].map(target=>{
-  const el=document.querySelector(target.selector);
-  if(!el)throw new Error('Texto ausente: '+target.selector);
-  const rect=el.getBoundingClientRect();
-  const rgb=[...getComputedStyle(el).color.matchAll(/[\d.]+/g)].slice(0,3).map(v=>Number(v[0]));
-  return {...target,rgb,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}};
- }));
- const screenshot=(await page.screenshot({animations:'disabled',style:'.hero h1,.hero p{color:transparent!important;text-shadow:none!important}'})).toString('base64');
- const sampled=await page.evaluate(async({base64,targets})=>{
-  const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
-  const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
-  const canvas=document.createElement('canvas');
-  canvas.width=bitmap.width;canvas.height=bitmap.height;
-  const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  if(!ctx)throw new Error('Canvas 2D indisponível');
-  ctx.drawImage(bitmap,0,0);
-  const luminance=(rgb:number[])=>{const c=rgb.map(x=>{const v=x/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
-  const samples=[];
-  for(const target of targets){
-   const r=target.rect;
-   if(r.width<=0||r.height<=0)throw new Error('Texto sem geometria: '+target.name);
-   for(const [px,py] of [[.1,.25],[.35,.75],[.65,.25],[.85,.75]]){
-    const x=Math.floor((r.x+r.width*px)*bitmap.width/window.innerWidth),y=Math.floor((r.y+r.height*py)*bitmap.height/window.innerHeight);
-    if(x<0||y<0||x>=bitmap.width||y>=bitmap.height)throw new Error('Amostra fora da área visível: '+target.name);
+ ];
+ const sampled={method:'Rendered background beneath each live text region; each target centered before capture, glyph paint hidden only during screenshot. Approximate, not exhaustive WCAG.',samples:[] as {name:string;position:number[];background:number[];foreground:number[];ratio:number;min:number}[]};
+ for(const target of targets){
+  const locator=page.locator(target.selector);
+  await expect(locator).toBeVisible();
+  await locator.evaluate(el=>el.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'}));
+  const measurement=await locator.evaluate(el=>{
+   const r=el.getBoundingClientRect();
+   const rgb=[...getComputedStyle(el).color.matchAll(/[\d.]+/g)].slice(0,3).map(v=>Number(v[0]));
+   if(r.width<=0||r.height<=0||rgb.length!==3)throw new Error('Texto sem geometria ou cor');
+   const points=[[.1,.25],[.35,.75],[.65,.25],[.85,.75]].map(([px,py])=>{
+    const x=r.x+r.width*px,y=r.y+r.height*py;
+    const hit=document.elementFromPoint(x,y);
+    if(x<0||y<0||x>=window.innerWidth||y>=window.innerHeight||!hit||!(hit===el||el.contains(hit)))throw new Error('Amostra fora da região de texto visível');
+    return {x,y,position:[px,py]};
+   });
+   return {rgb,points};
+  });
+  const base64=(await page.screenshot({animations:'disabled',style:target.selector+'{color:transparent!important;text-shadow:none!important}'})).toString('base64');
+  const samples=await page.evaluate(async({base64,measurement,target})=>{
+   const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+   const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
+   const canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;
+   const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Canvas 2D indisponível');
+   ctx.drawImage(bitmap,0,0);
+   const lum=(rgb:number[])=>{const c=rgb.map(x=>{const v=x/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
+   const result=measurement.points.map(point=>{
+    const x=Math.floor(point.x*bitmap.width/window.innerWidth),y=Math.floor(point.y*bitmap.height/window.innerHeight);
+    if(x<0||y<0||x>=bitmap.width||y>=bitmap.height)throw new Error('Amostra fora da captura');
     const background=Array.from(ctx.getImageData(x,y,1,1).data).slice(0,3);
-    const a=luminance(target.rgb),b=luminance(background);
-    samples.push({name:target.name,position:[px,py],background,foreground:target.rgb,ratio:Math.round(((Math.max(a,b)+.05)/(Math.min(a,b)+.05))*100)/100,min:target.min});
-   }
-  }
-  bitmap.close();
-  return {method:'Rendered background beneath live text bounds; glyph paint hidden only for capture. Approximate, not exhaustive WCAG.',samples};
- },{base64:screenshot,targets});
+    const a=lum(measurement.rgb),b=lum(background);
+    return {name:target.name,position:point.position,background,foreground:measurement.rgb,ratio:Math.round(((Math.max(a,b)+.05)/(Math.min(a,b)+.05))*100)/100,min:target.min};
+   });
+   bitmap.close();return result;
+  },{base64,measurement,target});
+  sampled.samples.push(...samples);
+ }
+ expect(sampled.samples).toHaveLength(8);
  await mkdir(screenshots,{recursive:true});
  await writeFile(resolve('test-results/gradient-sample.json'),JSON.stringify(sampled,null,2),'utf8');
  const below=sampled.samples.filter(sample=>sample.ratio<sample.min);

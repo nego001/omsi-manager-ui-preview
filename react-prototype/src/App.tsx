@@ -1314,7 +1314,7 @@ export default function App(){
       <div className="premium-hero-main" data-game={featuredGame} data-approved-art={!!approvedArt.hero}>
        {approvedArt.hero&&<img className="negresco-banner" src={approvedArt.hero} alt="Arte conceitual: ônibus e caminhões dos três simuladores"/>}
        <div className="hero-art hero-spotlight-art" aria-hidden="true"><GameCover key={featuredGame} id={featuredGame} panoramic large/></div>
-       <div className="hero-copy">
+       <PremiumDashboard heroControls={<div className="hero-copy">
         <div className="eyebrow">SIMULADOR EM DESTAQUE</div>
         <h1>Seu universo de simulação, organizado.</h1>
         <h2 className="featured-game-name">{games[featuredGame].title}</h2>
@@ -1327,17 +1327,15 @@ export default function App(){
          <button className="btn secondary" onClick={()=>{setSelectedGame(featuredGame);setCategory('Todos');setSearch('');goto('catalog')}}>Ver mods de {games[featuredGame].title} <ChevronRight size={15}/></button>
          <button className="btn secondary" onClick={()=>goto('games')}>Explorar jogos</button>
         </div>
-       </div>
-      </div>
-
-     </section>
-     <PremiumDashboard simulatorCards={<div className="featured-selector premium-selector" role="group" aria-label="Escolher simulador em destaque">
+       </div>} simulatorCards={<div className="featured-selector premium-selector" role="group" aria-label="Escolher simulador em destaque">
        {(Object.keys(games) as GameId[]).map(id=>{
         const state=localSummary.rows.find(row=>row.game===id)?.state??'unknown';
         const status={unknown:'Não inspecionado',unavailable:'Inspeção indisponível',unrecognized:'Estrutura não reconhecida',partial:'Observação parcial',observed:'Estrutura observada'}[state];
         return <button type="button" key={id} aria-label={'Mostrar '+games[id].title+' no destaque'} aria-pressed={featuredGame===id} className={'featured-choice premium-choice '+(featuredGame===id?'selected':'')} data-game={id} onClick={()=>setFeaturedGame(id)}>{approvedArt[id]&&<img src={approvedArt[id]} alt="" className="negresco-simulator-art"/>}<span>{games[id].title}</span><span className="negresco-simulator-status" data-state={state}><span className="negresco-state-dot" aria-hidden="true"/><small>{status}</small><small className="negresco-select-label">{featuredGame===id?'Selecionado':'Selecionar'}</small></span><ChevronRight size={18}/></button>;
        })}
       </div>} inspections={inspections} events={localActivity} busy={inspecting!==null||discovering} onLibrary={()=>goto('library')} onDiagnostic={()=>{premiumDiagnosticJump.current=true;goto('library')}} onHistory={()=>goto('history')} onGames={()=>goto('games')}/>
+      </div>
+     </section>
      <div className="section-title"><h2>Descobrir mods</h2><button className="link" onClick={()=>goto('games')}>Ver jogos <ChevronRight size={14}/></button></div>{modCards(catalogMods.slice(0,4))}
     </>}
     {screen==='games'&&<><div className="page-heading"><span className="eyebrow">BIBLIOTECA DE JOGOS</span><h1>Escolha seu simulador</h1><p>Capas online quando disponíveis; cartões identificados mesmo sem internet. A inspeção é opcional. Detecte candidatos na Steam ou selecione uma pasta manualmente.</p></div><div className="game-grid game-grid-large">{(Object.keys(games) as GameId[]).map(id=><button className="game-tile" key={id} onClick={()=>{setSelectedGame(id);goto('catalog')}}><GameCover id={id} large/><strong>{games[id].title}</strong><small>Ver mods <ChevronRight size={13}/></small></button>)}</div>
