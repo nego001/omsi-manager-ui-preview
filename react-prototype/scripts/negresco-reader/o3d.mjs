@@ -1,4 +1,4 @@
-// F3.06a: bounded, unencrypted O3D mesh subset, synthetic buffers only.
+// F3.06b: bounded, unencrypted O3D mesh subset, synthetic buffers only.
 // Layout reference: https://github.com/openOMSI-org/openOMSI/blob/main/docs/FORMATS.md
 import {buildFixtureIndex} from './index.mjs';
 const fail=()=>{throw Error('READER_FIXTURE_O3D_REFUSED');};
@@ -27,9 +27,10 @@ function inspect(input){
  const f32=()=>{need(4);const v=b.readFloatLE(p);p+=4;if(!Number.isFinite(v))fail();return v===0?0:v;};
  const tag=t=>{if(u8()!==t)fail();};
  if(u8()!==0x84||u8()!==0x19)fail();
- const version=u8();if(![1,3].includes(version))fail();
- const flags=version===3?u8():0;if(flags!==0&&flags!==1)fail();
- const count=version===3?u32:u16,index=flags===1?u32:u16;
+ const version=u8();if(![1,3,4,5,7].includes(version))fail();
+ const flags=version>=3?u8():0;if(flags!==0&&flags!==1)fail();
+ if(version>=4&&u32()!==0xffffffff)fail(); // No scrambling or key handling.
+ const count=version>=3?u32:u16,index=flags===1?u32:u16;
  tag(0x17);const vertexCount=count();
  if(!int(vertexCount,1,l.maxVertices))fail();need(vertexCount*32);
  const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
