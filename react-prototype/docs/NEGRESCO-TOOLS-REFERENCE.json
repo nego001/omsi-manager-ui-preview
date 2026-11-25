@@ -1,0 +1,48 @@
+{
+  "schema": "NEGRESCO_TOOLS_APPROVED_REFERENCE_V1",
+  "design": "red-amber cinematic",
+  "width": 1586,
+  "height": 992,
+  "sha256": "fc293f8237efe6385e05e99330f5a9aa760db7f20ea94765d4474b43ded61e57",
+  "approval": "user selected the last red/amber mockup and approved reusing its images",
+  "regions": {
+    "hero": [
+      252,
+      39,
+      1584,
+      329
+    ],
+    "omsi": [
+      278,
+      531,
+      606,
+      689
+    ],
+    "ets2": [
+      621,
+      531,
+      928,
+      689
+    ],
+    "ats": [
+      943,
+      531,
+      1257,
+      689
+    ],
+    "sidebar-bus": [
+      0,
+      671,
+      249,
+      930
+    ],
+    "mark": [
+      80,
+      53,
+      177,
+      116
+    ]
+  },
+  "assetsIntegrated": false,
+  "visualParityVerified": false
+}
