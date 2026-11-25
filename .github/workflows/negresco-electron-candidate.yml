@@ -104,7 +104,7 @@ jobs:
       - name: Verify exact candidate provenance before runtime experiment
         run: node scripts/electron-upgrade-candidate.mjs verify
       - name: Copy only required source and test inputs into isolated candidate
-        run: node -e 'const fs=require("node:fs");for(const n of ["src","electron","scripts","examples","index.html","tsconfig.json","vite.config.ts","playwright.config.ts"])fs.cpSync(n,"electron-candidate/"+n,{recursive:true,errorOnExist:true,force:false})'
+        run: node -e 'const fs=require("node:fs");for(const n of ["src","electron","scripts","examples","native-lab","native-launcher","index.html","tsconfig.json","vite.config.ts","playwright.config.ts"])fs.cpSync(n,"electron-candidate/"+n,{recursive:true,errorOnExist:true,force:false})'
       - name: Install locked dependencies including Electron binary
         working-directory: react-prototype/electron-candidate
         run: npm ci --no-audit --no-fund --registry=https://registry.npmjs.org/

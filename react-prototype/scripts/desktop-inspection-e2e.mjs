@@ -248,27 +248,36 @@ try{
  await mkdir(join(customGame,'Vehicles','Synthetic bus'),{recursive:true});
  await mkdir(join(customGame,'maps','Synthetic map'),{recursive:true});
  await writeFile(join(customGame,'Omsi.exe'),'M70_SYNTHETIC_MARKER');
+ // Compare the exact canonical fixture path using Electron's own filesystem
+ // API, not the spelling of the temporary path in the external Node runner.
+ // Windows realpath may change drive-letter case or expand a short path.
+ // Do not case-fold or loosen comparisons in the production authorization.
+ const hintEvidence=await application.evaluate(async(_,game)=>{
+  const canonical=await process.getBuiltinModule('node:fs/promises').realpath(game);
+  return {canonical,spellingChanged:canonical!==game};
+ },customGame);
+ console.log('M70_FIXTURE_CANONICAL_SPELLING_CHANGED',hintEvidence.spellingChanged);
  await application.evaluate(({dialog},payload)=>{
-  let calls=0;
+  globalThis.__m70Calls=0;
   globalThis.__m70ConfirmedHint=false;
   dialog.showOpenDialog=async(_win,opts)=>{
-   calls++;
-   if(calls===1)return {canceled:false,filePaths:[payload.scope]};
-   globalThis.__m70ConfirmedHint=opts.defaultPath===payload.game;
+   if(++globalThis.__m70Calls===1)return {canceled:false,filePaths:[payload.scope]};
+   globalThis.__m70ConfirmedHint=opts.defaultPath===payload.canonical;
    return {canceled:true,filePaths:[]};
   };
- },{scope:customScope,game:customGame});
+ },{scope:customScope,canonical:hintEvidence.canonical});
  const customCanceled=await window.evaluate(()=>window.omsiPreview.locateCustomOmsi());
  assert.deepEqual(customCanceled,{status:'cancelled'});
- assert.equal(await application.evaluate(()=>globalThis.__m70ConfirmedHint),true);
+ assert.deepEqual(await application.evaluate(()=>({calls:globalThis.__m70Calls,
+  exactCanonicalHint:globalThis.__m70ConfirmedHint})),{calls:2,exactCanonicalHint:true});
  await application.evaluate(({dialog},payload)=>{
   let calls=0;
   dialog.showOpenDialog=async(_win,opts)=>{
    if(++calls===1)return {canceled:false,filePaths:[payload.scope]};
-   if(opts.defaultPath!==payload.game)throw Error('M70_WRONG_HINT');
-   return {canceled:false,filePaths:[payload.game]};
+   if(calls!==2||opts.defaultPath!==payload.canonical)throw Error('M70_WRONG_HINT');
+   return {canceled:false,filePaths:[payload.canonical]};
   };
- },{scope:customScope,game:customGame});
+ },{scope:customScope,canonical:hintEvidence.canonical});
  const customConfirmed=await window.evaluate(()=>window.omsiPreview.locateCustomOmsi());
  assert.equal(customConfirmed.status,'ok');
  assert.equal(customConfirmed.groups[0].count,1);
