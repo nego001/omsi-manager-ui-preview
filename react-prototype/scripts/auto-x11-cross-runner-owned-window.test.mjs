@@ -163,11 +163,15 @@ test('missing, duplicated or reversed observations are refused',()=>{
  const c=make();c.m40Pair.observations.reverse();
  assert.throws(()=>compare(c),pairRefusal);
 });
-test('native window title must be exact OMSI Manager pattern not arbitrary',()=>{
+test('native window title must be one exact Negresco or legacy title, not arbitrary',()=>{
  const tree='0x111111 "Private Launcher": ("app" "app")\n';
  assert.throws(()=>findPreviewWindow(tree),/X11_WINDOW_NOT_VERIFIED/);
- const matching='0xabc123 "OMSI Manager Preview": ("app" "app")\n';
+ const matching='0xabc123 "Negresco Tools — Gerenciador de Simuladores": ("app" "app")\n';
+ const legacy='0xabc124 "OMSI Manager · Prévia segura": ("app" "app")\n';
  assert.equal(findPreviewWindow(matching),'0xabc123');
+ assert.equal(findPreviewWindow(legacy),'0xabc124');
+ assert.throws(()=>findPreviewWindow(matching+legacy),/X11_WINDOW_NOT_VERIFIED/);
+ assert.throws(()=>findPreviewWindow('0xabc123 "OMSI Manager Preview": ("app" "app")\n'),/X11_WINDOW_NOT_VERIFIED/);
 });
 test('exact _NET_WM_PID and viewable 800x500 geometry required',()=>{
  assert.equal(verifyNativeWindowOwner(

@@ -1,0 +1,3 @@
+# N09.6.1 — update legacy M41 fixture to exact title contract
+
+N09.6 run 45628717202 Windows packaged passed; browser still running at checkpoint. Synthetic job 139255799621 failed one M41 fixture (21 passed, one failed) at auto-x11-cross-runner-owned-window.test.mjs:170 because `OMSI Manager Preview` was accepted by the previous broad prefix but is not either actual product title. Replace positive fixture with exact current and initial titles, explicitly reject obsolete lookalike and ambiguity. No production code or validation threshold changes. Original PID, command-line, visibility and geometry gates remain. New CI required; Linux strict gate and visual acceptance unresolved. No merge or release.
