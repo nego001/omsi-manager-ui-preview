@@ -1,4 +1,4 @@
-// F3.06c: narrow PMX payload evidence; synthetic buffers only.
+// F3.06d: narrow PMX payload evidence; synthetic buffers only.
 import {inspectFixturePmx} from './pmx-header.mjs';
 import {buildFixtureIndex} from './index.mjs';
 const fail=()=>{throw Error('READER_FIXTURE_PMX_PAYLOAD_REFUSED');};
@@ -23,29 +23,37 @@ function inspect(input){
  let vertexCount=0,triangleCount=0,repeatedIndexTriangleCount=0;
  const min=[Infinity,Infinity,Infinity],max=[-Infinity,-Infinity,-Infinity];
  function claim(o,n,r){inside(o,n,r);if(n)occupied.push({offset:o,length:n});}
- function mesh(v,edges,pos,indices,stride,normal,vr,ir,materialIndex){
+ function mesh(v,edges,pos,indices,stride,normal,vr,ir,materialIndex,uvWidth=0){
   if(!int(v,1,Math.min(65536,l.maxVertices-vertexCount))||!int(edges,0,(l.maxTriangles-triangleCount)*3)||edges%3)fail();
   claim(pos,v*stride,vr);claim(indices,edges*2,ir);
   let repeated=0;
+  const uv=Array.from({length:uvWidth},()=>({min:[Infinity,Infinity],max:[-Infinity,-Infinity]}));
   for(let j=0;j<v;j++)for(let k=0;k<3;k++){
    const p=f(pos+j*stride+k*4);min[k]=Math.min(min[k],p);max[k]=Math.max(max[k],p);
    if(normal)f(pos+j*stride+12+k*4);
+  }
+  for(let j=0;j<v;j++)for(let channel=0;channel<uvWidth;channel++)for(let k=0;k<2;k++){
+   const value=f(pos+j*stride+(normal?24:12)+channel*8+k*4);
+   uv[channel].min[k]=Math.min(uv[channel].min[k],value);uv[channel].max[k]=Math.max(uv[channel].max[k],value);
   }
   for(let j=0;j<edges;j+=3){
    const a=b.readUInt16LE(indices+j*2),c=b.readUInt16LE(indices+j*2+2),d=b.readUInt16LE(indices+j*2+4);
    if(a>=v||c>=v||d>=v)fail();if(a===c||a===d||c===d)repeated++;
   }
   vertexCount+=v;triangleCount+=edges/3;repeatedIndexTriangleCount+=repeated;
-  pieces.push(Object.freeze({index:pieces.length,vertexCount:v,triangleCount:edges/3,materialIndex,repeatedIndexTriangleCount:repeated}));
+  pieces.push(Object.freeze({index:pieces.length,vertexCount:v,triangleCount:edges/3,materialIndex,repeatedIndexTriangleCount:repeated,uvBounds:Object.freeze(uv.map(a=>Object.freeze({min:Object.freeze(a.min),max:Object.freeze(a.max)})))}));
  }
  if(h.format==='pmg'){
   if(h.counts.bones||h.counts.weightWidth||h.counts.locators||range('strings').length)fail();
   const pr=range('pieces'),vr=range('vertices'),ir=range('indices');
   for(let j=0;j<h.counts.pieces;j++){
    const o=pr.offset+j*100,edges=i(o),v=i(o+4),mat=i(o+16),pos=i(o+64),normal=i(o+68);
-   if(i(o+8)!==0||i(o+12)!==0||!int(mat,0,l.maxRecords)||i(o+60)!==-1||
-     [72,76,80,84,92,96].some(k=>i(o+k)!==-1)||!(normal===-1||normal===pos+12))fail();
-   mesh(v,edges,pos,i(o+88),normal===-1?12:24,normal!==-1,vr,ir,mat);
+   const width=i(o+12),mask=u(o+8),uvOffset=i(o+72),baseStride=normal===-1?12:24;
+   // Only a canonical low-bit mask and contiguous interleaved UV streams.
+   if(!int(width,0,4)||mask!==(2**width-1)||uvOffset!==(width?pos+baseStride:-1)||
+     !int(mat,0,l.maxRecords)||i(o+60)!==-1||
+     [76,80,84,92,96].some(k=>i(o+k)!==-1)||!(normal===-1||normal===pos+12))fail();
+   mesh(v,edges,pos,i(o+88),baseStride+width*8,normal!==-1,vr,ir,mat,width);
   }
  }else if(h.format==='pmc'){
   // Only standalone convex piece mesh arrays, no variant/locator payload.
@@ -77,7 +85,7 @@ function inspect(input){
  occupied.sort((a,c)=>a.offset-c.offset);
  for(let j=1;j<occupied.length;j++)if(occupied[j].offset<occupied[j-1].offset+occupied[j-1].length)fail();
  const bounds=vertexCount?Object.freeze({min:Object.freeze(min),max:Object.freeze(max),size:Object.freeze(max.map((v,j)=>v-min[j]))}):null;
- return Object.freeze({schemaVersion:1,scope:x.scope,format:h.format,version:h.version,source:h.source,
+ return Object.freeze({schemaVersion:1,scope:x.scope,format:h.format,version:h.version,source:h.source,counts:h.counts,
  vertexCount,triangleCount,repeatedIndexTriangleCount,bounds,pieces:Object.freeze(pieces),references:Object.freeze(references),
  fixturePmxPayloadSubsetValidated:true,geometryDecoded:h.format==='pmg',collisionMeshDecoded:h.format==='pmc',
  materialReferencesDecoded:h.format==='pmd',fullPmxSupport:false,fullPayloadValidated:false,
