@@ -1,4 +1,4 @@
-// F3.07a: bounded texture structure evidence; no pixel decoding or file access.
+// F3.07b: bounded texture structure evidence; no pixel decoding or file access.
 import {buildFixtureIndex} from './index.mjs';
 const fail=()=>{throw Error('READER_FIXTURE_TEXTURE_REFUSED');};
 const int=(x,min,max)=>Number.isSafeInteger(x)&&x>=min&&x<=max;
@@ -71,6 +71,61 @@ function inspect(input){
   if(length!==b.length-54||![0,length].includes(b.readUInt32LE(34)))fail();
   channels=3;alphaMode='none-declared';compression='none';
   levels.push(Object.freeze({level:0,width,height,offset:54,length,rowStride:stride,orientation:h<0?'top-down':'bottom-up'}));
+ }else if(format==='tga'){
+  if(b.length<18||b[0]||b[1]||![2,3,10,11].includes(b[2])||b.subarray(3,8).some(Boolean)||b.readUInt32LE(8))fail();
+  dimensions(b.readUInt16LE(12),b.readUInt16LE(14));
+  const gray=[3,11].includes(b[2]),rle=[10,11].includes(b[2]),bits=b[16],desc=b[17];
+  if(!(gray?bits===8:[24,32].includes(bits))||(desc&0xd0)||(desc&15)!==(bits===32?8:0))fail();
+  channels=bits/8;bitDepth=8;alphaMode=bits===32?'alpha-capable':'none-declared';compression=rle?'rle':'none';
+  let p=18,remaining=width*height;
+  if(rle){
+   while(remaining){
+    if(++chunkCount>l.maxChunks||p>=b.length)fail();
+    const packet=b[p++],n=(packet&127)+1,len=(packet&128?1:n)*channels;
+    if(n>remaining||len>b.length-p)fail();p+=len;remaining-=n;
+   }
+  }else p+=remaining*channels;
+  if(p!==b.length)fail();
+  levels.push(Object.freeze({level:0,width,height,offset:18,length:b.length-18,orientation:desc&32?'top-down':'bottom-up'}));
+ }else if(['jpg','jpeg'].includes(format)){
+  if(b.length<4||b[0]!==255||b[1]!==216)fail();
+  let p=2,frame=null,done=false;
+  while(p<b.length){
+   if(++chunkCount>l.maxChunks||p+4>b.length||b[p++]!==255)fail();
+   const marker=b[p++],length=b.readUInt16BE(p),start=p+2,end=p+length;
+   if(length<2||end>b.length)fail();
+   if(marker===0xc0){
+    if(frame||length<8||b[start]!==8)fail();
+    dimensions(b.readUInt16BE(start+3),b.readUInt16BE(start+1));channels=b[start+5];
+    if(![1,3].includes(channels)||length!==8+3*channels)fail();
+    frame=new Set();
+    for(let j=0;j<channels;j++){
+     const o=start+6+j*3,id=b[o],sampling=b[o+1];
+     if(frame.has(id)||!int(sampling>>4,1,4)||!int(sampling&15,1,4)||b[o+2]>3)fail();frame.add(id);
+    }
+   }else if(marker===0xda){
+    if(!frame||length!==6+2*channels||b[start]!==channels)fail();
+    const ids=new Set();
+    for(let j=0;j<channels;j++){
+     const id=b[start+1+2*j],table=b[start+2+2*j];
+     if(!frame.has(id)||ids.has(id)||(table>>4)>3||(table&15)>3)fail();ids.add(id);
+    }
+    if(b[end-3]!==0||b[end-2]!==63||b[end-1]!==0)fail();
+    p=end;const scanStart=p;
+    while(p<b.length){
+     if(b[p++]!==255)continue;
+     if(p>=b.length)fail();
+     const next=b[p++];
+     if(next===0)continue;
+     if(next===217&&p===b.length&&p-scanStart>2){done=true;break;}
+     fail();
+    }
+    break;
+   }else if(!((marker>=0xe0&&marker<=0xef)||[0xfe,0xdb,0xc4].includes(marker)))fail();
+   p=end;
+  }
+  if(!done||!frame)fail();
+  bitDepth=8;alphaMode='none-declared';compression='jpeg-baseline';
  }else fail();
  return Object.freeze({schemaVersion:1,scope:x.scope,format,source,width,height,channels,bitDepth,alphaMode,compression,mipmapCount,
  levels:Object.freeze(levels),chunkCount,crcVerified,fixtureTextureStructureValidated:true,pixelsDecoded:false,
