@@ -34,12 +34,13 @@ test('gradiente do destaque mantém contraste próximo do texto em pixels realme
  // Capture the actual background under the live text, with only glyph paint hidden.
  // The approved panorama is a separate image; pixels on it are not a background for these labels.
  const targets=[
-  {name:'hero-title',selector:'.hero h1',min:3},
-  {name:'hero-description',selector:'.hero p',min:4.5}
+  {name:'hero-title',selector:'.hero .hero-copy > h1',min:3},
+  {name:'hero-description',selector:'.hero .hero-copy > p',min:4.5}
  ];
  const sampled={method:'Rendered background beneath each live text region; each target centered before capture, glyph paint hidden only during screenshot. Approximate, not exhaustive WCAG.',samples:[] as {name:string;position:number[];background:number[];foreground:number[];ratio:number;min:number}[]};
  for(const target of targets){
   const locator=page.locator(target.selector);
+  await expect(locator).toHaveCount(1);
   await expect(locator).toBeVisible();
   await locator.evaluate(el=>el.scrollIntoView({block:'center',inline:'nearest',behavior:'instant'}));
   const measurement=await locator.evaluate(el=>{
