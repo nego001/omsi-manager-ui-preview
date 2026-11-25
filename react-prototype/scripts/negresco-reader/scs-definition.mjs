@@ -10,7 +10,7 @@ function record(o,keys){
 function indexed(path,bytes,maxBytes){
  return buildFixtureIndex({scope:'synthetic-fixture',limits:{maxEntries:1,maxNodes:32,maxDepth:32,maxBytes,maxEntryBytes:maxBytes},entries:[{path,kind:'file',bytes}]}).entries[0];
 }
-const unit=/^([A-Za-z_][A-Za-z0-9_]{0,63})\s*:\s*(\.?[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\s*\{$/;
+const unit=/^([A-Za-z_][A-Za-z0-9_]{0,63})\s*:\s*(\.?[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*)\s*(\{)?$/;
 const field=/^([A-Za-z_][A-Za-z0-9_]{0,63})(\[(?:0|[1-9][0-9]{0,5})?\])?\s*:\s*(.+)$/;
 const assetSuffix=/\.(?:sii|sui|pmd|pmg|pmc|mat|tobj|dds|soundref|bank|ogg|wav)$/i;
 function virtualPath(s){
@@ -65,6 +65,7 @@ function inspect(input){
   }
   if(state==='root-brace'){if(s!=='{')fail();state='root';continue;}
   if(state==='done')fail();
+  if(state==='unit-brace'){if(s!=='{')fail();state='unit';continue;}
   const inc=/^@include\s+"([^"\\]+)"$/.exec(s);
   if(inc){
    if(!['root','unit','fragment'].includes(state)||!/\.(sii|sui)$/i.test(inc[1]))fail();
@@ -74,7 +75,7 @@ function inspect(input){
    if(s==='}'){state='done';continue;}
    const m=unit.exec(s);
    if(!m||units.length>=l.maxUnits||ids.has(m[2]))fail();
-   ids.add(m[2]);current={type:m[1],id:m[2],line,fields:[]};state='unit';continue;
+   ids.add(m[2]);current={type:m[1],id:m[2],line,fields:[]};state=m[3]?'unit':'unit-brace';continue;
   }
   if(state==='unit'&&s==='}'){
    units.push(Object.freeze({...current,fields:Object.freeze(current.fields)}));current=null;state='root';continue;
