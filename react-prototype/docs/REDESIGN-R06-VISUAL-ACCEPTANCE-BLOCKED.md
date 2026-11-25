@@ -1,0 +1,5 @@
+# R06 corrective checkpoint — visual acceptance blocked
+
+User rejected the current appearance as not faithful to the approved reference. Status: BLOCKED_REFERENCE_PARITY; no release, merge, or visual approval. The exact November 24 approved image has not been recovered; October concept images are not substitutes. No further speculative art or layout changes. Before rebuilding, obtain the exact image, pin its SHA-256 and native dimensions, map major regions and assets, reproduce with live components and original game imagery, then compare matched-size screenshots and obtain user approval. No fabricated statistics or enabled installation/removal actions.
+
+CI run 45537389338: 1120 passed, 1 failed in R06 geometry, sidebar measured 243.89px and 248px against <=191px immediately after viewport resize. Existing width transition plausibly explains intermediate value; disable transition at 761–1100px so the responsive width can settle immediately. Existing numeric assertion retained unchanged. Windows packaged job passed; full Linux validation and downstream cross-runner evidence did not. No workflow, security, IPC, or M145 changes. Correction still requires CI.
