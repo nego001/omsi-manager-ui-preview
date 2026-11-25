@@ -1,0 +1,3 @@
+# N03 — Build fix and approved-art integrity gate
+
+N02 run 45543091330 failed in both builds with TS2339: ImportMeta.glob not declared. Reference vite/client in the module. Exact approved crops are verified by six SHA-256 digests using `node scripts/verify-negresco-art.mjs` from react-prototype. This separate gate fails when assets are missing or altered; it does not certify visual parity. Browser regression covers complete or absent set, not a partial set. The source binaries are still outside GitHub; add the existing approved pack at src/art/negresco before visual acceptance. No fake asset substitution, no security or IPC changes, no release. CI pending.

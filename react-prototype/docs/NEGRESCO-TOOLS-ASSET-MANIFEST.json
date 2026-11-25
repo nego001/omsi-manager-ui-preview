@@ -1,0 +1,27 @@
+{
+  "source_sha256": "fc293f8237efe6385e05e99330f5a9aa760db7f20ea94765d4474b43ded61e57",
+  "source_dimensions": [
+    1586,
+    992
+  ],
+  "regions": {
+    "hero": {
+      "sha256": "4e041cf791951dafe3796a9082ad5818b53d8303dc389c7129e3453f301d1fad"
+    },
+    "omsi": {
+      "sha256": "08c080637e7c6dd9cd5c6557e3a67734157d5946941c02092cfb72e341320249"
+    },
+    "ets2": {
+      "sha256": "f372d64381a9f20436e277dfc5af6eb1b8d9bfee833f0fe72fbd150d0b50f8"
+    },
+    "ats": {
+      "sha256": "fb8b49d08249c654500611437d4547f5285f0f31c1c63ec6f84a34473d117e2b"
+    },
+    "sidebar-bus": {
+      "sha256": "e104f0fb4872752377d01c4577d08459712ac431b7ae43bfc588507ed13b9176"
+    },
+    "mark": {
+      "sha256": "f8cd28f746a5deb5de7ae8bedcb2f2ce16bb8f0f1add2bf459e12bb05e3254fc"
+    }
+  }
+}

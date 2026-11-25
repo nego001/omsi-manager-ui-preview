@@ -26,6 +26,6 @@ test('R06.2 records comparison evidence, not reference parity',async({page})=>{
   })),regions);
   const prefix='test-results/screenshots/premium-baseline/home-'+width+'x'+height;
   const png=await page.screenshot({path:prefix+'.png',animations:'disabled',scale:'css',fullPage:false});
-  await writeFile(prefix+'.json',JSON.stringify({schema:'PREMIUM_LAYOUT_OBSERVATION_V1',viewport:{width,height},artMode:'offline-bundled',referenceStatus:'MISSING_EXACT_APPROVED_IMAGE',visualParityVerified:false,sha256:createHash('sha256').update(png).digest('hex'),regions:measurements},null,2));
+  await writeFile(prefix+'.json',JSON.stringify({schema:'PREMIUM_LAYOUT_OBSERVATION_V1',viewport:{width,height},artMode:'offline-bundled',referenceStatus:'APPROVED_REFERENCE_PINNED_ASSET_INTEGRATION_PENDING',visualParityVerified:false,sha256:createHash('sha256').update(png).digest('hex'),regions:measurements},null,2));
  }
 });

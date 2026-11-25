@@ -2017,3 +2017,7 @@
 @media(max-width:1100px){.negresco-tools .premium-dashboard{grid-template-columns:minmax(0,1fr)}.negresco-tools .premium-dashboard>*{grid-column:auto!important;grid-row:auto!important}.negresco-tools .premium-bottom-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.negresco-tools .premium-diagnostic-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:760px){.negresco-tools .negresco-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.negresco-tools .premium-bottom-grid{grid-template-columns:1fr}.negresco-tools .premium-diagnostic-grid{grid-template-columns:1fr}}
 @media(max-width:480px){.gamer-premium.negresco-tools .premium-selector{grid-template-columns:1fr}.negresco-tools .premium-choice .negresco-simulator-art{max-height:130px}.negresco-tools .negresco-quick-grid{grid-template-columns:1fr}}
+
+/* Keep deterministic fallback identification when no approved binary is available. */
+.negresco-tools .premium-choice:not(:has(.negresco-simulator-art)){min-height:64px;justify-content:center}
+.negresco-tools .premium-hero-main[data-approved-art=true] .hero-art{display:block;visibility:hidden;pointer-events:none}
