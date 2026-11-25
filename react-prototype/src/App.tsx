@@ -1306,7 +1306,7 @@ export default function App(){
    <main id="conteudo-principal" tabIndex={-1} className="content">
     {screen==='home'&&<>
      <section className="hero hero-spotlight premium-hero" aria-label="Destaque de simuladores" style={{'--spotlight':games[featuredGame].color} as React.CSSProperties}>
-      <div className="premium-hero-main">
+      <div className="premium-hero-main" data-game={featuredGame}>
        <div className="hero-art hero-spotlight-art" aria-hidden="true"><GameCover key={featuredGame} id={featuredGame} panoramic large/></div>
        <div className="hero-copy">
         <div className="eyebrow">SIMULADOR EM DESTAQUE</div>

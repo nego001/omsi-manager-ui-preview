@@ -1,0 +1,3 @@
+# R02 — Offline art and internal visual consistency
+
+Original stylized SVG illustrations for OMSI, ETS2 and ATS are bundled locally, including the sidebar. The existing optional Steam artwork remains unchanged as a source. These are decorative illustrations, not screenshots or exact approved reference artwork. Internal page headers, cards, search, tabs and buttons share the premium palette; disabled controls remain visually disabled. No IPC, persistence, catalog semantics, game files, workflow, sandbox or release changes. Added Playwright coverage for offline artwork and internal navigation. Visual reference parity and packaged Linux runtime remain pending. Draft only.

@@ -1799,3 +1799,33 @@
 @media(max-width:1100px){.premium-stat-arrow{display:none}.premium-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.premium-bottom-grid{grid-template-columns:1fr}}
 @media(max-width:760px){.gamer-premium .premium-hero{grid-template-columns:1fr}.gamer-premium .premium-selector{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.gamer-premium .premium-choice,.gamer-premium .premium-choice.selected{font-size:11px;padding:9px;min-height:46px}.premium-choice svg{display:none}.premium-local-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.premium-hero-main{padding:14px}.gamer-premium .premium-hero .hero-actions .btn{max-width:100%;white-space:normal}.premium-stat{padding:9px;gap:7px}.premium-stat>svg{width:20px}.premium-stat strong{font-size:22px}.premium-diagnostic-grid{grid-template-columns:1fr}.premium-panel{padding:10px}.premium-panel-header>div{flex-basis:120px}}
+
+
+/* R02: original offline simulator illustrations and consistent internal surfaces. */
+.gamer-premium .premium-hero-main[data-game=omsi]{--premium-art:url('./art/premium-omsi.svg')}
+.gamer-premium .premium-hero-main[data-game=ets2]{--premium-art:url('./art/premium-ets2.svg')}
+.gamer-premium .premium-hero-main[data-game=ats]{--premium-art:url('./art/premium-ats.svg')}
+.gamer-premium .premium-hero-main .game-cover{background-image:var(--premium-art),radial-gradient(ellipse at 80% 70%,#30528a,#15203a 55%,#0d1428);background-size:cover;background-position:center right}
+.gamer-premium .premium-choice[data-game=omsi]:not(.selected){background-image:linear-gradient(90deg,#101a2ef2,#141c3290,#141c3225),url('https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/252530/library_hero.jpg'),url('./art/premium-omsi.svg')}
+.gamer-premium .premium-choice[data-game=ets2]:not(.selected){background-image:linear-gradient(90deg,#101a2ef2,#141c3290,#141c3225),url('https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/227300/library_hero.jpg'),url('./art/premium-ets2.svg')}
+.gamer-premium .premium-choice[data-game=ats]:not(.selected){background-image:linear-gradient(90deg,#1d1735f2,#211c3890,#211c3825),url('https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/270880/library_hero.jpg'),url('./art/premium-ats.svg')}
+.gamer-premium .premium-choice:not(.selected):hover{border-color:#8dcaff}
+.gamer-premium .sidebar-bottom{background:linear-gradient(90deg,#101425f5,#101425a8),url('./art/premium-omsi.svg') center right/cover;border-top-color:#38456b}
+.gamer-premium .page-heading{position:relative;isolation:isolate;min-width:0;padding:20px 22px;border:1px solid #384b73;border-radius:13px;background:radial-gradient(ellipse at 100% 0,#293b7166,transparent 68%),linear-gradient(110deg,#161e33,#171a2f)}
+.gamer-premium .page-heading .eyebrow{color:#9cceff;letter-spacing:1.5px}
+.gamer-premium .page-heading h1{color:#f4f7ff;margin:8px 0}
+.gamer-premium .page-heading p{color:#c5d1e6}
+.gamer-premium :is(.game-tile,.mod-card,.settings-panel,.catalog-import-bar,.empty){background-color:#151d30;border-color:#3a4b70}
+.gamer-premium :is(.game-tile,.mod-card):hover{border-color:#79a9e8}
+.gamer-premium .mod-bottom{border-top-color:#354362}
+.gamer-premium .mod-art>span{background:#101a2ee8;border:1px solid #8098c45c}
+.gamer-premium :is(.search,.toolbar select,.tabs button){background-color:#192238;border-color:#425575;color:#dae4f8}
+.gamer-premium .tabs button.selected{background:linear-gradient(110deg,#244b81,#423366);border-color:#849bda;color:#fff}
+.gamer-premium .btn.secondary:not(:disabled){background:#202d46;border-color:#4d638d;color:#e5efff}
+.gamer-premium .btn.primary:disabled,.gamer-premium .btn.secondary:disabled{background:#292a33;color:#a0a3b1;border:1px solid #484c5b;box-shadow:none;cursor:not-allowed}
+.gamer-premium :is(.link,.back){color:#b2d8ff}
+.gamer-premium .security-card:not(.warning){background:#172a2b;border-color:#3b6661}
+.gamer-premium .security-card.warning{background:#302720;border-color:#806044}
+.gamer-premium :is(.nav-link,.premium-choice,.premium-stat,.premium-link,.premium-diagnostic-card,.btn):focus-visible{outline:2px solid #c3d8ff;outline-offset:2px}
+@media(max-width:480px){.gamer-premium .page-heading{padding:14px}.gamer-premium .premium-hero-main .game-cover{background-position:65% center}}
+@media(prefers-reduced-motion:reduce){.gamer-premium :is(.game-tile,.mod-card,.premium-choice){transition:none}}
