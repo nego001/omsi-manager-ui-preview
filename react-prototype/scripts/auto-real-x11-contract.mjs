@@ -29,8 +29,9 @@ export function findPreviewWindow(tree){
  if(typeof tree!=='string'||tree.length>65536)throw Error('X11_WINDOW_NOT_VERIFIED');
  const matches=[];
  for(const line of tree.split(/\r?\n/)){
-  if(!line.includes('"OMSI Manager'))continue;
-  const found=line.match(/\b(0x[0-9a-f]{1,16})\s+"OMSI Manager[^"]*"\s*:/i);
+  // Electron initially uses the native BrowserWindow title, then the HTML
+  // title after navigation. Match the two exact product titles only.
+  const found=line.match(/\b(0x[0-9a-f]{1,16})\s+"(?:OMSI Manager · Prévia segura|Negresco Tools — Gerenciador de Simuladores)"\s*:/u);
   if(found&&id.test(found[1]))matches.push(found[1]);
  }
  if(matches.length!==1)throw Error('X11_WINDOW_NOT_VERIFIED');

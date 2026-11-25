@@ -38,6 +38,9 @@ test('opt-in only: no shortcut is written before explicit install',async()=>{
  const entry=await fs.readFile(f.target,'utf8');
  assert.equal(entry,makeEntry(join(f.packageDir,'OMSI-Manager-Auto')));
  assert.ok(entry.includes(MARKER));
+ assert.match(entry,/^Name=Negresco Tools$/m);
+ assert.match(entry,/^Name\[pt_BR\]=Negresco Tools$/m);
+ assert.match(entry,/^Comment\[pt_BR\]=Gerenciador de simuladores somente leitura,/m);
  assert.match(entry,/^Exec=".*OMSI preview with spaces.*"$/m);
  assert.match(entry,/Terminal=false/);
  assert.doesNotMatch(entry,/--no-sandbox|sudo|pkexec|autostart|\.service/);
@@ -138,4 +141,25 @@ test('standalone helper accepts install/remove only, no arbitrary actions',async
  }
  assert.equal(invoke('install').status,0);
  assert.equal(invoke('remove').status,0);
+});
+
+test('old branded shortcuts require explicit removal and cannot be silently overwritten',async()=>{
+ for(const binary of ['OMSI-Manager-Auto','OMSI-Manager-Preview.sh']){
+  const f=await fixture();
+  await fs.mkdir(join(f.env.XDG_DATA_HOME,'applications'),{recursive:true});
+  const old=makeEntry(join(f.packageDir,binary),true);
+  assert.match(old,/^Name=OMSI Manager Preview$/m);
+  await fs.writeFile(f.target,old,{mode:0o600});
+  await assert.rejects(install(f),/Linux desktop integration refused/);
+  assert.equal(await fs.readFile(f.target,'utf8'),old);
+  // A marker does not authorize removal of a modified or unrelated file.
+  const altered=old.replace('Name=OMSI Manager Preview','Name=Unrelated application');
+  await fs.writeFile(f.target,altered);
+  await assert.rejects(remove(f),/Linux desktop integration refused/);
+  assert.equal(await fs.readFile(f.target,'utf8'),altered);
+  await fs.writeFile(f.target,old);
+  assert.equal((await remove(f)).result,'removed');
+  assert.equal((await install(f)).result,'installed');
+  assert.match(await fs.readFile(f.target,'utf8'),/^Name=Negresco Tools$/m);
+ }
 });

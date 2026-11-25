@@ -66,7 +66,7 @@ async function run(desktop){
   child.once('exit',()=>{exited=true;});
   child.once('error',()=>{exited=true;});
   const checkAlive=()=>!exited&&child.exitCode===null&&child.signalCode===null;
-  console.log('Confirme a janela do OMSI Manager aberta pelo executável Auto.');
+  console.log('Confirme a janela do Negresco Tools aberta pelo executável Auto.');
   verifiedOperatorAnswer((await answer.question(
    'Janela nativa está visível? Digite SIM: '
   )).trim());

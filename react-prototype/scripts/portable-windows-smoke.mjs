@@ -132,6 +132,33 @@ try{
  assert.equal(await readFile(join(sample,'Vehicles','Bus A','sentinel.bus'),'utf8'),'UNCHANGED');
  await window.screenshot({path:join(shots,'03-inspecao-ficticia.png'),animations:'disabled'});
 
+ // N08: check the new Home projection against the actual synthetic read-only observation.
+ // No mocked renderer result; the native dialog is already scoped to the fixture above.
+ await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Início',exact:true}).click();
+ const cards=window.getByRole('group',{name:'Escolher simulador em destaque'});
+ const omsiStatus=cards.getByRole('button',{name:'Mostrar OMSI 2 no destaque'}).locator('.negresco-simulator-status');
+ await omsiStatus.waitFor();
+ assert.ok(['partial','observed'].includes(await omsiStatus.getAttribute('data-state')),'Synthetic recognized OMSI observation must replace unknown');
+ assert.equal(await cards.locator('.negresco-simulator-status[data-state=unknown]').count(),2,'Other simulators remain uninspected');
+ const expectedNames=actual.groups.reduce((total,group)=>total+(Array.isArray(group.inventory)?group.inventory.length:0),0);
+ assert.ok(expectedNames>=2,'Fixture must expose the two synthetic directory names');
+ const homeStats=window.getByRole('region',{name:'Indicadores da sessão'});
+ const counts=await homeStats.locator('strong').allTextContents();
+ assert.equal(counts[0],'1','Exactly one simulator observed');
+ assert.equal(counts[1],expectedNames.toLocaleString('pt-BR'),'Home must count actual returned candidate names');
+ assert.equal(counts[2],'1','Only one user-triggered inspection event in session');
+ const facts=window.locator('.negresco-footer-facts');
+ assert.match(await facts.innerText(),/3 simuladores suportados/);
+ assert.match(await facts.innerText(),/1 observados/);
+ assert.ok((await facts.innerText()).includes(expectedNames+' nomes locais'));
+ await cards.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).click();
+ assert.equal(await cards.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).getAttribute('aria-pressed'),'true');
+ assert.equal(await cards.locator('.negresco-simulator-status[data-state=unknown]').count(),2,'Selection cannot imply inspection');
+ assert.equal((await homeStats.locator('strong').allTextContents())[0],'1');
+ await cards.getByRole('button',{name:'Mostrar OMSI 2 no destaque'}).click();
+ assert.equal(await readFile(join(sample,'Vehicles','Bus A','sentinel.bus'),'utf8'),'UNCHANGED');
+ console.log('NEGRESCO_HOME_NATIVE_SESSION_VERIFIED: synthetic read-only observation, status cards, footer, selection and sentinel');
+
  await window.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Detalhes'}).click();
  await window.getByRole('region',{name:'Relatório consolidado'}).waitFor({timeout:12000});
  const relations=window.getByRole('region',{name:'Simulação de dependências'});

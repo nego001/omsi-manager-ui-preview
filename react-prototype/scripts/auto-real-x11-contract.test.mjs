@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {findPreviewWindow,verifyMappedWindow,verifyNativeCommandLine,
  verifyNativeWindowOwner,verifyNativeDesktopResults,
  findCiX11DisplayControlWindow,verifyCiX11DisplayControlMapped}
@@ -106,4 +107,21 @@ test('plain CI X11 control is separate from the OMSI Electron window',()=>{
   'Map State: IsViewable\nWidth: 250\nHeight: 5'
  ])assert.throws(()=>verifyCiX11DisplayControlMapped(bad),
   /X11_DISPLAY_CONTROL_NOT_VERIFIED/);
+});
+
+test('X11 recognizes current Negresco page title and exact legacy native title, never ambiguous or lookalike windows',()=>{
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const pageTitle=html.match(/<title>([^<]+)<\/title>/)?.[1];
+ assert.equal(pageTitle,'Negresco Tools — Gerenciador de Simuladores');
+ const line='  0x300004 "'+pageTitle+'": ("app" "App") 1280x800+0+0';
+ const legacy='  0x300005 "OMSI Manager · Prévia segura": ("app" "App") 1280x800+0+0';
+ assert.equal(findPreviewWindow(line),'0x300004');
+ assert.equal(findPreviewWindow(legacy),'0x300005');
+ for(const invalid of [
+  line+'\n'+legacy,line+'\n'+line,
+  '0x2 "Negresco Tools": 1280x800',
+  '0x2 "Negresco Tools — Gerenciador de Simuladores - fake": 1280x800',
+  '0x2 "OMSI Manager malicious lookalike": 1280x800',
+  '0x2 "Another app Negresco Tools — Gerenciador de Simuladores": 1280x800'
+ ])assert.throws(()=>findPreviewWindow(invalid),/X11_WINDOW_NOT_VERIFIED/);
 });
