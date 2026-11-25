@@ -2151,3 +2151,30 @@
 @media(max-width:1100px){
  .gamer-premium.negresco-tools .premium-dashboard>.negresco-live-controls,.gamer-premium.negresco-tools .premium-dashboard>section.premium-panel,.gamer-premium.negresco-tools .premium-dashboard .premium-busy{grid-row:auto!important;grid-column:auto!important}
 }
+
+
+/* N07.5 — reference finish, driven by matched N07.4 screenshot. */
+.gamer-premium.negresco-tools .premium-stat{border-color:#e59a35;background-image:radial-gradient(ellipse at 50% 115%,#b15e1755,transparent 70%),linear-gradient(145deg,#28180d,#171211);box-shadow:inset 0 1px #ffd07d44,inset 0 -2px #eaa53677,0 0 10px #f0a33524}
+.gamer-premium.negresco-tools .premium-stat.premium-accent-1{border-color:#e55747;background-image:radial-gradient(ellipse at 50% 115%,#b82c235c,transparent 70%),linear-gradient(145deg,#301414,#191112);box-shadow:inset 0 1px #ff827144,inset 0 -2px #e5574777,0 0 10px #ff493024}
+.gamer-premium.negresco-tools .premium-stat small{font-size:12px;font-weight:600}
+.gamer-premium.negresco-tools .premium-stat:hover,.gamer-premium.negresco-tools .premium-diagnostic-card:hover{border-color:#ffd18a}
+.gamer-premium.negresco-tools .premium-stat.premium-accent-1:hover{border-color:#ff9f90}
+.gamer-premium.negresco-tools .premium-panel,.gamer-premium.negresco-tools .negresco-simulator-section{background:linear-gradient(140deg,#211a18,#131213);border-color:#69452e}
+.gamer-premium.negresco-tools .premium-choice[data-game=ats]:has(.negresco-simulator-art):not(.selected){border-color:#e55747;box-shadow:0 0 9px #ff49302e}
+.gamer-premium.negresco-tools .negresco-quick-grid .btn.secondary{background:linear-gradient(145deg,#352419,#1c1817);border-color:#e59a35;box-shadow:inset 0 -1px #e59a3577,0 0 8px #f0a3351f}
+.gamer-premium.negresco-tools .negresco-quick-grid .btn.secondary:nth-child(even){border-color:#e55747;color:#ffd1bb;box-shadow:inset 0 -1px #e5574777,0 0 8px #ff49301f}
+.gamer-premium.negresco-tools .premium-bottom-grid .premium-panel-header{gap:7px}
+.gamer-premium.negresco-tools .premium-bottom-grid .premium-panel-header h2{font-size:16px}
+@media(min-width:1200px){
+ .gamer-premium.negresco-tools .premium-dashboard{grid-template-rows:minmax(92px,auto) auto minmax(145px,auto) auto auto}
+ .gamer-premium.negresco-tools .premium-stat>svg:first-child{width:32px;height:32px}
+ .gamer-premium.negresco-tools .premium-stat strong{font-size:30px}
+ .gamer-premium.negresco-tools .negresco-simulator-section .premium-panel-header{margin-bottom:8px}
+ .gamer-premium.negresco-tools .premium-choice>span:not(.negresco-simulator-status){padding:6px 10px}
+ .gamer-premium.negresco-tools .negresco-quick-grid .btn.secondary{min-height:65px;padding:10px;justify-content:flex-start}
+ .gamer-premium.negresco-tools .negresco-quick-grid .btn.secondary svg{width:26px;height:26px;flex-shrink:0}
+ .gamer-premium.negresco-tools .premium-bottom-grid .premium-panel{padding:10px}
+ .gamer-premium.negresco-tools .premium-bottom-grid .premium-panel-header{margin-bottom:7px}
+ .gamer-premium.negresco-tools .premium-bottom-grid .premium-panel-header .premium-link{flex-basis:100%;text-align:right;padding:2px 0}
+ .gamer-premium.negresco-tools .premium-hero-main[data-approved-art=true] .premium-dashboard{margin-top:18px}
+}
