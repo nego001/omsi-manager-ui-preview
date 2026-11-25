@@ -73,3 +73,18 @@ test('source binding and results are deterministic and immutable',()=>{
  for(const k of ['fullPmxSupport','dependenciesResolved','collisionBehaviorValidated','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
  x.pmg.bytes.writeFloatLE(1,x.pmg.bytes.length-6-12);assert.notEqual(inspect(x).digest,r.digest);
 });
+
+test('PMX repeated material candidate expansion is bounded before serialization',()=>{
+ const count=64,looks=65,h=112,p=h,v=p+count*100,ix=v+count*12,b=Buffer.alloc(ix);
+ b[0]=0x15;b.write('gmP',1);b.writeInt32LE(count,4);
+ for(const [o,val] of [[72,h],[76,h],[80,h],[84,p],[88,v],[96,v],[100,count*12],[104,ix]])b.writeInt32LE(val,o);
+ for(let j=0;j<count;j++){
+  const o=p+j*100;
+  for(const [k,val] of [[4,1],[60,-1],[64,v+j*12],[68,-1],[72,-1],[76,-1],[80,-1],[84,-1],[88,ix],[92,-1],[96,-1]])b.writeInt32LE(val,o+k);
+ }
+ const off=64+looks*8,dataOff=off+looks*4,data=Buffer.from('body.mat\0'),d=Buffer.alloc(dataOff+data.length);
+ for(const [o,val] of [[0,4],[4,1],[8,looks],[12,count],[32,data.length],[36,64],[40,off],[44,off],[48,off],[52,off],[56,off],[60,dataOff]])d.writeUInt32LE(val,o);
+ for(let j=0;j<looks;j++)d.writeUInt32LE(dataOff,off+j*4);data.copy(d,dataOff);
+ const x=input();x.pmd.bytes=d;x.pmg.bytes=b;Object.assign(x.limits,{maxTotalBytes:65536,maxBytes:32768,maxReferences:100});
+ assert.throws(()=>inspect(x),refuse);
+});
