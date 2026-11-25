@@ -5,6 +5,9 @@ on:
       - '.github/workflows/negresco-lock-proposal.yml'
       - 'react-prototype/package.json'
       - 'react-prototype/package-lock.json'
+      - '.gitattributes'
+      - 'react-prototype/scripts/verify-negresco-lock-proposal.mjs'
+      - 'react-prototype/scripts/verify-negresco-lock-proposal.test.mjs'
 permissions:
   contents: read
 concurrency:
@@ -65,8 +68,10 @@ jobs:
         with:
           name: negresco-npm-lock-proposal
           path: react-prototype/lock-proposal
+      - name: Verify lock proposal refusal contracts
+        run: node --test scripts/verify-negresco-lock-proposal.test.mjs
       - name: Verify proposal provenance and use identical lock bytes
-        run: node -e 'const fs=require("node:fs"),crypto=require("node:crypto");const h=n=>crypto.createHash("sha256").update(fs.readFileSync(n)).digest("hex");const r=JSON.parse(fs.readFileSync("lock-proposal/resolution.json","utf8"));if(r.sourceRevision!==process.env.GITHUB_SHA||r.lifecycleScriptsExecuted!==false||r.buildValidated!==false||r.releaseAuthorized!==false||h("package.json")!==r.manifestSha256||h("lock-proposal/package.json")!==r.manifestSha256||h("lock-proposal/package-lock.json")!==r.lockSha256)throw Error("LOCK_PROPOSAL_PROVENANCE_MISMATCH");if(fs.existsSync("package-lock.json")&&h("package-lock.json")!==r.lockSha256)throw Error("TRACKED_LOCK_MISMATCH");fs.copyFileSync("lock-proposal/package-lock.json","package-lock.json")'
+        run: node scripts/verify-negresco-lock-proposal.mjs
       - name: Test clean install without lifecycle scripts
         run: npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/
       - name: Ensure npm did not rewrite the proposal
