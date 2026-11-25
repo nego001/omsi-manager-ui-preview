@@ -1894,3 +1894,33 @@
 .gamer-premium [data-screen=details] .detail-actions .btn:disabled{background:#292a33;border:1px solid #484c5b;color:#a0a3b1;box-shadow:none}
 @media(max-width:1000px){.gamer-premium .premium-detail-layout{gap:16px}}
 @media(max-width:480px){.gamer-premium .premium-detail-layout .detail-copy{padding:10px}.gamer-premium .premium-catalog-toolbar{padding:9px}.gamer-premium .premium-catalog-toolbar .tabs button{flex-basis:100%}.gamer-premium .premium-catalog-summary>span{flex:1 1 100%}}
+
+
+/* R05: administrative screens; actual state and existing action policy preserved. */
+.gamer-premium .premium-admin-heading{background:radial-gradient(ellipse at 100% 0,#435a994d,transparent 65%),linear-gradient(120deg,#15203a,#191b33)}
+.gamer-premium .premium-security-heading{border-color:#47736d;background:radial-gradient(ellipse at 100% 0,#315b5855,transparent 65%),linear-gradient(120deg,#172b33,#171d30)}
+.gamer-premium .premium-queue-empty{padding:36px 18px;background:radial-gradient(ellipse at 50% 0,#30427170,transparent 75%),#151d30;border-color:#465b85}
+.gamer-premium .premium-admin-emblem{display:grid;place-items:center;width:86px;height:86px;border:1px solid #536a9b;border-radius:24px;background:#1d2b48;color:#b5d6ff}
+.gamer-premium .premium-queue-empty .pill{background:#342c25;color:#f4dcb9;border:1px solid #806344}
+.gamer-premium .premium-queue-empty .btn{white-space:normal;max-width:100%;text-align:center}
+.gamer-premium .premium-history-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr)) minmax(0,1.2fr);gap:10px;margin:0 0 14px}
+.gamer-premium .premium-history-summary>div{display:grid;gap:7px;min-width:0;padding:15px;border:1px solid #466391;border-radius:12px;background:radial-gradient(ellipse at 100% 100%,#29558d88,transparent 75%),#17233c;color:#a8d7ff}
+.gamer-premium .premium-history-summary>div:nth-child(2){border-color:#69588d;background:radial-gradient(ellipse at 100% 100%,#65479b88,transparent 75%),#221d39;color:#dfbaff}
+.gamer-premium .premium-history-summary small{font-size:12px;color:#dce6fa;overflow-wrap:anywhere}
+.gamer-premium .premium-history-summary strong{font-size:29px;color:#fff;font-variant-numeric:tabular-nums}
+.gamer-premium .premium-history-summary>p{display:flex;gap:9px;align-items:center;margin:0;padding:15px;border:1px solid #756346;border-radius:12px;background:#282822;color:#f0dfb9;font-size:12px;line-height:1.6}
+.gamer-premium .premium-history-summary>p svg{flex-shrink:0}
+.gamer-premium [data-screen=history] :is(.session-import-review,.session-batch-history,.session-comparison,.session-comparison-review,.session-import-comparison,.local-session-activity){background:#161f32;border-color:#3d5279}
+.gamer-premium [data-screen=history] .local-activity-list li{border-left:3px solid #73b4ff;background:#19243a}
+.gamer-premium [data-screen=history] .premium-operation-history{margin:14px 0;padding:25px 16px;border-color:#495d82}
+.gamer-premium .settings-section-grid .settings-section{padding:18px;background:linear-gradient(145deg,#1b2740,#151d30);border-color:#435980}
+.gamer-premium .premium-settings-title{display:flex;align-items:center;gap:10px;color:#eaf1ff}
+.gamer-premium .premium-settings-title svg{flex-shrink:0;color:#9dccff}
+.gamer-premium .settings-section .switch-row{padding:12px 10px;border:1px solid #3f5073;border-radius:9px;background:#151d30;margin:10px 0}
+.gamer-premium .settings-section .switch-row input{accent-color:#9a9bff}
+.gamer-premium .settings-section .settings-data-scope>div{background:#141e31;border-color:#3f5073}
+.gamer-premium [data-screen=security] .security-card{min-width:0;padding:20px;border-radius:13px;overflow-wrap:anywhere}
+.gamer-premium [data-screen=security] .security-card h3{color:#eef6ff}
+.gamer-premium [data-screen=security] .security-card p{color:#cedbe1}
+@media(max-width:900px){.gamer-premium .premium-history-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.gamer-premium .premium-history-summary>p{grid-column:1/-1}}
+@media(max-width:480px){.gamer-premium .premium-history-summary>div{padding:11px}.gamer-premium .premium-history-summary strong{font-size:24px}.gamer-premium .settings-section-grid .settings-section{padding:12px}}

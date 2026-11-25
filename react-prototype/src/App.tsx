@@ -2174,8 +2174,9 @@ export default function App(){
   <ul className="report-limits">{diagnostic.limitations.map((reason,index)=><li key={index}>{reason}</li>)}</ul>
   <p className="report-footnote"><LockKeyhole size={16}/> Este relatório é informativo. Compatibilidade não verificada. Instalar e remover continuam bloqueados.</p>
  </section></>}
-    {screen==='queue'&&<><div className="page-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty"><Clock3 size={33}/><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span></div></>}
-    {screen==='history'&&<><div className="page-heading"><span className="eyebrow">ATIVIDADES</span><h1 id="history-heading" tabIndex={-1}>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
+    {screen==='queue'&&<><div className="page-heading premium-admin-heading"><span className="eyebrow">CONTROLE DE OPERAÇÕES</span><h1>Fila de tarefas</h1><p>Execução de tarefas permanentemente desabilitada neste protótipo.</p></div><div className="empty premium-queue-empty"><span className="premium-admin-emblem"><Clock3 size={38} aria-hidden="true"/></span><h3>Nenhuma tarefa em execução</h3><p>Não há processos em andamento ou tarefas pendentes.</p><span className="pill">Fila bloqueada por segurança</span><button type="button" className="btn secondary" onClick={()=>goto('security')}><ShieldCheck size={16} aria-hidden="true"/> Consultar proteções da fila</button></div></>}
+    {screen==='history'&&<><div className="page-heading premium-admin-heading"><span className="eyebrow">ATIVIDADES</span><h1 id="history-heading" tabIndex={-1}>Histórico</h1><p>A interface não gera registros de instalação nem simula operações como concluídas.</p></div>
+ <section className="premium-history-summary" aria-label="Indicadores do histórico"><div><History size={23} aria-hidden="true"/><small>Atividades locais da sessão</small><strong>{localActivity.length}</strong></div><div><FileText size={23} aria-hidden="true"/><small>Resumos declarados da sessão</small><strong>{batchHistory.length}</strong></div><p><LockKeyhole size={18} aria-hidden="true"/> Registros temporários, separados de consultas externas. Não são operações de instalação.</p></section>
  <LocalSessionActivity events={localActivity} onClear={()=>{setLocalActivity([]);document.getElementById('history-heading')?.focus({preventScroll:true});}} onLibrary={()=>goto('library')}/>
  <section className="session-import-review" aria-label="Consulta de arquivos exportados">
   <h2>Consultar JSON exportado</h2>
@@ -2262,17 +2263,17 @@ export default function App(){
   </div>
   <small className="session-comparison-note">Somente metadados salvos nesta sessão. Alterações nos alertas declarados não demonstram melhora ou piora real da instalação.</small>
  </section>}
- <div className="empty"><History size={32}/><h3>Sem atividades registradas</h3><p>Quando houver integração validada, somente eventos reais aparecerão aqui.</p></div><SyntheticDiagnosticPreview/></>}
+ <div className="empty premium-operation-history"><History size={32}/><h3>Sem atividades registradas</h3><p>Histórico de operações de instalação e remoção: indisponível nesta prévia. Observações locais e resumos declarados ficam nos painéis acima.</p></div><SyntheticDiagnosticPreview/></>}
     {screen==='settings'&&<>
-     <div className="page-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Organize a aparência e as preferências disponíveis. O acesso aos jogos permanece restrito à prévia somente leitura.</p></div>
+     <div className="page-heading premium-admin-heading"><span className="eyebrow">PERSONALIZAÇÃO</span><h1>Configurações</h1><p>Organize a aparência e as preferências disponíveis. O acesso aos jogos permanece restrito à prévia somente leitura.</p></div>
      <div className="settings-section-grid">
       <section className="settings-panel settings-section" aria-label="Aparência">
-       <h3>Aparência</h3><p>Preferências visuais deste dispositivo.</p>
+       <h3 className="premium-settings-title"><Settings2 size={21} aria-hidden="true"/> Aparência</h3><p>Preferências visuais deste dispositivo.</p>
        <label className="switch-row"><span><strong>Cards compactos</strong><small>Exibir mais itens por linha</small></span><input type="checkbox" checked={dense} onChange={e=>setDense(e.target.checked)}/></label>
        <label className="switch-row"><span><strong>Barra lateral expandida</strong><small>Mostrar nomes das seções</small></span><input type="checkbox" checked={sidebar} onChange={e=>setSidebar(e.target.checked)}/></label>
       </section>
       <section className="settings-panel settings-section" aria-label="Simuladores e descoberta">
-       <h3>Simuladores e descoberta</h3><p>OMSI 2, Euro Truck Simulator 2 e American Truck Simulator.</p>
+       <h3 className="premium-settings-title"><Gamepad2 size={21} aria-hidden="true"/> Simuladores e descoberta</h3><p>OMSI 2, Euro Truck Simulator 2 e American Truck Simulator.</p>
        {typeof window.omsiPreview?.discoverSteam==='function'?<>
         <label className="switch-row"><span><strong>Detectar jogos ao iniciar</strong><small>Consultar locais conhecidos da Steam na próxima abertura, sem inspecionar conteúdo.</small></span><input type="checkbox" checked={discoverAtStartup} onChange={e=>updateStartupDiscovery(e.target.checked)}/></label>
         {startupDiscoveryError&&<p role="alert">{startupDiscoveryError}</p>}
@@ -2280,11 +2281,11 @@ export default function App(){
        <button type="button" className="btn secondary" onClick={()=>goto('games')}>Gerenciar simuladores em Jogos</button>
       </section>
       <section className="settings-panel settings-section" aria-label="Plataforma">
-       <h3>Plataforma</h3>
+       <h3 className="premium-settings-title"><ShieldCheck size={21} aria-hidden="true"/> Plataforma</h3>
        <div className="disabled-integration"><ShieldCheck size={18}/><div><strong>Sistema detectado automaticamente: {osLabel}</strong><small>{runtime?.platformSelection==='automatic'?'Aplicativo portátil com recursos específicos da plataforma, sem configuração manual.':'Somente prévia visual: a identificação nativa exige o aplicativo desktop.'} Instalação e remoção de mods permanecem bloqueadas.</small></div></div>
       </section>
       <section className="settings-panel settings-section" aria-label="Privacidade e dados">
-       <h3>Privacidade e dados</h3>
+       <h3 className="premium-settings-title"><FileText size={21} aria-hidden="true"/> Privacidade e dados</h3>
        <dl className="settings-data-scope">
         <div><dt>Preferências locais</dt><dd>Aparência, favoritos da demonstração e, no desktop compatível, opções de descoberta e preferência Steam.</dd></div>
         <div><dt>Somente na sessão</dt><dd>Inventários locais, referências de comparação e resultados de inspeção.</dd></div>
@@ -2293,14 +2294,14 @@ export default function App(){
        <button type="button" className="btn secondary" onClick={()=>goto('library')}>Rever dados da sessão na Biblioteca</button>
       </section>
       <section className="settings-panel settings-section" aria-label="Integrações e segurança">
-       <h3>Integrações e segurança</h3>
+       <h3 className="premium-settings-title"><LockKeyhole size={21} aria-hidden="true"/> Integrações e segurança</h3>
        <div className="disabled-integration"><LockKeyhole size={18}/><div><strong>Integração somente leitura</strong><small>Inspeção manual de pastas na tela Jogos, sem instalação ou exclusão</small></div></div>
        <p>Leitura do conteúdo, reparo, instalação e remoção de mods reais continuam bloqueados. Não há opção para desativar essas proteções.</p>
        <button type="button" className="btn secondary" onClick={()=>goto('security')}>Abrir central de segurança</button>
       </section>
      </div>
     </>}
-    {screen==='security'&&<><div className="page-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>A inspeção local é manual e só conta entradas diretas de pastas conhecidas, sem ler conteúdo de arquivos.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}
+    {screen==='security'&&<><div className="page-heading premium-admin-heading premium-security-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>A inspeção local é manual e só conta entradas diretas de pastas conhecidas, sem ler conteúdo de arquivos.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}
    </main><footer className="footer"><span>OMSI Manager · Interface React independente</span><span><ShieldCheck size={13}/> Modo demonstração seguro</span></footer>
   </div>{toast&&<div className="toast" role="status"><LockKeyhole size={16}/>{toast}<button aria-label="Fechar aviso" onClick={()=>setToast('')}>×</button></div>}
  </div></>;
