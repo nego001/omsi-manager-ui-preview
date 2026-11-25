@@ -69,8 +69,18 @@ test('controles de navegação e interação permanecem nas laterais visíveis',
 test('reduced motion desativa efeitos de deslocamento decorativos',async({page})=>{
  await page.emulateMedia({reducedMotion:'reduce'});
  await page.goto('/');
- const transition=await page.locator('.game-tile').first().evaluate(el=>getComputedStyle(el).transitionDuration);
- expect(transition).toBe('0s');
+ const homeCard=page.locator('.mod-card').first();
+ await expect(homeCard).toBeVisible();
+ await homeCard.hover();
+ await expect(homeCard).toHaveCSS('transition-duration','0s');
+ await expect(homeCard).toHaveCSS('transform','none');
+ await expect(page.locator('.premium-choice').first()).toHaveCSS('transition-duration','0s');
+ await page.getByRole('navigation',{name:'Navegação principal'}).getByRole('button',{name:'Jogos',exact:true}).click();
+ const gameCard=page.locator('.game-tile').first();
+ await expect(gameCard).toBeVisible();
+ await gameCard.hover();
+ await expect(gameCard).toHaveCSS('transition-duration','0s');
+ await expect(gameCard).toHaveCSS('transform','none');
 });
 
 test('atalho de pular não encobre a interface depois que o foco muda',async({page})=>{

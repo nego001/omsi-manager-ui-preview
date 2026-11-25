@@ -1740,7 +1740,7 @@
 .gamer-premium .premium-hero-main .game-cover img{object-fit:cover;object-position:70% center}
 .gamer-premium .premium-hero-main .game-cover .cover-fallback{opacity:0}
 .premium-hero-main:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#091225 0%,#0c152aef 29%,#0c152a9c 64%,#11182d20)}
-.gamer-premium .premium-hero h1{font-size:13px;letter-spacing:0;font-weight:600;margin:10px 0 6px;color:#d3dff7;line-height:1.4}
+.gamer-premium .premium-hero h1{font-size:clamp(24px,2vw,30px);letter-spacing:-.35px;font-weight:650;margin:10px 0 6px;color:#d3dff7;line-height:1.25;overflow-wrap:anywhere}
 .gamer-premium .premium-hero .featured-game-name{font-size:clamp(27px,4vw,54px);font-weight:850;letter-spacing:-1px;max-width:100%;margin:4px 0 8px;overflow-wrap:anywhere;color:#fff}
 .gamer-premium .premium-hero .eyebrow{display:inline-block;border:1px solid #4181b2;border-radius:6px;background:#112f4b;color:#abebff;padding:5px 8px;letter-spacing:.7px}
 .gamer-premium .premium-hero p{font-size:13px;color:#e1e8f8;max-width:360px;line-height:1.55}
@@ -1924,3 +1924,6 @@
 .gamer-premium [data-screen=security] .security-card p{color:#cedbe1}
 @media(max-width:900px){.gamer-premium .premium-history-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.gamer-premium .premium-history-summary>p{grid-column:1/-1}}
 @media(max-width:480px){.gamer-premium .premium-history-summary>div{padding:11px}.gamer-premium .premium-history-summary strong{font-size:24px}.gamer-premium .settings-section-grid .settings-section{padding:12px}}
+
+/* Reduced motion: remove displacement, not just its transition. */
+@media(prefers-reduced-motion:reduce){.gamer-premium :is(.game-tile,.mod-card):hover{transform:none!important}.gamer-premium :is(.premium-choice,.premium-stat,.nav-link){transition:none!important}}
