@@ -5,7 +5,7 @@ test('o destaque alterna simuladores e mantém somente uma capa por vez',async({
  const hero=page.getByRole('region',{name:'Destaque de simuladores'});
  await expect(hero).toBeVisible();
  await expect(hero.locator('.hero-spotlight-art .game-cover')).toHaveCount(1);
- const choices=hero.getByRole('group',{name:'Escolher simulador em destaque'});
+ const choices=page.getByRole('group',{name:'Escolher simulador em destaque'});
  const omsi=choices.getByRole('button',{name:'Mostrar OMSI 2 no destaque'});
  const ets2=choices.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'});
  const ats=choices.getByRole('button',{name:'Mostrar American Truck Simulator no destaque'});
@@ -25,7 +25,7 @@ test('o destaque alterna simuladores e mantém somente uma capa por vez',async({
 test('abrir catálogo pelo destaque filtra pelo jogo selecionado e não instala nada',async({page})=>{
  await page.goto('/');
  const hero=page.getByRole('region',{name:'Destaque de simuladores'});
- await hero.getByRole('group',{name:'Escolher simulador em destaque'}).getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).click();
+ await page.getByRole('group',{name:'Escolher simulador em destaque'}).getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'}).click();
  await hero.getByRole('button',{name:'Ver mods de Euro Truck Simulator 2'}).click();
  await expect(page.getByRole('heading',{name:'Catálogo de mods'})).toBeVisible();
  await expect(page.getByText('2 resultados')).toBeVisible();
@@ -40,13 +40,13 @@ test('seletor do destaque é utilizável pelo teclado e não se perde no menu co
  await page.goto('/');
  await page.getByRole('button',{name:'Alternar menu'}).click();
  const hero=page.getByRole('region',{name:'Destaque de simuladores'});
- const ats=hero.getByRole('button',{name:'Mostrar American Truck Simulator no destaque'});
+ const ats=page.getByRole('group',{name:'Escolher simulador em destaque'}).getByRole('button',{name:'Mostrar American Truck Simulator no destaque'});
  await ats.focus();
  await page.keyboard.press('Enter');
  await expect(ats).toHaveAttribute('aria-pressed','true');
  await expect(hero.getByRole('heading',{name:'American Truck Simulator'})).toBeVisible();
  await page.keyboard.press('Shift+Tab');
- await expect(hero.getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'})).toBeFocused();
+ await expect(page.getByRole('group',{name:'Escolher simulador em destaque'}).getByRole('button',{name:'Mostrar Euro Truck Simulator 2 no destaque'})).toBeFocused();
  await page.keyboard.press('Space');
  await expect(hero.getByRole('heading',{name:'Euro Truck Simulator 2'})).toBeVisible();
 });
