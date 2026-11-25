@@ -1303,7 +1303,7 @@ export default function App(){
    <div className="sidebar-bottom"><div className="safety-status"><ShieldCheck size={17}/><span>Modo seguro ativo</span></div><small>Sem leitura de conteúdo ou alterações nos jogos</small></div>
   </aside>
   <div className="workspace"><header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" aria-label="Alternar menu" onClick={()=>setSidebar(v=>!v)}><Menu size={20}/></button><div className="breadcrumb">OMSI Manager <ChevronRight size={13}/> <strong>{title}</strong></div></div><div className="top-actions"><label className="search"><Search size={17}/><input placeholder={screen==='library'?'Buscar favoritos...':'Buscar mods...'} aria-label={screen==='library'?'Buscar favoritos':'Buscar mods'} value={screen==='library'?librarySearch:search} onChange={e=>screen==='library'?setLibrarySearch(e.target.value.slice(0,100)):setSearch(e.target.value.slice(0,100))} onFocus={()=>screen!=='catalog'&&screen!=='library'&&goto('catalog',true)}/></label><span className="mode-indicator"><LockKeyhole size={13}/> Protótipo</span></div></header>
-   <main id="conteudo-principal" tabIndex={-1} className="content">
+   <main id="conteudo-principal" tabIndex={-1} className="content" data-screen={screen}>
     {screen==='home'&&<>
      <section className="hero hero-spotlight premium-hero" aria-label="Destaque de simuladores" style={{'--spotlight':games[featuredGame].color} as React.CSSProperties}>
       <div className="premium-hero-main" data-game={featuredGame}>
@@ -1749,7 +1749,7 @@ export default function App(){
   {catalogSort!=='catalog'&&<button type="button" aria-label="Remover ordenação do catálogo" onClick={event=>removeCatalogFilterChip(event,()=>setCatalogSort('catalog'))}>Ordem: {catalogSort==='title'?'Nome (A–Z)':'Jogo e nome'} <span aria-hidden="true">×</span></button>}
  </div>}
  {filtered.length?modCards(filtered):<div className="empty catalog-empty-filter"><Search size={28}/><h3>Nenhum mod corresponde aos filtros.</h3><p>Os metadados do catálogo continuam disponíveis. Limpe a pesquisa, o jogo e a categoria para vê-los novamente.</p><button type="button" className="btn secondary" onClick={resetCatalogFiltersWithFocus}>Mostrar todos os mods</button></div>}</>}
-    {screen==='library'&&<><div className="page-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>{catalogSource==='Demonstração'?
+    {screen==='library'&&<><div className="page-heading premium-library-heading"><span className="eyebrow">COLEÇÃO PESSOAL</span><h1>Minha biblioteca</h1><p>{catalogSource==='Demonstração'?
   'Favoritos da demonstração ficam salvos neste navegador.':
   'Favoritos do catálogo importado duram apenas esta sessão e não voltam ao reiniciar.'}
   {' '}Filtre por simulador e categoria. São apenas metadados: não detectamos instalação nem compatibilidade real.</p>
@@ -1767,17 +1767,23 @@ export default function App(){
    </button>}
   </div>
  </div>
+ <section className="library-summary premium-library-summary" aria-label="Resumo da biblioteca"><div><Library size={22} aria-hidden="true"/><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><Gamepad2 size={22} aria-hidden="true"/><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={20} aria-hidden="true"/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
+ <div className="premium-library-shortcuts" role="group" aria-label="Atalhos de conteúdo e diagnóstico">
+  <button type="button" className="btn secondary" onClick={()=>document.getElementById('premium-diagnostic-heading')?.focus()}><ShieldCheck size={18} aria-hidden="true"/> Ir ao diagnóstico local <ChevronRight size={15} aria-hidden="true"/></button>
+  {inspectorAvailable&&<button type="button" className="btn secondary" onClick={()=>document.getElementById('local-inventory-heading')?.focus()}><Library size={18} aria-hidden="true"/> Ir ao conteúdo local <ChevronRight size={15} aria-hidden="true"/></button>}
+  <button type="button" className="btn secondary" onClick={()=>goto('games')}><Gamepad2 size={18} aria-hidden="true"/> Abrir inspeções de jogos <ChevronRight size={15} aria-hidden="true"/></button>
+ </div>
  <LocalDiagnosticCenter inspections={inspections} available={!!inspectorAvailable} busy={inspecting!==null||discovering} onGames={()=>goto('games')}/>
  {inspectorAvailable&&<LocalInventoryLibrary inspections={inspections} busy={inspecting!==null||discovering} onOpenGames={()=>goto('games')} reference={localReference} onReference={changeLocalReference} onClear={()=>{setInspections({});setLocalReference(null);setLocalActivity([]);}}/>}
  <OmsiDependencyPreview hasLocalInventory={!!inspectorAvailable}/>
- <section className="library-summary" aria-label="Resumo da biblioteca"><div><small>Favoritos</small><strong>{favoriteMods.length}</strong></div><div><small>Simuladores nos favoritos</small><strong>{new Set(favoriteMods.map(m=>m.game)).size}</strong></div><div className="library-trust"><LockKeyhole size={16}/><span>Arquivos dos mods não inspecionados. Status real desconhecido.</span></div></section>
+ 
  {favoriteMods.length>0&&<section className="library-by-game" aria-label="Resumo de favoritos por simulador">
    <div className="library-by-game-heading">
     <strong>Favoritos por simulador</strong>
     <span>Contagem de toda a coleção, independente dos filtros. Tamanhos apenas declarados.</span>
    </div>
    <div className="library-by-game-grid">
-    {libraryGameSummary.map(group=><button key={group.game} type="button"
+    {libraryGameSummary.map(group=><button key={group.game} type="button" data-game={group.game}
      aria-label={'Filtrar favoritos de '+games[group.game].title}
      aria-pressed={libraryGame===group.game}
      onClick={()=>setLibraryGame(current=>current===group.game?'all':group.game)}>

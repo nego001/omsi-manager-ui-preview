@@ -1829,3 +1829,32 @@
 .gamer-premium :is(.nav-link,.premium-choice,.premium-stat,.premium-link,.premium-diagnostic-card,.btn):focus-visible{outline:2px solid #c3d8ff;outline-offset:2px}
 @media(max-width:480px){.gamer-premium .page-heading{padding:14px}.gamer-premium .premium-hero-main .game-cover{background-position:65% center}}
 @media(prefers-reduced-motion:reduce){.gamer-premium :is(.game-tile,.mod-card,.premium-choice){transition:none}}
+
+
+/* R03: library presentation only; keep local observations, favorites and labs distinct. */
+.gamer-premium [data-screen=library] .premium-library-heading{background:linear-gradient(90deg,#111a2ef7 0%,#171e35e8 55%,#15213ba8),url('./art/premium-omsi.svg') right center/cover;border-color:#486ca4}
+.gamer-premium .premium-library-summary{grid-template-columns:repeat(2,minmax(0,1fr)) minmax(0,1.5fr);margin:0 0 12px;gap:10px}
+.gamer-premium .premium-library-summary>div:not(.library-trust){position:relative;padding:16px;background:radial-gradient(ellipse at 100% 100%,#29558d88,transparent 75%),#17233c;border-color:#41628f}
+.gamer-premium .premium-library-summary>div:nth-child(2){background:radial-gradient(ellipse at 100% 100%,#65479b88,transparent 75%),#221d39;border-color:#69588d}
+.gamer-premium .premium-library-summary>div:not(.library-trust)>svg{color:#a7d7ff}
+.gamer-premium .premium-library-summary>div:nth-child(2)>svg{color:#dfbaff}
+.gamer-premium .premium-library-summary strong{font-size:29px;color:#fff}
+.gamer-premium .premium-library-summary small{color:#dce6fa}
+.gamer-premium .premium-library-summary .library-trust{background:#282822;border-color:#756346;color:#f0dfb9}
+.gamer-premium .premium-library-summary .library-trust svg{flex-shrink:0}
+.gamer-premium .premium-library-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.gamer-premium .premium-library-shortcuts .btn{flex:1 1 190px;min-width:0;min-height:44px;white-space:normal;text-align:left;justify-content:flex-start}
+.gamer-premium .premium-library-shortcuts .btn svg{flex-shrink:0}
+.gamer-premium .premium-library-shortcuts .btn svg:last-child{margin-left:auto}
+.gamer-premium [data-screen=library] :is(.library-toolbar,.library-inventory-export,.library-inventory-review,.library-batch,.library-size-quick-filters,.library-declared-size-summary){background:#161f32;border-color:#3d5279}
+.gamer-premium [data-screen=library] :is(.library-toolbar select,.local-inventory-toolbar select,.local-inventory-toolbar input,.library-toolbar .library-selected-only){background:#202b43;border-color:#52698f;color:#ecf2ff}
+.gamer-premium [data-screen=library] .library-by-game-grid button[data-game=omsi]{--library-art:url('./art/premium-omsi.svg')}
+.gamer-premium [data-screen=library] .library-by-game-grid button[data-game=ets2]{--library-art:url('./art/premium-ets2.svg')}
+.gamer-premium [data-screen=library] .library-by-game-grid button[data-game=ats]{--library-art:url('./art/premium-ats.svg')}
+.gamer-premium [data-screen=library] .library-by-game-grid button[data-game]{min-height:118px;background:linear-gradient(90deg,#111a2ff7,#172137df 70%,#16243caa),var(--library-art) right center/cover;border-color:#4b638c}
+.gamer-premium [data-screen=library] .library-by-game-grid button[data-game][aria-pressed=true]{border-color:#9cc8ff;box-shadow:inset 3px 0 #63c7ff}
+.gamer-premium [data-screen=library] .library-by-game-grid button[data-game]:hover{border-color:#9cc8ff}
+.gamer-premium [data-screen=library] :is(.library-empty,.library-empty-filter){border-color:#4a6089;background:radial-gradient(ellipse at 50% 0,#293a6566,transparent 80%),#151d30}
+.gamer-premium [data-screen=library] :is(#local-inventory-heading,#premium-diagnostic-heading):focus{outline:2px solid #b8c7ff;outline-offset:3px;scroll-margin-top:80px}
+@media(max-width:900px){.gamer-premium .premium-library-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.gamer-premium .premium-library-summary .library-trust{grid-column:1/-1}}
+@media(max-width:480px){.gamer-premium .premium-library-summary>div:not(.library-trust){padding:12px}.gamer-premium .premium-library-summary strong{font-size:24px}}
