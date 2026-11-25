@@ -1712,3 +1712,90 @@
  :root{--session-space:12px;--session-gap:8px}
  :is(.local-inventory-panel,.config-metadata-panel,.config-demo-panel,.simulator-session-overview,.local-diagnostic-center,.local-session-activity) .library-by-game-heading{flex-direction:column;align-items:flex-start}
 }
+
+/* R01: Gamer Premium design proposal, scoped to the new shell. */
+.gamer-premium{--frame:#101322;--panel:#171d30;--panel-hover:#222c46;--edge:#344364;--muted:#bdc8dd;--accent:#e4ecff;background:#090d19;color:#f3f6ff}
+.gamer-premium .sidebar{background:radial-gradient(ellipse at 0 0,#27366c 0%,transparent 35%),radial-gradient(ellipse at 0 100%,#293970 0%,transparent 36%),#101425;border-right:1px solid #38456b}
+.gamer-premium .brand{padding-top:25px;padding-bottom:25px}
+.gamer-premium .brand-mark{color:#53d0ff;background:#182944;border-color:#426da6;box-shadow:0 0 18px #177efb45}
+.gamer-premium .brand-mark svg{width:30px;height:30px}
+.gamer-premium .brand strong span{color:#9fa4ff}
+.gamer-premium .brand small{color:#bac5df;letter-spacing:.7px}
+.gamer-premium .nav-caption{color:#b5c3df}
+.gamer-premium .nav-link{color:#d0d9ed;min-height:43px}
+.gamer-premium .nav-link.active{background-color:#263760;background-image:linear-gradient(105deg,#244b8f,#332458);box-shadow:inset 3px 0 #54d1ff,inset 0 0 0 1px #6c73c4;color:#fff}
+.gamer-premium .nav-link.active svg{color:#b7eaff}
+.gamer-premium .sidebar-bottom{color:#b2c0de}
+.gamer-premium .topbar{background:#101425;border-color:#2f3e60}
+.gamer-premium .breadcrumb{color:#b9c6de}
+.gamer-premium .mode-indicator{color:#c2e4d2;background:#202e2c}
+.gamer-premium .footer{color:#b2c0da}
+.gamer-premium .content{padding-top:20px}
+.gamer-premium .btn.primary{color:white;background:#3157b3;background-image:linear-gradient(110deg,#235cb2,#6037a5);border:1px solid #739de8}
+.gamer-premium .premium-hero{display:grid;grid-template-columns:minmax(0,1.95fr) minmax(0,1fr);min-height:0;padding:0;gap:12px;border:0;background:transparent;border-radius:0;overflow:visible;align-items:stretch}
+.gamer-premium .premium-hero:before{display:none}
+.premium-hero-main{position:relative;isolation:isolate;overflow:hidden;min-width:0;border:1px solid #427ab8;border-radius:13px;padding:22px;background:#111d39;box-shadow:0 0 18px #297bee25}
+.gamer-premium .premium-hero-main .hero-spotlight-art{position:absolute;inset:0;display:block;z-index:-1}
+.gamer-premium .premium-hero-main .game-cover{position:absolute;inset:0;width:100%;height:100%;transform:none;border-radius:0;box-shadow:none;background:radial-gradient(ellipse at 80% 70%,#30528a,#15203a 55%,#0d1428)}
+.gamer-premium .premium-hero-main .game-cover img{object-fit:cover;object-position:70% center}
+.gamer-premium .premium-hero-main .game-cover .cover-fallback{opacity:0}
+.premium-hero-main:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#091225 0%,#0c152aef 29%,#0c152a9c 64%,#11182d20)}
+.gamer-premium .premium-hero h1{font-size:13px;letter-spacing:0;font-weight:600;margin:10px 0 6px;color:#d3dff7;line-height:1.4}
+.gamer-premium .premium-hero .featured-game-name{font-size:clamp(27px,4vw,54px);font-weight:850;letter-spacing:-1px;max-width:100%;margin:4px 0 8px;overflow-wrap:anywhere;color:#fff}
+.gamer-premium .premium-hero .eyebrow{display:inline-block;border:1px solid #4181b2;border-radius:6px;background:#112f4b;color:#abebff;padding:5px 8px;letter-spacing:.7px}
+.gamer-premium .premium-hero p{font-size:13px;color:#e1e8f8;max-width:360px;line-height:1.55}
+.gamer-premium .premium-hero .hero-actions{gap:8px;margin-top:14px}
+.gamer-premium .premium-hero-secondary{margin-top:7px}
+.gamer-premium .premium-hero-secondary .btn{min-height:30px;font-size:11px;padding:6px 8px}
+.gamer-premium .premium-selector{display:flex;flex-direction:column;gap:8px;min-width:0;margin:0}
+.gamer-premium .premium-choice{flex:1;min-width:0;position:relative;isolation:isolate;overflow:hidden;display:flex;justify-content:space-between;align-items:center;text-align:left;gap:10px;border-radius:12px;padding:15px 14px;color:#fff;font-size:clamp(14px,1.5vw,20px);font-weight:750;background-color:#17243f;background-image:linear-gradient(90deg,#101a2ef2,#141c32a8,#141c3255),url('https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/252530/library_hero.jpg');background-size:cover;background-position:center;border-color:#466189;overflow-wrap:anywhere}
+.gamer-premium .premium-choice[data-game=ets2]{background-image:linear-gradient(90deg,#101a2ef2,#141c32a8,#141c3255),url('https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/227300/library_hero.jpg')}
+.gamer-premium .premium-choice[data-game=ats]{background-image:linear-gradient(90deg,#1d1735f2,#211c38a8,#211c3855),url('https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/270880/library_hero.jpg')}
+.gamer-premium .premium-choice.selected{flex:0 0 auto;padding:8px 12px;font-size:12px;background:#253c66;color:#e4f2ff;border-color:#6aa5db}
+.premium-choice svg{flex-shrink:0}
+.premium-dashboard{display:grid;gap:12px;margin-top:14px;min-width:0}
+.premium-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.premium-stat{position:relative;display:flex;align-items:center;gap:12px;min-width:0;padding:13px;text-align:left;border:1px solid #3d5c87;border-radius:11px;background-color:#16233c;background-image:radial-gradient(ellipse at 100% 120%,#215d9c88,transparent 65%);color:#6acfff}
+.premium-stat.premium-accent-1{color:#d8a5ff;border-color:#68508b;background-color:#211c39;background-image:radial-gradient(ellipse at 100% 120%,#654bb088,transparent 65%)}
+.premium-stat>svg{flex-shrink:0}
+.premium-stat span{min-width:0;display:grid;gap:4px}
+.premium-stat small{font-size:11px;line-height:1.4;color:#e0e8fa;overflow-wrap:anywhere}
+.premium-stat strong{font-size:27px;line-height:1.1;color:#fff;font-variant-numeric:tabular-nums}
+.premium-stat-arrow{margin-left:auto}
+.premium-panel{min-width:0;padding:13px;border:1px solid #344364;border-radius:12px;background:#141a2c;overflow-wrap:anywhere}
+.premium-panel-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;color:#71c9ff}
+.premium-panel-header>svg{flex-shrink:0}
+.premium-panel-header>div{flex:1;min-width:0}
+.premium-panel-header h2{color:#f3f6ff;font-size:17px;margin:0;line-height:1.3}
+.premium-panel-header p,.premium-panel-note{font-size:11px;color:#c3cde0;margin:3px 0 0;line-height:1.5}
+.premium-link{display:flex;align-items:center;gap:3px;max-width:100%;border:0;background:none;color:#a9dcff;font-size:11px;text-align:left;padding:7px}
+.premium-local-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.premium-local-card{border:1px solid #405276;background:#10182a;border-radius:9px;min-width:0;overflow:hidden}
+.premium-local-art{height:62px;display:grid;place-items:center;background:radial-gradient(ellipse at 70% 90%,#2966a4,#15243c 80%);color:#91d9ff}
+.premium-local-art.package{background:radial-gradient(ellipse at 70% 90%,#64409a,#211d38 80%);color:#dfbaff}
+.premium-local-info{display:grid;gap:5px;padding:9px;min-width:0}
+.premium-local-info strong{font-size:13px;overflow-wrap:anywhere}
+.premium-local-info small{font-size:10px;color:#c1cce1}
+.premium-local-info span{width:fit-content;max-width:100%;font-size:10px;padding:3px 5px;border:1px solid #4d7097;border-radius:5px;color:#c5e8ff}
+.premium-empty{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:13px;border:1px dashed #425578;border-radius:9px;color:#b7dfff}
+.premium-empty>div{flex:1 1 170px;min-width:0}
+.premium-empty p{color:#c4cfe1;font-size:12px;margin:5px 0;line-height:1.5}
+.premium-empty .btn{max-width:100%;white-space:normal}
+.premium-bottom-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:12px}
+.premium-diagnostic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.premium-diagnostic-card{display:grid;gap:8px;min-width:0;text-align:left;padding:9px;border:1px solid #455e8a;border-left:3px solid #61b5ff;border-radius:8px;background:#19243a;color:#eef4ff;overflow-wrap:anywhere}
+.premium-diagnostic-card>span{display:flex;align-items:center;gap:7px;font-size:13px}
+.premium-diagnostic-card>span svg{flex-shrink:0;color:#a4cfff}
+.premium-diagnostic-card small{padding:5px;border-radius:5px;background:#273247;color:#d0def2;font-size:10px;line-height:1.4}
+.premium-diagnostic-card small[data-state=partial],.premium-diagnostic-card small[data-state=unavailable],.premium-diagnostic-card small[data-state=unrecognized]{background:#382e24;color:#ffdfaa}
+.premium-diagnostic-card small[data-state=observed]{background:#193c37;color:#a7efd5}
+.premium-events{display:grid;gap:6px;list-style:none;padding:0;margin:0}
+.premium-events li{display:flex;align-items:center;gap:9px;background:#1b253a;border:1px solid #34415c;border-radius:7px;padding:8px;color:#b1d9ff}
+.premium-events li svg{flex-shrink:0}
+.premium-events li span{min-width:0;display:grid;gap:4px}
+.premium-events strong{font-size:11px;color:#e9eef9}
+.premium-events small,.premium-empty-activity,.premium-busy{font-size:11px;color:#c6d2e8}
+#premium-diagnostic-heading:focus{outline:2px solid #b8c7ff;outline-offset:3px;scroll-margin-top:80px}
+@media(max-width:1100px){.premium-stat-arrow{display:none}.premium-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.premium-bottom-grid{grid-template-columns:1fr}}
+@media(max-width:760px){.gamer-premium .premium-hero{grid-template-columns:1fr}.gamer-premium .premium-selector{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.gamer-premium .premium-choice,.gamer-premium .premium-choice.selected{font-size:11px;padding:9px;min-height:46px}.premium-choice svg{display:none}.premium-local-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.premium-hero-main{padding:14px}.gamer-premium .premium-hero .hero-actions .btn{max-width:100%;white-space:normal}.premium-stat{padding:9px;gap:7px}.premium-stat>svg{width:20px}.premium-stat strong{font-size:22px}.premium-diagnostic-grid{grid-template-columns:1fr}.premium-panel{padding:10px}.premium-panel-header>div{flex-basis:120px}}
