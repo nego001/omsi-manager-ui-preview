@@ -65,3 +65,47 @@ test('audio evidence immutable, deterministic and not playback authorization',()
  for(const k of ['codecPayloadValidated','samplesDecoded','audioPlayed','fullAudioSupport','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
  x.bytes.fill(0);assert.equal(r.sampleCount,100);
 });
+
+function vorbis({channels=2,rate=44100,granule=44100,block=0xb8,setupType=5}={}){
+ const id=Buffer.alloc(30);id[0]=1;id.write('vorbis',1);id[11]=channels;id.writeUInt32LE(rate,12);id.writeInt32LE(128000,20);id[28]=block;id[29]=1;
+ const tags=Buffer.alloc(16);tags[0]=3;tags.write('vorbis',1);tags[15]=1;
+ const setup=Buffer.concat([Buffer.from([setupType]),Buffer.from('vorbis'),Buffer.from([0])]);
+ return [page(0,2,0,[id]),page(1,0,0,[tags]),page(2,0,0,[setup]),page(3,4,granule,[Buffer.from([0,2,4])])];
+}
+function mp3frame({v=3,br=9,sr=0,pad=0,mono=false}={}){
+ const rates=v===3?[0,32,40,48,56,64,80,96,112,128,160,192,224,256,320]:[0,8,16,24,32,40,48,56,64,80,96,112,128,144,160];
+ const rate=[44100,48000,32000][sr]/(v===3?1:v===2?2:4);
+ const b=Buffer.alloc(Math.floor((v===3?144000:72000)*rates[br]/rate)+pad);
+ b.writeUInt32BE((0xffe00000|(v<<19)|(1<<17)|(1<<16)|(br<<12)|(sr<<10)|(pad<<9)|(mono?3<<6:0))>>>0);return b;
+}
+test('Ogg Vorbis identification, comment and opaque setup packet framing',()=>{
+ const r=inspect(input('ogg',Buffer.concat(vorbis())));
+ assert.equal(r.codec,'vorbis');assert.equal(r.sampleRate,44100);assert.equal(r.nominalBitrate,128000);
+ assert.equal(r.durationSeconds,1);assert.equal(r.durationBasis,'declared-end-granule');assert.equal(r.codecPayloadValidated,false);
+});
+test('Vorbis unsupported headers, block exponents and codec extension refused',()=>{
+ for(const opts of [{channels:0},{rate:0},{block:0x55},{block:0x69},{setupType:7},{granule:0}])assert.throws(()=>inspect(input('ogg',Buffer.concat(vorbis(opts)))),refuse);
+ assert.throws(()=>inspect(input('opus',Buffer.concat(vorbis()))),refuse);
+ const a=vorbis();a.pop();assert.throws(()=>inspect(input('ogg',Buffer.concat(a))),refuse);
+});
+test('MPEG 1 Layer III CBR and padding counted without decoding',()=>{
+ const r=inspect(input('mp3',Buffer.concat([mp3frame(),mp3frame({pad:1})])));
+ assert.equal(r.codec,'mpeg-layer-3');assert.equal(r.nominalBitrate,128000);assert.equal(r.frameCount,2);
+ assert.equal(r.sampleCount,2304);assert.equal(r.durationSeconds,2304/44100);assert.equal(r.codecPayloadValidated,false);
+});
+test('MPEG 2 and 2.5 mono frame rates and variable bitrate',()=>{
+ for(const [v,rate] of [[2,22050],[0,11025]]){
+  const r=inspect(input('mp3',Buffer.concat([mp3frame({v,mono:true}),mp3frame({v,br:8,mono:true})])));
+  assert.equal(r.channels,1);assert.equal(r.sampleRate,rate);assert.equal(r.nominalBitrate,null);assert.equal(r.sampleCount,1152);
+ }
+});
+test('MP3 malformed headers, changed rate or channels, tags and truncation refused',()=>{
+ const f=mp3frame();
+ for(const offset of [0,1,2]){const b=Buffer.from(f);b[offset]=0;assert.throws(()=>inspect(input('mp3',b)),refuse);}
+ for(const b of [f.subarray(0,-1),Buffer.concat([f,Buffer.from('TAG')]),Buffer.concat([f,mp3frame({sr:1})]),Buffer.concat([f,mp3frame({mono:true})]),Buffer.concat([Buffer.from('ID3'),f])])assert.throws(()=>inspect(input('mp3',b)),refuse);
+});
+test('MP3 sample and frame budgets enforced',()=>{
+ const b=Buffer.concat([mp3frame(),mp3frame()]);
+ assert.throws(()=>inspect(input('mp3',b,{maxChunks:1})),refuse);
+ assert.throws(()=>inspect(input('mp3',b,{maxSamples:1152})),refuse);
+});
