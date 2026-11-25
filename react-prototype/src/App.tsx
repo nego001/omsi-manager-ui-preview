@@ -41,6 +41,7 @@ import {summarizeDeclaredStatus,type DeclaredStatusKind} from './library-declare
 import type {FolderInspection} from './inspection-types';
 import type {LocalObservation} from './local-inventory-comparison.mjs';
 import {PremiumDashboard} from './PremiumDashboard';
+import {summarizeLocalDiagnostics} from './local-diagnostic-summary.mjs';
 import {SimulatorSessionOverview} from './SimulatorSessionOverview';
 import {appendLocalActivity,type LocalActivity,type LocalActivityAction} from './local-session-activity.mjs';
 import {LocalSessionActivity} from './LocalSessionActivity';
@@ -185,6 +186,7 @@ export default function App(){
  const [catalogError,setCatalogError]=useState('');
  const [pendingCatalogReplacement,setPendingCatalogReplacement]=useState<PendingCatalogReplacement|null>(null);
  const [inspections,setInspections]=useState<Partial<Record<GameId,FolderInspection>>>({});
+ const localSummary=useMemo(()=>summarizeLocalDiagnostics(inspections),[inspections]);
  const [localReference,setLocalReference]=useState<LocalObservation|null>(null);
  const [localActivity,setLocalActivity]=useState<LocalActivity[]>([]);
  function recordLocalActivity(game:GameId,action:LocalActivityAction){
@@ -1330,7 +1332,11 @@ export default function App(){
 
      </section>
      <PremiumDashboard simulatorCards={<div className="featured-selector premium-selector" role="group" aria-label="Escolher simulador em destaque">
-       {(Object.keys(games) as GameId[]).map(id=><button type="button" key={id} aria-label={'Mostrar '+games[id].title+' no destaque'} aria-pressed={featuredGame===id} className={'featured-choice premium-choice '+(featuredGame===id?'selected':'')} data-game={id} onClick={()=>setFeaturedGame(id)}>{approvedArt[id]&&<img src={approvedArt[id]} alt="" className="negresco-simulator-art"/>}<span>{games[id].title}</span><ChevronRight size={18}/></button>)}
+       {(Object.keys(games) as GameId[]).map(id=>{
+        const state=localSummary.rows.find(row=>row.game===id)?.state??'unknown';
+        const status={unknown:'Não inspecionado',unavailable:'Inspeção indisponível',unrecognized:'Estrutura não reconhecida',partial:'Observação parcial',observed:'Estrutura observada'}[state];
+        return <button type="button" key={id} aria-label={'Mostrar '+games[id].title+' no destaque'} aria-pressed={featuredGame===id} className={'featured-choice premium-choice '+(featuredGame===id?'selected':'')} data-game={id} onClick={()=>setFeaturedGame(id)}>{approvedArt[id]&&<img src={approvedArt[id]} alt="" className="negresco-simulator-art"/>}<span>{games[id].title}</span><span className="negresco-simulator-status" data-state={state}><span className="negresco-state-dot" aria-hidden="true"/><small>{status}</small><small className="negresco-select-label">{featuredGame===id?'Selecionado':'Selecionar'}</small></span><ChevronRight size={18}/></button>;
+       })}
       </div>} inspections={inspections} events={localActivity} busy={inspecting!==null||discovering} onLibrary={()=>goto('library')} onDiagnostic={()=>{premiumDiagnosticJump.current=true;goto('library')}} onHistory={()=>goto('history')} onGames={()=>goto('games')}/>
      <div className="section-title"><h2>Descobrir mods</h2><button className="link" onClick={()=>goto('games')}>Ver jogos <ChevronRight size={14}/></button></div>{modCards(catalogMods.slice(0,4))}
     </>}
@@ -2305,7 +2311,7 @@ export default function App(){
      </div>
     </>}
     {screen==='security'&&<><div className="page-heading premium-admin-heading premium-security-heading"><span className="eyebrow">PROTEÇÃO DO AMBIENTE</span><h1>Central de segurança</h1><p>As ações destrutivas estão inacessíveis por projeto.</p></div><div className="security-grid"><div className="security-card"><CheckCircle2 size={25}/><h3>Modo somente leitura</h3><p>A inspeção local é manual e só conta entradas diretas de pastas conhecidas, sem ler conteúdo de arquivos.</p></div><div className="security-card"><LockKeyhole size={25}/><h3>Instalação bloqueada</h3><p>Não existe comando de instalação nem execução em segundo plano.</p></div><div className="security-card"><ShieldCheck size={25}/><h3>Desinstalação bloqueada</h3><p>Não há mecanismo capaz de apagar arquivos de jogos.</p></div><div className="security-card warning"><AlertTriangle size={25}/><h3>Testes pendentes</h3><p>Restam validações de integridade, backup, rollback, limites de caminho e permissões.</p></div></div><button className="btn secondary" onClick={notice}>Verificar disponibilidade das operações</button></>}
-   </main><footer className="footer"><span>Negresco Tools · Prévia de simuladores</span><span><ShieldCheck size={13}/> Modo demonstração seguro</span></footer>
+   </main><footer className="footer"><span>Negresco Tools · Prévia de simuladores</span><div className="negresco-footer-facts" aria-label="Resumo da sessão"><span>{localSummary.rows.length} simuladores suportados</span><span>{localSummary.observedGames} observados</span><span>{localSummary.rows.reduce((total,row)=>total+row.names,0)} nomes locais</span></div><span><ShieldCheck size={13}/> Modo demonstração seguro</span></footer>
   </div>{toast&&<div className="toast" role="status"><LockKeyhole size={16}/>{toast}<button aria-label="Fechar aviso" onClick={()=>setToast('')}>×</button></div>}
  </div></>;
 }
