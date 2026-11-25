@@ -1,0 +1,3 @@
+# N07.3 — Live simulator status strips and footer
+
+N07.2 CI 45549512565: packaged Windows smoke passed; browser suite still executing at checkpoint. Actual Windows 01-inicio.png (1008x681) shows exact artwork, but live controls still occupy a large vertical block at medium width and cards have no status strip. Add status and selection text derived only from existing local diagnostic summary, plus footer supported/observed/name counts; no installation claims, version, disk or integrity figures are fabricated. Reorganize live controls at 950–1199px, retain 24px heading and all existing actions. New empty-session and selection regression. Separate draft preserves N07.2 CI. New runtime evidence and visual parity pending. No merge, release, IPC or security changes.
