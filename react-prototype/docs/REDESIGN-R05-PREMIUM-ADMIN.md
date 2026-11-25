@@ -1,0 +1,3 @@
+# R05 — Premium administration
+
+Stacked draft on R04 bbfd91dd1aa2da4719c7984819d52f9f167969a4. Refines queue, history, preferences and security surfaces. Queue links to existing safety screen; history shows actual transient event and report counts without confusing them with installations. Settings preserve native checkbox and discovery semantics, no new preference or permission. Security warnings retained. New browser regression for navigation, empty counts, persistent existing compact preference, viewport and blocked operations. No IPC, workflows, release, merge or security policy changes. Runtime and visual reference comparison pending.
