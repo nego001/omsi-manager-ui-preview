@@ -31,8 +31,21 @@ test('gradiente do destaque mantém contraste próximo do texto em pixels realme
  await page.goto('/');
  const hero=page.locator('.hero');
  await expect(hero).toBeVisible();
- const screenshot=(await page.screenshot({animations:'disabled'})).toString('base64');
- const sampled=await page.evaluate(async base64=>{
+ // Capture the actual background under the live text, with only glyph paint hidden.
+ // The approved panorama is a separate image; pixels on it are not a background for these labels.
+ await page.locator('.hero-copy').scrollIntoViewIfNeeded();
+ const targets=await page.evaluate(()=>[
+  {name:'hero-title',selector:'.hero h1',min:3},
+  {name:'hero-description',selector:'.hero p',min:4.5}
+ ].map(target=>{
+  const el=document.querySelector(target.selector);
+  if(!el)throw new Error('Texto ausente: '+target.selector);
+  const rect=el.getBoundingClientRect();
+  const rgb=[...getComputedStyle(el).color.matchAll(/[\d.]+/g)].slice(0,3).map(v=>Number(v[0]));
+  return {...target,rgb,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}};
+ }));
+ const screenshot=(await page.screenshot({animations:'disabled',style:'.hero h1,.hero p{color:transparent!important;text-shadow:none!important}'})).toString('base64');
+ const sampled=await page.evaluate(async({base64,targets})=>{
   const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
   const bitmap=await createImageBitmap(new Blob([bytes],{type:'image/png'}));
   const canvas=document.createElement('canvas');
@@ -40,39 +53,22 @@ test('gradiente do destaque mantém contraste próximo do texto em pixels realme
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
   if(!ctx)throw new Error('Canvas 2D indisponível');
   ctx.drawImage(bitmap,0,0);
-  const area=document.querySelector('.hero');
-  const title=document.querySelector('.hero h1');
-  const description=document.querySelector('.hero p');
-  if(!area||!title||!description)throw new Error('Destaque ou textos não encontrados');
-  const rect=area.getBoundingClientRect();
-  const color=(s:string)=>[...s.matchAll(/[\d.]+/g)].slice(0,3).map(v=>Number(v[0]));
-  const luminance=(rgb:number[])=>{
-   const c=rgb.map(x=>{const v=x/255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4});
-   return c[0]*.2126+c[1]*.7152+c[2]*.0722;
-  };
-  const contrast=(a:number[],b:number[])=>{
-   const x=luminance(a),y=luminance(b);
-   return Math.round(((Math.max(x,y)+.05)/(Math.min(x,y)+.05))*100)/100;
-  };
-  const targets=[
-   {name:'hero-title',rgb:color(getComputedStyle(title).color),min:3},
-   {name:'hero-description',rgb:color(getComputedStyle(description).color),min:4.5}
-  ];
+  const luminance=(rgb:number[])=>{const c=rgb.map(x=>{const v=x/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return c[0]*.2126+c[1]*.7152+c[2]*.0722;};
   const samples=[];
-  // Sample the unobstructed 18px edge of the hero at four heights.
-  // Approximation of adjacent background pixels, not exhaustive WCAG on gradients.
-  for(const portion of [.2,.4,.6,.8]){
-   const x=Math.max(0,Math.min(bitmap.width-1,Math.round((rect.left+18)*bitmap.width/window.innerWidth)));
-   const y=Math.max(0,Math.min(bitmap.height-1,Math.round((rect.top+rect.height*portion)*bitmap.height/window.innerHeight)));
-   const rgba=ctx.getImageData(x,y,1,1).data;
-   const background=[rgba[0],rgba[1],rgba[2]];
-   for(const target of targets){
-    samples.push({name:target.name,position:portion,background,foreground:target.rgb,ratio:contrast(target.rgb,background),min:target.min});
+  for(const target of targets){
+   const r=target.rect;
+   if(r.width<=0||r.height<=0)throw new Error('Texto sem geometria: '+target.name);
+   for(const [px,py] of [[.1,.25],[.35,.75],[.65,.25],[.85,.75]]){
+    const x=Math.floor((r.x+r.width*px)*bitmap.width/window.innerWidth),y=Math.floor((r.y+r.height*py)*bitmap.height/window.innerHeight);
+    if(x<0||y<0||x>=bitmap.width||y>=bitmap.height)throw new Error('Amostra fora da área visível: '+target.name);
+    const background=Array.from(ctx.getImageData(x,y,1,1).data).slice(0,3);
+    const a=luminance(target.rgb),b=luminance(background);
+    samples.push({name:target.name,position:[px,py],background,foreground:target.rgb,ratio:Math.round(((Math.max(a,b)+.05)/(Math.min(a,b)+.05))*100)/100,min:target.min});
    }
   }
   bitmap.close();
-  return {method:'Sampled nearby background pixels in the hero, not pixels under glyphs',samples};
- },screenshot);
+  return {method:'Rendered background beneath live text bounds; glyph paint hidden only for capture. Approximate, not exhaustive WCAG.',samples};
+ },{base64:screenshot,targets});
  await mkdir(screenshots,{recursive:true});
  await writeFile(resolve('test-results/gradient-sample.json'),JSON.stringify(sampled,null,2),'utf8');
  const below=sampled.samples.filter(sample=>sample.ratio<sample.min);
