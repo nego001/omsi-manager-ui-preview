@@ -56,6 +56,19 @@ switch(process.argv[2]){
  case 'seal':out('resolution.json',record());break;
  case 'audit':verify();break;
  case 'verify':verify();break;
+ case 'handoff':{
+  verify();
+  for(const name of ['package.json','package-lock.json']){
+   const bytes=raw(f(name));
+   if(bytes.length>262144)refuse('CANDIDATE_HANDOFF_SIZE');
+   const encoded=bytes.toString('base64');
+   console.log('CANDIDATE_HANDOFF_META',JSON.stringify({name,bytes:bytes.length,sha256:hash(bytes),
+    gitBlobSha:createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex'),
+    chunks:Math.ceil(encoded.length/2048)}));
+   for(let i=0;i<encoded.length;i+=2048)console.log('CANDIDATE_HANDOFF_CHUNK',name,String(i/2048).padStart(4,'0'),encoded.slice(i,i+2048));
+  }
+  break;
+ }
  case 'installed':verify();if(read(f('node_modules/electron/package.json')).version!==VERSION)refuse('CANDIDATE_INSTALLED_VERSION_MISMATCH');console.log('CANDIDATE_CLEAN_INSTALL_VERIFIED',process.platform,VERSION);break;
  default:refuse('CANDIDATE_ACTION_REFUSED');
 }
