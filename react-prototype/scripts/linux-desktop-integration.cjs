@@ -27,16 +27,18 @@ function launcherIn(packageDir){
  if(hasUnsafePathChars(launcher))deny();
  return launcher;
 }
-function makeEntry(launcher){
+function makeEntry(launcher,legacyBrand=false){
  if(typeof launcher!=='string'||!path.isAbsolute(launcher)||
     hasUnsafePathChars(launcher))deny();
  return [
   '[Desktop Entry]',
   'Type=Application',
-  'Name=OMSI Manager Preview',
-  'Name[pt_BR]=OMSI Manager (prévia somente leitura)',
-  'Comment=Read-only OMSI folder preview; no installation or modification',
-  'Comment[pt_BR]=Prévia de pastas OMSI sem instalação ou alteração de mods',
+  legacyBrand?'Name=OMSI Manager Preview':'Name=Negresco Tools',
+  legacyBrand?'Name[pt_BR]=OMSI Manager (prévia somente leitura)':'Name[pt_BR]=Negresco Tools',
+  legacyBrand?'Comment=Read-only OMSI folder preview; no installation or modification':
+   'Comment=Read-only simulator manager; no installation or modification',
+  legacyBrand?'Comment[pt_BR]=Prévia de pastas OMSI sem instalação ou alteração de mods':
+   'Comment[pt_BR]=Gerenciador de simuladores somente leitura, sem instalação ou alteração de mods',
   'Exec="'+launcher+'"',
   'Terminal=false',
   'Icon=applications-games',
@@ -110,11 +112,14 @@ async function remove({packageDir,env=process.env}){
  const target=path.join(applications,NAME);
  if(!(await checkedPath(target,'file')))
   return {result:'not-installed'};
- const expected=makeEntry(launcherIn(packageDir));
+ const launcher=launcherIn(packageDir);
+ const shell=path.join(packageDir,'OMSI-Manager-Preview.sh');
  const existing=await fs.readFile(target,'utf8');
- const legacy=makeEntry(path.join(packageDir,'OMSI-Manager-Preview.sh'));
- if(existing!==expected&&existing!==legacy)deny();
- // An exact legacy entry from this very package is also removable.
+ // Old brand and old shell shortcuts from this exact package remain removable.
+ // Full byte equality is required; no marker-only or name-only deletion.
+ const known=[makeEntry(launcher),makeEntry(launcher,true),
+  makeEntry(shell),makeEntry(shell,true)];
+ if(!known.includes(existing))deny();
  // Installation never silently rewrites a previous shortcut.
  await fs.unlink(target);
  return {result:'removed'};
