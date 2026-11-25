@@ -3,8 +3,14 @@ import { packager } from '@electron/packager';
 import {writeBuildManifest} from './portable-build-manifest.mjs';
 import boundary from './m101-runtime-boundary.cjs';
 
+import {readFile} from 'node:fs/promises';
+
 const root=resolve('.');
+const manifest=JSON.parse(await readFile(join(root,'package.json'),'utf8'));
+const installed=JSON.parse(await readFile(join(root,'node_modules','electron','package.json'),'utf8'));
+if(manifest.devDependencies?.electron!=='45.5.0'||installed.name!=='electron'||installed.version!==manifest.devDependencies.electron)throw Error('WINDOWS_ELECTRON_VERSION_REFUSED');
 const bundled=await packager({
+ electronVersion:installed.version,
  dir:root,
  name:'OMSI-Manager-Preview',
  platform:'win32',

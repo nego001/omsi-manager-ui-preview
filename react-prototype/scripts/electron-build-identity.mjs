@@ -4,7 +4,7 @@ import {constants} from 'node:fs';
 import {open,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 export const NAME='OMSI-Manager-Preview-electron-evidence.json';
-const RANGE='^38.0.0',VERSION=/^38\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const RANGE='45.5.0',VERSION=/^45\.5\.0$/;
 const refuse=()=>{throw Error('ELECTRON_BUILD_IDENTITY_REFUSED');};
 const plain=o=>o!==null&&typeof o==='object'&&!Array.isArray(o)&&
  Object.getPrototypeOf(o)===Object.prototype;

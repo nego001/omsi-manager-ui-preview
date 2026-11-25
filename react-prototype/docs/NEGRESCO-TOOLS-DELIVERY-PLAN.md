@@ -21,7 +21,8 @@ Aprovado pelo proprietário em 25/11/2026. Controle de execução: [#167](https:
 - [x] Preparar documentação de entrada com nome Negresco Tools e distinção entre vitrine, prévia, laboratório e produto.
 - [ ] Validar a revisão N09.8, inclusive atalho Linux.
 - [ ] Inventariar nomes externos/internos e decidir migração compatível sem quebrar contratos.
-- [ ] Auditar resolução das dependências e gerar lockfile por ferramenta confiável; validar instalação limpa e CI reprodutível (não fabricar lockfile).
+- [x] Resolver lockfile por npm e validar instalação limpa Windows/Linux, auditoria e runtime isolado Electron 45.5.0.
+- [ ] Homologar CI principal com o lockfile incorporado, npm ci e pacotes Electron 45.5.0.
 - [ ] Consolidar apresentação, checksums, manifesto e instruções dos pacotes.
 - [ ] Revisar screenshot final com usuário e validar desktop real.
 - [ ] Resolver gate Ubuntu24 estrito e revisar assinatura/proveniência antes da release.
