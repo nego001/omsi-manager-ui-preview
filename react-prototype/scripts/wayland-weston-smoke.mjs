@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import {join, resolve, dirname} from 'node:path';
 import {setTimeout as delay} from 'node:timers/promises';
 import {_electron as electron} from 'playwright';
-import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
+import {verifyHomeLayout} from './desktop-layout-contract.mjs';
 import {weston9HeadlessArgs} from './weston-9-headless-contract.mjs';
 
 // Genuine Wayland socket test using an ephemeral, unprivileged Weston headless
@@ -76,7 +76,7 @@ try{
  assert.deepEqual(safe,{
   mode:'read-only',install:false,remove:false,command:false,node:'undefined'
  });
- checkLayout(await captureLayout(win));
+ await verifyHomeLayout(win);
  // Shared Settings platform label must work under a native Wayland compositor.
  // Weston headless has no physical pointer input. Dispatch a DOM activation
  // only for the read-only Settings navigation, then assert actual renderer UI.
@@ -188,7 +188,7 @@ try{
    node:typeof window.require
   }));
   assert.deepEqual(isolated,safe);
-  checkLayout(await captureLayout(view));
+  await verifyHomeLayout(view);
   assert.equal(await readFile(sentinel,'utf8'),
    'WAYLAND-SYNTHETIC-DO-NOT-MODIFY\\n');
   await application.close();

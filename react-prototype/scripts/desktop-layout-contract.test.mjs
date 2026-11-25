@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {checkLayout} from './desktop-layout-contract.mjs';
+import {checkLayout,checkInitialHomeLayout} from './desktop-layout-contract.mjs';
 const r=(left,right,top,bottom)=>({left,right,top,bottom});
 const fixture=(width=1280,height=800,scale=1)=>({
  width,height,dpr:scale,overflow:0,
@@ -26,5 +26,18 @@ test('clipping, missing navigation, overflow and write capabilities fail closed'
   {mode:'write'},{install:true},{remove:true},{execute:true}
  ]){
   assert.throws(()=>checkLayout({...fixture(),...patch}),/DESKTOP_GEOMETRY_NOT_VERIFIED/);
+ }
+});
+
+test('dashboard-first home still rejects offscreen or missing primary content',()=>{
+ const home={...fixture(),banner:r(240,1260,20,250),dashboard:r(240,1000,265,355),heading:r(250,700,1100,1200)};
+ assert.equal(checkInitialHomeLayout(home).status,'PASS');
+ // The old strict heading contract remains unchanged until heading is scrolled.
+ assert.throws(()=>checkLayout(home),/DESKTOP_GEOMETRY_NOT_VERIFIED/);
+ assert.equal(checkLayout({...home,heading:r(250,700,320,400)}).status,'PASS');
+ for(const patch of [{dashboard:null},{banner:null},{dashboard:r(240,1000,900,990)},
+  {dashboard:r(240,1000,100,180)},{banner:r(-15,1260,20,250)},
+  {heading:null},{heading:r(250,1400,1100,1200)},{overflow:90},{install:true},{remove:true},{execute:true}]){
+  assert.throws(()=>checkInitialHomeLayout({...home,...patch}),/DESKTOP_(HOME_PRIMARY_)?GEOMETRY_NOT_VERIFIED/);
  }
 });

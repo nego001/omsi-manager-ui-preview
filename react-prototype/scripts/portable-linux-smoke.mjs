@@ -8,7 +8,7 @@ import {join,resolve,dirname} from 'node:path';
 import {_electron as electron} from 'playwright';
 import {verifyBuildManifest} from './portable-build-manifest.mjs';
 import {verifyPackagedCSPRuntime} from './verify-packaged-csp-runtime.mjs';
-import {captureLayout,checkLayout} from './desktop-layout-contract.mjs';
+import {verifyHomeLayout} from './desktop-layout-contract.mjs';
 import {probePackagedRendererKernelEvidence,PACKAGED_RENDERER_REFUSAL_REASONS} from './electron-renderer-kernel-evidence.mjs';
 import {createM47RendererReference} from './auto-x11-m47-renderer-reference.mjs';
 import {probeM48NamespaceRelation,createM48NamespaceReference} from './auto-x11-m48-namespace-relation.mjs';
@@ -192,7 +192,7 @@ try{
   await application.evaluate(({BrowserWindow},dims)=>{
    BrowserWindow.getAllWindows()[0].setSize(dims[0],dims[1]);
   },size);
-  const layout=checkLayout(await captureLayout(window));
+  const layout=await verifyHomeLayout(window);
   assert.equal(layout.readOnly,true);
  }
  console.log('PASS_XVFB_1280_1024_850_WINDOW_LAYOUT');
@@ -287,7 +287,7 @@ try{
    inspect:window.omsiPreview?.capabilities?.inspectDirectories
   }));
   assert.deepEqual(isolated,security);
-  checkLayout(await captureLayout(view));
+  await verifyHomeLayout(view);
   assert.equal(await readFile(sentinel,'utf8'),
    'SYNTHETIC TEST CONTENT - DO NOT MODIFY\n');
   await application.close();
