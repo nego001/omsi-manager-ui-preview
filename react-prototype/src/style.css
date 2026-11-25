@@ -2021,3 +2021,5 @@
 /* Keep deterministic fallback identification when no approved binary is available. */
 .negresco-tools .premium-choice:not(:has(.negresco-simulator-art)){min-height:64px;justify-content:center}
 .negresco-tools .premium-hero-main[data-approved-art=true] .hero-art{display:block;visibility:hidden;pointer-events:none}
+
+.negresco-tools .negresco-art-pending{margin:0 0 10px;padding:8px 12px;border:1px solid #9b693e;background:#362413;border-radius:6px;color:#ffe0ae;font-size:12px;line-height:1.5}

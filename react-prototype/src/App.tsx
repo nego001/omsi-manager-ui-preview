@@ -47,7 +47,7 @@ import {LocalSessionActivity} from './LocalSessionActivity';
 import {LocalDiagnosticCenter} from './LocalDiagnosticCenter';
 import {LocalInventoryLibrary} from './LocalInventoryLibrary';
 import {OmsiDependencyPreview} from './OmsiDependencyPreview';
-import {approvedArt} from './negresco-art';
+import {approvedArt,approvedArtComplete} from './negresco-art';
 import {House,Gamepad2,Grid2X2,Library,FileText,Clock3,History,Settings2,ShieldCheck,Search,ChevronRight,ArrowLeft,LockKeyhole,Download,Trash2,CheckCircle2,AlertTriangle,Menu,Bus,Truck,Map as MapIcon,AudioLines,Sparkles} from 'lucide-react';
 
 type GameId='omsi'|'ets2'|'ats';
@@ -1307,6 +1307,7 @@ export default function App(){
   <div className="workspace"><header className="topbar"><div className="top-left"><button className="icon-btn menu-btn" aria-label="Alternar menu" onClick={()=>setSidebar(v=>!v)}><Menu size={20}/></button><div className="breadcrumb">Negresco Tools <ChevronRight size={13}/> <strong>{title}</strong></div></div><div className="top-actions"><label className="search"><Search size={17}/><input placeholder={screen==='library'?'Buscar favoritos...':'Buscar mods...'} aria-label={screen==='library'?'Buscar favoritos':'Buscar mods'} value={screen==='library'?librarySearch:search} onChange={e=>screen==='library'?setLibrarySearch(e.target.value.slice(0,100)):setSearch(e.target.value.slice(0,100))} onFocus={()=>screen!=='catalog'&&screen!=='library'&&goto('catalog',true)}/></label><span className="mode-indicator"><LockKeyhole size={13}/> Protótipo</span></div></header>
    <main id="conteudo-principal" tabIndex={-1} className="content" data-screen={screen}>
     {screen==='home'&&<>
+     {!approvedArtComplete&&<p className="negresco-art-pending" role="note">Prévia visual — as seis artes aprovadas ainda não estão integradas.</p>}
      <section className="hero hero-spotlight premium-hero" aria-label="Destaque de simuladores" style={{'--spotlight':games[featuredGame].color} as React.CSSProperties}>
       <div className="premium-hero-main" data-game={featuredGame} data-approved-art={!!approvedArt.hero}>
        {approvedArt.hero&&<img className="negresco-banner" src={approvedArt.hero} alt="Arte conceitual: ônibus e caminhões dos três simuladores"/>}

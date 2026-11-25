@@ -1,0 +1,3 @@
+# N04 — Native selector contract and asset integrity correction
+
+N03 CI 45543549966: both platform builds and security passed. Windows GUI smoke located the previous banner region instead of the relocated accessible simulator selector group. Update only the selector lookup, preserving click, pressed state, heading, filtered catalog count and isolation assertions. Correct ETS2 SHA-256 against actual approved WebP bytes; old manifest had a transcription error. Missing or partial binary set now displays an explicit preview notice and uses fallback as a whole. Binary integration remains blocked in the connector; no claim of visual parity. No merge, release or security changes. New CI pending.
