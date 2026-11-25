@@ -80,3 +80,23 @@ test('invalid fixture plans refuse before journal mutation; no path or raw SQL A
  assert.equal(c.status().journal.events,0);assert.equal(c.status().database.snapshotCount,0);
  assert.equal(Object.hasOwn(c,'path'),false);assert.equal(Object.hasOwn(c,'exec'),false);
 });
+
+test('fault at either publication boundary rolls back snapshot and completed event',async t=>{
+ const c=lab(t);
+ for(const fault of ['after-snapshot-insert','after-completion-event']){
+  const r=request();r.fault=fault;const result=await c.analyze(r);
+  assert.equal(result.state,'failed');assert.equal(result.snapshot,null);
+  const s=c.status();assert.equal(s.database.snapshotCount,0);assert.equal(s.cache.entries,0);
+  assert.equal(s.journal.tasks.at(-1).state,'failed');assert.deepEqual(s.journal.publications,[]);
+  assert.deepEqual(c.reopen().recovered,[]);
+ }
+ const ok=await c.analyze(request());assert.equal(ok.state,'completed');
+ assert.deepEqual(c.status().journal.publications,[{taskId:'analysis-3',snapshotId:ok.snapshot.snapshotId}]);
+});
+test('failed duplicate publication preserves prior successful binding',async t=>{
+ const c=lab(t),first=await c.analyze(request()),r=request();r.fault='after-completion-event';
+ assert.equal((await c.analyze(r)).state,'failed');
+ const s=c.status();assert.equal(s.database.snapshotCount,1);assert.equal(s.cache.entries,0);
+ assert.deepEqual(s.journal.publications,[{taskId:'analysis-1',snapshotId:first.snapshot.snapshotId}]);
+ assert.equal((await c.analyze(request())).cacheHit,false);
+});
