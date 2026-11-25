@@ -1858,3 +1858,39 @@
 .gamer-premium [data-screen=library] :is(#local-inventory-heading,#premium-diagnostic-heading):focus{outline:2px solid #b8c7ff;outline-offset:3px;scroll-margin-top:80px}
 @media(max-width:900px){.gamer-premium .premium-library-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.gamer-premium .premium-library-summary .library-trust{grid-column:1/-1}}
 @media(max-width:480px){.gamer-premium .premium-library-summary>div:not(.library-trust){padding:12px}.gamer-premium .premium-library-summary strong{font-size:24px}}
+
+
+/* R04: catalog and detail styling, without changing declared metadata or action policy. */
+.gamer-premium .premium-mod-art[data-game=omsi]{--mod-scene:url('./art/premium-omsi.svg')}
+.gamer-premium .premium-mod-art[data-game=ets2]{--mod-scene:url('./art/premium-ets2.svg')}
+.gamer-premium .premium-mod-art[data-game=ats]{--mod-scene:url('./art/premium-ats.svg')}
+.gamer-premium .premium-mod-art[data-kind=vehicle]{background:linear-gradient(0deg,#091125cc,transparent 70%),var(--mod-scene) center right/cover}
+.gamer-premium .premium-mod-art[data-kind=other]{background:radial-gradient(ellipse at 80% 25%,var(--mod-first),transparent 75%),linear-gradient(140deg,var(--mod-second),#11182a)}
+.gamer-premium .premium-mod-art .mod-cover-glyph{opacity:.25}
+.gamer-premium .premium-mod-art[data-kind=vehicle] .mod-cover-glyph,.gamer-premium .premium-mod-art[data-kind=vehicle] .premium-mod-icon{display:none}
+.gamer-premium .premium-mod-icon{position:absolute;right:20px;top:45px;color:#e5f2ff;opacity:.75}
+.gamer-premium .premium-mod-art .mod-cover-caption{width:100%;min-width:0;padding:15px;background:linear-gradient(0deg,#08101deb,#0b142900)}
+.gamer-premium .premium-mod-art .mod-cover-caption small{color:#d4e1f5;letter-spacing:1px}
+.gamer-premium .premium-catalog-heading{background:linear-gradient(90deg,#111a2ff8,#171e35ea 65%,#15213b9a),url('./art/premium-ets2.svg') center right/cover}
+.gamer-premium .premium-catalog-summary{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.gamer-premium .premium-catalog-summary>span{display:flex;align-items:center;gap:6px;min-width:0;background:#182742;border:1px solid #48618b;border-radius:8px;padding:8px 10px;font-size:11px;color:#dbe9ff}
+.gamer-premium .premium-catalog-summary strong{font-size:17px;color:#fff;font-variant-numeric:tabular-nums}
+.gamer-premium .premium-catalog-summary>span:last-child{background:#1c2b2b;border-color:#416761;color:#c1ead9}
+.gamer-premium .premium-catalog-toolbar{padding:12px;border:1px solid #3b4e75;border-radius:12px;background:#151e32;align-items:center}
+.gamer-premium .premium-catalog-toolbar .tabs{flex:1 1 100%}
+.gamer-premium .premium-catalog-toolbar .tabs button{flex:1 1 135px;min-width:0;white-space:normal;min-height:44px;overflow-wrap:anywhere}
+.gamer-premium .premium-catalog-toolbar .tabs button[aria-pressed=true]{box-shadow:inset 0 -2px #7cbcff}
+.gamer-premium [data-screen=catalog] .result-count{color:#d6e3f9;font-weight:650}
+.gamer-premium [data-screen=catalog] .catalog-empty-filter{background:radial-gradient(ellipse at 50% 0,#293a6566,transparent 80%),#151d30;border-color:#4a6089}
+.gamer-premium .premium-detail-layout{gap:24px}
+.gamer-premium .premium-detail-layout .detail-art .mod-cover{border-color:#5575a5;background-position:65% center}
+.gamer-premium .premium-detail-layout .detail-art .mod-cover-caption{padding:18px}
+.gamer-premium .premium-detail-layout .detail-art .premium-mod-icon{width:84px;height:84px;right:24px;top:70px}
+.gamer-premium .premium-detail-layout .detail-copy{padding:18px;border:1px solid #3a4e75;border-radius:14px;background:linear-gradient(135deg,#192238,#131a2b);min-width:0}
+.gamer-premium .premium-detail-kicker{color:#a7d3ff}
+.gamer-premium [data-screen=details] :is(.detail-neighbors,.detail-checklist,.detail-size-evidence,.detail-section-jumps button,.properties div){background:#19243b;border-color:#435a83}
+.gamer-premium [data-screen=details] .detail-section-jumps button:hover{background:#27395a;border-color:#88b6ed}
+.gamer-premium [data-screen=details] .detail-verification-status{background:#30271f;border-color:#806344;color:#f0dbb9}
+.gamer-premium [data-screen=details] .detail-actions .btn:disabled{background:#292a33;border:1px solid #484c5b;color:#a0a3b1;box-shadow:none}
+@media(max-width:1000px){.gamer-premium .premium-detail-layout{gap:16px}}
+@media(max-width:480px){.gamer-premium .premium-detail-layout .detail-copy{padding:10px}.gamer-premium .premium-catalog-toolbar{padding:9px}.gamer-premium .premium-catalog-toolbar .tabs button{flex-basis:100%}.gamer-premium .premium-catalog-summary>span{flex:1 1 100%}}

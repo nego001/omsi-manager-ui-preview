@@ -1,0 +1,3 @@
+# R04 — Premium catalog and details
+
+Stacked on R03 58adf7d28277a1f4ae94cb9b298a8e742c262553. Original bundled simulator scenes are illustrative vehicle card backgrounds; other categories have distinct local vector icons. Existing title and illustration label are retained. Catalog summary counts actual declared records and represented games; tabs expose their selected state to assistive technology. Detail layout highlights declared metadata and retains warnings and disabled operations. Existing filters, import/replacement guards, favorites, diagnostic logic, IPC and packaging workflow unchanged. Added Playwright regression for filters, illustrative art, disabled actions, viewport and return navigation. Runtime and visual parity pending; no merge or release.
