@@ -1,0 +1,5 @@
+# N07.2 — Measured geometry corrections and actual-text contrast
+
+N07 run 45548222090: Windows passed, Playwright 1124 passed/1 failed. Evidence artifact 14993107383 at 1586x992: header x248 width1338 height73 vs target x0 width1586 height39; sidebar y0 vs39; panorama x286 y84 vs252 y39; metrics y499.94 vs348; simulator panel y582.88 vs458; quick actions y857.56 vs756; footer y1643.41 vs931. All six exact artwork hashes passed the evidence test. The contrast failure sampled bright pixels on the separate photograph, rather than the actual live title/description backgrounds. Preserve 3:1/4.5:1 thresholds and eight pixel samples; capture actual text bounding boxes with glyph paint temporarily hidden, reject offscreen samples. No contrast waiver.
+
+Desktop >=1200: full-width fixed 48px frame, reserved space above/below, narrower home gutters, compact live hero control strip, shorter diagnostic rail, library below both columns; preserve mobile layout and all controls. Add frame geometry and scroll test. Target differences remain; visual approval pending new capture. Separate stacked branch preserves N07.1 CI. No merge, release, IPC or security changes.
