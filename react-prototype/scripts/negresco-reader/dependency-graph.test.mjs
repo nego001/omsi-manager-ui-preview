@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {inspectFixtureDependencyGraph as inspect} from './dependency-graph.mjs';
+import {inspectFixtureDependencyGraph as inspect,inspectFixtureDependencyGraphWithPolicy as policy} from './dependency-graph.mjs';
 const refuse=/^Error: READER_FIXTURE_DEPENDENCY_REFUSED$/;
 const file=(path,bytes,cfgKind=null)=>({path,bytes:Buffer.isBuffer(bytes)?bytes:Buffer.from(bytes),cfgKind});
 const graph=(roots,files,over={})=>({scope:'synthetic-fixture',roots,files,encoding:'utf-8',limits:{maxBytes:16384,maxEntries:32,maxReferences:64,maxReportBytes:65536,...over}});
@@ -16,7 +16,7 @@ test('OMSI references traverse vehicle model sound and opaque script leaves',()=
  const r=inspect(omsi());
  assert.deepEqual(r.edges.map(e=>[e.role,e.status]),[['model-config','matched'],['sound-config','matched'],['script','matched'],['mesh','missing'],['omsi-audio','matched']]);
  assert.equal(r.nodes.find(n=>n.path==='bus/script/main.osc').status,'indexed-only');
- assert.equal(r.nodes.find(n=>n.path==='bus/sound/engine.wav').status,'indexed-only');
+ assert.equal(r.nodes.find(n=>n.path==='bus/sound/engine.wav').status,'invalid-or-unsupported');
  assert.deepEqual(r.unreferencedFiles,['bus/unused.txt']);
  assert.equal(r.allDiscoveredReferencesMatched,false);
 });
@@ -66,7 +66,7 @@ test('PMD MAT TOBJ cross-format references share a graph',()=>{
  for(const [o,v] of [[0,4],[4,1],[8,1],[32,path.length],[36,64],[40,72],[44,72],[48,72],[52,72],[56,72],[60,76],[72,76]])pmd.writeUInt32LE(v,o);path.copy(pmd,76);
  const name=Buffer.from('a.dds'),tobj=Buffer.alloc(48+name.length);tobj.writeUInt32LE(1890650625);tobj[24]=2;tobj.writeUInt32LE(name.length,40);name.copy(tobj,48);
  const r=inspect(graph(['v/a.pmd'],[file('v/a.pmd',pmd),file('v/a.mat','material : "eut2.dif" {\ntexture[0]: "a.tobj"\n}'),file('v/a.tobj',tobj),file('v/a.dds',Buffer.alloc(0))]));
- assert.deepEqual(r.edges.map(e=>e.target),['v/a.mat','v/a.tobj','v/a.dds']);assert.equal(r.nodes[3].status,'indexed-only');
+ assert.deepEqual(r.edges.map(e=>e.target),['v/a.mat','v/a.tobj','v/a.dds']);assert.equal(r.nodes[3].status,'invalid-or-unsupported');
 });
 test('limits, invalid roots, duplicate paths and real scope refused',()=>{
  for(const over of [{maxBytes:1},{maxEntries:2},{maxReferences:1},{maxReportBytes:16}]){const x=omsi();Object.assign(x.limits,over);assert.throws(()=>inspect(x),refuse);}
@@ -79,4 +79,53 @@ test('source digest binds classification, bytes and root set; output frozen',()=
  x.files[5].bytes[0]=65;assert.notEqual(inspect(x).digest,r.digest);
  for(const v of [r,r.roots,r.sources,r.sources[0],r.nodes,r.nodes[0],r.edges,r.edges[0],r.issues,r.cycles,r.unreferencedFiles])assert.ok(Object.isFrozen(v));
  for(const k of ['allDependenciesKnown','realDependenciesResolved','includesExpanded','scriptsExecuted','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
+});
+
+function dds(){
+ const b=Buffer.alloc(136);b.write('DDS ');
+ for(const [o,v] of [[4,124],[8,0x81007],[12,4],[16,4],[20,8],[28,1],[76,32],[80,4],[108,0x1000]])b.writeUInt32LE(v,o);
+ b.write('DXT1',84);return b;
+}
+function wav(){
+ const b=Buffer.alloc(46);b.write('RIFF');b.writeUInt32LE(38,4);b.write('WAVEfmt ',8);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(44100,24);b.writeUInt32LE(88200,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(2,40);return b;
+}
+function o3d(){
+ const n=Buffer.from('body.dds');
+ return Buffer.concat([Buffer.from([0x84,0x19,1,0x17,1,0]),Buffer.alloc(32),Buffer.from([0x49,0,0,0x26,1,0]),Buffer.alloc(44),Buffer.from([n.length]),n,Buffer.from([0x79]),Buffer.alloc(64)]);
+}
+const visual=()=>graph(['v/body.o3d'],[file('v/body.o3d',o3d()),file('v/texture/body.dds',dds())]);
+test('reachable valid WAV gets bounded payload metadata and source evidence',()=>{
+ const x=omsi();x.files[4].bytes=wav();const r=inspect(x),n=r.nodes.find(n=>n.path==='bus/sound/engine.wav');
+ assert.equal(n.status,'parsed-subset');assert.equal(n.detail.codec,'pcm-integer');assert.equal(n.detail.sampleRate,44100);
+ assert.equal(r.counts.indexedOnly,1);assert.equal(r.counts.unreadable,0);assert.ok(Object.isFrozen(n.detail)&&Object.isFrozen(r.counts));
+});
+test('texture candidate search remains unresolved absent explicit policy',()=>{
+ const r=inspect(visual());assert.equal(r.edges[0].status,'search-policy-unresolved');assert.equal(r.edges[0].target,null);
+ assert.equal(r.nodes[0].detail.vertexCount,1);assert.deepEqual(r.unreferencedFiles,['v/texture/body.dds']);
+});
+test('explicit texture root resolves and parses DDS without claiming game lookup',()=>{
+ const r=policy({...visual(),textureRoots:['v/texture']});
+ assert.equal(r.edges[0].status,'matched');assert.equal(r.nodes[1].detail.width,4);
+ assert.equal(r.nodes[1].detail.compression,'DXT1');assert.equal(r.edges[0].semanticDependencyVerified,false);
+ assert.equal(r.counts.parsed,2);assert.equal(r.counts.matched,1);
+});
+test('multiple texture roots report ambiguity without choosing a winner',()=>{
+ const x=visual();x.files.push(file('other/body.dds',dds()));
+ const r=policy({...x,textureRoots:['v/texture','other']});
+ assert.equal(r.edges[0].status,'ambiguous');assert.deepEqual(r.edges[0].candidates,['other/body.dds','v/texture/body.dds']);
+ assert.equal(r.nodes.length,1);assert.ok(Object.isFrozen(r.edges[0].candidates));
+ assert.deepEqual(policy({...x,textureRoots:['other','v/texture']}),r);
+});
+test('texture policy differentiates missing and case mismatched candidates',()=>{
+ const x=visual();assert.equal(policy({...x,textureRoots:['elsewhere']}).issues[0].code,'MISSING_TEXTURE_CANDIDATE');
+ x.files[1].path='v/texture/Body.dds';assert.equal(policy({...x,textureRoots:['v/texture']}).edges[0].status,'case-mismatch');
+});
+test('texture policy validation and digest bind only explicit portable roots',()=>{
+ const x=visual();for(const roots of [['../x'],['/x'],['x','X'],['x/'],Array(17).fill('x')])assert.throws(()=>policy({...x,textureRoots:roots}),refuse);
+ assert.notEqual(policy({...x,textureRoots:['v/texture']}).digest,inspect(x).digest);
+ assert.deepEqual(policy({...x,textureRoots:[]}),inspect(x));
+});
+test('PMG and PMC invalid reachable payloads are not treated as validated leaves',()=>{
+ const r=inspect(graph(['a.pmg','a.pmc'],[file('a.pmg',Buffer.alloc(112)),file('a.pmc',Buffer.alloc(40))]));
+ assert.equal(r.counts.unreadable,2);assert.equal(r.nodes.every(n=>n.status==='invalid-or-unsupported'),true);
 });
