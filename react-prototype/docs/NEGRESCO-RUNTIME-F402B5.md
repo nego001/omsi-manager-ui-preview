@@ -1,0 +1,7 @@
+# F4.02b.5 — descendant admission laboratory
+
+Linux discovery passed: Core 115/115 in 45737732901; combined 309/309 in 45737722482. Both report cgroup v2 membership resolved, memory/cpu/pids controllers and memory.max, memory.current, pids.max, cpu.max, cgroup.kill interfaces present. Directory write access hint false (not-writable). No delegation proven, no changes attempted. Do not use elevated privilege or modify ambient cgroups to bypass this blocker. Windows lifecycle readiness revalidation remained in progress at inspection.
+
+New Windows private unnamed Job Object laboratory tests the one-active-process setting in a disposable parent. The exact fixed benign child is created suspended before assignment as positive control, then attempted while parent occupies the only available slot. Accept only explicit refusal 5/1816 or observed termination before resume; a live extra child fails. Raise limit to two inside the same private job for matched positive control, verify child membership and count two, clean up only owned handles, restore one and verify count. No child is resumed. No external process or arbitrary command selection. Failure is not equivalent to descendant enforcement until CI confirms the complete sequence.
+
+One new wrapper, expected 310 combined and 116 Core tests per OS. CI pending. Aggregate memory allocation enforcement, broader descendant/escape coverage, Linux delegated group enforcement, production Reader integration and F1 remain open. No actual mod access, merge or release.
