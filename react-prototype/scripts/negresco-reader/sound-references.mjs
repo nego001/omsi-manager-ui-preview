@@ -25,7 +25,7 @@ function inspect(input){
  }
  if(format==='bank'){
   // RIFF/FEV is only a signature candidate, not proof of a usable FMOD bank.
-  if(b.length<12||b.toString('ascii',0,4)!=='RIFF'||b.toString('ascii',8,12)!=='FEV '||b.readUInt32LE(4)!==b.length-8)fail();
+  if(b.length<12||b.toString('latin1',0,4)!=='RIFF'||b.toString('latin1',8,12)!=='FEV '||b.readUInt32LE(4)!==b.length-8)fail();
   bankSignature='riff-fev-candidate';
  }else if(['cfg','soundref'].includes(format)){
   if(format==='soundref'&&x.encoding!=='utf-8')fail();
