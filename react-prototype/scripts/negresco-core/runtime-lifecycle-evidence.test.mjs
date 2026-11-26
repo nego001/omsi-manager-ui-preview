@@ -5,7 +5,7 @@ import {consolidateFixtureLifecycleEvidence as consolidate,normalizeFixtureResou
 const denied={arbitraryTreeVerified:false,readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
 const fixture=()=>({scope:'synthetic-fixture',
  linuxParentDeath:{scope:'disposable-linux-parent-death',mechanism:'PR_SET_PDEATHSIG',positiveBefore:true,childReadyBeforeParentExit:true,parentNaturalExit:true,adoptedDescendantReaped:true,descendantSignal:'SIGKILL',positiveAfter:true,pidfdIdentityUsed:true,directDescendantOnly:true,...denied},
- windowsJobTree:{scope:'disposable-windows-job-tree',mechanism:'JobObjectKillOnClose',activeProcessLimit:2,positiveBefore:true,positiveAfter:true,parentAssignedSuspended:true,descendantInheritedMembership:true,bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,parentExitCode:0,descendantExitCode:0,...denied}
+ windowsJobTree:{scope:'disposable-windows-job-tree',mechanism:'JobObjectKillOnClose',activeProcessLimit:2,positiveBefore:true,positiveAfter:true,parentAssignedSuspended:true,descendantInheritedMembership:true,bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,descendantIdentityHandshake:true,activeCountVerified:true,parentExitCode:0,descendantExitCode:0,...denied}
 });
 const refusal=/CORE_MEMORY_EVIDENCE_REFUSED/;
 test('complete lifecycle fixture contracts cannot authorize production or arbitrary tree guarantees',()=>{
@@ -23,7 +23,7 @@ test('lifecycle consolidation records missing native report rather than manufact
 });
 test('lifecycle contracts reject natural exits, unsupported mechanisms and false security claims',()=>{
  const x=fixture();
- for(const patch of [{parentExitCode:77},{descendantExitCode:78},{descendantExitCode:79},{parentExitCode:259},{parentExitCode:-1},{descendantExitCode:0x100000000},{bothTerminated:false},{descendantInheritedMembership:false},{lastJobHandleClosed:false},{activeProcessLimit:1},{positiveAfter:false},{arbitraryTreeVerified:true},{readerIntegrated:true},{operationsEnabled:true}])assert.throws(()=>normalize('windowsJobTree',{...x.windowsJobTree,...patch}),refusal);
+ for(const patch of [{parentExitCode:77},{descendantExitCode:78},{descendantExitCode:79},{parentExitCode:259},{parentExitCode:-1},{descendantExitCode:0x100000000},{bothTerminated:false},{descendantIdentityHandshake:false},{activeCountVerified:false},{descendantInheritedMembership:false},{lastJobHandleClosed:false},{activeProcessLimit:1},{positiveAfter:false},{arbitraryTreeVerified:true},{readerIntegrated:true},{operationsEnabled:true}])assert.throws(()=>normalize('windowsJobTree',{...x.windowsJobTree,...patch}),refusal);
  for(const patch of [{descendantSignal:'SIGTERM'},{adoptedDescendantReaped:false},{childReadyBeforeParentExit:false},{pidfdIdentityUsed:false},{directDescendantOnly:false},{arbitraryTreeVerified:true}])assert.throws(()=>normalize('linuxParentDeath',{...x.linuxParentDeath,...patch}),refusal);
  let invoked=false;Object.defineProperty(x.linuxParentDeath,'parentNaturalExit',{enumerable:true,get(){invoked=true;return true;}});
  assert.throws(()=>consolidate(x),refusal);assert.equal(invoked,false);
