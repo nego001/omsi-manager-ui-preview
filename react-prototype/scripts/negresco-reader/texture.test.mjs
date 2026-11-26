@@ -78,3 +78,13 @@ test('results are immutable and never claim actual transparency or real reads',(
  for(const k of ['pixelsDecoded','actualTransparencyKnown','fullTextureSupport','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
  x.bytes.fill(0);assert.equal(r.width,8);
 });
+
+test('DDS magic and FourCC, BMP magic and PNG tags reject high-bit aliases',()=>{
+ for(const [format,make,offsets] of [['dds',dds,[0,1,2,3,84,85,86,87]],['bmp',bmp,[0,1]]]){
+  for(const o of offsets){const b=make();b[o]|=128;assert.throws(()=>inspect(input(format,b)),refuse);}
+ }
+ const b=png();let p=8;while(p<b.length){
+  const len=b.readUInt32BE(p),end=p+8+len,a=Buffer.from(b);a[p+4]|=128;a.writeUInt32BE(crc(a.subarray(p+4,end)),end);
+  assert.throws(()=>inspect(input('png',a)),refuse);p=end+4;
+ }
+});
