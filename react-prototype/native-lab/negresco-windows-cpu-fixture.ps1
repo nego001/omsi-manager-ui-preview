@@ -52,7 +52,8 @@ public static class NegrescoWindowsCpuFixture {
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool CloseHandle(IntPtr handle);
  public static string Stage="setup";public static int Code=0;
  static void Need(bool b,string stage){if(!b){Stage=stage;Code=Marshal.GetLastWin32Error();throw new Exception("fixture refused");}}
- static long Trial(int seconds,bool denied,string phase){
+ static long Trial(int seconds,bool denied,string phase,out uint observedExit){
+  observedExit=259;
   IntPtr job=CreateJobObject(IntPtr.Zero,null);Need(job!=IntPtr.Zero,phase+"-job");
   ProcessInfo child=new ProcessInfo();
   try{
@@ -75,12 +76,17 @@ public static class NegrescoWindowsCpuFixture {
    Need(WaitForSingleObject(child.process,23000)==0,phase+"-wait");
    uint code;Need(GetExitCodeProcess(child.process,out code),phase+"-exit");
    long c,e,k,u;Need(GetProcessTimes(child.process,out c,out e,out k,out u),phase+"-times");
+   observedExit=code;
+   // A signaled job is the documented native end-of-job-time indication.
+   // Never infer the cause solely from a nonzero exit code.
    if(denied){
-    Need(code==1816,phase+"-quota-exit");
-    Need(WaitForSingleObject(job,1000)==0,phase+"-job-signaled");
-    Need(u>=20000000L&&u<45000000L,phase+"-cpu-range");
+    uint signal=WaitForSingleObject(job,1000);
+    Need(signal==0,phase+"-job-not-signaled-exit-"+code);
+    Need(code!=77&&code!=78&&code!=259,phase+"-unexpected-child-exit-"+code);
+    Need(u>=20000000L&&u<45000000L,phase+"-cpu-range-"+u+"-exit-"+code);
    }else{
-    Need(code==77&&u>=45000000L,phase+"-natural-exit");
+    Need(code==77&&u>=45000000L,phase+"-natural-exit-"+code);
+    Need(WaitForSingleObject(job,0)==258,phase+"-control-job-signaled");
    }
    return u;
   }finally{
@@ -94,7 +100,11 @@ public static class NegrescoWindowsCpuFixture {
  }
  public static long[] Run(){
   Need(Environment.Is64BitProcess,"architecture");
-  return new long[]{Trial(8,false,"before"),Trial(2,true,"limited"),Trial(8,false,"after")};
+  uint a,b,c;
+  long before=Trial(8,false,"before",out a);
+  long limited=Trial(2,true,"limited",out b);
+  long after=Trial(8,false,"after",out c);
+  return new long[]{before,limited,after,b};
  }
 }
 '@ -ErrorAction Stop
@@ -102,9 +112,9 @@ public static class NegrescoWindowsCpuFixture {
  $samples=[NegrescoWindowsCpuFixture]::Run()
  $report=[ordered]@{
   scope='disposable-windows-cpu-fixture';mechanism='JobObjectJobUserTime'
-  controlSeconds=8;limitSeconds=2;naturalExitCode=77;quotaExitCode=1816
+  controlSeconds=8;limitSeconds=2;naturalExitCode=77;limitedExitCode=$samples[3];documentedQuotaExitObserved=($samples[3] -eq 1816)
   beforeUserTicks=$samples[0];limitedUserTicks=$samples[1];afterUserTicks=$samples[2]
-  jobSignaled=$true;positiveBefore=$true;positiveAfter=$true;cpuTimeLimitObserved=$true
+  jobSignaled=$true;controlJobsUnsignaled=$true;positiveBefore=$true;positiveAfter=$true;cpuTimeLimitObserved=$true
   cpuRateThrottleVerified=$false;processTreeLimitVerified=$false;readerLimitIntegrated=$false
   operationsEnabled=$false;realReadsPerformed=$false
  }
