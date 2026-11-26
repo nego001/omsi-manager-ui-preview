@@ -71,6 +71,16 @@ def run():
             return
         raise AssertionError("expected-refusal")
 
+    def changed(case, root_fd, name, mutation):
+        completed = False
+        def barrier():
+            nonlocal completed
+            mutation()
+            completed = True
+        denied(case, lambda: read(root_fd, name, 64, barrier))
+        if not completed:
+            raise AssertionError("mutation-not-executed")
+
     with tempfile.TemporaryDirectory(prefix="negresco-openat2-fixture-") as tmp:
         base = Path(tmp)
         root = base / "root"
@@ -105,12 +115,12 @@ def run():
             denied("fifo", lambda: read(root_fd, b"fifo", 64))
             denied("directory", lambda: read(root_fd, b"nested", 64))
             denied("size-cap", lambda: read(root_fd, b"large.bin", 32))
-            denied("in-place-mutation", lambda: read(root_fd, b"mutate.bin", 64, lambda: (root / "mutate.bin").write_bytes(b"changed-size")))
-            denied("file-replacement", lambda: read(root_fd, b"replace.bin", 64, lambda: os.replace(root / "replacement.bin", root / "replace.bin")))
+            changed("in-place-mutation", root_fd, b"mutate.bin", lambda: (root / "mutate.bin").write_bytes(b"changed-size"))
+            changed("file-replacement", root_fd, b"replace.bin", lambda: os.replace(root / "replacement.bin", root / "replace.bin"))
             def parent_swap():
                 (root / "parent").rename(root / "retired-parent")
                 (root / "parent").symlink_to(outside, target_is_directory=True)
-            denied("parent-substitution", lambda: read(root_fd, b"parent/data.bin", 64, parent_swap))
+            changed("parent-substitution", root_fd, b"parent/data.bin", parent_swap)
             assert (outside / "sentinel.bin").read_bytes() == b"outside-fixture"
             passed.append("sibling-unchanged")
         finally:
