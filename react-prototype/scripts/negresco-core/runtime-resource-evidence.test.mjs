@@ -71,10 +71,11 @@ const cpuAuthority={cpuRateThrottleVerified:false,processTreeLimitVerified:false
 const cpuReports=()=>({scope:'synthetic-fixture',
  linuxCpuTime:{scope:'disposable-linux-cpu-fixture',mechanism:'RLIMIT_CPU',softSeconds:1,hardSeconds:2,positiveBefore:true,softSignal:'SIGXCPU',softHandlerExit:77,hardSignal:'SIGKILL',positiveAfter:true,cpuTimeLimitObserved:true,...cpuAuthority},
  windowsCpuTime:{scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:20,limitSeconds:2,naturalCompletionCpuSeconds:10,naturalExitCode:77,limitedExitCode:3221225540,documentedQuotaExitObserved:false,ntStatusQuotaExitObserved:true,beforeUserTicks:100000000,limitedUserTicks:36718750,afterUserTicks:100000000,jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,...cpuAuthority},
- windowsCpuRateConfig:{scope:'disposable-windows-cpu-rate-config',mechanism:'JobObjectCpuRateControlInformation',controlFlags:5,initialRate:2000,reducedRate:500,invalidZeroRejected:true,previousRatePreserved:true,restoredRate:10000,configurationReadbackVerified:true,childProcessesAssigned:0,...cpuAuthority}
+ windowsCpuRateConfig:{scope:'disposable-windows-cpu-rate-config',mechanism:'JobObjectCpuRateControlInformation',controlFlags:5,initialRate:2000,reducedRate:500,invalidZeroRejected:true,previousRatePreserved:true,restoredRate:10000,configurationReadbackVerified:true,childProcessesAssigned:0,...cpuAuthority},
+ windowsCpuRateLoad:{scope:'disposable-windows-cpu-rate-load',mechanism:'JobObjectCpuRateControlInformation',controlRate:10000,limitedRate:250,logicalProcessors:4,sampleMilliseconds:4000,beforeCpuTicks:38281250,beforeWallTicks:40019379,limitedCpuTicks:3125000,limitedWallTicks:40009649,afterCpuTicks:38750000,afterWallTicks:40101751,sameOwnedChild:true,readyObserved:true,rateReadbackVerified:true,differentialObserved:true,exactCpuRateGuaranteeVerified:false,processTreeLimitVerified:false,...authority}
 });
 test('CPU evidence separates native time observations from rate configuration and grants no authority',()=>{
- const x=cpuReports(),r=consolidateCpu(x);assert.equal(r.fixtureContractsComplete,true);assert.equal(r.observations.length,3);
+ const x=cpuReports(),r=consolidateCpu(x);assert.equal(r.fixtureContractsComplete,true);assert.equal(r.observations.length,4);
  assert.equal(r.decision,'deny-real-access');assert.deepEqual(r,consolidateCpu(x));
  for(const k of ['nativeAttestationVerified','independentCiVerification','cpuRateThrottleVerified','processTreeLimitVerified','readerLimitIntegrated','osIsolationVerified','realReadsPerformed','operationsEnabled','releaseAuthorized'])assert.equal(r[k],false);
  assert.ok(Object.isFrozen(r)&&Object.isFrozen(r.observations)&&Object.isFrozen(r.observations[1].report));
@@ -97,4 +98,13 @@ test('CPU identity binding validates platform, quota status and digest changes',
  const b=bind({...x,report:{...report,limitedExitCode:1816,documentedQuotaExitObserved:true,ntStatusQuotaExitObserved:false}});
  assert.notEqual(a.bindingDigest,b.bindingDigest);
  assert.throws(()=>bind({...x,report:{...report,limitedExitCode:1816}}),refusal);
+});
+
+test('CPU rate load evidence independently checks differential, host rate and recovery',()=>{
+ const x=cpuReports(),r=consolidateCpu(x);assert.equal(r.fixtureContractsComplete,true);
+ assert.equal(r.cpuRateThrottleVerified,false);
+ for(const patch of [{limitedRate:50},{logicalProcessors:0},{logicalProcessors:33},{limitedCpuTicks:0},{limitedCpuTicks:20000000},{afterCpuTicks:10000000},{beforeWallTicks:1},{sameOwnedChild:false},{readyObserved:false},{rateReadbackVerified:false},{exactCpuRateGuaranteeVerified:true},{operationsEnabled:true},{limitedCpuTicks:NaN},{afterCpuTicks:Number.MAX_SAFE_INTEGER}]){
+  assert.throws(()=>normalize('windowsCpuRateLoad',{...x.windowsCpuRateLoad,...patch}),refusal);
+ }
+ x.windowsCpuRateLoad=null;assert.deepEqual(consolidateCpu(x).missing,['windowsCpuRateLoad']);
 });
