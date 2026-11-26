@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedFixture} from './runtime-native-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-linux-openat2-fixture.py',import.meta.url));
 test('Linux openat2 disposable native cases; other hosts explicitly unqualified',t=>{
  if(process.platform!=='linux'){
@@ -15,5 +16,8 @@ test('Linux openat2 disposable native cases; other hosts explicitly unqualified'
   'nested-regular-same-handle','leaf-symlink','parent-symlink','traversal','absolute','hardlink','fifo','directory','size-cap',
   'in-place-mutation','file-replacement','parent-substitution','sibling-unchanged'
  ],nativeOpenat2Observed:true,atomicContainmentProven:false,abaRuledOut:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false});
+ const bound=bindExecutedFixture('linux',r,script);
+ assert.equal(bound.observation.caseCount,13);assert.equal(bound.operationsEnabled,false);
+ t.diagnostic('Native fixture binding: '+JSON.stringify(bound));
  t.diagnostic('Linux native fixture cases: 13/13; no production qualification.');
 });
