@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedFixture} from './runtime-native-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-windows-relative-fixture.ps1',import.meta.url));
 test('Windows relative native handle fixture cases; other hosts explicitly unqualified',t=>{
  if(process.platform!=='win32'){
@@ -17,6 +18,9 @@ test('Windows relative native handle fixture cases; other hosts explicitly unqua
   'nested-regular-same-handle','parent-junction','leaf-junction','traversal','absolute','alternate-stream','hardlink','directory','size-cap',
   'in-place-mutation','file-replacement',parent,'sibling-unchanged'
  ],nativeRelativeHandleObserved:true,atomicContainmentProven:false,abaRuledOut:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false});
+ const bound=bindExecutedFixture('win32',result,script);
+ assert.equal(bound.observation.caseCount,13);assert.equal(bound.operationsEnabled,false);
+ t.diagnostic('Native fixture binding: '+JSON.stringify(bound));
  t.diagnostic('Windows native fixture cases: 13/13; '+parent+'; no production qualification.');
 });
 
