@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {normalizeFixtureResourceEvidence as normalize,consolidateFixtureResourceEvidence as consolidate,bindFixtureResourceObservation as bind} from './runtime-resource-evidence.mjs';
+import {normalizeFixtureResourceEvidence as normalize,consolidateFixtureResourceEvidence as consolidate,bindFixtureResourceObservation as bind,consolidateFixtureCpuEvidence as consolidateCpu} from './runtime-resource-evidence.mjs';
 const authority={readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
 const isolation={osIsolationVerified:false,...authority};
 const f=()=>({scope:'synthetic-fixture',
@@ -65,4 +65,36 @@ test('resource binding rejects platform mismatch malformed identity and authorit
  for(const patch of [{platform:'linux'},{checkoutSha:'A'.repeat(40)},{scriptSha256:'bad'},{scope:'real-mod'},{releaseAuthorized:true},{kind:'linuxAddress'},{report:{...x.report,operationsEnabled:true}}])assert.throws(()=>bind({...x,...patch}),refusal);
  let invoked=false;Object.defineProperty(x,'checkoutSha',{get(){invoked=true;return 'a'.repeat(40);}});
  assert.throws(()=>bind(x),refusal);assert.equal(invoked,false);
+});
+
+const cpuAuthority={cpuRateThrottleVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
+const cpuReports=()=>({scope:'synthetic-fixture',
+ linuxCpuTime:{scope:'disposable-linux-cpu-fixture',mechanism:'RLIMIT_CPU',softSeconds:1,hardSeconds:2,positiveBefore:true,softSignal:'SIGXCPU',softHandlerExit:77,hardSignal:'SIGKILL',positiveAfter:true,cpuTimeLimitObserved:true,...cpuAuthority},
+ windowsCpuTime:{scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:20,limitSeconds:2,naturalCompletionCpuSeconds:10,naturalExitCode:77,limitedExitCode:3221225540,documentedQuotaExitObserved:false,ntStatusQuotaExitObserved:true,beforeUserTicks:100000000,limitedUserTicks:36718750,afterUserTicks:100000000,jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,...cpuAuthority},
+ windowsCpuRateConfig:{scope:'disposable-windows-cpu-rate-config',mechanism:'JobObjectCpuRateControlInformation',controlFlags:5,initialRate:2000,reducedRate:500,invalidZeroRejected:true,previousRatePreserved:true,restoredRate:10000,configurationReadbackVerified:true,childProcessesAssigned:0,...cpuAuthority}
+});
+test('CPU evidence separates native time observations from rate configuration and grants no authority',()=>{
+ const x=cpuReports(),r=consolidateCpu(x);assert.equal(r.fixtureContractsComplete,true);assert.equal(r.observations.length,3);
+ assert.equal(r.decision,'deny-real-access');assert.deepEqual(r,consolidateCpu(x));
+ for(const k of ['nativeAttestationVerified','independentCiVerification','cpuRateThrottleVerified','processTreeLimitVerified','readerLimitIntegrated','osIsolationVerified','realReadsPerformed','operationsEnabled','releaseAuthorized'])assert.equal(r[k],false);
+ assert.ok(Object.isFrozen(r)&&Object.isFrozen(r.observations)&&Object.isFrozen(r.observations[1].report));
+ const {evidenceDigest,...body}=r;assert.equal(evidenceDigest,createHash('sha256').update(JSON.stringify(body)).digest('hex'));
+});
+test('CPU evidence requires explicit missing reports and denies false claims',()=>{
+ const x=cpuReports();x.windowsCpuTime=null;const r=consolidateCpu(x);
+ assert.equal(r.fixtureContractsComplete,false);assert.deepEqual(r.missing,['windowsCpuTime']);
+ delete x.windowsCpuTime;assert.throws(()=>consolidateCpu(x),refusal);
+ for(const mutate of [x=>x.windowsCpuRateConfig.cpuRateThrottleVerified=true,x=>x.windowsCpuRateConfig.childProcessesAssigned=1,x=>x.linuxCpuTime.hardSignal='SIGTERM',x=>x.windowsCpuTime.limitedUserTicks=19999999,x=>x.windowsCpuTime.limitedUserTicks=100000000,x=>x.windowsCpuTime.beforeUserTicks=99999999,x=>x.windowsCpuTime.jobSignaled=false,x=>x.windowsCpuTime.controlJobsUnsignaled=false,x=>x.windowsCpuTime.limitedExitCode=77,x=>x.windowsCpuTime.documentedQuotaExitObserved=true,x=>x.windowsCpuTime.ntStatusQuotaExitObserved=false]){
+  const y=cpuReports();mutate(y);assert.throws(()=>consolidateCpu(y),refusal);
+ }
+});
+test('CPU identity binding validates platform, quota status and digest changes',()=>{
+ const report=cpuReports().windowsCpuTime;
+ const x={scope:'synthetic-fixture',kind:'windowsCpuTime',platform:'win32',report,checkoutSha:'a'.repeat(40),scriptSha256:'b'.repeat(64)};
+ const a=bind(x);assert.equal(a.observation.report.ntStatusQuotaExitObserved,true);
+ assert.equal(a.nativeAttestationVerified,false);assert.equal(a.operationsEnabled,false);
+ assert.throws(()=>bind({...x,platform:'linux'}),refusal);
+ const b=bind({...x,report:{...report,limitedExitCode:1816,documentedQuotaExitObserved:true,ntStatusQuotaExitObserved:false}});
+ assert.notEqual(a.bindingDigest,b.bindingDigest);
+ assert.throws(()=>bind({...x,report:{...report,limitedExitCode:1816}}),refusal);
 });
