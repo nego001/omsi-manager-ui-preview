@@ -45,6 +45,23 @@ export function consolidateFixtureCpuEvidence(input){
  const body={schemaVersion:1,scope:x.scope,observations,missing,fixtureContractsComplete:missing.length===0,nativeAttestationVerified:false,independentCiVerification:false,cpuRateThrottleVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,osIsolationVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,decision:'deny-real-access'};
  return Object.freeze({...body,evidenceDigest:hash(body)});
 }
+const lifecycleKinds=Object.freeze(['linuxParentDeath','windowsJobTree']);
+const treeExitCode=v=>Number.isInteger(v)&&v>=0&&v<=0xffffffff&&![77,78,79,259].includes(v);
+const lifecycleNoAuthority={arbitraryTreeVerified:false,readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
+Object.assign(schemas,{
+ linuxParentDeath:{scope:'disposable-linux-parent-death',mechanism:'PR_SET_PDEATHSIG',positiveBefore:true,childReadyBeforeParentExit:true,parentNaturalExit:true,adoptedDescendantReaped:true,descendantSignal:'SIGKILL',positiveAfter:true,pidfdIdentityUsed:true,directDescendantOnly:true,...lifecycleNoAuthority},
+ windowsJobTree:{scope:'disposable-windows-job-tree',mechanism:'JobObjectKillOnClose',activeProcessLimit:2,positiveBefore:true,positiveAfter:true,parentAssignedSuspended:true,descendantInheritedMembership:true,bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,parentExitCode:treeExitCode,descendantExitCode:treeExitCode,...lifecycleNoAuthority}
+});
+export function consolidateFixtureLifecycleEvidence(input){
+ const x=exact(input,{scope:'synthetic-fixture',...Object.fromEntries(lifecycleKinds.map(k=>[k,v=>v===null||typeof v==='object']))});
+ const observations=Object.freeze(lifecycleKinds.filter(k=>x[k]!==null).map(k=>normalizeFixtureResourceEvidence(k,x[k])));
+ const missing=Object.freeze(lifecycleKinds.filter(k=>x[k]===null));
+ const body={schemaVersion:1,scope:x.scope,observations,missing,fixtureContractsComplete:missing.length===0,
+  nativeAttestationVerified:false,independentCiVerification:false,arbitraryTreeVerified:false,
+  guaranteedTerminationVerified:false,hardDeadlineVerified:false,readerIntegrated:false,
+  osIsolationVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,decision:'deny-real-access'};
+ return Object.freeze({...body,evidenceDigest:hash(body)});
+}
 function controllers(v){
  if(!Array.isArray(v)||v.length>3||Reflect.ownKeys(v).length!==v.length+1)return false;
  let prev='';for(let i=0;i<v.length;i++){const d=Object.getOwnPropertyDescriptor(v,String(i));if(!d||!Object.hasOwn(d,'value')||!d.enumerable||!['cpu','memory','pids'].includes(d.value)||d.value<=prev)return false;prev=d.value;}return true;
