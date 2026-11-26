@@ -167,14 +167,7 @@ public static class NegrescoWindowsReadFixture {
  if($stage -eq 'native-cases'){
   $detail=$stage+':'+[NegrescoWindowsReadFixture]::Stage+':'+[NegrescoWindowsReadFixture]::Check
  }
- if($detail -cnotmatch '^[a-zA-Z0-9:-]{1,120}
- exit 3
-} finally {
- # Never recursively traverse an unremoved junction.
- if($junction -and [IO.Directory]::Exists($junction)){try{[IO.Directory]::Delete($junction);$junction=$null}catch{}}
- if($root -and -not $junction){try{[IO.Directory]::Delete($root,$true)}catch{}}
-}
-){$detail='unknown'}
+ if($detail -cnotmatch '\A[a-zA-Z0-9:-]{1,120}\z'){$detail='unknown'}
  [Console]::Error.WriteLine('NEGRESCO_NATIVE_WINDOWS_FIXTURE_REFUSED:'+ $detail)
  exit 3
 } finally {
