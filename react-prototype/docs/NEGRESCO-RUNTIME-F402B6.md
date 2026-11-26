@@ -1,0 +1,7 @@
+# F4.02b.6 — aggregate Windows job memory
+
+F4.02b.5 code qualified at 2aee2fe5ad9fc4497cb56990c2e9718231887d0a: combined CI 45737877898 310/310 per OS; independent Core 45737877725 116/116 per OS. Both Windows logs confirm ready-child termination on final job handle close, and descendant creation refused with Win32 1816 followed by a matched positive control. Linux cgroup v2 discovery remains not-writable; delegation and enforcement are not verified.
+
+New laboratory creates two owned, suspended system children in a private unnamed job with aggregate commit cap 192 MiB, active count two, kill-on-close and no individual process memory limit. A 112 MiB committed allocation in B succeeds and is released; A then holds 112 MiB, the identical allocation in B must fail with an explicit memory/quota error, and B must succeed after release of A's allocation. Queries verify configuration before and after; both children must remain suspended and live. Allocations are only in fixture-owned child handles, never written or executed. Cleanup closes the private job and owned handles. This experiment observes aggregate commit admission, not physical RSS, complete isolation, or real Reader integration. CI pending, expected 311 combined and 117 Core per OS.
+
+Next: inspect native result and consolidate memory policy and evidence without treating Linux discovery as enforced cgroup protection. F1 and real admission remain blocked. No real mod reads, merge or release.
