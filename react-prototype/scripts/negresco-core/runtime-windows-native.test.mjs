@@ -16,3 +16,10 @@ test('Windows relative native handle fixture cases; other hosts explicitly unqua
  ],nativeRelativeHandleObserved:true,atomicContainmentProven:false,abaRuledOut:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false});
  t.diagnostic('Windows native fixture cases: 13/13; no production qualification.');
 });
+
+test('Windows PowerShell fixture parses before native qualification',t=>{
+ if(process.platform!=='win32'){t.diagnostic('PowerShell parser unavailable in Linux matrix; Windows syntax gate not executed.');return;}
+ const command='$ErrorActionPreference="Stop"; $tokens=$null; $errors=$null; [void][System.Management.Automation.Language.Parser]::ParseFile($env:NEGRESCO_TEST_SCRIPT,[ref]$tokens,[ref]$errors); if($errors.Count -ne 0){[Console]::Error.WriteLine("NEGRESCO_FIXTURE_SYNTAX_REFUSED"); exit 3}; exit 0';
+ const p=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',command],{env:{...process.env,NEGRESCO_TEST_SCRIPT:script},encoding:'utf8',timeout:15000,maxBuffer:4096,windowsHide:true});
+ assert.equal(p.error,undefined);assert.equal(p.status,0,p.stderr);
+});
