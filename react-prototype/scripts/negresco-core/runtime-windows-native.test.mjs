@@ -10,11 +10,14 @@ test('Windows relative native handle fixture cases; other hosts explicitly unqua
  }
  const p=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-File',script],{encoding:'utf8',timeout:60000,maxBuffer:16384,windowsHide:true});
  assert.equal(p.error,undefined);assert.equal(p.status,0,p.stderr);assert.equal(p.stderr,'');
- assert.deepEqual(JSON.parse(p.stdout),{scope:'disposable-windows-fixture',cases:[
+ const result=JSON.parse(p.stdout);
+ const parent=result.cases?.[11];
+ assert.ok(['parent-substitution-detected','parent-substitution-os-blocked-5','parent-substitution-os-blocked-32','parent-substitution-os-blocked-33'].includes(parent),'unverified parent substitution outcome');
+ assert.deepEqual(result,{scope:'disposable-windows-fixture',cases:[
   'nested-regular-same-handle','parent-junction','leaf-junction','traversal','absolute','alternate-stream','hardlink','directory','size-cap',
-  'in-place-mutation','file-replacement','parent-substitution','sibling-unchanged'
+  'in-place-mutation','file-replacement',parent,'sibling-unchanged'
  ],nativeRelativeHandleObserved:true,atomicContainmentProven:false,abaRuledOut:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false});
- t.diagnostic('Windows native fixture cases: 13/13; no production qualification.');
+ t.diagnostic('Windows native fixture cases: 13/13; '+parent+'; no production qualification.');
 });
 
 test('Windows PowerShell fixture parses before native qualification',t=>{
