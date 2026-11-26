@@ -1,5 +1,6 @@
 // F4.02a: fixed child-process laboratory, not an OS sandbox.
 import {spawn} from 'node:child_process';
+import {inspectFixtureCpu} from './runtime-fixture-cpu.mjs';
 import {FIXTURE_V8_ARGS} from './runtime-fixture-memory.mjs';
 import {randomBytes,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
@@ -9,7 +10,7 @@ const scenarios=['missing-reference','clean-reference'];
 const MAX_OUTPUT=4096;
 function validate(x,scenario,jobId,pid){
  if(!x||Object.getPrototypeOf(x)!==Object.prototype)return false;
- const keys=['schemaVersion','scope','scenario','jobId','pid','bridgeDigest','fixtureStatus','findings','operationsEnabled','realReadsPerformed','productionIntegrated'];
+ const keys=['schemaVersion','scope','scenario','jobId','pid','bridgeDigest','fixtureStatus','findings','cpuSample','operationsEnabled','realReadsPerformed','productionIntegrated'];
  if(Object.keys(x).length!==keys.length||!keys.every(k=>Object.hasOwn(x,k)))return false;
  const missing=scenario==='missing-reference';
  return x.schemaVersion===1&&x.scope==='synthetic-fixture'&&x.scenario===scenario&&x.jobId===jobId&&
@@ -17,7 +18,7 @@ function validate(x,scenario,jobId,pid){
   typeof x.bridgeDigest==='string'&&/^[a-f0-9]{64}$/.test(x.bridgeDigest)&&
   x.fixtureStatus===(missing?'fixture-reference-errors':'no-discovered-findings')&&
   Array.isArray(x.findings)&&x.findings.length===(missing?1:0)&&(!missing||x.findings[0]==='MISSING_REFERENCE')&&
-  x.operationsEnabled===false&&x.realReadsPerformed===false&&x.productionIntegrated===false;
+  inspectFixtureCpu(x.cpuSample).decision==='admit-fixture-only'&&x.operationsEnabled===false&&x.realReadsPerformed===false&&x.productionIntegrated===false;
 }
 export function createFixtureProcessSupervisor(){
  let active=false,closed=false,accepted=0;
@@ -46,7 +47,7 @@ export function createFixtureProcessSupervisor(){
      try{
       const wire=Buffer.concat(out).toString('utf8'),x=JSON.parse(wire);
       if(JSON.stringify(x)!==wire||!validate(x,scenario,jobId,child.pid)){resolve(failed('invalid-report'));return;}
-      const body={schemaVersion:1,scope:'synthetic-fixture',scenario,jobId,workerPid:child.pid,bridgeDigest:x.bridgeDigest,fixtureStatus:x.fixtureStatus,findings:Object.freeze([...x.findings]),separateProcessObserved:true,osIsolationVerified:false,resourceLimitsVerified:false,realReadsPerformed:false,operationsEnabled:false,productionIntegrated:false};
+      const body={schemaVersion:1,scope:'synthetic-fixture',scenario,jobId,workerPid:child.pid,bridgeDigest:x.bridgeDigest,fixtureStatus:x.fixtureStatus,findings:Object.freeze([...x.findings]),cpuObservation:inspectFixtureCpu(x.cpuSample),separateProcessObserved:true,osIsolationVerified:false,resourceLimitsVerified:false,realReadsPerformed:false,operationsEnabled:false,productionIntegrated:false};
       resolve(Object.freeze({state:'fixture-worker-report',report:Object.freeze({...body,reportDigest:createHash('sha256').update(JSON.stringify(body)).digest('hex')}),operationsEnabled:false}));
      }catch{resolve(failed('invalid-report'));}
     });
