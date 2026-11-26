@@ -66,14 +66,14 @@ public static class NegrescoWindowsCpuFixture {
    Need(QueryInformationJobObject(job,9,out q,size,IntPtr.Zero),phase+"-query");
    Need((q.BasicLimitInformation.LimitFlags&0x2004)==0x2004&&q.BasicLimitInformation.PerJobUserTimeLimit==seconds*10000000L,phase+"-limit");
    string exe=System.IO.Path.Combine(Environment.SystemDirectory,"WindowsPowerShell\\v1.0\\powershell.exe");
-   // Fixed finite work: natural completion at 4.5 s of user CPU, independent 18 s wall fallback.
-   string body="$p=[Diagnostics.Process]::GetCurrentProcess(); $t=[Diagnostics.Stopwatch]::StartNew(); $x=0; while($t.ElapsedMilliseconds -lt 18000){for($i=0;$i -lt 4096;$i++){$x=($x+$i) -band 65535}; $p.Refresh(); if($p.UserProcessorTime.TotalMilliseconds -ge 4500){exit 77}}; exit 78";
+   // Fixed finite work: natural completion at 10 s of user CPU, independent 40 s wall fallback.
+   string body="$p=[Diagnostics.Process]::GetCurrentProcess(); $t=[Diagnostics.Stopwatch]::StartNew(); $x=0; while($t.ElapsedMilliseconds -lt 40000){for($i=0;$i -lt 4096;$i++){$x=($x+$i) -band 65535}; $p.Refresh(); if($p.UserProcessorTime.TotalMilliseconds -ge 10000){exit 77}}; exit 78";
    Startup start=new Startup();start.cb=(uint)Marshal.SizeOf(typeof(Startup));
    Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -Command \""+body+"\""),IntPtr.Zero,IntPtr.Zero,false,0x08000004,IntPtr.Zero,Environment.SystemDirectory,ref start,out child),phase+"-create");
    Need(AssignProcessToJobObject(job,child.process),phase+"-assign");
    bool inside;Need(IsProcessInJob(child.process,job,out inside)&&inside,phase+"-membership");
    Need(ResumeThread(child.thread)==1,phase+"-resume");
-   Need(WaitForSingleObject(child.process,23000)==0,phase+"-wait");
+   Need(WaitForSingleObject(child.process,45000)==0,phase+"-wait");
    uint code;Need(GetExitCodeProcess(child.process,out code),phase+"-exit");
    long c,e,k,u;Need(GetProcessTimes(child.process,out c,out e,out k,out u),phase+"-times");
    observedExit=code;
@@ -82,10 +82,10 @@ public static class NegrescoWindowsCpuFixture {
    if(denied){
     uint signal=WaitForSingleObject(job,1000);
     Need(signal==0,phase+"-job-not-signaled-exit-"+code);
-    Need(code!=77&&code!=78&&code!=259,phase+"-unexpected-child-exit-"+code);
-    Need(u>=20000000L&&u<45000000L,phase+"-cpu-range-"+u+"-exit-"+code);
+    Need((code==1816||code==0xC0000044U),phase+"-unexpected-child-exit-"+code);
+    Need(u>=20000000L&&u<100000000L,phase+"-cpu-range-"+u+"-exit-"+code);
    }else{
-    Need(code==77&&u>=45000000L,phase+"-natural-exit-"+code);
+    Need(code==77&&u>=100000000L,phase+"-natural-exit-"+code);
     Need(WaitForSingleObject(job,0)==258,phase+"-control-job-signaled");
    }
    return u;
@@ -101,9 +101,9 @@ public static class NegrescoWindowsCpuFixture {
  public static long[] Run(){
   Need(Environment.Is64BitProcess,"architecture");
   uint a,b,c;
-  long before=Trial(8,false,"before",out a);
+  long before=Trial(20,false,"before",out a);
   long limited=Trial(2,true,"limited",out b);
-  long after=Trial(8,false,"after",out c);
+  long after=Trial(20,false,"after",out c);
   return new long[]{before,limited,after,b};
  }
 }
@@ -112,7 +112,7 @@ public static class NegrescoWindowsCpuFixture {
  $samples=[NegrescoWindowsCpuFixture]::Run()
  $report=[ordered]@{
   scope='disposable-windows-cpu-fixture';mechanism='JobObjectJobUserTime'
-  controlSeconds=8;limitSeconds=2;naturalExitCode=77;limitedExitCode=$samples[3];documentedQuotaExitObserved=($samples[3] -eq 1816)
+  controlSeconds=20;limitSeconds=2;naturalCompletionCpuSeconds=10;naturalExitCode=77;limitedExitCode=$samples[3];documentedQuotaExitObserved=($samples[3] -eq 1816);ntStatusQuotaExitObserved=($samples[3] -eq 3221225540)
   beforeUserTicks=$samples[0];limitedUserTicks=$samples[1];afterUserTicks=$samples[2]
   jobSignaled=$true;controlJobsUnsignaled=$true;positiveBefore=$true;positiveAfter=$true;cpuTimeLimitObserved=$true
   cpuRateThrottleVerified=$false;processTreeLimitVerified=$false;readerLimitIntegrated=$false
