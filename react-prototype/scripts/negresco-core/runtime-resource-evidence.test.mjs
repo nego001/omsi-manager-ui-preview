@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {normalizeFixtureResourceEvidence as normalize,consolidateFixtureResourceEvidence as consolidate} from './runtime-resource-evidence.mjs';
+import {normalizeFixtureResourceEvidence as normalize,consolidateFixtureResourceEvidence as consolidate,bindFixtureResourceObservation as bind} from './runtime-resource-evidence.mjs';
 const authority={readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
 const isolation={osIsolationVerified:false,...authority};
 const f=()=>({scope:'synthetic-fixture',
@@ -49,4 +49,20 @@ test('resource evidence digests are stable, immutable and bound to report conten
  const c=r.observations[1].report;assert.ok(Object.isFrozen(c.controllers)&&Object.isFrozen(c.interfaces));
  x.linuxCgroup.controllers.pop();assert.equal(c.controllers.length,3);
  assert.notEqual(consolidate(x).evidenceDigest,r.evidenceDigest);
+});
+
+const binding=()=>({scope:'synthetic-fixture',kind:'windowsAggregate',platform:'win32',report:f().windowsAggregate,checkoutSha:'a'.repeat(40),scriptSha256:'b'.repeat(64)});
+test('resource binding commits to exact normalized observation and checkout identity without attestation',()=>{
+ const x=binding(),r=bind(x);
+ assert.deepEqual(r,bind(x));assert.ok(Object.isFrozen(r)&&Object.isFrozen(r.observation));
+ const {bindingDigest,...body}=r;assert.equal(bindingDigest,createHash('sha256').update(JSON.stringify(body)).digest('hex'));
+ assert.equal(r.contractValidated,true);
+ for(const k of ['checkoutAttested','nativeAttestationVerified','independentCiVerification','readerLimitIntegrated','realReadsPerformed','operationsEnabled','releaseAuthorized'])assert.equal(r[k],false);
+ for(const patch of [{checkoutSha:'c'.repeat(40)},{scriptSha256:'d'.repeat(64)},{report:{...x.report,refusalWin32Code:8}}])assert.notEqual(bind({...x,...patch}).bindingDigest,bindingDigest);
+});
+test('resource binding rejects platform mismatch malformed identity and authority injection',()=>{
+ const x=binding();
+ for(const patch of [{platform:'linux'},{checkoutSha:'A'.repeat(40)},{scriptSha256:'bad'},{scope:'real-mod'},{releaseAuthorized:true},{kind:'linuxAddress'},{report:{...x.report,operationsEnabled:true}}])assert.throws(()=>bind({...x,...patch}),refusal);
+ let invoked=false;Object.defineProperty(x,'checkoutSha',{get(){invoked=true;return 'a'.repeat(40);}});
+ assert.throws(()=>bind(x),refusal);assert.equal(invoked,false);
 });
