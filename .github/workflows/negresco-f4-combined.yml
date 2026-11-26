@@ -1,0 +1,23 @@
+name: Negresco F4 combined contracts
+on:
+  pull_request:
+    branches: [feat/f3-negresco-intelligent-reader]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  combined:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/f4-negresco-runtime-integration'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reader and Core contracts
+        run: node --test react-prototype/scripts/negresco-core/*.test.mjs react-prototype/scripts/negresco-reader/*.test.mjs
