@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-linux-cgroup-discovery.py',import.meta.url));
 test('Linux cgroup discovery reports capability without asserting delegation or enforcement',t=>{
  if(process.platform!=='linux'){
@@ -22,5 +23,6 @@ test('Linux cgroup discovery reports capability without asserting delegation or 
  assert.equal(r.status,expected);
  if(!r.membershipResolved){assert.equal(r.directoryWriteAccessHint,false);assert.deepEqual(r.controllers,[]);assert.ok(Object.values(r.interfaces).every(x=>!x));}
  if(r.mountReadOnly)assert.equal(r.directoryWriteAccessHint,false);
+ t.diagnostic('Native resource binding: '+JSON.stringify(bindExecutedResource('linuxCgroup',r,script)));
  t.diagnostic('Linux cgroup discovery: '+JSON.stringify(r));
 });
