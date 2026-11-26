@@ -8,6 +8,7 @@ try {
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 public static class NegrescoJobLifecycleFixture {
  [StructLayout(LayoutKind.Sequential)] struct Basic {
   public long PerProcessUserTimeLimit,PerJobUserTimeLimit;
@@ -62,6 +63,7 @@ public static class NegrescoJobLifecycleFixture {
   IntPtr job=IntPtr.Zero;
   ProcessInfo child=new ProcessInfo();
   bool exited=false;
+  EventWaitHandle ready=null;
   try{
    Need(Environment.Is64BitProcess,"architecture");
    job=CreateJobObject(IntPtr.Zero,null);Need(job!=IntPtr.Zero,"create-job");
@@ -77,18 +79,23 @@ public static class NegrescoJobLifecycleFixture {
     &&actual.BasicLimitInformation.ActiveProcessLimit==1&&actual.JobMemoryLimit.ToUInt64()==JobCap,"verify-job-limits");
    // Fixed system executable and fixed benign command; no client arguments or shell.
    string exe=System.IO.Path.Combine(Environment.SystemDirectory,"WindowsPowerShell\\v1.0\\powershell.exe");
-   StringBuilder command=new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -Command \"Start-Sleep -Seconds 20\"");
+   string eventName="Local\\NegrescoFixture-"+Guid.NewGuid().ToString("N");
+   bool created;
+   ready=new EventWaitHandle(false,EventResetMode.ManualReset,eventName,out created);
+   Need(created,"create-private-ready-event");
+   StringBuilder command=new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -Command \"$e=[System.Threading.EventWaitHandle]::OpenExisting('"+eventName+"'); $e.Set() | Out-Null; Start-Sleep -Seconds 20; exit 77\"");
    Startup start=new Startup();start.cb=(uint)Marshal.SizeOf(typeof(Startup));
    Need(CreateProcess(exe,command,IntPtr.Zero,IntPtr.Zero,false,0x08000004,IntPtr.Zero,Environment.SystemDirectory,ref start,out child),"create-suspended-child");
    Need(AssignProcessToJobObject(job,child.process),"assign-owned-child");
    bool inside;
    Need(IsProcessInJob(child.process,job,out inside)&&inside,"verify-membership");
    Need(ResumeThread(child.thread)==1,"resume-child");
+   Need(ready.WaitOne(10000),"child-ready-event");
    Need(WaitForSingleObject(child.process,250)==WaitTimeout,"alive-before-close");
    Need(CloseHandle(job),"close-last-job-handle");job=IntPtr.Zero;
    Need(WaitForSingleObject(child.process,5000)==0,"child-exit-after-close");
    exited=true;
-   uint code;Need(GetExitCodeProcess(child.process,out code)&&code!=0&&code!=259,"terminated-exit-code");
+   uint code;Need(GetExitCodeProcess(child.process,out code)&&code!=77&&code!=259,"terminated-exit-code");
    return code;
   }finally{
    if(job!=IntPtr.Zero)CloseHandle(job);
@@ -98,6 +105,7 @@ public static class NegrescoJobLifecycleFixture {
     CloseHandle(child.process);
    }
    if(child.thread!=IntPtr.Zero)CloseHandle(child.thread);
+   if(ready!=null)ready.Dispose();
   }
  }
 }
@@ -107,7 +115,7 @@ public static class NegrescoJobLifecycleFixture {
  $report=[ordered]@{
   scope='disposable-windows-job-lifecycle';jobCommitLimitBytes=536870912
   activeProcessLimit=1;limitsReadBack=$true;suspendedAssignmentObserved=$true
-  ownedChildAliveBeforeClose=$true;ownedChildTerminatedAfterClose=$true;childExitCode=$code
+  ownedChildReadyObserved=$true;ownedChildAliveBeforeClose=$true;ownedChildTerminatedAfterClose=$true;childExitCode=$code
   aggregateAllocationRefusalVerified=$false;descendantLimitVerified=$false
   readerLimitIntegrated=$false;osIsolationVerified=$false;operationsEnabled=$false;realReadsPerformed=$false
  }
