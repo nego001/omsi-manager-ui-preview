@@ -56,3 +56,11 @@ export function consolidateFixtureResourceEvidence(input){
   hardRssLimitVerified:false,readerLimitIntegrated:false,osIsolationVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,decision:'deny-real-access'};
  return Object.freeze({...body,evidenceDigest:hash(body)});
 }
+
+export function bindFixtureResourceObservation(input){
+ const x=exact(input,{scope:'synthetic-fixture',kind:v=>typeof v==='string',platform:oneOf(['linux','win32']),report:v=>!!v,checkoutSha:v=>typeof v==='string'&&/^[a-f0-9]{40}$/.test(v),scriptSha256:v=>typeof v==='string'&&/^[a-f0-9]{64}$/.test(v)});
+ const observation=normalizeFixtureResourceEvidence(x.kind,x.report);
+ if(x.platform!==(x.kind.startsWith('linux')?'linux':'win32'))fail();
+ const body={schemaVersion:1,scope:x.scope,platform:x.platform,checkoutSha:x.checkoutSha,scriptSha256:x.scriptSha256,observation,contractValidated:true,checkoutAttested:false,nativeAttestationVerified:false,independentCiVerification:false,readerLimitIntegrated:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false};
+ return Object.freeze({...body,bindingDigest:hash(body)});
+}
