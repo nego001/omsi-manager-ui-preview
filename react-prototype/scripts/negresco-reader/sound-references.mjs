@@ -56,7 +56,8 @@ function inspect(input){
    }
    for(let j=0;j<lines.length;j++){
     const s=lines[j].trim();if(!s)continue;
-    const m=/^\[([A-Za-z][A-Za-z0-9_]*)\]$/.exec(s);
+    // [3d] is a known numeric-leading OMSI directive; retain it as opaque metadata.
+    const m=/^\[(3d|[A-Za-z][A-Za-z0-9_]*)\]$/.exec(s);
     if(m){finish();current={tag:m[1],line:j+1,first:null,count:0};}
     else if(s.startsWith('[')||s.endsWith(']'))fail();
     else if(current){if(!current.first)current.first={value:s,line:j+1};current.count++;}
