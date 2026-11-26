@@ -26,6 +26,22 @@ const schemas={
  windowsDescendant:{scope:'disposable-windows-job-descendant',activeProcessLimit:1,outsideJobPositiveControl:true,descendantAttemptOutcome:oneOf(['create-refused-5','create-refused-1816','created-but-terminated-before-resume']),insideJobRaisedLimitPositiveControl:true,controlChildMembershipVerified:true,restoredLimitVerified:true,descendantLimitObserved:true,allChildrenCreatedSuspended:true,aggregateAllocationRefusalVerified:false,readerLimitIntegrated:false,...noIsolation},
  windowsAggregate:{scope:'disposable-windows-aggregate-memory',jobLimitBytes:201326592,individualRequestBytes:117440512,twoOwnedChildrenAssigned:true,allChildrenSuspended:true,individualProcessLimitConfigured:false,positiveBefore:true,firstAllocationHeld:true,combinedAllocationRefused:true,refusalWin32Code:oneOf(memoryCodes),positiveAfterRelease:true,limitReadbackVerified:true,aggregateCommitLimitObserved:true,hardRssLimitVerified:false,readerLimitIntegrated:false,...noIsolation}
 };
+const cpuKinds=Object.freeze(['linuxCpuTime','windowsCpuTime','windowsCpuRateConfig']);
+const positiveTicks=v=>Number.isSafeInteger(v)&&v>=100000000;
+const limitedTicks=v=>Number.isSafeInteger(v)&&v>=20000000&&v<100000000;
+const cpuNoAuthority={cpuRateThrottleVerified:false,processTreeLimitVerified:false,...noAuthority};
+Object.assign(schemas,{
+ linuxCpuTime:{scope:'disposable-linux-cpu-fixture',mechanism:'RLIMIT_CPU',softSeconds:1,hardSeconds:2,positiveBefore:true,softSignal:'SIGXCPU',softHandlerExit:77,hardSignal:'SIGKILL',positiveAfter:true,cpuTimeLimitObserved:true,...cpuNoAuthority},
+ windowsCpuTime:{scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:20,limitSeconds:2,naturalCompletionCpuSeconds:10,naturalExitCode:77,limitedExitCode:oneOf([1816,3221225540]),documentedQuotaExitObserved:bool,ntStatusQuotaExitObserved:bool,beforeUserTicks:positiveTicks,limitedUserTicks:limitedTicks,afterUserTicks:positiveTicks,jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,...cpuNoAuthority},
+ windowsCpuRateConfig:{scope:'disposable-windows-cpu-rate-config',mechanism:'JobObjectCpuRateControlInformation',controlFlags:5,initialRate:2000,reducedRate:500,invalidZeroRejected:true,previousRatePreserved:true,restoredRate:10000,configurationReadbackVerified:true,childProcessesAssigned:0,...cpuNoAuthority}
+});
+export function consolidateFixtureCpuEvidence(input){
+ const x=exact(input,{scope:'synthetic-fixture',...Object.fromEntries(cpuKinds.map(k=>[k,v=>v===null||typeof v==='object']))});
+ const observations=Object.freeze(cpuKinds.filter(k=>x[k]!==null).map(k=>normalizeFixtureResourceEvidence(k,x[k])));
+ const missing=Object.freeze(cpuKinds.filter(k=>x[k]===null));
+ const body={schemaVersion:1,scope:x.scope,observations,missing,fixtureContractsComplete:missing.length===0,nativeAttestationVerified:false,independentCiVerification:false,cpuRateThrottleVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,osIsolationVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,decision:'deny-real-access'};
+ return Object.freeze({...body,evidenceDigest:hash(body)});
+}
 function controllers(v){
  if(!Array.isArray(v)||v.length>3||Reflect.ownKeys(v).length!==v.length+1)return false;
  let prev='';for(let i=0;i<v.length;i++){const d=Object.getOwnPropertyDescriptor(v,String(i));if(!d||!Object.hasOwn(d,'value')||!d.enumerable||!['cpu','memory','pids'].includes(d.value)||d.value<=prev)return false;prev=d.value;}return true;
@@ -43,6 +59,7 @@ function cgroup(input){
 export function normalizeFixtureResourceEvidence(kind,report){
  if(typeof kind!=='string'||(!Object.hasOwn(schemas,kind)&&kind!=='linuxCgroup'))fail();
  const normalized=Object.freeze(kind==='linuxCgroup'?cgroup(report):exact(report,schemas[kind]));
+ if(kind==='windowsCpuTime'&&(normalized.documentedQuotaExitObserved!==(normalized.limitedExitCode===1816)||normalized.ntStatusQuotaExitObserved!==(normalized.limitedExitCode===3221225540)))fail();
  const body={kind,report:normalized,origin:'caller-supplied-fixture-report',nativeAttestationVerified:false,independentCiVerification:false,operationsEnabled:false};
  return Object.freeze({...body,evidenceDigest:hash(body)});
 }
