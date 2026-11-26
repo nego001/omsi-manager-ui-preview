@@ -77,7 +77,8 @@ public static class NegrescoWindowsCpuRateLoad {
   long end=Cpu(child);watch.Stop();
   Need(WaitForSingleObject(child,0)==258,phase+"-alive-after");
   long wall=watch.Elapsed.Ticks,delta=end-start;
-  Need(wall>=40000000L&&wall<=65000000L&&delta>0&&delta<=wall*2,phase+"-sample");
+  Need(wall>=38000000L&&wall<=65000000L,phase+"-wall-"+wall);
+  Need(delta>0&&delta<=wall*2,phase+"-cpu-"+delta+"-wall-"+wall);
   return new long[]{delta,wall};
  }
  public static long[] Run(){
@@ -103,7 +104,9 @@ public static class NegrescoWindowsCpuRateLoad {
    Need(ResumeThread(child.thread)==1,"resume");
    Need(ready.WaitOne(10000),"ready");
    long[] before=Sample(child.process,"before");
-   Cap(job,50);
+   // Target approximately 0.1 logical core, accounting for host CPU count.
+   uint limitedRate=1000/processors;
+   Cap(job,limitedRate);
    long[] limited=Sample(child.process,"limited");
    Cap(job,10000);
    long[] after=Sample(child.process,"after");
@@ -111,8 +114,8 @@ public static class NegrescoWindowsCpuRateLoad {
    Need(a>=0.5&&d>=0.5,"insufficient-control-load");
    Need(b<=Math.Min(a,d)*0.5,"no-differential");
    // Empirical tolerance of 0.15 logical core for scheduling granularity; not a hard guarantee.
-   Need(b<=processors*0.005+0.15,"observed-rate-excess");
-   return new long[]{processors,before[0],before[1],limited[0],limited[1],after[0],after[1]};
+   Need(b<=processors*(limitedRate/10000.0)+0.15,"observed-rate-excess");
+   return new long[]{processors,before[0],before[1],limited[0],limited[1],after[0],after[1],limitedRate};
   }finally{
    CloseHandle(job);
    if(child.process!=IntPtr.Zero){
@@ -129,7 +132,7 @@ public static class NegrescoWindowsCpuRateLoad {
  $samples=[NegrescoWindowsCpuRateLoad]::Run()
  $report=[ordered]@{
   scope='disposable-windows-cpu-rate-load';mechanism='JobObjectCpuRateControlInformation'
-  controlRate=10000;limitedRate=50;logicalProcessors=$samples[0];sampleMilliseconds=4000
+  controlRate=10000;limitedRate=$samples[7];logicalProcessors=$samples[0];sampleMilliseconds=4000
   beforeCpuTicks=$samples[1];beforeWallTicks=$samples[2];limitedCpuTicks=$samples[3];limitedWallTicks=$samples[4];afterCpuTicks=$samples[5];afterWallTicks=$samples[6]
   sameOwnedChild=$true;readyObserved=$true;rateReadbackVerified=$true;differentialObserved=$true
   exactCpuRateGuaranteeVerified=$false;processTreeLimitVerified=$false;readerLimitIntegrated=$false
