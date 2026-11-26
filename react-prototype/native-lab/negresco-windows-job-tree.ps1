@@ -60,29 +60,29 @@ public static class NegrescoJobTreeFixture {
  static extern bool QueryIds(IntPtr job,int kind,IntPtr buffer,uint size,IntPtr returned);
  [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
  static string Enc(string s){return Convert.ToBase64String(Encoding.Unicode.GetBytes(s));}
- static IntPtr Descendant(IntPtr job,uint parentPid){
-  // Allow bounded ABI/accounting headroom, but never accept more than two members.
-  int size=8+16*IntPtr.Size;IntPtr buffer=Marshal.AllocHGlobal(size);
+ static void VerifyActiveCount(IntPtr job){
+  // JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: four LARGE_INTEGERs, four DWORDs.
+  const int size=48;IntPtr buffer=Marshal.AllocHGlobal(size);
   try{
    for(int i=0;i<size;i++)Marshal.WriteByte(buffer,i,0);
-   Need(QueryIds(job,3,buffer,(uint)size,IntPtr.Zero),"query-members");
-   int assigned=Marshal.ReadInt32(buffer,0),listed=Marshal.ReadInt32(buffer,4);
-   Need(assigned==2&&listed==2,"member-count-"+assigned+"-"+listed);
-   long a=Marshal.ReadIntPtr(buffer,8).ToInt64(),b=Marshal.ReadIntPtr(buffer,8+IntPtr.Size).ToInt64();
-   Need(a!=b&&(a==parentPid||b==parentPid),"parent-membership");
-   long pid=a==parentPid?b:a;Need(pid>0&&pid<=uint.MaxValue,"descendant-id");
-   // Only query and wait access, never terminate by PID.
-   IntPtr handle=OpenProcess(0x100000|0x1000,false,(uint)pid);
-   Need(handle!=IntPtr.Zero,"open-descendant");
-   bool inside;
-   if(!IsProcessInJob(handle,job,out inside)||!inside){CloseHandle(handle);Need(false,"descendant-membership");}
-   return handle;
+   Need(QueryIds(job,1,buffer,size,IntPtr.Zero),"query-accounting");
+   int active=Marshal.ReadInt32(buffer,40);
+   Need(active==2,"active-count-"+active);
   }finally{Marshal.FreeHGlobal(buffer);}
+ }
+ static IntPtr Descendant(IntPtr job,uint parentPid,uint pid){
+  Need(pid>0&&pid!=parentPid,"descendant-id");
+  IntPtr handle=OpenProcess(0x100000|0x1000,false,pid);
+  Need(handle!=IntPtr.Zero,"open-descendant");
+  bool inside;
+  if(!IsProcessInJob(handle,job,out inside)||!inside){CloseHandle(handle);Need(false,"descendant-membership");}
+  return handle;
  }
  static uint[] Trial(bool terminate){
   IntPtr job=IntPtr.Zero,descendant=IntPtr.Zero;
   ProcessInfo parent=new ProcessInfo();
   EventWaitHandle ready=null,release=null;
+  System.IO.MemoryMappedFiles.MemoryMappedFile identity=null;
   try{
    job=CreateJobObject(IntPtr.Zero,null);Need(job!=IntPtr.Zero,"job");
    Extended limit=new Extended();limit.BasicLimitInformation.LimitFlags=0x2000|8;
@@ -91,10 +91,12 @@ public static class NegrescoJobTreeFixture {
    Extended actual;Need(QueryInformationJobObject(job,9,out actual,size,IntPtr.Zero),"query");
    Need((actual.BasicLimitInformation.LimitFlags&0x2008)==0x2008&&actual.BasicLimitInformation.ActiveProcessLimit==2,"readback");
    string suffix=Guid.NewGuid().ToString("N"),rn="Local\\NegrescoTreeReady-"+suffix,ln="Local\\NegrescoTreeRelease-"+suffix;
+   string mapName="Local\\NegrescoTreeIdentity-"+suffix;
+   identity=System.IO.MemoryMappedFiles.MemoryMappedFile.CreateNew(mapName,8);
    bool created;ready=new EventWaitHandle(false,EventResetMode.ManualReset,rn,out created);Need(created,"ready-create");
    release=new EventWaitHandle(false,EventResetMode.ManualReset,ln,out created);Need(created,"release-create");
    string exe=System.IO.Path.Combine(Environment.SystemDirectory,"WindowsPowerShell\\v1.0\\powershell.exe");
-   string childBody="$ErrorActionPreference='Stop'; $r=[Threading.EventWaitHandle]::OpenExisting('"+rn+"'); $l=[Threading.EventWaitHandle]::OpenExisting('"+ln+"'); $r.Set() | Out-Null; if($l.WaitOne(20000)){exit 77}; exit 78";
+   string childBody="$ErrorActionPreference='Stop'; $r=[Threading.EventWaitHandle]::OpenExisting('"+rn+"'); $l=[Threading.EventWaitHandle]::OpenExisting('"+ln+"'); $m=[IO.MemoryMappedFiles.MemoryMappedFile]::OpenExisting('"+mapName+"'); $v=$m.CreateViewAccessor(); $v.Write(0,[int]$PID); $v.Dispose(); $m.Dispose(); $r.Set() | Out-Null; if($l.WaitOne(20000)){exit 77}; exit 78";
    string parentBody="$ErrorActionPreference='Stop'; $s=New-Object Diagnostics.ProcessStartInfo; $s.FileName='"+exe.Replace("'","''")+"'; $s.Arguments='-NoProfile -NonInteractive -EncodedCommand "+Enc(childBody)+"'; $s.UseShellExecute=$false; $s.CreateNoWindow=$true; $p=[Diagnostics.Process]::Start($s); if(!$p.WaitForExit(25000)){exit 78}; if($p.ExitCode -eq 77){exit 77}; exit 79";
    Startup start=new Startup();start.cb=(uint)Marshal.SizeOf(typeof(Startup));
    Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -EncodedCommand "+Enc(parentBody)),IntPtr.Zero,IntPtr.Zero,false,0x08000004,IntPtr.Zero,Environment.SystemDirectory,ref start,out parent),"create-parent");
@@ -102,7 +104,10 @@ public static class NegrescoJobTreeFixture {
    bool member;Need(IsProcessInJob(parent.process,job,out member)&&member,"parent-in-job");
    Need(ResumeThread(parent.thread)==1,"resume");
    Need(ready.WaitOne(12000),"descendant-ready");
-   descendant=Descendant(job,parent.processId);
+   uint descendantPid;
+   using(var view=identity.CreateViewAccessor()){int value=view.ReadInt32(0);Need(value>0,"identity-handshake");descendantPid=(uint)value;}
+   descendant=Descendant(job,parent.processId,descendantPid);
+   VerifyActiveCount(job);
    Need(WaitForSingleObject(parent.process,0)==258&&WaitForSingleObject(descendant,0)==258,"both-alive");
    if(terminate){Need(CloseHandle(job),"close-job");job=IntPtr.Zero;}
    else{Need(release.Set(),"release-control");}
@@ -122,7 +127,7 @@ public static class NegrescoJobTreeFixture {
    }
    if(descendant!=IntPtr.Zero){WaitForSingleObject(descendant,5000);CloseHandle(descendant);}
    if(parent.thread!=IntPtr.Zero)CloseHandle(parent.thread);
-   if(ready!=null)ready.Dispose();if(release!=null)release.Dispose();
+   if(ready!=null)ready.Dispose();if(release!=null)release.Dispose();if(identity!=null)identity.Dispose();
   }
  }
  public static uint[] Run(){Need(Environment.Is64BitProcess,"architecture");Trial(false);uint[] codes=Trial(true);Trial(false);return codes;}
@@ -135,6 +140,7 @@ public static class NegrescoJobTreeFixture {
   scope='disposable-windows-job-tree';mechanism='JobObjectKillOnClose';activeProcessLimit=2
   positiveBefore=$true;positiveAfter=$true;parentAssignedSuspended=$true;descendantInheritedMembership=$true
   bothReadyAndAlive=$true;lastJobHandleClosed=$true;bothTerminated=$true
+  descendantIdentityHandshake=$true;activeCountVerified=$true
   parentExitCode=$codes[0];descendantExitCode=$codes[1]
   arbitraryTreeVerified=$false;readerIntegrated=$false;operationsEnabled=$false;realReadsPerformed=$false
  }
