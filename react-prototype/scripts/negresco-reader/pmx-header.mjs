@@ -38,7 +38,7 @@ function inspect(input){
   region('material-start',u(28),0);table('pieces',u(32),pieces,16);
   table('variant-definitions',u(36),variants,4);
  }else if(format==='pmg'){
-  version=b[0];if(![0x14,0x15].includes(version)||b.subarray(1,4).toString('ascii')!=='gmP')fail();
+  version=b[0];if(![0x14,0x15].includes(version)||b.subarray(1,4).toString('latin1')!=='gmP')fail();
   const delta=version===0x15?8:0;headerBytes=104+delta;if(b.length<headerBytes)fail();
   const [pieces,parts,bones,weightWidth,locators]=[4,8,12,16,20].map(o=>n(i(o)));
   counts={pieces,parts,bones,weightWidth,locators};
