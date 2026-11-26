@@ -8,6 +8,7 @@ const worker=fileURLToPath(new URL('./runtime-fixture-worker.mjs',import.meta.ur
 const refuse=()=>{throw Error('CORE_RUNTIME_WORKER_REFUSED');};
 const scenarios=['missing-reference','clean-reference'];
 const MAX_OUTPUT=4096;
+const CLOSE_GRACE_MS=2000;
 function validate(x,scenario,jobId,pid){
  if(!x||Object.getPrototypeOf(x)!==Object.prototype)return false;
  const keys=['schemaVersion','scope','scenario','jobId','pid','bridgeDigest','fixtureStatus','findings','cpuSample','operationsEnabled','realReadsPerformed','productionIntegrated'];
@@ -28,9 +29,9 @@ export function createFixtureProcessSupervisor(options=undefined){
   if(!d||!Object.hasOwn(d,'value')||!d.enumerable||!Number.isInteger(d.value)||d.value<0||d.value>15000)refuse();
   timeoutMs=d.value;
  }
- let active=false,closed=false,accepted=0,activeJobId=null,cancelActive=null;
+ let active=false,closed=false,accepted=0,activeJobId=null,cancelActive=null,quarantined=false,cleanupPending=false;
  async function analyze(input){
-  if(closed||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
+  if(closed||quarantined||cleanupPending||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
   const a=Object.getOwnPropertyDescriptor(input,'scope'),b=Object.getOwnPropertyDescriptor(input,'scenario');
   if(!a||!b||!Object.hasOwn(a,'value')||!Object.hasOwn(b,'value')||a.value!=='synthetic-fixture'||!scenarios.includes(b.value))refuse();
   const scenario=b.value,jobId=randomBytes(16).toString('hex');
@@ -43,11 +44,20 @@ export function createFixtureProcessSupervisor(options=undefined){
      const env={};if(process.platform==='win32'&&process.env.SystemRoot)env.SystemRoot=process.env.SystemRoot;
      child=spawn(process.execPath,[...FIXTURE_V8_ARGS,worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
     }catch{resolve(failed('spawn-failed'));return;}
-    const out=[];let size=0,reason=null;
+    const out=[];let size=0,reason=null,closeSeen=false,closeWatchdog=null;
     const stop=(r,terminate=true)=>{
      if(reason!==null)return false;
      reason=r;out.length=0;
-     if(terminate){try{child.kill('SIGKILL');}catch{}}
+     if(terminate&&!closeSeen){
+      cleanupPending=true;
+      closeWatchdog=setTimeout(()=>{
+       if(closeSeen)return;
+       quarantined=true;cancelActive=null;
+       resolve(failed('termination-unconfirmed'));
+      },CLOSE_GRACE_MS);
+      // The retained ChildProcess is the only termination target; never signal by a caller PID.
+      if(child.exitCode===null&&child.signalCode===null){try{child.kill('SIGKILL');}catch{}}
+     }
      return true;
     };
     cancelActive=()=>{if(expired()){stop('timeout');return false;}return stop('cancelled');};
@@ -57,7 +67,8 @@ export function createFixtureProcessSupervisor(options=undefined){
     child.stdout.on('data',chunk=>{if(expired()){stop('timeout');return;}if(reason)return;size+=chunk.length;if(size>MAX_OUTPUT){stop('output-limit');return;}if(!reason)out.push(chunk);});
     child.stderr.on('data',()=>stop('worker-stderr'));
     child.on('close',(code,signal)=>{
-     clearTimeout(timer);cancelActive=null;
+     closeSeen=true;clearTimeout(timer);clearTimeout(closeWatchdog);cleanupPending=false;cancelActive=null;
+     if(quarantined)return;
      if(expired())stop('timeout',false);
      if(reason||code!==0||signal){resolve(failed(reason||'worker-exit'));return;}
      try{
@@ -69,18 +80,20 @@ export function createFixtureProcessSupervisor(options=undefined){
       resolve(result);
      }catch{resolve(failed('invalid-report'));}
     });
-    if(expired()){stop('timeout');child.stdin.end();}
-    else child.stdin.end(JSON.stringify({scope:'synthetic-fixture',scenario,jobId}));
+    try{
+     if(expired()){stop('timeout');child.stdin.end();}
+     else child.stdin.end(JSON.stringify({scope:'synthetic-fixture',scenario,jobId}));
+    }catch{stop('input-error');}
    });
   }finally{cancelActive=null;activeJobId=null;active=false;}
  }
  function failed(reason){return Object.freeze({state:'fixture-worker-failed',reason,report:null,operationsEnabled:false});}
  function cancel(jobId){
   if(typeof jobId!=='string'||!(/^[a-f0-9]{32}$/).test(jobId))refuse();
-  if(closed||!active||jobId!==activeJobId||cancelActive===null)return false;
+  if(closed||quarantined||!active||jobId!==activeJobId||cancelActive===null)return false;
   return cancelActive();
  }
- function status(){return Object.freeze({active,activeJobId,closed,acceptedJobs:accepted,operationsEnabled:false});}
- function dispose(){if(active)refuse();if(closed)return false;closed=true;return true;}
+ function status(){return Object.freeze({active,activeJobId,closed,quarantined,cleanupPending,acceptedJobs:accepted,operationsEnabled:false});}
+ function dispose(){if(active||cleanupPending)refuse();if(closed)return false;closed=true;return true;}
  return Object.freeze({analyze,cancel,status,dispose});
 }
