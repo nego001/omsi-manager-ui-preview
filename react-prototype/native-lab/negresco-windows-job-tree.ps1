@@ -1,6 +1,7 @@
 # F4.02d.5: disposable two-member job with actual descendant inheritance.
 $ErrorActionPreference='Stop'
 $stage='admission'
+$tempRoot=$null
 try {
  if($args.Count -ne 0 -or [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){throw 'refused'}
  $stage='compile'
@@ -59,7 +60,6 @@ public static class NegrescoJobTreeFixture {
  [DllImport("kernel32.dll",SetLastError=true,EntryPoint="QueryInformationJobObject")]
  static extern bool QueryIds(IntPtr job,int kind,IntPtr buffer,uint size,IntPtr returned);
  [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
- static string Enc(string s){return Convert.ToBase64String(Encoding.Unicode.GetBytes(s));}
  static void VerifyActiveCount(IntPtr job,IntPtr parent,IntPtr descendant){
   // Accounting can include terminated processes whose references have not been released.
   // Require convergence, not an assumed cause or permission to admit extra processes.
@@ -86,7 +86,7 @@ public static class NegrescoJobTreeFixture {
   if(!IsProcessInJob(handle,job,out inside)||!inside){CloseHandle(handle);Need(false,"descendant-membership");}
   return handle;
  }
- static uint[] Trial(bool terminate){
+ static uint[] Trial(bool terminate,string exe){
   IntPtr job=IntPtr.Zero,descendant=IntPtr.Zero;
   ProcessInfo parent=new ProcessInfo();
   EventWaitHandle ready=null,release=null;
@@ -103,11 +103,9 @@ public static class NegrescoJobTreeFixture {
    identity=System.IO.MemoryMappedFiles.MemoryMappedFile.CreateNew(mapName,8);
    bool created;ready=new EventWaitHandle(false,EventResetMode.ManualReset,rn,out created);Need(created,"ready-create");
    release=new EventWaitHandle(false,EventResetMode.ManualReset,ln,out created);Need(created,"release-create");
-   string exe=System.IO.Path.Combine(Environment.SystemDirectory,"WindowsPowerShell\\v1.0\\powershell.exe");
-   string childBody="$ErrorActionPreference='Stop'; $r=[Threading.EventWaitHandle]::OpenExisting('"+rn+"'); $l=[Threading.EventWaitHandle]::OpenExisting('"+ln+"'); $m=[IO.MemoryMappedFiles.MemoryMappedFile]::OpenExisting('"+mapName+"'); $v=$m.CreateViewAccessor(); $v.Write(0,[int]$PID); $v.Dispose(); $m.Dispose(); $r.Set() | Out-Null; if($l.WaitOne(20000)){exit 77}; exit 78";
-   string parentBody="$ErrorActionPreference='Stop'; $s=New-Object Diagnostics.ProcessStartInfo; $s.FileName='"+exe.Replace("'","''")+"'; $s.Arguments='-NoProfile -NonInteractive -EncodedCommand "+Enc(childBody)+"'; $s.UseShellExecute=$false; $s.CreateNoWindow=$true; $p=[Diagnostics.Process]::Start($s); if(!$p.WaitForExit(25000)){exit 78}; if($p.ExitCode -eq 77){exit 77}; exit 79";
+   string args=" parent "+rn+" "+ln+" "+mapName;
    Startup start=new Startup();start.cb=(uint)Marshal.SizeOf(typeof(Startup));
-   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -EncodedCommand "+Enc(parentBody)),IntPtr.Zero,IntPtr.Zero,false,0x08000004,IntPtr.Zero,Environment.SystemDirectory,ref start,out parent),"create-parent");
+   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\""+args),IntPtr.Zero,IntPtr.Zero,false,4,IntPtr.Zero,Environment.SystemDirectory,ref start,out parent),"create-parent");
    Need(AssignProcessToJobObject(job,parent.process),"assign-parent");
    bool member;Need(IsProcessInJob(parent.process,job,out member)&&member,"parent-in-job");
    Need(ResumeThread(parent.thread)==1,"resume");
@@ -138,12 +136,49 @@ public static class NegrescoJobTreeFixture {
    if(ready!=null)ready.Dispose();if(release!=null)release.Dispose();if(identity!=null)identity.Dispose();
   }
  }
- public static uint[] Run(){Need(Environment.Is64BitProcess,"architecture");Trial(false);uint[] codes=Trial(true);Trial(false);return codes;}
+ public static uint[] Run(string exe){Need(Environment.Is64BitProcess,"architecture");Trial(false,exe);uint[] codes=Trial(true,exe);Trial(false,exe);return codes;}
 
 }
 '@ -ErrorAction Stop
+ $stage='helper-compile'
+ $tempRoot=[IO.Path]::Combine([IO.Path]::GetTempPath(),'NegrescoTree-'+[Guid]::NewGuid().ToString('N'))
+ [IO.Directory]::CreateDirectory($tempRoot) | Out-Null
+ $helper=[IO.Path]::Combine($tempRoot,'NegrescoTreeWorker.exe')
+ Add-Type -TypeDefinition @'
+using System;
+using System.Diagnostics;
+using System.IO.MemoryMappedFiles;
+using System.Threading;
+using System.Text.RegularExpressions;
+public static class NegrescoTreeWorker {
+ public static int Main(string[] args){
+  try{
+   if(args.Length!=4||(args[0]!="parent"&&args[0]!="child"))return 79;
+   if(!Regex.IsMatch(args[1],@"\ALocal\\NegrescoTreeReady-[a-f0-9]{32}\z"))return 79;
+   string suffix=args[1].Substring(args[1].Length-32);
+   if(args[2]!="Local\\NegrescoTreeRelease-"+suffix||args[3]!="Local\\NegrescoTreeIdentity-"+suffix)return 79;
+   if(args[0]=="parent"){
+    var info=new ProcessStartInfo(Process.GetCurrentProcess().MainModule.FileName,"child "+args[1]+" "+args[2]+" "+args[3]);
+    info.UseShellExecute=false;
+    using(var child=Process.Start(info)){
+     if(!child.WaitForExit(25000))return 78;
+     return child.ExitCode==77?77:79;
+    }
+   }
+   using(var ready=EventWaitHandle.OpenExisting(args[1]))
+   using(var release=EventWaitHandle.OpenExisting(args[2]))
+   using(var map=MemoryMappedFile.OpenExisting(args[3]))
+   using(var view=map.CreateViewAccessor()){
+    view.Write(0,Process.GetCurrentProcess().Id);
+    ready.Set();
+    return release.WaitOne(20000)?77:78;
+   }
+  }catch{return 79;}
+ }
+}
+'@ -OutputAssembly $helper -OutputType WindowsApplication -ErrorAction Stop
  $stage='native'
- $codes=[NegrescoJobTreeFixture]::Run()
+ $codes=[NegrescoJobTreeFixture]::Run($helper)
  $report=[ordered]@{
   scope='disposable-windows-job-tree';mechanism='JobObjectKillOnClose';activeProcessLimit=2
   positiveBefore=$true;positiveAfter=$true;parentAssignedSuspended=$true;descendantInheritedMembership=$true
@@ -156,13 +191,18 @@ public static class NegrescoJobTreeFixture {
  exit 0
 }catch{
  $detail=$stage
- if($stage -eq 'compile'){
+ if($stage -eq 'compile' -or $stage -eq 'helper-compile'){
   $matchesFound=[regex]::Matches(($_ | Out-String),'(?<![A-Z0-9])CS[0-9]{4}(?![0-9])')
   $codes=@($matchesFound | ForEach-Object {$_.Value} | Select-Object -Unique -First 4)
-  if($codes.Count -gt 0){$detail='compile:'+($codes -join ':')}
+  if($codes.Count -gt 0){$detail=$stage+':'+($codes -join ':')}
  }
  if($stage -eq 'native'){$detail=$stage+':'+[NegrescoJobTreeFixture]::Stage+':'+[NegrescoJobTreeFixture]::Code}
  if($detail -cnotmatch '\A[a-zA-Z0-9:-]{1,120}\z'){$detail='unknown'}
  [Console]::Error.WriteLine('NEGRESCO_WINDOWS_JOB_TREE_REFUSED:'+ $detail)
  exit 3
+}
+finally{
+ if($null -ne $tempRoot -and [IO.Directory]::Exists($tempRoot)){
+  try{[IO.Directory]::Delete($tempRoot,$true)}catch{[Console]::Error.WriteLine('NEGRESCO_WINDOWS_JOB_TREE_CLEANUP_REFUSED')}
+ }
 }
