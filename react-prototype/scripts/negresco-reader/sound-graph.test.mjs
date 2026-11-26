@@ -12,7 +12,7 @@ const f=(path,bytes)=>({path,bytes});
 const g=(root,files,over={})=>({scope:'synthetic-fixture',root,files,encoding:'utf-8',limits:{maxBytes:8192,maxEntries:16,maxReferences:16,maxReportBytes:32768,...over}});
 test('OMSI sound and loopsound preserve first path and directive position only',()=>{
  const r=inspect(input('vehicle/sound/sound.cfg',config));
- assert.deepEqual(r.references.map(x=>[x.path,x.line]),[['motor/idle.wav',2],['motor/run.wav',10]]);
+ assert.deepEqual(r.references.map(x=>[x.path,x.line]),[['motor/idle.wav',2],['motor/run.wav',9]]);
  assert.deepEqual(r.sections.map(x=>x.status),['reference-only','uninterpreted','reference-only']);
  assert.equal(r.audioPlayed,false);
 });
@@ -61,4 +61,12 @@ test('graph digest deterministic and evidence immutable, no playback or authoriz
  const r=graph(g(root,files));assert.deepEqual(graph(g(root,[...files].reverse())),r);assert.deepEqual(r.unreferencedFiles,['unused.wav']);
  for(const o of [r,r.sources,r.sources[0],r.nodes,r.nodes[0],r.edges,r.edges[0],r.issues,r.unreferencedFiles])assert.ok(Object.isFrozen(o));
  for(const k of ['bankEventsVerified','fullSoundSupport','realDependenciesResolved','audioPlayed','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
+});
+
+test('3d directive stays opaque and arbitrary numeric tags remain refused',()=>{
+ const r=inspect(input('sound.cfg',Buffer.from('[sound]\na.wav\n[3d]\nnot-a-reference.wav\n0\n1\n[loopsound]\nb.wav\n')));
+ assert.deepEqual(r.references.map(x=>[x.path,x.line]),[['a.wav',2],['b.wav',8]]);
+ assert.equal(r.sections[1].tag,'3d');assert.equal(r.sections[1].status,'uninterpreted');
+ assert.equal(r.sections[1].valueCount,3);
+ for(const tag of ['123','3d_extra','3d/','3 d'])assert.throws(()=>inspect(input('sound.cfg',Buffer.from('[sound]\na.wav\n['+tag+']\n0'))),refuse);
 });
