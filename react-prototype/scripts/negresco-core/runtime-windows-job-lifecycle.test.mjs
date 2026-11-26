@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-windows-job-lifecycle.ps1',import.meta.url));
 test('Windows private job admits suspended owned child and closes it on final handle release',t=>{
  if(process.platform!=='win32'){
@@ -18,5 +19,6 @@ test('Windows private job admits suspended owned child and closes it on final ha
   ownedChildTerminatedAfterClose:true,childExitCode:r.childExitCode,aggregateAllocationRefusalVerified:false,
   descendantLimitVerified:false,readerLimitIntegrated:false,osIsolationVerified:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native resource binding: '+JSON.stringify(bindExecutedResource('windowsLifecycle',r,script)));
  t.diagnostic('Windows Job Object lifecycle: suspended assignment, 512 MiB aggregate limit readback, one-process setting readback, ready live child terminated on last handle close; no descendant or aggregate allocation qualification.');
 });
