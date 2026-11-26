@@ -109,3 +109,16 @@ test('MP3 sample and frame budgets enforced',()=>{
  assert.throws(()=>inspect(input('mp3',b,{maxChunks:1})),refuse);
  assert.throws(()=>inspect(input('mp3',b,{maxSamples:1152})),refuse);
 });
+
+test('WAV binary signatures and chunk tags reject high-bit aliases',()=>{
+ for(const offset of [0,1,2,3,8,9,10,11,12,13,14,15,36,37,38,39]){
+  const b=wav();b[offset]|=128;assert.throws(()=>inspect(input('wav',b)),refuse);
+ }
+});
+test('Ogg signatures and codec headers reject high-bit aliases even with valid CRC',()=>{
+ for(const [make,mutations] of [[opus,[[0,0],[0,28],[1,28]]],[vorbis,[[0,29],[1,29],[2,29]]]]){
+  for(const [i,o] of mutations){const pages=make();pages[i][o]|=128;pages[i].writeUInt32LE(0,22);pages[i].writeUInt32LE(crc(pages[i]),22);
+   assert.throws(()=>inspect(input('ogg',Buffer.concat(pages))),refuse);
+  }
+ }
+});
