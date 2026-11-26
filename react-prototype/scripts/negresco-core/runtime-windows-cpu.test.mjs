@@ -8,16 +8,16 @@ test('Windows native job CPU time budget terminates owned child between matched 
   t.diagnostic('Windows job CPU time laboratory not executed on this host.');
   return;
  }
- const p=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-File',script],{encoding:'utf8',timeout:90000,maxBuffer:4096,windowsHide:true});
+ const p=spawnSync('powershell.exe',['-NoProfile','-NonInteractive','-File',script],{encoding:'utf8',timeout:150000,maxBuffer:4096,windowsHide:true});
  assert.equal(p.error,undefined);assert.equal(p.status,0,p.stderr);assert.equal(p.stderr,'');
  const r=JSON.parse(p.stdout);
  for(const k of ['beforeUserTicks','limitedUserTicks','afterUserTicks'])assert.ok(Number.isSafeInteger(r[k]));
- assert.ok(r.beforeUserTicks>=45000000&&r.afterUserTicks>=45000000);
- assert.ok(r.limitedUserTicks>=20000000&&r.limitedUserTicks<45000000);
- assert.ok(Number.isInteger(r.limitedExitCode)&&r.limitedExitCode>=0&&r.limitedExitCode<=0xffffffff&&![77,78,259].includes(r.limitedExitCode));
+ assert.ok(r.beforeUserTicks>=100000000&&r.afterUserTicks>=100000000);
+ assert.ok(r.limitedUserTicks>=20000000&&r.limitedUserTicks<100000000);
+ assert.ok([1816,3221225540].includes(r.limitedExitCode));
  assert.deepEqual(r,{
-  scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:8,limitSeconds:2,
-  naturalExitCode:77,limitedExitCode:r.limitedExitCode,documentedQuotaExitObserved:r.limitedExitCode===1816,beforeUserTicks:r.beforeUserTicks,limitedUserTicks:r.limitedUserTicks,afterUserTicks:r.afterUserTicks,
+  scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:20,limitSeconds:2,naturalCompletionCpuSeconds:10,
+  naturalExitCode:77,limitedExitCode:r.limitedExitCode,documentedQuotaExitObserved:r.limitedExitCode===1816,ntStatusQuotaExitObserved:r.limitedExitCode===3221225540,beforeUserTicks:r.beforeUserTicks,limitedUserTicks:r.limitedUserTicks,afterUserTicks:r.afterUserTicks,
   jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,
   cpuRateThrottleVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
