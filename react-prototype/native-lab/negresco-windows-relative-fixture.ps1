@@ -37,6 +37,8 @@ public static class NegrescoWindowsReadFixture {
  static extern bool ReadFile(SafeFileHandle h,byte[] buffer,uint count,out uint got,IntPtr overlapped);
  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="CreateHardLinkW")]
  static extern bool CreateHardLink(string target,string existing,IntPtr security);
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="MoveFileExW")]
+ static extern bool MoveFileEx(string existing,string target,uint flags);
  public static string Stage="setup";
  public static string Check="none";
  sealed class Refused:Exception {}
@@ -98,6 +100,46 @@ public static class NegrescoWindowsReadFixture {
   Denied(cases,name,()=>Read(h,path,volume,64,()=>{Check="mutation-barrier";barrier();mutationCompleted=true;}));
   if(!mutationCompleted){Check="mutation-not-executed";throw new Exception("mutation not executed");}
  }
+ static void ParentSubstitution(List<string> cases,SafeFileHandle h,string root,ulong volume){
+  Stage="parent-substitution";Check="preflight-rename";
+  string parent=Path.Combine(root,"parent"),retired=Path.Combine(root,"retired-parent");
+  // Prove this exact directory can be renamed without the leaf handle.
+  Need(MoveFileEx(parent,retired,0),"preflight-rename-out");
+  Need(MoveFileEx(retired,parent,0),"preflight-rename-back");
+  string before;long length;
+  using(SafeFileHandle leaf=Resolve(h,"parent/data.bin",volume))before=Key(leaf,false,volume,out length);
+  bool attempted=false,changed=false,refused=false;
+  int blocked=0;string observed=null;
+  try{
+   observed=Read(h,"parent/data.bin",volume,64,()=>{
+    attempted=true;Check="parent-rename-attempt";
+    if(!MoveFileEx(parent,retired,0)){
+     blocked=Marshal.GetLastWin32Error();
+     // Only explicit Windows access/sharing/lock refusal is a candidate.
+     if(blocked!=5 && blocked!=32 && blocked!=33){Check="parent-rename-win32-"+blocked;throw new IOException();}
+     return;
+    }
+    Directory.CreateDirectory(parent);
+    File.WriteAllBytes(Path.Combine(parent,"data.bin"),new byte[]{1,2,3});
+    changed=true;
+   });
+  }catch(Refused){refused=true;}
+  Need(attempted,"mutation-not-executed");
+  if(changed){
+   Need(refused && blocked==0,"replacement-not-detected");
+   cases.Add("parent-substitution-detected");
+  }else{
+   Need(blocked!=0 && !refused && observed==Hash(new byte[]{1,2,3}),"os-block-not-confirmed");
+   Need(Directory.Exists(parent) && !Directory.Exists(retired),"unexpected-parent-state");
+   using(SafeFileHandle leaf=Resolve(h,"parent/data.bin",volume)){
+    long after;Need(Key(leaf,false,volume,out after)==before,"leaf-identity-changed");
+   }
+   // Repeat the identical rename after the held read handle was closed.
+   Need(MoveFileEx(parent,retired,0),"postflight-rename-out");
+   Need(MoveFileEx(retired,parent,0),"postflight-rename-back");
+   cases.Add("parent-substitution-os-blocked-"+blocked);
+  }
+ }
  public static string[] Run(string root,string sibling){
   List<string> cases=new List<string>();
   string nested=Path.Combine(root,"nested");
@@ -128,11 +170,7 @@ public static class NegrescoWindowsReadFixture {
     File.Move(Path.Combine(root,"replace.bin"),Path.Combine(root,"retired.bin"));
     File.WriteAllBytes(Path.Combine(root,"replace.bin"),new byte[]{1,2,3});
    });
-   Changed(cases,"parent-substitution",h,"parent/data.bin",volume,()=>{
-    Directory.Move(Path.Combine(root,"parent"),Path.Combine(root,"retired-parent"));
-    Directory.CreateDirectory(Path.Combine(root,"parent"));
-    File.WriteAllBytes(Path.Combine(root,"parent","data.bin"),new byte[]{1,2,3});
-   });
+   ParentSubstitution(cases,h,root,volume);
   }
   Stage="sibling-unchanged";Check="none";
   Need(Hash(File.ReadAllBytes(Path.Combine(sibling,"sentinel.bin")))==Hash(new byte[]{9,8,7}));cases.Add("sibling-unchanged");
