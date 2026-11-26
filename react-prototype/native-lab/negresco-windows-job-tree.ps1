@@ -105,7 +105,9 @@ public static class NegrescoJobTreeFixture {
    else{Need(release.Set(),"release-control");}
    Need(WaitForSingleObject(parent.process,5000)==0,"parent-exit");
    Need(WaitForSingleObject(descendant,5000)==0,"descendant-exit");
-   uint p,d;Need(GetExitCodeProcess(parent.process,out p)&&GetExitCodeProcess(descendant,out d),"exit-codes");
+   uint p,d;
+   Need(GetExitCodeProcess(parent.process,out p),"parent-exit-code");
+   Need(GetExitCodeProcess(descendant,out d),"descendant-exit-code");
    if(terminate)Need(p!=77&&p!=78&&p!=79&&p!=259&&d!=77&&d!=78&&d!=259,"non-natural-exits");
    else Need(p==77&&d==77,"control-natural-exits");
    return new uint[]{p,d};
@@ -137,6 +139,11 @@ public static class NegrescoJobTreeFixture {
  exit 0
 }catch{
  $detail=$stage
+ if($stage -eq 'compile'){
+  $matchesFound=[regex]::Matches(($_ | Out-String),'(?<![A-Z0-9])CS[0-9]{4}(?![0-9])')
+  $codes=@($matchesFound | ForEach-Object {$_.Value} | Select-Object -Unique -First 4)
+  if($codes.Count -gt 0){$detail='compile:'+($codes -join ':')}
+ }
  if($stage -eq 'native'){$detail=$stage+':'+[NegrescoJobTreeFixture]::Stage+':'+[NegrescoJobTreeFixture]::Code}
  if($detail -cnotmatch '\A[a-zA-Z0-9:-]{1,120}\z'){$detail='unknown'}
  [Console]::Error.WriteLine('NEGRESCO_WINDOWS_JOB_TREE_REFUSED:'+ $detail)
