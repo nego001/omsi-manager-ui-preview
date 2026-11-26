@@ -21,13 +21,13 @@ function validate(x,scenario,jobId,pid){
   inspectFixtureCpu(x.cpuSample).decision==='admit-fixture-only'&&x.operationsEnabled===false&&x.realReadsPerformed===false&&x.productionIntegrated===false;
 }
 export function createFixtureProcessSupervisor(){
- let active=false,closed=false,accepted=0;
+ let active=false,closed=false,accepted=0,activeJobId=null,cancelActive=null;
  async function analyze(input){
   if(closed||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
   const a=Object.getOwnPropertyDescriptor(input,'scope'),b=Object.getOwnPropertyDescriptor(input,'scenario');
   if(!a||!b||!Object.hasOwn(a,'value')||!Object.hasOwn(b,'value')||a.value!=='synthetic-fixture'||!scenarios.includes(b.value))refuse();
   const scenario=b.value,jobId=randomBytes(16).toString('hex');
-  active=true;accepted++;
+  active=true;activeJobId=jobId;accepted++;
   try{
    return await new Promise(resolve=>{
     let child;try{
@@ -35,14 +35,20 @@ export function createFixtureProcessSupervisor(){
      child=spawn(process.execPath,[...FIXTURE_V8_ARGS,worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
     }catch{resolve(failed('spawn-failed'));return;}
     const out=[];let size=0,reason=null;
-    const stop=r=>{if(!reason)reason=r;try{child.kill('SIGKILL');}catch{}};
+    const stop=r=>{
+     if(reason!==null)return false;
+     reason=r;out.length=0;
+     try{child.kill('SIGKILL');}catch{}
+     return true;
+    };
+    cancelActive=()=>stop('cancelled');
     const timer=setTimeout(()=>stop('timeout'),15000);
     child.on('error',()=>stop('process-error'));
     child.stdin.on('error',()=>stop('input-error'));
     child.stdout.on('data',chunk=>{size+=chunk.length;if(size>MAX_OUTPUT){stop('output-limit');return;}if(!reason)out.push(chunk);});
     child.stderr.on('data',()=>stop('worker-stderr'));
     child.on('close',(code,signal)=>{
-     clearTimeout(timer);
+     clearTimeout(timer);cancelActive=null;
      if(reason||code!==0||signal){resolve(failed(reason||'worker-exit'));return;}
      try{
       const wire=Buffer.concat(out).toString('utf8'),x=JSON.parse(wire);
@@ -53,10 +59,15 @@ export function createFixtureProcessSupervisor(){
     });
     child.stdin.end(JSON.stringify({scope:'synthetic-fixture',scenario,jobId}));
    });
-  }finally{active=false;}
+  }finally{cancelActive=null;activeJobId=null;active=false;}
  }
  function failed(reason){return Object.freeze({state:'fixture-worker-failed',reason,report:null,operationsEnabled:false});}
- function status(){return Object.freeze({active,closed,acceptedJobs:accepted,operationsEnabled:false});}
+ function cancel(jobId){
+  if(typeof jobId!=='string'||!(/^[a-f0-9]{32}$/).test(jobId))refuse();
+  if(closed||!active||jobId!==activeJobId||cancelActive===null)return false;
+  return cancelActive();
+ }
+ function status(){return Object.freeze({active,activeJobId,closed,acceptedJobs:accepted,operationsEnabled:false});}
  function dispose(){if(active)refuse();if(closed)return false;closed=true;return true;}
- return Object.freeze({analyze,status,dispose});
+ return Object.freeze({analyze,cancel,status,dispose});
 }
