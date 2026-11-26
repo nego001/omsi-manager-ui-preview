@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {spawnSync} from 'node:child_process';
+import {spawnSync,ChildProcess} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {createFixtureProcessSupervisor as create} from './runtime-fixture-supervisor.mjs';
@@ -83,4 +83,40 @@ test('expired monotonic deadline wins over late cancellation even when parent ti
  assert.equal(s.cancel(id),false);
  const r=await p;assert.deepEqual(r,{state:'fixture-worker-failed',reason:'timeout',report:null,operationsEnabled:false});
  assert.equal(s.status().active,false);s.dispose();
+});
+
+test('watchdog permanently quarantines when child close notification is withheld',async t=>{
+ // Fault injection only: delay delivery of the real owned child's close event.
+ // No external PID is targeted; this does not simulate OS kill failure.
+ const original=ChildProcess.prototype.emit;
+ let delayed=null;
+ const mock=t.mock.method(ChildProcess.prototype,'emit',function(event,...args){
+  if(event==='close'&&this.spawnargs?.some(x=>x.endsWith('runtime-fixture-worker.mjs'))){
+   delayed=()=>original.call(this,event,...args);return true;
+  }
+  return original.call(this,event,...args);
+ });
+ const s=create({timeoutMs:0});
+ try{
+  const r=await s.analyze(request());
+  assert.deepEqual(r,{state:'fixture-worker-failed',reason:'termination-unconfirmed',report:null,operationsEnabled:false});
+  assert.equal(s.status().active,false);assert.equal(s.status().quarantined,true);
+  assert.equal(s.status().cleanupPending,true);
+  await assert.rejects(s.analyze(request()),refuse);assert.throws(()=>s.dispose(),refuse);
+  assert.equal(typeof delayed,'function');
+  delayed();delayed=null;
+  assert.equal(s.status().cleanupPending,false);assert.equal(s.status().quarantined,true);
+  await assert.rejects(s.analyze(request()),refuse);assert.equal(s.dispose(),true);
+ }finally{
+  mock.mock.restore();
+  if(delayed)delayed();
+ }
+});
+test('normal cancellation confirms closure without quarantining the supervisor',async()=>{
+ const s=create(),p=s.analyze(request()),id=s.status().activeJobId;
+ assert.equal(s.cancel(id),true);assert.equal(s.status().cleanupPending,true);
+ assert.equal((await p).reason,'cancelled');
+ assert.equal(s.status().cleanupPending,false);assert.equal(s.status().quarantined,false);
+ assert.equal((await s.analyze(request('clean-reference'))).state,'fixture-worker-report');
+ s.dispose();
 });
