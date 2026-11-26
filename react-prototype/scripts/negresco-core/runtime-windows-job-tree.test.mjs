@@ -12,7 +12,7 @@ test('Windows private Job Object closes both owned parent and inherited direct d
  assert.deepEqual(r,{
   scope:'disposable-windows-job-tree',mechanism:'JobObjectKillOnClose',activeProcessLimit:2,
   positiveBefore:true,positiveAfter:true,parentAssignedSuspended:true,descendantInheritedMembership:true,
-  bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,
+  bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,descendantIdentityHandshake:true,activeCountVerified:true,
   parentExitCode:r.parentExitCode,descendantExitCode:r.descendantExitCode,
   arbitraryTreeVerified:false,readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
