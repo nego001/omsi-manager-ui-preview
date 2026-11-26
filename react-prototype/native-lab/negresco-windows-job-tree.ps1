@@ -61,10 +61,13 @@ public static class NegrescoJobTreeFixture {
  [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
  static string Enc(string s){return Convert.ToBase64String(Encoding.Unicode.GetBytes(s));}
  static IntPtr Descendant(IntPtr job,uint parentPid){
-  int size=8+2*IntPtr.Size;IntPtr buffer=Marshal.AllocHGlobal(size);
+  // Allow bounded ABI/accounting headroom, but never accept more than two members.
+  int size=8+16*IntPtr.Size;IntPtr buffer=Marshal.AllocHGlobal(size);
   try{
+   for(int i=0;i<size;i++)Marshal.WriteByte(buffer,i,0);
    Need(QueryIds(job,3,buffer,(uint)size,IntPtr.Zero),"query-members");
-   Need(Marshal.ReadInt32(buffer,0)==2&&Marshal.ReadInt32(buffer,4)==2,"member-count");
+   int assigned=Marshal.ReadInt32(buffer,0),listed=Marshal.ReadInt32(buffer,4);
+   Need(assigned==2&&listed==2,"member-count-"+assigned+"-"+listed);
    long a=Marshal.ReadIntPtr(buffer,8).ToInt64(),b=Marshal.ReadIntPtr(buffer,8+IntPtr.Size).ToInt64();
    Need(a!=b&&(a==parentPid||b==parentPid),"parent-membership");
    long pid=a==parentPid?b:a;Need(pid>0&&pid<=uint.MaxValue,"descendant-id");
