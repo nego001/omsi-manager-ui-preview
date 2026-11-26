@@ -1,4 +1,4 @@
-// F3.10a: reproducible bounded diagnostic fusion, only from re-parsed synthetic bytes.
+// F3.10b: reproducible bounded diagnostic fusion, only from re-parsed synthetic bytes.
 import {inspectFixtureDependencyGraphWithPolicy} from './dependency-graph.mjs';
 import {createHash} from 'node:crypto';
 const fail=()=>{throw Error('READER_FIXTURE_FUSION_REFUSED');};
@@ -12,7 +12,9 @@ const severity=Object.freeze({
  MISSING_REFERENCE:'error',MISSING_TEXTURE_CANDIDATE:'error',CFG_KIND_MISMATCH:'error',
  CASE_MISMATCH:'warning',AMBIGUOUS_TEXTURE_REFERENCE:'warning',SEARCH_POLICY_UNRESOLVED:'unknown',
  UNREADABLE_SUBSET:'unknown',CANDIDATE_CYCLE:'warning',MATCHED_UNREADABLE_TARGET:'unknown',
- INDEXED_ONLY:'unknown',BANK_SIGNATURE_ONLY:'unknown'
+ INDEXED_ONLY:'unknown',BANK_SIGNATURE_ONLY:'unknown',
+ PMX_PIECE_COUNT_MISMATCH:'warning',PMX_PART_COUNT_MISMATCH:'warning',PMX_MATERIAL_SLOT_OUT_OF_RANGE:'warning',
+ PMX_NO_MATERIAL_LOOK:'warning',MIP_FILTER_WITH_SINGLE_LEVEL:'warning',FMOD_EVENT_UNVERIFIED:'unknown'
 });
 const rank={error:0,warning:1,unknown:2};
 export function inspectFixtureEvidenceFusion(input){try{return inspect(input);}catch{fail();}}
@@ -23,6 +25,7 @@ function inspect(input){
  const g=inspectFixtureDependencyGraphWithPolicy({scope:x.scope,roots:x.roots,files:x.files,encoding:x.encoding,textureRoots:x.textureRoots,
  limits:{maxBytes:l.maxBytes,maxEntries:l.maxEntries,maxReferences:l.maxReferences,maxReportBytes:l.maxGraphBytes}});
  const source=new Map(g.sources.map(s=>[s.path,s]));
+ const foldedSources=new Map(g.sources.map(s=>[s.path.toLowerCase(),s.path]));
  const node=new Map(g.nodes.map(n=>[n.path,n]));
  const adj=new Map(g.nodes.map(n=>[n.path,new Set()]));
  for(const e of g.edges)if(e.status==='matched')adj.get(e.from).add(e.target);
@@ -57,15 +60,34 @@ function inspect(input){
   const e=g.edges[i];
   if(e.status==='matched'){
    if(node.get(e.target).status==='invalid-or-unsupported')add('MATCHED_UNREADABLE_TARGET',[e.from,e.target],{reference:e.reference,target:e.target,role:e.role},i);
+   const a=node.get(e.from),b=node.get(e.target);
+   if(a.format==='tobj'&&b.format==='dds'&&a.status==='parsed-subset'&&b.status==='parsed-subset'&&
+     [0,1].includes(a.detail.sampler.mipFilter)&&b.detail.mipmapCount===1)
+    add('MIP_FILTER_WITH_SINGLE_LEVEL',[a.path,b.path],{mipFilter:a.detail.sampler.mipFilter,mipmapCount:b.detail.mipmapCount},i);
+   if(e.role==='fmod-bank'&&e.event!==null&&b.status==='signature-candidate')
+    add('FMOD_EVENT_UNVERIFIED',[a.path,b.path],{event:e.event,bank:b.path},i);
   }else{
    const code=e.status==='missing'&&e.target===null?'MISSING_TEXTURE_CANDIDATE':edgeCode[e.status];
    const paths=[e.from,...(e.candidates??[])];if(e.target!==null&&source.has(e.target))paths.push(e.target);
+   if(e.status==='case-mismatch'&&e.target!==null){const actual=foldedSources.get(e.target.toLowerCase());if(actual)paths.push(actual);}
    add(code,paths,{reference:e.reference,target:e.target,role:e.role,candidates:e.candidates},i);
   }
  }
  for(const n of g.nodes){
   const code=n.status==='invalid-or-unsupported'?'UNREADABLE_SUBSET':n.status==='indexed-only'?'INDEXED_ONLY':n.status==='signature-candidate'?'BANK_SIGNATURE_ONLY':null;
   if(code)add(code,[n.path],{format:n.format});
+ }
+ // Compare only same-stem PMD/PMG candidates already reached independently.
+ // No fabricated companion edge; same stem is a fixture association, not runtime proof.
+ for(const a of g.nodes){
+  if(a.format!=='pmd'||a.status!=='parsed-subset')continue;
+  const b=node.get(a.path.slice(0,-4)+'.pmg');
+  if(b?.format!=='pmg'||b.status!=='parsed-subset')continue;
+  const p=a.detail,q=b.detail,paths=[a.path,b.path];
+  if(p.pieceCount!==q.pieceCount)add('PMX_PIECE_COUNT_MISMATCH',paths,{descriptor:p.pieceCount,geometry:q.pieceCount});
+  if(p.partCount!==q.partCount)add('PMX_PART_COUNT_MISMATCH',paths,{descriptor:p.partCount,geometry:q.partCount});
+  if(q.maxMaterialIndex>=p.materialCount)add('PMX_MATERIAL_SLOT_OUT_OF_RANGE',paths,{maxMaterialIndex:q.maxMaterialIndex,materialCount:p.materialCount});
+  if(q.pieceCount>0&&p.lookCount===0)add('PMX_NO_MATERIAL_LOOK',paths,{pieceCount:q.pieceCount,lookCount:p.lookCount});
  }
  for(const group of g.cycles)add('CANDIDATE_CYCLE',group,{memberCount:group.length});
  const list=[...findings.values()].map(f=>{
