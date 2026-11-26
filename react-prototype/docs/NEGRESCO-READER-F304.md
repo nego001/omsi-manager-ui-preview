@@ -1,0 +1,9 @@
+# F3.04 — OMSI configuration reader (synthetic subset)
+
+F3.03 reader CI 45678178514 succeeded on Windows and Ubuntu 22.04. The F1 packaged Linux gate remains unresolved.
+
+The isolated reader accepts only synthetic memory buffers with explicit UTF-8 or Windows-1252 encoding, a portable source path ending in .bus/.ovh/.cfg, and strict caps on bytes, lines, line length, sections and references. It records source SHA-256, ordered tag locations, uninterpreted sections, and typed reference paths/line locations. Vehicle tags: model, sound, script, varnamelist, stringvarnamelist, constfile. Config tags: mesh. Counts must exactly match the nonblank values in the synthetic block. Tag names are case-sensitive; file extensions are case-insensitive. Backslashes are normalized to forward slashes and paths validated through F3.01; traversal, absolute paths, Unicode paths, unsupported extensions and malformed known blocks are refused. Unknown blocks are not interpreted, and their value strings are not returned. Preamble lines are counted, not interpreted. Results are frozen.
+
+This is a conservative synthetic block grammar, NOT a full OMSI grammar. Real OMSI files can contain free text/comments between directives, context-specific paths, additional tags, encodings, includes, relative parent references and other constructs that this parser may reject or leave uninterpreted. References are only candidates; no asset existence, path resolution, script execution, ZIP-to-parser wiring, model loading, real mod reads, UI/IPC integration, production authorization or filesystem operations. The synthetic scope string is not a security boundary for real data. No merge or release.
+
+13 new tests; expected 114 tests per OS if the previous suite has 101. CI evidence required before claiming success. Next: broaden fixture coverage or proceed to F3.05 ETS2/ATS synthetic structures after the reader matrix passes.

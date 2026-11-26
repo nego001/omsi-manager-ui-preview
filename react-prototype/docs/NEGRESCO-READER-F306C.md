@@ -1,0 +1,7 @@
+# F3.06c — PMX payload evidence
+
+F3.06b Reader CI 45680193636: 150/150 per OS, no failures/skips/cancellations. General CI 45680193662 failed the packaged Linux ELF GUI test and dependent comparison jobs; the F1 gate remains open.
+
+New reader reuses the F3.06b header/range checks on a copied synthetic buffer. PMG 0x14/0x15: static position-only or interleaved position/normal mesh arrays, u16 indices and material slot candidates. PMC v6: standalone piece vertex/triangle arrays only, no looks/materials/variants/locators. PMD v4: per-look material table pointers to bounded NUL-terminated portable .mat paths inside the material data block, no file opening. Validates finite coordinates, triangle cardinality, index bounds, disjoint claimed byte ranges, aggregate vertex/triangle/reference limits; computes actual raw-space bounds and repeated-index counts. Returns immutable evidence, not raw arrays. Does not validate every payload byte, topology, physical collision behavior, PMG skinning/UV/extra streams/parts, PMD attributes, cross-file material indices or dependencies. No real model reads, execution, export, UI integration, merge or release.
+
+Reference layouts and offset semantics: https://github.com/mwl4/ConverterPIX/blob/master/src/model/model.cpp and https://github.com/mwl4/ConverterPIX/blob/master/src/model/collision.cpp plus F3.06b struct references. Ten new tests; expected 160 per OS. CI pending. Next: cross-file synthetic PMX evidence and expanded stream/variant coverage; do not claim full format support.

@@ -1,0 +1,9 @@
+# F3.09a — bounded cross-format dependency evidence
+
+F3.08c repair Reader CI 45726086045: 226/226 per OS, zero failures, skips or cancellations. F3.08 closes as a synthetic subset milestone only. F1 packaged Linux gate remains open.
+
+The new dependency graph accepts at most 256 supplied synthetic files and 32 explicit roots, validates portable unique paths, copies bytes and binds SHA-256 plus explicit CFG classification and encoding to a deterministic digest. Reuses OMSI vehicle/model, OMSI sound, SCS SII/SUI, PMD, MAT, TOBJ, O3D, SOUNDREF and BANK readers. Traverses discovered references once per matched path; reports missing, case-mismatched, CFG-kind mismatched, unresolvable search-policy and unreadable subset evidence. The caller must declare model or sound CFG kind; it is not inferred. Relative references use the containing directory only as a fixture convention, not a claim about simulator search order. Rooted SCS paths use supplied virtual root; O3D texture search is deliberately unresolved. SCS asset candidates are not verified semantic dependencies.
+
+Tarjan SCC over matched candidate edges reports multi-node cycles and self-loops, not execution or include expansion. Unreachable inventory files are listed, not asserted unused in the game. Audio, texture, script, PMG/PMC and other leaves are indexed-only in this graph; existence does not establish payload validity. BANK signature candidate does not verify events. No real filesystem, archive expansion, script execution, full dependency coverage, real security authorization, merge or release. Aggregate input/edge/report caps; frozen evidence.
+
+Ten new tests; expected 236 per OS, CI pending. Next F3.09b: expand leaf payload evidence and explicit dependency lookup policies without inventing game semantics; cross-check source digests and cycle diagnostics.

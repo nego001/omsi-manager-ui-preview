@@ -1,0 +1,24 @@
+name: Negresco Reader synthetic contracts
+on:
+  pull_request:
+    paths:
+      - 'react-prototype/scripts/negresco-reader/**'
+      - '.github/workflows/negresco-reader-fixtures.yml'
+permissions:
+  contents: read
+jobs:
+  reader:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test react-prototype/scripts/negresco-core/*.test.mjs react-prototype/scripts/negresco-reader/*.test.mjs

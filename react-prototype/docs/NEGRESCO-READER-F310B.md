@@ -1,0 +1,7 @@
+# F3.10b — cross-reader evidence consistency
+
+F3.10a Reader CI 45730522462: 253/253 per OS, zero failures, skips or cancellations. F1 packaged Linux gate remains open.
+
+Dependency graph now retains bounded source-verified PMD piece/part/material/look counts, PMG piece/part counts and maximum material index, MAT effect and TOBJ sampler metadata. Fusion compares independently reachable same-stem PMD/PMG candidates for piece/part count mismatches, material index outside descriptor range and geometry without material looks. Same stem is an explicit fixture association convention, not proof of a runtime dependency. No invented companion edges or comparisons against unreachable inventory. PMC remains independent and collision behavior unverified. TOBJ requesting mip filtering against matched single-level DDS yields advisory only. FMOD bank event remains unverified even with a matched RIFF/FEV signature; report includes bank and reference provenance. Case mismatch includes the real candidate hash rather than fabricating an exact-path source. All these checks reuse graph evidence bound to actual supplied bytes.
+
+Six new tests; expected 259 per OS, CI pending. Existing signature-only test now also asserts explicit event-unverified evidence. No full game compatibility, real files, script execution, rendering, playback, merge or release. F3.10 closes only after Reader matrix passes; next F3.11 controlled Negresco Core integration contract without enabling real operations.
