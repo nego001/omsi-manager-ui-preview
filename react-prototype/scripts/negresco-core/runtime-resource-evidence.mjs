@@ -26,14 +26,17 @@ const schemas={
  windowsDescendant:{scope:'disposable-windows-job-descendant',activeProcessLimit:1,outsideJobPositiveControl:true,descendantAttemptOutcome:oneOf(['create-refused-5','create-refused-1816','created-but-terminated-before-resume']),insideJobRaisedLimitPositiveControl:true,controlChildMembershipVerified:true,restoredLimitVerified:true,descendantLimitObserved:true,allChildrenCreatedSuspended:true,aggregateAllocationRefusalVerified:false,readerLimitIntegrated:false,...noIsolation},
  windowsAggregate:{scope:'disposable-windows-aggregate-memory',jobLimitBytes:201326592,individualRequestBytes:117440512,twoOwnedChildrenAssigned:true,allChildrenSuspended:true,individualProcessLimitConfigured:false,positiveBefore:true,firstAllocationHeld:true,combinedAllocationRefused:true,refusalWin32Code:oneOf(memoryCodes),positiveAfterRelease:true,limitReadbackVerified:true,aggregateCommitLimitObserved:true,hardRssLimitVerified:false,readerLimitIntegrated:false,...noIsolation}
 };
-const cpuKinds=Object.freeze(['linuxCpuTime','windowsCpuTime','windowsCpuRateConfig']);
+const cpuKinds=Object.freeze(['linuxCpuTime','windowsCpuTime','windowsCpuRateConfig','windowsCpuRateLoad']);
 const positiveTicks=v=>Number.isSafeInteger(v)&&v>=100000000;
 const limitedTicks=v=>Number.isSafeInteger(v)&&v>=20000000&&v<100000000;
+const safePositive=v=>Number.isSafeInteger(v)&&v>0;
+const wallTicks=v=>Number.isSafeInteger(v)&&v>=38000000&&v<=65000000;
 const cpuNoAuthority={cpuRateThrottleVerified:false,processTreeLimitVerified:false,...noAuthority};
 Object.assign(schemas,{
  linuxCpuTime:{scope:'disposable-linux-cpu-fixture',mechanism:'RLIMIT_CPU',softSeconds:1,hardSeconds:2,positiveBefore:true,softSignal:'SIGXCPU',softHandlerExit:77,hardSignal:'SIGKILL',positiveAfter:true,cpuTimeLimitObserved:true,...cpuNoAuthority},
  windowsCpuTime:{scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:20,limitSeconds:2,naturalCompletionCpuSeconds:10,naturalExitCode:77,limitedExitCode:oneOf([1816,3221225540]),documentedQuotaExitObserved:bool,ntStatusQuotaExitObserved:bool,beforeUserTicks:positiveTicks,limitedUserTicks:limitedTicks,afterUserTicks:positiveTicks,jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,...cpuNoAuthority},
- windowsCpuRateConfig:{scope:'disposable-windows-cpu-rate-config',mechanism:'JobObjectCpuRateControlInformation',controlFlags:5,initialRate:2000,reducedRate:500,invalidZeroRejected:true,previousRatePreserved:true,restoredRate:10000,configurationReadbackVerified:true,childProcessesAssigned:0,...cpuNoAuthority}
+ windowsCpuRateConfig:{scope:'disposable-windows-cpu-rate-config',mechanism:'JobObjectCpuRateControlInformation',controlFlags:5,initialRate:2000,reducedRate:500,invalidZeroRejected:true,previousRatePreserved:true,restoredRate:10000,configurationReadbackVerified:true,childProcessesAssigned:0,...cpuNoAuthority},
+ windowsCpuRateLoad:{scope:'disposable-windows-cpu-rate-load',mechanism:'JobObjectCpuRateControlInformation',controlRate:10000,limitedRate:safePositive,logicalProcessors:v=>Number.isInteger(v)&&v>=1&&v<=32,sampleMilliseconds:4000,beforeCpuTicks:safePositive,beforeWallTicks:wallTicks,limitedCpuTicks:safePositive,limitedWallTicks:wallTicks,afterCpuTicks:safePositive,afterWallTicks:wallTicks,sameOwnedChild:true,readyObserved:true,rateReadbackVerified:true,differentialObserved:true,exactCpuRateGuaranteeVerified:false,processTreeLimitVerified:false,...noAuthority}
 });
 export function consolidateFixtureCpuEvidence(input){
  const x=exact(input,{scope:'synthetic-fixture',...Object.fromEntries(cpuKinds.map(k=>[k,v=>v===null||typeof v==='object']))});
@@ -60,6 +63,12 @@ export function normalizeFixtureResourceEvidence(kind,report){
  if(typeof kind!=='string'||(!Object.hasOwn(schemas,kind)&&kind!=='linuxCgroup'))fail();
  const normalized=Object.freeze(kind==='linuxCgroup'?cgroup(report):exact(report,schemas[kind]));
  if(kind==='windowsCpuTime'&&(normalized.documentedQuotaExitObserved!==(normalized.limitedExitCode===1816)||normalized.ntStatusQuotaExitObserved!==(normalized.limitedExitCode===3221225540)))fail();
+ if(kind==='windowsCpuRateLoad'){
+  const r=normalized;
+  for(const phase of ['before','limited','after'])if(r[phase+'CpuTicks']>r[phase+'WallTicks']*2)fail();
+  const a=r.beforeCpuTicks/r.beforeWallTicks,b=r.limitedCpuTicks/r.limitedWallTicks,c=r.afterCpuTicks/r.afterWallTicks;
+  if(r.limitedRate!==Math.floor(1000/r.logicalProcessors)||a<0.5||c<0.5||b>Math.min(a,c)*0.5||b>r.logicalProcessors*r.limitedRate/10000+0.15)fail();
+ }
  const body={kind,report:normalized,origin:'caller-supplied-fixture-report',nativeAttestationVerified:false,independentCiVerification:false,operationsEnabled:false};
  return Object.freeze({...body,evidenceDigest:hash(body)});
 }
