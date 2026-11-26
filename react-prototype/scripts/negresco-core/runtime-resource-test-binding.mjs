@@ -14,7 +14,9 @@ const scripts=Object.freeze({
  linuxCpuTime:'negresco-linux-cpu-fixture.py',
  windowsCpuTime:'negresco-windows-cpu-fixture.ps1',
  windowsCpuRateConfig:'negresco-windows-cpu-rate-config.ps1',
- windowsCpuRateLoad:'negresco-windows-cpu-rate-load.ps1'
+ windowsCpuRateLoad:'negresco-windows-cpu-rate-load.ps1',
+ linuxParentDeath:'negresco-linux-parent-death.py',
+ windowsJobTree:'negresco-windows-job-tree.ps1'
 });
 export function bindExecutedResource(kind,report,script){
  if(!Object.hasOwn(scripts,kind)||script!==fileURLToPath(new URL('../../native-lab/'+scripts[kind],import.meta.url)))throw Error('CORE_RESOURCE_SCRIPT_MISMATCH');
