@@ -60,14 +60,22 @@ public static class NegrescoJobTreeFixture {
  static extern bool QueryIds(IntPtr job,int kind,IntPtr buffer,uint size,IntPtr returned);
  [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
  static string Enc(string s){return Convert.ToBase64String(Encoding.Unicode.GetBytes(s));}
- static void VerifyActiveCount(IntPtr job){
-  // JOBOBJECT_BASIC_ACCOUNTING_INFORMATION: four LARGE_INTEGERs, four DWORDs.
+ static void VerifyActiveCount(IntPtr job,IntPtr parent,IntPtr descendant){
+  // Accounting can include terminated processes whose references have not been released.
+  // Require convergence, not an assumed cause or permission to admit extra processes.
   const int size=48;IntPtr buffer=Marshal.AllocHGlobal(size);
   try{
-   for(int i=0;i<size;i++)Marshal.WriteByte(buffer,i,0);
-   Need(QueryIds(job,1,buffer,size,IntPtr.Zero),"query-accounting");
-   int active=Marshal.ReadInt32(buffer,40);
-   Need(active==2,"active-count-"+active);
+   var clock=System.Diagnostics.Stopwatch.StartNew();
+   int active=0,total=0,terminated=0;
+   do{
+    for(int i=0;i<size;i++)Marshal.WriteByte(buffer,i,0);
+    Need(QueryIds(job,1,buffer,size,IntPtr.Zero),"query-accounting");
+    total=Marshal.ReadInt32(buffer,36);active=Marshal.ReadInt32(buffer,40);terminated=Marshal.ReadInt32(buffer,44);
+    Need(WaitForSingleObject(parent,0)==258&&WaitForSingleObject(descendant,0)==258,"members-not-alive");
+    if(active==2)return;
+    Thread.Sleep(50);
+   }while(clock.ElapsedMilliseconds<3000);
+   Need(false,"active-count-"+active+"-total-"+total+"-terminated-"+terminated);
   }finally{Marshal.FreeHGlobal(buffer);}
  }
  static IntPtr Descendant(IntPtr job,uint parentPid,uint pid){
@@ -107,7 +115,7 @@ public static class NegrescoJobTreeFixture {
    uint descendantPid;
    using(var view=identity.CreateViewAccessor()){int value=view.ReadInt32(0);Need(value>0,"identity-handshake");descendantPid=(uint)value;}
    descendant=Descendant(job,parent.processId,descendantPid);
-   VerifyActiveCount(job);
+   VerifyActiveCount(job,parent.process,descendant);
    Need(WaitForSingleObject(parent.process,0)==258&&WaitForSingleObject(descendant,0)==258,"both-alive");
    if(terminate){Need(CloseHandle(job),"close-job");job=IntPtr.Zero;}
    else{Need(release.Set(),"release-control");}
