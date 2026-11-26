@@ -1,0 +1,7 @@
+# F3.10a — bounded evidence fusion
+
+F3.09 Reader CI 45727592468: 243/243 per OS, zero failures, skips or cancellations. F3.09 closes as a synthetic subset milestone. General CI 45727592462 failed packaged Linux ELF GUI and dependent jobs; F1 remains open.
+
+The fusion entrypoint re-parses synthetic bytes through the dependency graph, never trusts caller-provided reports, and classifies observed fixture reference errors, review warnings and unknown/unsupported evidence separately. Repeated identical findings are aggregated with occurrence count and original graph edge indices. Origin paths and actual SHA-256 provenance are retained; missing targets never receive fabricated hashes. Root impact is reachability within the candidate graph only, not verified runtime impact. Candidate cycles are warnings, unreadable subsets are unknown (not proof of corruption), indexed scripts and BANK signatures are incomplete evidence. An absence of discovered findings does not imply game compatibility or full analysis. Input digest, graph evidence digest and report digest bind deterministic output. Limits on graph bytes, findings and serialized report size. All returned evidence is frozen, including source and candidate arrays.
+
+Ten new tests; expected 253 per OS, CI pending. Next F3.10b: cross-reader consistency and PMD/PMG/PMC or MAT/TOBJ/DDS diagnostic fusion under explicit fixture policies. No real file access, script execution, security gate waiver, merge or release.
