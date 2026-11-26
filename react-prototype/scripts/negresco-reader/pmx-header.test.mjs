@@ -67,3 +67,9 @@ test('immutable evidence explicitly disclaims payload and runtime verification',
  const r=inspect(input('pmg',pmg()));for(const o of [r,r.source,r.counts,r.ranges,r.ranges[0],r.declaredBounds,r.declaredBounds.min])assert.ok(Object.isFrozen(o));
  for(const k of ['payloadValidated','geometryDecoded','collisionDecoded','dependenciesResolved','fullPmxSupport','realSecurityGateVerified','realReadsPerformed','operationsEnabled'])assert.equal(r[k],false);
 });
+
+test('PMG magic rejects high-bit aliases in both supported versions',()=>{
+ for(const v of [0x14,0x15])for(const o of [1,2,3]){
+  const b=pmg(v);b[o]|=128;assert.throws(()=>inspect(input('pmg',b)),refuse);
+ }
+});
