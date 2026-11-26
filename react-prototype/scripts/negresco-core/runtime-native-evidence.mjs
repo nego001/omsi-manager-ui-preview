@@ -22,7 +22,7 @@ function normalize(input,platform){
   if(!d||!Object.hasOwn(d,'value')||!d.enumerable||(value===null?!parentResults.includes(d.value):d.value!==value))fail();
   return d.value;
  });
- const parent=cases[platform==='linux'?11:11];
+ const parent=cases[11];
  const outcome=parent.includes('-os-blocked-')?'os-blocked':'detected-after-mutation';
  const body={platform,scope:x.scope,cases:Object.freeze(cases),caseCount:cases.length,parentSubstitution:Object.freeze({outcome,win32Code:outcome==='os-blocked'?Number(parent.split('-').at(-1)):null}),observationOrigin:'caller-supplied-fixture-report',nativeAttestationVerified:false};
  return Object.freeze({...body,observationDigest:digest(body)});
@@ -37,5 +37,19 @@ export function consolidateFixtureNativeEvidence(input){
    crossVolumeProtectionVerified:false,osIsolationVerified:false,realSecurityGateVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,
    decision:'deny-real-access'};
   return Object.freeze({...body,evidenceDigest:digest(body)});
+ }catch{fail();}
+}
+
+export function bindFixtureNativeObservation(input){
+ try{
+  const x=record(input,['scope','platform','report','checkoutSha','scriptSha256']);
+  if(x.scope!=='synthetic-fixture'||!['linux','win32'].includes(x.platform)||
+   typeof x.checkoutSha!=='string'||!/^[a-f0-9]{40}$/.test(x.checkoutSha)||
+   typeof x.scriptSha256!=='string'||!/^[a-f0-9]{64}$/.test(x.scriptSha256))fail();
+  const observation=normalize(x.report,x.platform);
+  const body={schemaVersion:1,scope:x.scope,checkoutSha:x.checkoutSha,scriptSha256:x.scriptSha256,observation,
+   contractValidated:true,checkoutAttested:false,independentCiVerification:false,nativeAttestationVerified:false,
+   realSecurityGateVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false};
+  return Object.freeze({...body,bindingDigest:digest(body)});
  }catch{fail();}
 }
