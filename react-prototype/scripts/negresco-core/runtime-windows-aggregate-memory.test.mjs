@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-windows-aggregate-memory.ps1',import.meta.url));
 test('Windows private job rejects aggregate commit while each individual allocation fits',t=>{
  if(process.platform!=='win32'){
@@ -19,5 +20,6 @@ test('Windows private job rejects aggregate commit while each individual allocat
   positiveAfterRelease:true,limitReadbackVerified:true,aggregateCommitLimitObserved:true,
   hardRssLimitVerified:false,readerLimitIntegrated:false,osIsolationVerified:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native resource binding: '+JSON.stringify(bindExecutedResource('windowsAggregate',r,script)));
  t.diagnostic('Windows aggregate memory: 192 MiB job cap, 112 MiB accepted individually, combined request refused with Win32 '+r.refusalWin32Code+', allocation accepted after release; no production qualification.');
 });
