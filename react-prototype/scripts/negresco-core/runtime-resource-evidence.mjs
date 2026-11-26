@@ -50,7 +50,7 @@ const treeExitCode=v=>Number.isInteger(v)&&v>=0&&v<=0xffffffff&&![77,78,79,259].
 const lifecycleNoAuthority={arbitraryTreeVerified:false,readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
 Object.assign(schemas,{
  linuxParentDeath:{scope:'disposable-linux-parent-death',mechanism:'PR_SET_PDEATHSIG',positiveBefore:true,childReadyBeforeParentExit:true,parentNaturalExit:true,adoptedDescendantReaped:true,descendantSignal:'SIGKILL',positiveAfter:true,pidfdIdentityUsed:true,directDescendantOnly:true,...lifecycleNoAuthority},
- windowsJobTree:{scope:'disposable-windows-job-tree',mechanism:'JobObjectKillOnClose',activeProcessLimit:2,positiveBefore:true,positiveAfter:true,parentAssignedSuspended:true,descendantInheritedMembership:true,bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,parentExitCode:treeExitCode,descendantExitCode:treeExitCode,...lifecycleNoAuthority}
+ windowsJobTree:{scope:'disposable-windows-job-tree',mechanism:'JobObjectKillOnClose',activeProcessLimit:2,positiveBefore:true,positiveAfter:true,parentAssignedSuspended:true,descendantInheritedMembership:true,bothReadyAndAlive:true,lastJobHandleClosed:true,bothTerminated:true,descendantIdentityHandshake:true,activeCountVerified:true,parentExitCode:treeExitCode,descendantExitCode:treeExitCode,...lifecycleNoAuthority}
 });
 export function consolidateFixtureLifecycleEvidence(input){
  const x=exact(input,{scope:'synthetic-fixture',...Object.fromEntries(lifecycleKinds.map(k=>[k,v=>v===null||typeof v==='object']))});
