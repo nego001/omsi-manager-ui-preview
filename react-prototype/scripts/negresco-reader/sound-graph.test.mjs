@@ -70,3 +70,7 @@ test('3d directive stays opaque and arbitrary numeric tags remain refused',()=>{
  assert.equal(r.sections[1].valueCount,3);
  for(const tag of ['123','3d_extra','3d/','3 d'])assert.throws(()=>inspect(input('sound.cfg',Buffer.from('[sound]\na.wav\n['+tag+']\n0'))),refuse);
 });
+
+test('BANK signature refuses high-bit aliases even with matching RIFF length',()=>{
+ for(const o of [0,1,2,3,8,9,10,11]){const b=bank();b[o]|=128;assert.throws(()=>inspect(input('a.bank',b)),refuse);}
+});
