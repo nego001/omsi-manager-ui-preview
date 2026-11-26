@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
-import {consolidateFixtureNativeEvidence as consolidate} from './runtime-native-evidence.mjs';
+import {consolidateFixtureNativeEvidence as consolidate,bindFixtureNativeObservation as bind} from './runtime-native-evidence.mjs';
 const refuse=/^Error: CORE_RUNTIME_NATIVE_EVIDENCE_REFUSED$/;
 const flags={atomicContainmentProven:false,abaRuledOut:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false};
 function fixture(){
@@ -51,4 +51,23 @@ test('evidence digests canonical deterministic and immutable',()=>{
  assert.ok(Object.isFrozen(r)&&Object.isFrozen(r.observations));
  x.windows.cases[11]='parent-substitution-os-blocked-32';assert.notEqual(consolidate(x).evidenceDigest,r.evidenceDigest);
  assert.equal(r.observations[1].parentSubstitution.win32Code,5);
+});
+
+const binding=(platform='linux')=>({scope:'synthetic-fixture',platform,report:platform==='linux'?fixture().linux:fixture().windows,checkoutSha:'a'.repeat(40),scriptSha256:'b'.repeat(64)});
+test('individual native fixture binding preserves platform and exact content identity',()=>{
+ for(const platform of ['linux','win32']){
+  const x=binding(platform),r=bind(x);assert.equal(r.observation.platform,platform);assert.equal(r.observation.caseCount,13);
+  const {bindingDigest,...body}=r;assert.equal(bindingDigest,createHash('sha256').update(JSON.stringify(body)).digest('hex'));
+  assert.deepEqual(bind(x),r);assert.ok(Object.isFrozen(r)&&Object.isFrozen(r.observation));
+  for(const k of ['checkoutAttested','independentCiVerification','nativeAttestationVerified','realSecurityGateVerified','realReadsPerformed','operationsEnabled','releaseAuthorized'])assert.equal(r[k],false);
+  assert.notEqual(bind({...x,checkoutSha:'c'.repeat(40)}).bindingDigest,r.bindingDigest);
+  assert.notEqual(bind({...x,scriptSha256:'c'.repeat(64)}).bindingDigest,r.bindingDigest);
+ }
+});
+test('native fixture binding rejects platform mismatch invalid digests and claimed authority',()=>{
+ const x=binding();
+ for(const patch of [{platform:'win32'},{platform:'darwin'},{checkoutSha:'a'.repeat(39)},{scriptSha256:'z'.repeat(64)},{scope:'real-mod'},{checkoutAttested:true},{operationsEnabled:true}]){
+  assert.throws(()=>bind({...x,...patch}),refuse);
+ }
+ const a=binding();a.report.cases[0]='fake';assert.throws(()=>bind(a),refuse);
 });
