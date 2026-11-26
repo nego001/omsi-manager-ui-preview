@@ -39,3 +39,25 @@ test('worker rejects malformed wire and nonfixture commands without output',()=>
   const p=spawnSync(process.execPath,[worker],{input,encoding:'utf8',timeout:10000,maxBuffer:4096,windowsHide:true});assert.equal(p.error,undefined);assert.equal(p.status,3);assert.equal(p.stdout,'');assert.equal(p.stderr,'');
  }
 });
+
+test('cancellation is job-bound and discards all results until owned child closes',async()=>{
+ const s=create(),p=s.analyze(request());
+ const id=s.status().activeJobId;
+ assert.match(id,/^[a-f0-9]{32}$/);
+ assert.equal(s.cancel(id==='0'.repeat(32)?'1'.repeat(32):'0'.repeat(32)),false);
+ assert.throws(()=>s.cancel({jobId:id}),refuse);
+ assert.equal(s.cancel(id),true);assert.equal(s.cancel(id),false);
+ assert.equal(s.status().active,true);assert.equal(s.status().activeJobId,id);
+ await assert.rejects(s.analyze(request()),refuse);assert.throws(()=>s.dispose(),refuse);
+ const r=await p;assert.deepEqual(r,{state:'fixture-worker-failed',reason:'cancelled',report:null,operationsEnabled:false});
+ assert.ok(Object.isFrozen(r));assert.equal(s.status().active,false);assert.equal(s.status().activeJobId,null);
+ assert.equal(s.cancel(id),false);assert.equal(s.dispose(),true);assert.equal(s.cancel(id),false);
+});
+test('supervisor recovers from cancellation and a stale token cannot cancel subsequent work',async()=>{
+ const s=create(),first=s.analyze(request()),old=s.status().activeJobId;
+ assert.equal(s.cancel(old),true);assert.equal((await first).reason,'cancelled');
+ const next=s.analyze(request('clean-reference')),id=s.status().activeJobId;
+ assert.notEqual(id,old);assert.equal(s.cancel(old),false);
+ const r=await next;assert.equal(r.state,'fixture-worker-report');assert.equal(r.report.jobId,id);assert.deepEqual(r.report.findings,[]);
+ assert.equal(s.status().acceptedJobs,2);assert.equal(s.cancel(id),false);s.dispose();
+});
