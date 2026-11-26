@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-windows-cpu-rate-load.ps1',import.meta.url));
 test('Windows private job CPU rate cap reduces observed CPU use and restoring rate recovers it',t=>{
  if(process.platform!=='win32'){t.diagnostic('Windows CPU rate load laboratory not executed on this host.');return;}
@@ -25,5 +26,6 @@ test('Windows private job CPU rate cap reduces observed CPU use and restoring ra
   sameOwnedChild:true,readyObserved:true,rateReadbackVerified:true,differentialObserved:true,
   exactCpuRateGuaranteeVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native CPU binding: '+JSON.stringify(bindExecutedResource('windowsCpuRateLoad',r,script)));
  t.diagnostic('Windows CPU rate load: '+JSON.stringify(r));
 });
