@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-windows-cpu-fixture.ps1',import.meta.url));
 test('Windows native job CPU time budget terminates owned child between matched controls',t=>{
  if(process.platform!=='win32'){
@@ -21,5 +22,6 @@ test('Windows native job CPU time budget terminates owned child between matched 
   jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,
   cpuRateThrottleVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native CPU binding: '+JSON.stringify(bindExecutedResource('windowsCpuTime',r,script)));
  t.diagnostic('Windows Job CPU: 2 s user-mode budget, job signaled only in limited trial; actual exit '+r.limitedExitCode+'; documented quota exit observed '+r.documentedQuotaExitObserved+'; observed user ticks '+r.beforeUserTicks+'/'+r.limitedUserTicks+'/'+r.afterUserTicks+'; no production qualification.');
 });
