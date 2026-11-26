@@ -46,3 +46,46 @@ test('real scope, forged evidence and accessor fields denied',async()=>{
  let called=false;const x=request();Object.defineProperty(x,'files',{get(){called=true;return []}});
  await assert.rejects(b.analyze(x),refuse);assert.equal(called,false);assert.equal(b.status().acceptedJobs,0);b.dispose();
 });
+
+test('issued report integrity checks reject copies and foreign bridge reports',async()=>{
+ const a=create(),b=create(),r=(await a.analyze(request())).report;
+ assert.equal(a.verify(r),true);assert.equal(b.verify(r),false);
+ assert.equal(a.verify({...r}),false);assert.equal(a.verify(JSON.parse(JSON.stringify(r))),false);
+ let invoked=false;const fake={get bridgeDigest(){invoked=true;return r.bridgeDigest}};
+ assert.equal(a.verify(fake),false);assert.equal(invoked,false);
+ assert.throws(()=>a.project({...r},{sector:'library',offset:0,limit:0}),refuse);
+ a.dispose();assert.equal(a.verify(r),false);b.dispose();
+});
+test('diagnostics projection paginates stable findings with shared identity',async()=>{
+ const b=create(),x=request();x.files[0].bytes=Buffer.from('@include "one.sui"\n@include "two.sui"\n@include "three.sui"');
+ const r=(await b.analyze(x)).report,p=b.project(r,{sector:'diagnostics',offset:0,limit:2});
+ assert.equal(p.total,3);assert.equal(p.nextOffset,2);assert.equal(p.findings.length,2);
+ const q=b.project(r,{sector:'diagnostics',offset:p.nextOffset,limit:2});
+ assert.equal(q.nextOffset,null);assert.deepEqual([...p.findings,...q.findings],r.fusion.findings);
+ assert.equal(q.bridgeDigest,r.bridgeDigest);assert.equal(q.core.snapshotId,r.snapshot.snapshotId);
+ assert.ok(Object.isFrozen(p)&&Object.isFrozen(p.findings));b.dispose();
+});
+test('sector projections disclose only allowed evidence and never authorize actions',async()=>{
+ const b=create(),r=(await b.analyze(request())).report;
+ for(const sector of ['library','planner','studio']){
+  const p=b.project(r,{sector,offset:0,limit:0});assert.equal(p.operationsEnabled,false);
+  assert.equal(Object.hasOwn(p,'findings'),false);assert.equal(Object.hasOwn(p,'summary'),sector==='library');
+  assert.equal(p.core.snapshotId,r.snapshot.snapshotId);
+  if(sector==='planner')assert.equal(p.core.planAvailable,false);
+  if(sector==='studio')assert.equal(p.core.audioWorkspace,false);
+ }
+ b.dispose();
+});
+test('invalid projection requests and pagination bounds fail closed',async()=>{
+ const b=create(),r=(await b.analyze(request())).report;
+ for(const q of [{sector:'diagnostics',offset:-1,limit:1},{sector:'diagnostics',offset:2,limit:1},{sector:'diagnostics',offset:0,limit:65},{sector:'library',offset:0,limit:1},{sector:'installer',offset:0,limit:0},{sector:'library',offset:0,limit:0,operationsEnabled:true}])
+  assert.throws(()=>b.project(r,q),refuse);
+ assert.deepEqual(b.project(r,{sector:'diagnostics',offset:1,limit:1}).findings,[]);
+ let called=false;const q={sector:'library',offset:0,limit:0};Object.defineProperty(q,'offset',{get(){called=true;return 0}});
+ assert.throws(()=>b.project(r,q),refuse);assert.equal(called,false);b.dispose();
+});
+test('invalid budget contract rejected before acceptance and explicit policy depth charged',async()=>{
+ const b=create(),x=request();x.budget.durationMs=0;await assert.rejects(b.analyze(x),refuse);assert.equal(b.status().acceptedJobs,0);
+ const y=request();y.textureRoots=['a/b/c'];y.budget.depth=2;
+ assert.equal((await b.analyze(y)).state,'budget-refused');b.dispose();
+});
