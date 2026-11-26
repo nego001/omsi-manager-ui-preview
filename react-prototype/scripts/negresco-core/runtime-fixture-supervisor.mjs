@@ -20,13 +20,22 @@ function validate(x,scenario,jobId,pid){
   Array.isArray(x.findings)&&x.findings.length===(missing?1:0)&&(!missing||x.findings[0]==='MISSING_REFERENCE')&&
   inspectFixtureCpu(x.cpuSample).decision==='admit-fixture-only'&&x.operationsEnabled===false&&x.realReadsPerformed===false&&x.productionIntegrated===false;
 }
-export function createFixtureProcessSupervisor(){
+export function createFixtureProcessSupervisor(options=undefined){
+ let timeoutMs=15000;
+ if(options!==undefined){
+  if(!options||Object.getPrototypeOf(options)!==Object.prototype||Reflect.ownKeys(options).length!==1)refuse();
+  const d=Object.getOwnPropertyDescriptor(options,'timeoutMs');
+  if(!d||!Object.hasOwn(d,'value')||!d.enumerable||!Number.isInteger(d.value)||d.value<0||d.value>15000)refuse();
+  timeoutMs=d.value;
+ }
  let active=false,closed=false,accepted=0,activeJobId=null,cancelActive=null;
  async function analyze(input){
   if(closed||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
   const a=Object.getOwnPropertyDescriptor(input,'scope'),b=Object.getOwnPropertyDescriptor(input,'scenario');
   if(!a||!b||!Object.hasOwn(a,'value')||!Object.hasOwn(b,'value')||a.value!=='synthetic-fixture'||!scenarios.includes(b.value))refuse();
   const scenario=b.value,jobId=randomBytes(16).toString('hex');
+  const deadline=process.hrtime.bigint()+BigInt(timeoutMs)*1000000n;
+  const expired=()=>process.hrtime.bigint()>=deadline;
   active=true;activeJobId=jobId;accepted++;
   try{
    return await new Promise(resolve=>{
@@ -35,29 +44,33 @@ export function createFixtureProcessSupervisor(){
      child=spawn(process.execPath,[...FIXTURE_V8_ARGS,worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
     }catch{resolve(failed('spawn-failed'));return;}
     const out=[];let size=0,reason=null;
-    const stop=r=>{
+    const stop=(r,terminate=true)=>{
      if(reason!==null)return false;
      reason=r;out.length=0;
-     try{child.kill('SIGKILL');}catch{}
+     if(terminate){try{child.kill('SIGKILL');}catch{}}
      return true;
     };
-    cancelActive=()=>stop('cancelled');
-    const timer=setTimeout(()=>stop('timeout'),15000);
+    cancelActive=()=>{if(expired()){stop('timeout');return false;}return stop('cancelled');};
+    const timer=setTimeout(()=>stop('timeout'),Math.max(0,Number((deadline-process.hrtime.bigint()+999999n)/1000000n)));
     child.on('error',()=>stop('process-error'));
     child.stdin.on('error',()=>stop('input-error'));
-    child.stdout.on('data',chunk=>{size+=chunk.length;if(size>MAX_OUTPUT){stop('output-limit');return;}if(!reason)out.push(chunk);});
+    child.stdout.on('data',chunk=>{if(expired()){stop('timeout');return;}if(reason)return;size+=chunk.length;if(size>MAX_OUTPUT){stop('output-limit');return;}if(!reason)out.push(chunk);});
     child.stderr.on('data',()=>stop('worker-stderr'));
     child.on('close',(code,signal)=>{
      clearTimeout(timer);cancelActive=null;
+     if(expired())stop('timeout',false);
      if(reason||code!==0||signal){resolve(failed(reason||'worker-exit'));return;}
      try{
       const wire=Buffer.concat(out).toString('utf8'),x=JSON.parse(wire);
       if(JSON.stringify(x)!==wire||!validate(x,scenario,jobId,child.pid)){resolve(failed('invalid-report'));return;}
       const body={schemaVersion:1,scope:'synthetic-fixture',scenario,jobId,workerPid:child.pid,bridgeDigest:x.bridgeDigest,fixtureStatus:x.fixtureStatus,findings:Object.freeze([...x.findings]),cpuObservation:inspectFixtureCpu(x.cpuSample),separateProcessObserved:true,osIsolationVerified:false,resourceLimitsVerified:false,realReadsPerformed:false,operationsEnabled:false,productionIntegrated:false};
-      resolve(Object.freeze({state:'fixture-worker-report',report:Object.freeze({...body,reportDigest:createHash('sha256').update(JSON.stringify(body)).digest('hex')}),operationsEnabled:false}));
+      const result=Object.freeze({state:'fixture-worker-report',report:Object.freeze({...body,reportDigest:createHash('sha256').update(JSON.stringify(body)).digest('hex')}),operationsEnabled:false});
+      if(expired()){stop('timeout',false);resolve(failed(reason));return;}
+      resolve(result);
      }catch{resolve(failed('invalid-report'));}
     });
-    child.stdin.end(JSON.stringify({scope:'synthetic-fixture',scenario,jobId}));
+    if(expired()){stop('timeout');child.stdin.end();}
+    else child.stdin.end(JSON.stringify({scope:'synthetic-fixture',scenario,jobId}));
    });
   }finally{cancelActive=null;activeJobId=null;active=false;}
  }
