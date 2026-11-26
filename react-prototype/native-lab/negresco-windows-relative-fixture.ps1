@@ -2,8 +2,10 @@
 $ErrorActionPreference='Stop'
 $root=$null
 $junction=$null
+$stage='admission'
 try {
  if ($args.Count -ne 0 -or [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'fixture refused' }
+ $stage='compile'
  Add-Type -TypeDefinition @'
 using System;
 using System.IO;
@@ -35,13 +37,15 @@ public static class NegrescoWindowsReadFixture {
  static extern bool ReadFile(SafeFileHandle h,byte[] buffer,uint count,out uint got,IntPtr overlapped);
  [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true,EntryPoint="CreateHardLinkW")]
  static extern bool CreateHardLink(string target,string existing,IntPtr security);
+ public static string Stage="setup";
+ public static string Check="none";
  sealed class Refused:Exception {}
- static void Need(bool b){if(!b)throw new Refused();}
+ static void Need(bool b,string check="condition"){if(!b){Check=check;throw new Refused();}}
  static string Key(SafeFileHandle h,bool directory,ulong volume,out long size) {
   Info i; FileId id;
-  Need(!h.IsInvalid && GetFileType(h)==1);
-  Need(GetFileInformationByHandle(h,out i));
-  Need(GetFileInformationByHandleEx(h,18,out id,(uint)Marshal.SizeOf(typeof(FileId))));
+  Need(!h.IsInvalid && GetFileType(h)==1,"disk-handle");
+  Need(GetFileInformationByHandle(h,out i),"handle-info");
+  Need(GetFileInformationByHandleEx(h,18,out id,(uint)Marshal.SizeOf(typeof(FileId))),"file-id-info");
   Need(id.Id!=null && id.Id.Length==16 && (i.Attributes&0x400)==0 && ((i.Attributes&0x10)!=0)==directory);
   Need(id.Volume==volume && (directory || i.Links==1));
   size=((long)i.SizeHigh<<32)|i.SizeLow;
@@ -59,8 +63,8 @@ public static class NegrescoWindowsReadFixture {
    ptr=Marshal.AllocHGlobal(Marshal.SizeOf(typeof(UnicodeString)));Marshal.StructureToPtr(u,ptr,false);
    ObjectAttributes oa=new ObjectAttributes();oa.Length=Marshal.SizeOf(typeof(ObjectAttributes));oa.RootDirectory=parent.DangerousGetHandle();oa.ObjectName=ptr;oa.Attributes=0x40;
    SafeFileHandle file;IoStatus io;
-   int status=NtCreateFile(out file,0x00100081,ref oa,out io,IntPtr.Zero,0,7,1,0x00200020u|(directory?1u:0x40u),IntPtr.Zero,0);
-   if(status<0 || file==null || file.IsInvalid){if(file!=null)file.Dispose();throw new Refused();}
+   int status=NtCreateFile(out file,(directory?0x001000a1u:0x00100081u),ref oa,out io,IntPtr.Zero,0,7,1,0x00200020u|(directory?1u:0x40u),IntPtr.Zero,0);
+   if(status<0 || file==null || file.IsInvalid){if(file!=null)file.Dispose();Check="nt-open-"+unchecked((uint)status).ToString("X8");throw new Refused();}
    return file;
   } finally {if(ptr!=IntPtr.Zero)Marshal.FreeHGlobal(ptr);if(chars!=IntPtr.Zero)Marshal.FreeHGlobal(chars);}
  }
@@ -88,7 +92,12 @@ public static class NegrescoWindowsReadFixture {
    return Hash(bytes);
   }
  }
- static void Denied(List<string> cases,string name,Action fn){try{fn();}catch(Refused){cases.Add(name);return;}throw new Exception("expected refusal");}
+ static void Denied(List<string> cases,string name,Action fn){Stage=name;Check="none";try{fn();}catch(Refused){cases.Add(name);return;}Check="unexpected-acceptance";throw new Exception("expected refusal");}
+ static void Changed(List<string> cases,string name,SafeFileHandle h,string path,ulong volume,Action barrier){
+  bool mutationCompleted=false;
+  Denied(cases,name,()=>Read(h,path,volume,64,()=>{Check="mutation-barrier";barrier();mutationCompleted=true;}));
+  if(!mutationCompleted){Check="mutation-not-executed";throw new Exception("mutation not executed");}
+ }
  public static string[] Run(string root,string sibling){
   List<string> cases=new List<string>();
   string nested=Path.Combine(root,"nested");
@@ -101,8 +110,10 @@ public static class NegrescoWindowsReadFixture {
   File.WriteAllBytes(Path.Combine(root,"replace.bin"),new byte[]{1,2,3});
   Directory.CreateDirectory(Path.Combine(root,"parent"));
   File.WriteAllBytes(Path.Combine(root,"parent","data.bin"),new byte[]{1,2,3});
+  Stage="root-open";Check="none";
   using(SafeFileHandle h=CreateFile(root,0x80000000,7,IntPtr.Zero,3,0x02200000,IntPtr.Zero)){
    Need(!h.IsInvalid);ulong volume=Volume(h);long rootSize;Key(h,true,volume,out rootSize);
+   Stage="nested-regular-same-handle";Check="none";
    Need(Read(h,"nested/valid.bin",volume,3,null)==Hash(new byte[]{1,2,3}));cases.Add("nested-regular-same-handle");
    Denied(cases,"parent-junction",()=>Read(h,"redirect/sentinel.bin",volume,64,null));
    Denied(cases,"leaf-junction",()=>Read(h,"redirect",volume,64,null));
@@ -112,22 +123,24 @@ public static class NegrescoWindowsReadFixture {
    Denied(cases,"hardlink",()=>Read(h,"hard.bin",volume,64,null));
    Denied(cases,"directory",()=>Read(h,"nested",volume,64,null));
    Denied(cases,"size-cap",()=>Read(h,"large.bin",volume,32,null));
-   Denied(cases,"in-place-mutation",()=>Read(h,"mutate.bin",volume,64,()=>File.WriteAllBytes(Path.Combine(root,"mutate.bin"),new byte[9])));
-   Denied(cases,"file-replacement",()=>Read(h,"replace.bin",volume,64,()=>{
+   Changed(cases,"in-place-mutation",h,"mutate.bin",volume,()=>File.WriteAllBytes(Path.Combine(root,"mutate.bin"),new byte[9]));
+   Changed(cases,"file-replacement",h,"replace.bin",volume,()=>{
     File.Move(Path.Combine(root,"replace.bin"),Path.Combine(root,"retired.bin"));
     File.WriteAllBytes(Path.Combine(root,"replace.bin"),new byte[]{1,2,3});
-   }));
-   Denied(cases,"parent-substitution",()=>Read(h,"parent/data.bin",volume,64,()=>{
+   });
+   Changed(cases,"parent-substitution",h,"parent/data.bin",volume,()=>{
     Directory.Move(Path.Combine(root,"parent"),Path.Combine(root,"retired-parent"));
     Directory.CreateDirectory(Path.Combine(root,"parent"));
     File.WriteAllBytes(Path.Combine(root,"parent","data.bin"),new byte[]{1,2,3});
-   }));
+   });
   }
+  Stage="sibling-unchanged";Check="none";
   Need(Hash(File.ReadAllBytes(Path.Combine(sibling,"sentinel.bin")))==Hash(new byte[]{9,8,7}));cases.Add("sibling-unchanged");
   return cases.ToArray();
  }
 }
 '@ -ErrorAction Stop
+ $stage='fixture-setup'
  $root=Join-Path ([IO.Path]::GetTempPath()) ('negresco-winread-fixture-'+[Guid]::NewGuid().ToString('N'))
  [void][IO.Directory]::CreateDirectory($root)
  $selected=Join-Path $root 'selected'
@@ -136,8 +149,11 @@ public static class NegrescoWindowsReadFixture {
  [void][IO.Directory]::CreateDirectory($sibling)
  [IO.File]::WriteAllBytes((Join-Path $sibling 'sentinel.bin'),[byte[]]@(9,8,7))
  $junction=Join-Path $selected 'redirect'
+ $stage='junction-create'
  New-Item -ItemType Junction -Path $junction -Target $sibling -ErrorAction Stop | Out-Null
+ $stage='native-cases'
  $cases=[NegrescoWindowsReadFixture]::Run($selected,$sibling)
+ $stage='cleanup'
  [IO.Directory]::Delete($junction)
  $junction=$null
  [IO.Directory]::Delete($root,$true)
@@ -146,7 +162,20 @@ public static class NegrescoWindowsReadFixture {
  [Console]::Out.WriteLine(($report|ConvertTo-Json -Compress -Depth 3))
  exit 0
 } catch {
- [Console]::Error.WriteLine('NEGRESCO_NATIVE_WINDOWS_FIXTURE_REFUSED')
+ # Only fixed laboratory stage/check labels and numeric NTSTATUS, never raw messages or paths.
+ $detail=$stage
+ if($stage -eq 'native-cases'){
+  $detail=$stage+':'+[NegrescoWindowsReadFixture]::Stage+':'+[NegrescoWindowsReadFixture]::Check
+ }
+ if($detail -cnotmatch '^[a-zA-Z0-9:-]{1,120}
+ exit 3
+} finally {
+ # Never recursively traverse an unremoved junction.
+ if($junction -and [IO.Directory]::Exists($junction)){try{[IO.Directory]::Delete($junction);$junction=$null}catch{}}
+ if($root -and -not $junction){try{[IO.Directory]::Delete($root,$true)}catch{}}
+}
+){$detail='unknown'}
+ [Console]::Error.WriteLine('NEGRESCO_NATIVE_WINDOWS_FIXTURE_REFUSED:'+ $detail)
  exit 3
 } finally {
  # Never recursively traverse an unremoved junction.
