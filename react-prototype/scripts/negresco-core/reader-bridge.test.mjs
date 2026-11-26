@@ -89,3 +89,16 @@ test('invalid budget contract rejected before acceptance and explicit policy dep
  const y=request();y.textureRoots=['a/b/c'];y.budget.depth=2;
  assert.equal((await b.analyze(y)).state,'budget-refused');b.dispose();
 });
+
+test('end-to-end malformed binary leaf cannot become a validated or actionable diagnostic',async()=>{
+ const b=create(),x=request();
+ const wav=Buffer.alloc(46);wav.write('RIFF');wav.writeUInt32LE(38,4);wav.write('WAVEfmt ',8);wav.writeUInt32LE(16,16);wav.writeUInt16LE(1,20);wav.writeUInt16LE(1,22);wav.writeUInt32LE(44100,24);wav.writeUInt32LE(88200,28);wav.writeUInt16LE(2,32);wav.writeUInt16LE(16,34);wav.write('data',36);wav.writeUInt32LE(2,40);
+ x.roots=['sound.cfg'];x.files=[{path:'sound.cfg',bytes:Buffer.from('[sound]\nengine.wav'),cfgKind:'sound'},{path:'engine.wav',bytes:wav,cfgKind:null}];
+ const good=(await b.analyze(x)).report;assert.equal(good.fusion.summary.fixtureStatus,'no-discovered-findings');
+ wav[0]|=128;
+ const bad=(await b.analyze(x)).report;assert.ok(b.verify(bad));assert.notEqual(bad.bridgeDigest,good.bridgeDigest);
+ assert.deepEqual(bad.fusion.findings.map(f=>f.code).sort(),['MATCHED_UNREADABLE_TARGET','UNREADABLE_SUBSET']);
+ assert.equal(bad.snapshot.status,'incomplete');assert.equal(bad.cacheEligible,false);assert.equal(bad.persistencePerformed,false);
+ const page=b.project(bad,{sector:'diagnostics',offset:0,limit:64});assert.equal(page.total,2);assert.equal(page.operationsEnabled,false);
+ b.dispose();
+});
