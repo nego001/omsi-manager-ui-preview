@@ -1,4 +1,4 @@
-// F3.09b: cross-format graph of supplied synthetic files, never real game resolution.
+// F3.10b: cross-format graph of supplied synthetic files, never real game resolution.
 import {buildFixtureIndex} from './index.mjs';
 import {inspectFixtureOmsi} from './omsi.mjs';
 import {inspectFixtureScsDefinition} from './scs-definition.mjs';
@@ -97,7 +97,11 @@ function inspect(input,withPolicy=false){
   if(r.source?.path!==path||r.source.contentDigest!==sourceByPath.get(path).contentDigest)fail();
   const detail=textures.has(format)?{width:r.width,height:r.height,compression:r.compression,mipmapCount:r.mipmapCount}:
    audio.has(format)?{codec:r.codec,channels:r.channels,sampleRate:r.sampleRate,durationSeconds:r.durationSeconds,durationBasis:r.durationBasis}:
-   ['o3d','pmg','pmc'].includes(format)?{vertexCount:r.vertexCount,triangleCount:r.triangleCount,bounds:r.bounds}:
+   format==='pmd'?{pieceCount:r.counts.pieces,partCount:r.counts.parts,materialCount:r.counts.materials,lookCount:r.counts.looks}:
+   format==='pmg'?{vertexCount:r.vertexCount,triangleCount:r.triangleCount,bounds:r.bounds,pieceCount:r.counts.pieces,partCount:r.counts.parts,
+    maxMaterialIndex:r.pieces.reduce((max,p)=>Math.max(max,p.materialIndex),-1)}:
+   ['o3d','pmc'].includes(format)?{vertexCount:r.vertexCount,triangleCount:r.triangleCount,bounds:r.bounds}:
+   format==='tobj'?{sampler:r.sampler}:format==='mat'?{effect:r.effect}:
    format==='bank'?{signature:r.bankSignature}:null;
   nodes.set(path,Object.freeze({path,format,cfgKind,status:format==='bank'?'signature-candidate':'parsed-subset',detail:detail?Object.freeze(detail):null}));
   const refs=format==='o3d'?r.materials.filter(m=>m.textureCandidate!==null).map(m=>({path:m.textureCandidate,role:'o3d-texture-candidate',position:m.index,namespace:'unresolved-texture-search'})):r.references??[];
