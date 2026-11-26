@@ -1,5 +1,6 @@
 // F4.02a: fixed child-process laboratory, not an OS sandbox.
 import {spawn} from 'node:child_process';
+import {FIXTURE_V8_ARGS} from './runtime-fixture-memory.mjs';
 import {randomBytes,createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 const worker=fileURLToPath(new URL('./runtime-fixture-worker.mjs',import.meta.url));
@@ -30,7 +31,7 @@ export function createFixtureProcessSupervisor(){
    return await new Promise(resolve=>{
     let child;try{
      const env={};if(process.platform==='win32'&&process.env.SystemRoot)env.SystemRoot=process.env.SystemRoot;
-     child=spawn(process.execPath,[worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
+     child=spawn(process.execPath,[...FIXTURE_V8_ARGS,worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
     }catch{resolve(failed('spawn-failed'));return;}
     const out=[];let size=0,reason=null;
     const stop=r=>{if(!reason)reason=r;try{child.kill('SIGKILL');}catch{}};
