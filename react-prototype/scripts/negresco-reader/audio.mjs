@@ -19,11 +19,11 @@ function inspect(input){
  const format=x.path.split('.').pop().toLowerCase();
  let codec,channels,sampleRate,bitDepth=null,sampleCount,chunkCount=0,crcVerified=false,preSkip=null,dataBytes=0,nominalBitrate=null,frameCount=null;
  if(format==='wav'){
-  if(b.length<44||b.toString('ascii',0,4)!=='RIFF'||b.toString('ascii',8,12)!=='WAVE'||b.readUInt32LE(4)!==b.length-8)fail();
+  if(b.length<44||b.toString('latin1',0,4)!=='RIFF'||b.toString('latin1',8,12)!=='WAVE'||b.readUInt32LE(4)!==b.length-8)fail();
   let p=12,seenFmt=false,seenData=false,align=0;
   while(p<b.length){
    if(++chunkCount>l.maxChunks||p+8>b.length)fail();
-   const tag=b.toString('ascii',p,p+4),len=b.readUInt32LE(p+4),s=p+8;
+   const tag=b.toString('latin1',p,p+4),len=b.readUInt32LE(p+4),s=p+8;
    if(len>b.length-s||len+(len&1)>b.length-s)fail();
    const end=s+len;
    if((len&1)&&b[end]!==0)fail();
@@ -46,7 +46,7 @@ function inspect(input){
   // Single logical stream, whole packets on each page; no continued/chained streams.
   let p=0,serial=null,seq=0,stage=0,previousGranule=0n,eos=false;
   while(p<b.length){
-   if(++chunkCount>l.maxChunks||p+27>b.length||b.toString('ascii',p,p+4)!=='OggS'||b[p+4]!==0||eos)fail();
+   if(++chunkCount>l.maxChunks||p+27>b.length||b.toString('latin1',p,p+4)!=='OggS'||b[p+4]!==0||eos)fail();
    const flags=b[p+5],granule=b.readBigUInt64LE(p+6),s=b.readUInt32LE(p+14),n=b[p+26];
    if((flags&~6)!==0||!n||p+27+n>b.length||b.readUInt32LE(p+18)!==seq)fail();
    if(seq===0){if(flags!==2)fail();serial=s;}else if(s!==serial||(flags&2))fail();
@@ -59,11 +59,11 @@ function inspect(input){
    if(stage===0){
     if(packets.length!==1||granule!==0n)fail();
     const h=packets[0];
-    if(h.length===19&&h.toString('ascii',0,8)==='OpusHead'){
+    if(h.length===19&&h.toString('latin1',0,8)==='OpusHead'){
      if(h[8]!==1||![1,2].includes(h[9])||h[18]!==0)fail();
      codec='opus';channels=h[9];sampleRate=48000;preSkip=h.readUInt16LE(10);
     }else{
-     if(format!=='ogg'||h.length!==30||h[0]!==1||h.toString('ascii',1,7)!=='vorbis'||h.readUInt32LE(7)!==0||h[29]!==1)fail();
+     if(format!=='ogg'||h.length!==30||h[0]!==1||h.toString('latin1',1,7)!=='vorbis'||h.readUInt32LE(7)!==0||h[29]!==1)fail();
      codec='vorbis';channels=h[11];sampleRate=h.readUInt32LE(12);
      const small=h[28]&15,large=h[28]>>4;
      if(!int(small,6,13)||!int(large,small,13))fail();
@@ -75,7 +75,7 @@ function inspect(input){
     if(packets.length!==1||granule!==0n||flags!==0)fail();
     const t=packets[0];
     const v=codec==='vorbis',prefix=v?7:8;
-    if(t.length<prefix+8+(v?1:0)||(v? t[0]!==3||t.toString('ascii',1,7)!=='vorbis':t.toString('ascii',0,8)!=='OpusTags'))fail();
+    if(t.length<prefix+8+(v?1:0)||(v? t[0]!==3||t.toString('latin1',1,7)!=='vorbis':t.toString('latin1',0,8)!=='OpusTags'))fail();
     let q=prefix+4+t.readUInt32LE(prefix);
     if(q+4>t.length)fail();
     const comments=t.readUInt32LE(q);q+=4;
@@ -83,7 +83,7 @@ function inspect(input){
     for(let j=0;j<comments;j++){if(q+4>t.length)fail();const len=t.readUInt32LE(q);q+=4;if(len>t.length-q)fail();q+=len;}
     if(v?(q!==t.length-1||t[q]!==1):q!==t.length)fail();stage=v?2:3;
    }else if(stage===2){
-    if(packets.length!==1||granule!==0n||flags!==0||packets[0].length<8||packets[0][0]!==5||packets[0].toString('ascii',1,7)!=='vorbis')fail();
+    if(packets.length!==1||granule!==0n||flags!==0||packets[0].length<8||packets[0][0]!==5||packets[0].toString('latin1',1,7)!=='vorbis')fail();
     stage=3; // Setup body deliberately opaque, not codec validation.
    }else{
     if(granule===0xffffffffffffffffn||granule<previousGranule||granule>BigInt(l.maxSamples)+BigInt(preSkip??0))fail();
