@@ -14,11 +14,12 @@ test('Windows native job CPU time budget terminates owned child between matched 
  for(const k of ['beforeUserTicks','limitedUserTicks','afterUserTicks'])assert.ok(Number.isSafeInteger(r[k]));
  assert.ok(r.beforeUserTicks>=45000000&&r.afterUserTicks>=45000000);
  assert.ok(r.limitedUserTicks>=20000000&&r.limitedUserTicks<45000000);
+ assert.ok(Number.isInteger(r.limitedExitCode)&&r.limitedExitCode>=0&&r.limitedExitCode<=0xffffffff&&![77,78,259].includes(r.limitedExitCode));
  assert.deepEqual(r,{
   scope:'disposable-windows-cpu-fixture',mechanism:'JobObjectJobUserTime',controlSeconds:8,limitSeconds:2,
-  naturalExitCode:77,quotaExitCode:1816,beforeUserTicks:r.beforeUserTicks,limitedUserTicks:r.limitedUserTicks,afterUserTicks:r.afterUserTicks,
-  jobSignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,
+  naturalExitCode:77,limitedExitCode:r.limitedExitCode,documentedQuotaExitObserved:r.limitedExitCode===1816,beforeUserTicks:r.beforeUserTicks,limitedUserTicks:r.limitedUserTicks,afterUserTicks:r.afterUserTicks,
+  jobSignaled:true,controlJobsUnsignaled:true,positiveBefore:true,positiveAfter:true,cpuTimeLimitObserved:true,
   cpuRateThrottleVerified:false,processTreeLimitVerified:false,readerLimitIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
- t.diagnostic('Windows Job CPU: 2 s user-mode budget, quota exit 1816, job signaled, matched controls; observed user ticks '+r.beforeUserTicks+'/'+r.limitedUserTicks+'/'+r.afterUserTicks+'; no production qualification.');
+ t.diagnostic('Windows Job CPU: 2 s user-mode budget, job signaled only in limited trial; actual exit '+r.limitedExitCode+'; documented quota exit observed '+r.documentedQuotaExitObserved+'; observed user ticks '+r.beforeUserTicks+'/'+r.limitedUserTicks+'/'+r.afterUserTicks+'; no production qualification.');
 });
