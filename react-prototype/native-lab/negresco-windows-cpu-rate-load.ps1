@@ -97,8 +97,9 @@ public static class NegrescoWindowsCpuRateLoad {
    ready=new System.Threading.EventWaitHandle(false,System.Threading.EventResetMode.ManualReset,name);
    string exe=System.IO.Path.Combine(Environment.SystemDirectory,"WindowsPowerShell\\v1.0\\powershell.exe");
    string body="$e=[System.Threading.EventWaitHandle]::OpenExisting('"+name+"'); $t=[Diagnostics.Stopwatch]::StartNew(); $e.Set() | Out-Null; $x=0; while($t.ElapsedMilliseconds -lt 30000){for($i=0;$i -lt 4096;$i++){$x=($x+$i) -band 65535}}; exit 77";
+   // CREATE_SUSPENDED | DETACHED_PROCESS: exclude console-host scheduling interference.
    Startup start=new Startup();start.cb=(uint)Marshal.SizeOf(typeof(Startup));
-   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -Command \""+body+"\""),IntPtr.Zero,IntPtr.Zero,false,0x08000004,IntPtr.Zero,Environment.SystemDirectory,ref start,out child),"create");
+   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -Command \""+body+"\""),IntPtr.Zero,IntPtr.Zero,false,0x0000000c,IntPtr.Zero,Environment.SystemDirectory,ref start,out child),"create");
    Need(AssignProcessToJobObject(job,child.process),"assign");
    bool inside;Need(IsProcessInJob(child.process,job,out inside)&&inside,"membership");
    Need(ResumeThread(child.thread)==1,"resume");
