@@ -1,0 +1,7 @@
+# F4.02c.7 — periodic Windows CPU deadline
+
+Core 45831455663 Windows passed 133/133 at c582ff81: actual exit 3221225540 (0xC0000044 STATUS_QUOTA_EXCEEDED), job signaled, user ticks 36718750 under 2 s configured budget. Combined 45831455598 failed with natural exit 77. Latest docs commit e1ac1e3 combined 45831484811 Linux 327/327 Windows 326/327, Core 45831485031 Linux 133/133 Windows 132/133; both Windows failures involved natural exit 77. Periodic enforcement may race short natural completion; not a confirmed universal root cause.
+
+Microsoft documents periodic user-time checking (JOBOBJECT_BASIC_LIMIT_INFORMATION) and NTSTATUS 0xC0000044 (MS-ERREF). Revised fixed child naturally completes at 10 s user CPU, with 40 s wall fallback, compared to previous 4.5 s CPU and 18 s wall. Matched controls use 20 s job budget; negative budget remains 2 s. Parent wait 45 s and wrapper timeout 150 s. Negative requires signaled job, 2 <= observed user CPU < 10 s, and actual exit strictly 1816 or 0xC0000044. Controls require natural exit 77, at least 10 s user CPU and unsignaled job. No claim of precise 2 s enforcement. No broad acceptance of arbitrary status. No workload runs outside owned disposable child jobs.
+
+Expected counts unchanged 327 combined / 133 Core per OS. CI pending; CPU rate configuration already verified, actual throttling under load still pending. Real Reader limits, delegated Linux cgroup, F1 and real reads remain blocked. No merge/release.
