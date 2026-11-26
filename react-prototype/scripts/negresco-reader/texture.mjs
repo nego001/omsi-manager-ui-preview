@@ -18,12 +18,12 @@ function inspect(input){
  let width,height,channels,bitDepth,alphaMode,compression,mipmapCount=1,levels=[],chunkCount=0,crcVerified=false;
  function dimensions(w,h){if(!int(w,1,l.maxDimension)||!int(h,1,l.maxDimension)||w*h>l.maxPixels)fail();width=w;height=h;}
  if(format==='dds'){
-  if(b.length<128||b.toString('ascii',0,4)!=='DDS '||b.readUInt32LE(4)!==124||b.readUInt32LE(76)!==32)fail();
+  if(b.length<128||b.toString('latin1',0,4)!=='DDS '||b.readUInt32LE(4)!==124||b.readUInt32LE(76)!==32)fail();
   const u=o=>b.readUInt32LE(o),flags=u(8),caps=u(108);
   if((flags&0x1007)!==0x1007||!(flags&0x80000)||(flags&~0xa1007)!==0||!(caps&0x1000)||u(24)>1||u(112)||u(116)||u(120)||u(124))fail();
   dimensions(u(16),u(12));
   if(u(80)!==4||u(88)||u(92)||u(96)||u(100)||u(104))fail();
-  compression=b.toString('ascii',84,88);
+  compression=b.toString('latin1',84,88);
   if(!['DXT1','DXT3','DXT5'].includes(compression))fail();
   channels=4;bitDepth=null;alphaMode=compression==='DXT1'?'possible-bc1-alpha':'alpha-capable';
   mipmapCount=(flags&0x20000)?u(28):1;
@@ -44,7 +44,7 @@ function inspect(input){
    if(++chunkCount>l.maxChunks||p+12>b.length)fail();
    const len=b.readUInt32BE(p),start=p+8;
    if(len>b.length-start-4)fail();
-   const end=start+len,tag=b.toString('ascii',p+4,start);
+   const end=start+len,tag=b.toString('latin1',p+4,start);
    if(crc32(b.subarray(p+4,end))!==b.readUInt32BE(end))fail();
    if(!seenHeader){
     if(tag!=='IHDR'||len!==13)fail();
@@ -62,7 +62,7 @@ function inspect(input){
   }
   if(!done)fail();crcVerified=true;
  }else if(format==='bmp'){
-  if(b.length<54||b.toString('ascii',0,2)!=='BM'||b.readUInt32LE(2)!==b.length||
+  if(b.length<54||b.toString('latin1',0,2)!=='BM'||b.readUInt32LE(2)!==b.length||
     b.readUInt32LE(6)||b.readUInt32LE(10)!==54||b.readUInt32LE(14)!==40)fail();
   const h=b.readInt32LE(22);dimensions(b.readInt32LE(18),Math.abs(h));
   bitDepth=8;const bits=b.readUInt16LE(28);
