@@ -71,12 +71,21 @@ public static class NegrescoJobDescendantFixture {
   try{Need(ok,stage+"-spawn");Need(WaitForSingleObject(p.process,0)==258,stage+"-alive-suspended");}
   finally{Cleanup(p);}
  }
- static void Check(IntPtr job,uint cap){
+ static void Check(IntPtr job,uint cap,string phase,bool afterOwnedChildExit){
   Basic b;Accounting a;
   Need(QueryBasic(job,2,out b,(uint)Marshal.SizeOf(typeof(Basic)),IntPtr.Zero),"query-active-limit");
   Need((b.LimitFlags&8)!=0&&b.ActiveProcessLimit==cap,"active-limit-mismatch");
-  Need(QueryAccounting(job,1,out a,(uint)Marshal.SizeOf(typeof(Accounting)),IntPtr.Zero),"query-accounting");
-  Need(a.ActiveProcesses==1,"unexpected-active-count");
+  System.Diagnostics.Stopwatch timer=System.Diagnostics.Stopwatch.StartNew();
+  do{
+   Need(QueryAccounting(job,1,out a,(uint)Marshal.SizeOf(typeof(Accounting)),IntPtr.Zero),"query-accounting");
+   if(a.ActiveProcesses==1)return;
+   // The owned child's signaled process handle has already been verified by cleanup.
+   // Allow bounded accounting convergence only after that exit; never accept excess active count.
+   if(!afterOwnedChildExit||a.ActiveProcesses!=2)break;
+   System.Threading.Thread.Sleep(20);
+  }while(timer.ElapsedMilliseconds<2000);
+  Stage="unexpected-active-count-"+phase+"-"+a.ActiveProcesses;Code=0;
+  throw new Exception("fixture refused");
  }
  public static string Run(){
   Need(Environment.Is64BitProcess,"architecture");
@@ -88,7 +97,7 @@ public static class NegrescoJobDescendantFixture {
    Need(SetInformationJobObject(job,2,ref limit,size),"set-active-limit");
    Need(AssignProcessToJobObject(job,GetCurrentProcess()),"assign-self");
    bool inside;Need(IsProcessInJob(GetCurrentProcess(),job,out inside)&&inside,"membership");
-   Check(job,1);
+   Check(job,1,"initial",false);
    ProcessInfo p;int code;
    bool ok=Spawn(out p,out code);
    string outcome;
@@ -101,11 +110,11 @@ public static class NegrescoJobDescendantFixture {
      outcome="created-but-terminated-before-resume";
     }
    }finally{Cleanup(p);}
-   Check(job,1);
+   Check(job,1,"after-denial",true);
    // Same parent, same command, same job: change only active count to 2.
    limit.ActiveProcessLimit=2;
    Need(SetInformationJobObject(job,2,ref limit,size),"raise-limit-for-control");
-   Check(job,2);
+   Check(job,2,"raised",false);
    ProcessInfo control;int controlCode;
    bool controlOk=Spawn(out control,out controlCode);
    try{
@@ -116,9 +125,10 @@ public static class NegrescoJobDescendantFixture {
     Accounting a;
     Need(QueryAccounting(job,1,out a,(uint)Marshal.SizeOf(typeof(Accounting)),IntPtr.Zero)&&a.ActiveProcesses==2,"control-active-count");
    }finally{Cleanup(control);}
+   Check(job,2,"after-control-exit",true);
    limit.ActiveProcessLimit=1;
    Need(SetInformationJobObject(job,2,ref limit,size),"restore-limit");
-   Check(job,1);
+   Check(job,1,"restored",false);
    return outcome;
   }finally{CloseHandle(job);}
  }
