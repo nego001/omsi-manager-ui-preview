@@ -120,3 +120,30 @@ test('normal cancellation confirms closure without quarantining the supervisor',
  assert.equal((await s.analyze(request('clean-reference'))).state,'fixture-worker-report');
  s.dispose();
 });
+
+test('late close cannot avoid quarantine when monotonic cleanup deadline expires before timer dispatch',async t=>{
+ // Delay actual close notification, not actual OS termination. Deliver it synchronously
+ // after the monotonic grace expires, before the event loop dispatches watchdog timers.
+ const original=ChildProcess.prototype.emit;
+ let delivered=false,blocked=false;
+ const mock=t.mock.method(ChildProcess.prototype,'emit',function(event,...args){
+  if(!delivered&&event==='close'&&this.spawnargs?.some(x=>x.endsWith('runtime-fixture-worker.mjs'))){
+   delivered=true;
+   const end=process.hrtime.bigint()+2100000000n;
+   const cell=new Int32Array(new SharedArrayBuffer(4));
+   while(process.hrtime.bigint()<end)Atomics.wait(cell,0,0,10);
+   blocked=true;
+  }
+  return original.call(this,event,...args);
+ });
+ const s=create({timeoutMs:0});
+ try{
+  const result=await s.analyze(request());
+  assert.equal(delivered,true);assert.equal(blocked,true);
+  assert.deepEqual(result,{state:'fixture-worker-failed',reason:'termination-unconfirmed',report:null,operationsEnabled:false});
+  assert.equal(s.status().quarantined,true);assert.equal(s.status().cleanupPending,false);
+  assert.equal(s.status().active,false);
+  await assert.rejects(s.analyze(request()),refuse);
+  assert.equal(s.dispose(),true);
+ }finally{mock.mock.restore();}
+});
