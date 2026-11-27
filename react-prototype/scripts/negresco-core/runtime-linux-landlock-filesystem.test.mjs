@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-linux-landlock-filesystem.py',import.meta.url));
 test('Linux Landlock disposable filesystem permits selected reads and refuses writes and outside reads',t=>{
  if(process.platform!=='linux'){t.diagnostic('Linux Landlock laboratory not executed on this host.');return;}
@@ -16,5 +17,6 @@ test('Linux Landlock disposable filesystem permits selected reads and refuses wr
   inheritedDescriptorsVerified:false,universalFilesystemIsolationVerified:false,
   readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native permission binding: '+JSON.stringify(bindExecutedResource('linuxLandlockFilesystem',r,script)));
  t.diagnostic('Linux Landlock filesystem: '+JSON.stringify(r));
 });
