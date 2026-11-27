@@ -44,16 +44,20 @@ export function createFixtureProcessSupervisor(options=undefined){
      const env={};if(process.platform==='win32'&&process.env.SystemRoot)env.SystemRoot=process.env.SystemRoot;
      child=spawn(process.execPath,[...FIXTURE_V8_ARGS,worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
     }catch{resolve(failed('spawn-failed'));return;}
-    const out=[];let size=0,reason=null,closeSeen=false,closeWatchdog=null;
+    const out=[];let size=0,reason=null,closeSeen=false,closeWatchdog=null,closeDeadline=null;
+    const quarantine=()=>{
+     quarantined=true;cancelActive=null;out.length=0;
+     resolve(failed('termination-unconfirmed'));
+    };
     const stop=(r,terminate=true)=>{
      if(reason!==null)return false;
      reason=r;out.length=0;
      if(terminate&&!closeSeen){
       cleanupPending=true;
+      closeDeadline=process.hrtime.bigint()+BigInt(CLOSE_GRACE_MS)*1000000n;
       closeWatchdog=setTimeout(()=>{
        if(closeSeen)return;
-       quarantined=true;cancelActive=null;
-       resolve(failed('termination-unconfirmed'));
+       quarantine();
       },CLOSE_GRACE_MS);
       // The retained ChildProcess is the only termination target; never signal by a caller PID.
       if(child.exitCode===null&&child.signalCode===null){try{child.kill('SIGKILL');}catch{}}
@@ -67,8 +71,11 @@ export function createFixtureProcessSupervisor(options=undefined){
     child.stdout.on('data',chunk=>{if(expired()){stop('timeout');return;}if(reason)return;size+=chunk.length;if(size>MAX_OUTPUT){stop('output-limit');return;}if(!reason)out.push(chunk);});
     child.stderr.on('data',()=>stop('worker-stderr'));
     child.on('close',(code,signal)=>{
+     // A late close cannot escape quarantine just because timer delivery was delayed.
+     const closeLate=closeDeadline!==null&&process.hrtime.bigint()>=closeDeadline;
      closeSeen=true;clearTimeout(timer);clearTimeout(closeWatchdog);cleanupPending=false;cancelActive=null;
      if(quarantined)return;
+     if(closeLate){quarantine();return;}
      if(expired())stop('timeout',false);
      if(reason||code!==0||signal){resolve(failed(reason||'worker-exit'));return;}
      try{
