@@ -18,10 +18,24 @@ public static class NegrescoNetWorker {
   if(args.Length!=1||!int.TryParse(args[0],out port)||port<1||port>65535)return 79;
   try{
    using(var s=new Socket(AddressFamily.InterNetwork,SocketType.Stream,ProtocolType.Tcp)){
-    s.Connect(IPAddress.Loopback,port);
+    s.Blocking=false;
+    try{s.Connect(IPAddress.Loopback,port);}
+    catch(SocketException e){
+     if(e.NativeErrorCode==10013)return 81;
+     if(e.SocketErrorCode!=SocketError.WouldBlock&&e.SocketErrorCode!=SocketError.InProgress)return 82;
+     var writable=new System.Collections.ArrayList();var errors=new System.Collections.ArrayList();
+     writable.Add(s);errors.Add(s);
+     // Socket.Select expects IList, not a list of file descriptors.
+     Socket.Select(null,writable,errors,2000000);
+     if(writable.Count==0&&errors.Count==0)return 83;
+     int error=(int)s.GetSocketOption(SocketOptionLevel.Socket,SocketOptionName.Error);
+     if(error==10013)return 81;
+     if(error!=0||errors.Count!=0)return 82;
+    }
+    s.Blocking=true;s.SendTimeout=2000;
     return s.Send(new byte[]{70,73,88})==3?77:79;
    }
-  }catch(SocketException e){return e.NativeErrorCode==10013?81:82;}
+  }catch(SocketException){return 84;}
   catch{return 79;}
  }
 }
@@ -58,6 +72,7 @@ public static class NegrescoAppContainerFixture{
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr handle,out uint code);
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool TerminateProcess(IntPtr handle,uint code);
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+ [DllImport("kernel32.dll")] static extern uint SetErrorMode(uint mode);
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool OpenProcessToken(IntPtr process,uint access,out IntPtr token);
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int kind,IntPtr buffer,uint size,out uint used);
  [DllImport("advapi32.dll")] static extern bool EqualSid(IntPtr a,IntPtr b);
@@ -77,7 +92,7 @@ public static class NegrescoAppContainerFixture{
    }
   }finally{Marshal.FreeHGlobal(data);CloseHandle(token);}
  }
- static void Trial(string exe,IntPtr sid,TcpListener listener){
+ static void Trial(string exe,IntPtr sid,TcpListener listener,string phase){
   IntPtr list=IntPtr.Zero,cap=IntPtr.Zero;bool initialized=false;
   Proc p=new Proc();
   try{
@@ -93,16 +108,19 @@ public static class NegrescoAppContainerFixture{
     start.attributes=list;
    }else{flags=4;start.startup.cb=(uint)Marshal.SizeOf(typeof(Startup));}
    int port=((IPEndPoint)listener.LocalEndpoint).Port;
-   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" "+port),IntPtr.Zero,IntPtr.Zero,false,flags,IntPtr.Zero,Environment.SystemDirectory,ref start,out p),"create");
+   uint previousMode=SetErrorMode(0x8003);
+   try{Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" "+port),IntPtr.Zero,IntPtr.Zero,false,flags,IntPtr.Zero,Environment.SystemDirectory,ref start,out p),phase+"-create");}
+   finally{SetErrorMode(previousMode);}
    Token(p.process,sid);
    Need(ResumeThread(p.thread)==1,"resume");
-   Need(WaitForSingleObject(p.process,8000)==0,"wait");
+   uint wait=WaitForSingleObject(p.process,12000);
+   Need(wait==0,phase+"-wait-"+wait);
    uint code;Need(GetExitCodeProcess(p.process,out code),"exit");
    if(sid!=IntPtr.Zero){
-    Need(code==81,"restricted-exit-"+code);
+    Need(code==81,phase+"-exit-"+code);
     Need(!listener.Server.Poll(250000,SelectMode.SelectRead),"unexpected-connection");
    }else{
-    Need(code==77,"control-exit-"+code);
+    Need(code==77,phase+"-exit-"+code);
     Need(listener.Server.Poll(2000000,SelectMode.SelectRead),"control-connection");
     using(var client=listener.AcceptTcpClient()){
      client.ReceiveTimeout=2000;
@@ -135,7 +153,7 @@ public static class NegrescoAppContainerFixture{
    var ds=Directory.GetAccessControl(dir);ds.AddAccessRule(new FileSystemAccessRule(identity,FileSystemRights.ReadAndExecute,AccessControlType.Allow));Directory.SetAccessControl(dir,ds);
    var fs=File.GetAccessControl(exe);fs.AddAccessRule(new FileSystemAccessRule(identity,FileSystemRights.ReadAndExecute,AccessControlType.Allow));File.SetAccessControl(exe,fs);
    listener.Start(2);
-   Trial(exe,IntPtr.Zero,listener);Trial(exe,sid,listener);Trial(exe,IntPtr.Zero,listener);
+   Trial(exe,IntPtr.Zero,listener,"before");Trial(exe,sid,listener,"restricted");Trial(exe,IntPtr.Zero,listener,"after");
   }finally{
    listener.Stop();
    if(sid!=IntPtr.Zero)FreeSid(sid);
