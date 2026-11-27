@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-windows-handle-allowlist.ps1',import.meta.url));
 test('Windows explicit file handle inheritance list permits only selected fixture handle with matched controls',t=>{
  if(process.platform!=='win32'){t.diagnostic('Windows handle allowlist laboratory not executed on this host.');return;}
@@ -16,5 +17,6 @@ test('Windows explicit file handle inheritance list permits only selected fixtur
   allHandlesEnumerated:false,inheritedSocketsVerified:false,automaticProductionHygieneVerified:false,
   readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native permission binding: '+JSON.stringify(bindExecutedResource('windowsHandleAllowlist',r,script)));
  t.diagnostic('Windows handle allowlist: '+JSON.stringify(r));
 });
