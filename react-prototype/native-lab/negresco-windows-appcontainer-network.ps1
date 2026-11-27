@@ -77,6 +77,9 @@ public static class NegrescoAppContainerFixture{
  [DllImport("advapi32.dll",SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int kind,IntPtr buffer,uint size,out uint used);
  [DllImport("advapi32.dll")] static extern bool EqualSid(IntPtr a,IntPtr b);
  public static string Stage="setup";public static int Code=0;
+ public static uint RestrictedPid=0;public static int RestrictedPort=0;
+ public static DateTime RestrictedStartUtc=DateTime.MinValue;
+ public static DateTime RestrictedEndUtc=DateTime.MinValue;
  static void Need(bool b,string stage){if(!b){Stage=stage;Code=Marshal.GetLastWin32Error();throw new Exception("fixture refused");}}
  static void Token(IntPtr process,IntPtr sid){
   IntPtr token;Need(OpenProcessToken(process,8,out token),"open-token");
@@ -112,8 +115,10 @@ public static class NegrescoAppContainerFixture{
    try{Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" "+port),IntPtr.Zero,IntPtr.Zero,false,flags,IntPtr.Zero,Environment.SystemDirectory,ref start,out p),phase+"-create");}
    finally{SetErrorMode(previousMode);}
    Token(p.process,sid);
+   if(sid!=IntPtr.Zero){RestrictedPid=p.pid;RestrictedPort=port;RestrictedStartUtc=DateTime.UtcNow;}
    Need(ResumeThread(p.thread)==1,"resume");
    uint wait=WaitForSingleObject(p.process,12000);
+   if(sid!=IntPtr.Zero)RestrictedEndUtc=DateTime.UtcNow;
    Need(wait==0,phase+"-wait-"+wait);
    uint code;Need(GetExitCodeProcess(p.process,out code),"exit");
    if(sid!=IntPtr.Zero){
@@ -182,6 +187,36 @@ public static class NegrescoAppContainerFixture{
  if($stage -like '*compile'){
   $ids=@([regex]::Matches(($_|Out-String),'CS[0-9]{4}')|ForEach-Object {$_.Value}|Select-Object -Unique -First 4)
   if($ids.Count -gt 0){$detail=$stage+':'+($ids -join ':')}
+ }
+ # Optional read-only audit diagnostic. Never changes audit policy or upgrades a timeout.
+ if($stage -eq 'native' -and [NegrescoAppContainerFixture]::Stage -eq 'restricted-exit-83'){
+  $audit='unavailable'
+  try{
+   $pidValue=[NegrescoAppContainerFixture]::RestrictedPid
+   $portValue=[NegrescoAppContainerFixture]::RestrictedPort
+   $startUtc=[NegrescoAppContainerFixture]::RestrictedStartUtc
+   $endUtc=[NegrescoAppContainerFixture]::RestrictedEndUtc
+   if($pidValue -gt 0 -and $portValue -gt 0 -and $endUtc -ge $startUtc){
+    $from=$startUtc.AddSeconds(-1).ToString('yyyy-MM-ddTHH:mm:ss.fffZ',[Globalization.CultureInfo]::InvariantCulture)
+    $to=$endUtc.AddSeconds(1).ToString('yyyy-MM-ddTHH:mm:ss.fffZ',[Globalization.CultureInfo]::InvariantCulture)
+    $xpath="*[System[(EventID=5157) and TimeCreated[@SystemTime >= '$from' and @SystemTime <= '$to']]] and *[EventData[Data[@Name='ProcessID']='$pidValue' and Data[@Name='DestPort']='$portValue' and Data[@Name='DestAddress']='127.0.0.1' and Data[@Name='Protocol']='6']]"
+    $events=@(Get-WinEvent -LogName Security -FilterXPath $xpath -MaxEvents 16 -ErrorAction Stop)
+    $audit='no-matching-fixture'
+    $suffix='\'+[IO.Path]::GetFileName($root)+'\NegrescoNetWorker.exe'
+    foreach($event in $events){
+     $xml=[xml]$event.ToXml()
+     $data=@{}
+     foreach($node in $xml.Event.EventData.Data){$data[[string]$node.Name]=[string]$node.'#text'}
+     if($data['Application'] -and $data['Application'].EndsWith($suffix,[StringComparison]::OrdinalIgnoreCase)){
+      $audit='matching-5157'
+      if($data['FilterOrigin'] -eq 'AppContainer loopback'){$audit='appcontainer-loopback';break}
+     }
+    }
+   }
+  }catch{
+   if($_.FullyQualifiedErrorId -like 'NoMatchingEventsFound*'){$audit='no-events'}
+  }
+  $detail=$detail+':audit-'+$audit
  }
  if($detail -cnotmatch '\A[a-zA-Z0-9:-]{1,120}\z'){$detail='unknown'}
  [Console]::Error.WriteLine('NEGRESCO_WINDOWS_APPCONTAINER_REFUSED:'+$detail)
