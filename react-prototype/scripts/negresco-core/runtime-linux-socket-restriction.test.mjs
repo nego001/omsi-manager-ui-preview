@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-linux-socket-restriction.py',import.meta.url));
 test('Linux disposable seccomp worker refuses new sockets and connect on existing unconnected socket',t=>{
  if(process.platform!=='linux'){t.diagnostic('Linux socket restriction laboratory not executed on this host.');return;}
@@ -17,5 +18,6 @@ test('Linux disposable seccomp worker refuses new sockets and connect on existin
   inheritedConnectedSocketsVerified:false,allNetworkDeniedVerified:false,
   readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native permission binding: '+JSON.stringify(bindExecutedResource('linuxSocketRestriction',r,script)));
  t.diagnostic('Linux socket restriction: '+JSON.stringify(r));
 });
