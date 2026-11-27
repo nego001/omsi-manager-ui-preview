@@ -62,6 +62,34 @@ export function consolidateFixtureLifecycleEvidence(input){
   osIsolationVerified:false,realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,decision:'deny-real-access'};
  return Object.freeze({...body,evidenceDigest:hash(body)});
 }
+const permissionKinds=Object.freeze(['linuxSocketRestriction','windowsAppContainerNetwork','linuxLandlockFilesystem','windowsAppContainerFilesystem','linuxInheritedResources','linuxDescriptorHygiene','windowsHandleAllowlist']);
+const permissionNoAuthority={readerIntegrated:false,operationsEnabled:false,realReadsPerformed:false};
+const fsNoAuthority={universalFilesystemIsolationVerified:false,...permissionNoAuthority};
+const networkNoAuthority={allNetworkDeniedVerified:false,...permissionNoAuthority};
+const abi=v=>Number.isSafeInteger(v)&&v>=3;
+const appIdentity={appContainerTokenVerified:true,zeroCapabilitiesVerified:true,profileSidVerified:true};
+const appCleanup={profileDeleteSucceeded:true,temporaryFilesRemoved:true};
+const controls={positiveBefore:true,positiveAfter:true};
+Object.assign(schemas,{
+ linuxSocketRestriction:{scope:'disposable-linux-socket-restriction',mechanism:'seccomp',...controls,noNewPrivilegesReadback:true,inetSocketRefused:true,inet6SocketRefused:true,unixSocketRefused:true,socketpairRefused:true,preexistingSocketConnectRefused:true,refusal:'EPERM',loopbackListenerUnreached:true,inheritedConnectedSocketsVerified:false,...networkNoAuthority},
+ windowsAppContainerNetwork:{scope:'disposable-windows-appcontainer-network',mechanism:'AppContainer',...controls,...appIdentity,loopbackConnectRefused:true,refusalWin32Code:10013,loopbackListenerUnreached:true,...appCleanup,firewallChanged:false,...networkNoAuthority},
+ linuxLandlockFilesystem:{scope:'disposable-linux-landlock-filesystem',mechanism:'Landlock',abi,...controls,allowedRead:true,allowedList:true,outsideReadRefused:true,outsideListRefused:true,writeRefused:true,truncateRefused:true,createRefused:true,deleteRefused:true,refusal:'EACCES',fixturesUnchanged:true,inheritedDescriptorsVerified:false,...fsNoAuthority},
+ windowsAppContainerFilesystem:{scope:'disposable-windows-appcontainer-filesystem',mechanism:'AppContainerFixtureAcl',...controls,...appIdentity,allowedRead:true,outsideReadRefused:true,writeRefused:true,truncateRefused:true,createRefused:true,deleteRefused:true,explicitFixtureAcl:true,fixturesUnchanged:true,...appCleanup,inheritedHandlesVerified:false,...fsNoAuthority},
+ linuxInheritedResources:{scope:'disposable-linux-inherited-resources',mechanism:'seccomp+Landlock',abi,preopenedFileReadObserved:true,preconnectedSocketSendObserved:true,parentMarkerObserved:true,closedFileRefused:true,closedSocketRefused:true,outsideReopenRefused:true,newSocketRefused:true,fixtureUnchanged:true,descriptorBoundaryDemonstrated:true,automaticDescriptorHygieneVerified:false,allNetworkDeniedVerified:false,...fsNoAuthority},
+ linuxDescriptorHygiene:{scope:'disposable-linux-descriptor-hygiene',mechanism:'close_range+seccomp+Landlock',abi,positiveFileControl:true,positiveSocketControl:true,preexistingDescriptorsObserved:true,closeRangeSucceeded:true,exactPipeAllowlistVerified:true,preopenedFileClosed:true,preconnectedSocketClosed:true,receiverEofObserved:true,outsideReopenRefused:true,newSocketRefused:true,allowedRead:true,fixtureUnchanged:true,automaticProductionHygieneVerified:false,allNetworkDeniedVerified:false,...fsNoAuthority},
+ windowsHandleAllowlist:{scope:'disposable-windows-file-handle-allowlist',mechanism:'PROC_THREAD_ATTRIBUTE_HANDLE_LIST',...controls,bothSourceHandlesInheritable:true,explicitHandleListApplied:true,allowedHandleRead:true,omittedHandleRefused:true,refusalWin32Code:6,fixturesUnchanged:true,temporaryFilesRemoved:true,allHandlesEnumerated:false,inheritedSocketsVerified:false,automaticProductionHygieneVerified:false,...permissionNoAuthority}
+});
+export function consolidateFixturePermissionEvidence(input){
+ const x=exact(input,{scope:'synthetic-fixture',...Object.fromEntries(permissionKinds.map(k=>[k,v=>v===null||typeof v==='object']))});
+ const observations=Object.freeze(permissionKinds.filter(k=>x[k]!==null).map(k=>normalizeFixtureResourceEvidence(k,x[k])));
+ const missing=Object.freeze(permissionKinds.filter(k=>x[k]===null));
+ const body={schemaVersion:1,scope:x.scope,observations,missing,fixtureContractsComplete:missing.length===0,
+  nativeAttestationVerified:false,independentCiVerification:false,allNetworkDeniedVerified:false,
+  universalFilesystemIsolationVerified:false,automaticProductionHygieneVerified:false,
+  windowsInheritedSocketsVerified:false,readerIntegrated:false,osIsolationVerified:false,
+  realReadsPerformed:false,operationsEnabled:false,releaseAuthorized:false,decision:'deny-real-access'};
+ return Object.freeze({...body,evidenceDigest:hash(body)});
+}
 function controllers(v){
  if(!Array.isArray(v)||v.length>3||Reflect.ownKeys(v).length!==v.length+1)return false;
  let prev='';for(let i=0;i<v.length;i++){const d=Object.getOwnPropertyDescriptor(v,String(i));if(!d||!Object.hasOwn(d,'value')||!d.enumerable||!['cpu','memory','pids'].includes(d.value)||d.value<=prev)return false;prev=d.value;}return true;
