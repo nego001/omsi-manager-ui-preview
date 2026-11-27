@@ -1,6 +1,7 @@
 # Disposable Windows CPU rate differential experiment. Fixed owned child only.
 $ErrorActionPreference='Stop'
 $stage='admission'
+$tempRoot=$null
 try {
  if($args.Count -ne 0 -or [Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT){throw 'refused'}
  $stage='compile'
@@ -81,7 +82,7 @@ public static class NegrescoWindowsCpuRateLoad {
   Need(delta>0&&delta<=wall*2,phase+"-cpu-"+delta+"-wall-"+wall);
   return new long[]{delta,wall};
  }
- public static long[] Run(){
+ public static long[] Run(string exe){
   Need(Environment.Is64BitProcess,"architecture");
   uint processors=GetActiveProcessorCount(0xffff);
   Need(processors>=1&&processors<=32,"unsupported-processor-count-"+processors);
@@ -95,15 +96,15 @@ public static class NegrescoWindowsCpuRateLoad {
    Cap(job,10000);
    string name="Local\\NegrescoCpuRate-"+Guid.NewGuid().ToString("N");
    ready=new System.Threading.EventWaitHandle(false,System.Threading.EventResetMode.ManualReset,name);
-   string exe=System.IO.Path.Combine(Environment.SystemDirectory,"WindowsPowerShell\\v1.0\\powershell.exe");
-   string body="$e=[System.Threading.EventWaitHandle]::OpenExisting('"+name+"'); $t=[Diagnostics.Stopwatch]::StartNew(); $e.Set() | Out-Null; $x=0; while($t.ElapsedMilliseconds -lt 30000){for($i=0;$i -lt 4096;$i++){$x=($x+$i) -band 65535}}; exit 77";
-   // CREATE_SUSPENDED | DETACHED_PROCESS: exclude console-host scheduling interference.
    Startup start=new Startup();start.cb=(uint)Marshal.SizeOf(typeof(Startup));
-   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" -NoProfile -NonInteractive -Command \""+body+"\""),IntPtr.Zero,IntPtr.Zero,false,0x0000000c,IntPtr.Zero,Environment.SystemDirectory,ref start,out child),"create");
+   Need(CreateProcess(exe,new StringBuilder("\""+exe+"\" "+name),IntPtr.Zero,IntPtr.Zero,false,4,IntPtr.Zero,Environment.SystemDirectory,ref start,out child),"create");
    Need(AssignProcessToJobObject(job,child.process),"assign");
    bool inside;Need(IsProcessInJob(child.process,job,out inside)&&inside,"membership");
    Need(ResumeThread(child.thread)==1,"resume");
-   Need(ready.WaitOne(10000),"ready");
+   if(!ready.WaitOne(10000)){
+    uint exit;Need(GetExitCodeProcess(child.process,out exit),"ready-exit-query");
+    Need(false,"ready-exit-"+exit);
+   }
    long[] before=Sample(child.process,"before");
    // Target approximately 0.1 logical core, accounting for host CPU count.
    uint limitedRate=1000/processors;
@@ -129,8 +130,36 @@ public static class NegrescoWindowsCpuRateLoad {
  }
 }
 '@ -ErrorAction Stop
+ $stage='helper-compile'
+ $tempRoot=[IO.Path]::Combine([IO.Path]::GetTempPath(),'NegrescoCpuRate-'+[Guid]::NewGuid().ToString('N'))
+ [IO.Directory]::CreateDirectory($tempRoot) | Out-Null
+ $helper=[IO.Path]::Combine($tempRoot,'NegrescoCpuRateWorker.exe')
+ Add-Type -TypeDefinition @'
+using System;
+using System.Diagnostics;
+using System.Threading;
+using System.Text.RegularExpressions;
+public static class NegrescoCpuRateWorker {
+ static volatile int sink;
+ public static int Main(string[] args){
+  try{
+   if(args.Length!=1||!Regex.IsMatch(args[0],@"\ALocal\\NegrescoCpuRate-[a-f0-9]{32}\z"))return 79;
+   using(var ready=EventWaitHandle.OpenExisting(args[0])){
+    var watch=Stopwatch.StartNew();
+    int value=sink+1;
+    ready.Set();
+    while(watch.ElapsedMilliseconds<30000){
+     for(int i=0;i<65536;i++)value=unchecked(value*1664525+1013904223);
+     sink=value;
+    }
+    return 77;
+   }
+  }catch{return 79;}
+ }
+}
+'@ -OutputAssembly $helper -OutputType WindowsApplication -ErrorAction Stop
  $stage='native'
- $samples=[NegrescoWindowsCpuRateLoad]::Run()
+ $samples=[NegrescoWindowsCpuRateLoad]::Run($helper)
  $report=[ordered]@{
   scope='disposable-windows-cpu-rate-load';mechanism='JobObjectCpuRateControlInformation'
   controlRate=10000;limitedRate=$samples[7];logicalProcessors=$samples[0];sampleMilliseconds=4000
@@ -143,8 +172,18 @@ public static class NegrescoWindowsCpuRateLoad {
  exit 0
 }catch{
  $detail=$stage
+ if($stage -eq 'compile' -or $stage -eq 'helper-compile'){
+  $matchesFound=[regex]::Matches(($_ | Out-String),'(?<![A-Z0-9])CS[0-9]{4}(?![0-9])')
+  $codes=@($matchesFound | ForEach-Object {$_.Value} | Select-Object -Unique -First 4)
+  if($codes.Count -gt 0){$detail=$stage+':'+($codes -join ':')}
+ }
  if($stage -eq 'native'){$detail=$stage+':'+[NegrescoWindowsCpuRateLoad]::Stage+':'+[NegrescoWindowsCpuRateLoad]::Code}
  if($detail -cnotmatch '\A[a-zA-Z0-9:-]{1,120}\z'){$detail='unknown'}
  [Console]::Error.WriteLine('NEGRESCO_WINDOWS_CPU_RATE_LOAD_REFUSED:'+ $detail)
  exit 3
+}
+finally{
+ if($null -ne $tempRoot -and [IO.Directory]::Exists($tempRoot)){
+  try{[IO.Directory]::Delete($tempRoot,$true)}catch{[Console]::Error.WriteLine('NEGRESCO_WINDOWS_CPU_RATE_CLEANUP_REFUSED')}
+ }
 }
