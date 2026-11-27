@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {bindExecutedResource} from './runtime-resource-test-binding.mjs';
 const script=fileURLToPath(new URL('../../native-lab/negresco-linux-descriptor-hygiene.py',import.meta.url));
 test('Linux disposable child closes inherited file and socket before restrictions with exact pipe allowlist',t=>{
  if(process.platform!=='linux'){t.diagnostic('Linux descriptor hygiene laboratory not executed on this host.');return;}
@@ -17,5 +18,6 @@ test('Linux disposable child closes inherited file and socket before restriction
   readerIntegrated:false,automaticProductionHygieneVerified:false,allNetworkDeniedVerified:false,
   universalFilesystemIsolationVerified:false,operationsEnabled:false,realReadsPerformed:false
  });
+ t.diagnostic('Native permission binding: '+JSON.stringify(bindExecutedResource('linuxDescriptorHygiene',r,script)));
  t.diagnostic('Linux descriptor hygiene: '+JSON.stringify(r));
 });
