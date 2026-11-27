@@ -147,3 +147,64 @@ test('late close cannot avoid quarantine when monotonic cleanup deadline expires
   assert.equal(s.dispose(),true);
  }finally{mock.mock.restore();}
 });
+
+test('owned worker abrupt termination discards partial output and permits a fresh explicit job after confirmed close',async t=>{
+ const original=ChildProcess.prototype.spawn;
+ let owned=null,originalEnd=null;
+ const mock=t.mock.method(ChildProcess.prototype,'spawn',function(options){
+  const value=original.call(this,options);
+  if(!owned&&options.args?.some(x=>x.endsWith('runtime-fixture-worker.mjs'))){
+   owned=this;
+   // Fault injection: hold the first job's input open so the actual child cannot
+   // complete normally before the test terminates it using its retained handle.
+   originalEnd=this.stdin.end;
+   this.stdin.end=function(){return this;};
+  }
+  return value;
+ });
+ const s=create();
+ try{
+  const first=s.analyze(request()),old=s.status().activeJobId;
+  assert.ok(owned&&owned.pid>0);
+  owned.stdin.end=originalEnd;
+  // Synthetic partial wire, not a claim that the worker actually produced it.
+  owned.stdout.emit('data',Buffer.from('{"schemaVersion":1'));
+  assert.equal(owned.kill('SIGKILL'),true);
+  const failed=await first;
+  assert.deepEqual(failed,{state:'fixture-worker-failed',reason:'worker-exit',report:null,operationsEnabled:false});
+  assert.equal(s.status().cleanupPending,false);assert.equal(s.status().quarantined,false);
+  assert.equal(s.status().activeJobId,null);assert.equal(s.status().acceptedJobs,1);
+  mock.mock.restore();
+  const next=s.analyze(request('clean-reference')),id=s.status().activeJobId;
+  assert.notEqual(old,id);assert.equal(s.cancel(old),false);
+  const result=await next;assert.equal(result.state,'fixture-worker-report');
+  assert.equal(result.report.jobId,id);assert.deepEqual(result.report.findings,[]);
+  assert.equal(s.status().acceptedJobs,2);assert.equal(s.dispose(),true);
+ }finally{
+  mock.mock.restore();
+  if(owned&&owned.exitCode===null&&owned.signalCode===null)owned.kill('SIGKILL');
+ }
+});
+test('malformed mixed worker output cannot be published and next job starts with empty output',async t=>{
+ const original=ChildProcess.prototype.spawn;
+ let injected=false;
+ const mock=t.mock.method(ChildProcess.prototype,'spawn',function(options){
+  const result=original.call(this,options);
+  if(!injected&&options.args?.some(x=>x.endsWith('runtime-fixture-worker.mjs'))){
+   injected=true;
+   this.once('spawn',()=>this.stdout.emit('data',Buffer.from('{"partial":')));
+  }
+  return result;
+ });
+ const s=create();
+ try{
+  const first=await s.analyze(request());
+  assert.equal(injected,true);
+  assert.deepEqual(first,{state:'fixture-worker-failed',reason:'invalid-report',report:null,operationsEnabled:false});
+  assert.equal(s.status().quarantined,false);assert.equal(s.status().cleanupPending,false);
+  mock.mock.restore();
+  const second=await s.analyze(request('clean-reference'));
+  assert.equal(second.state,'fixture-worker-report');assert.deepEqual(second.report.findings,[]);
+  assert.equal(s.status().acceptedJobs,2);assert.equal(s.dispose(),true);
+ }finally{mock.mock.restore();}
+});
