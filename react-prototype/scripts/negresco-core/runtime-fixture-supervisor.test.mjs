@@ -208,3 +208,56 @@ test('malformed mixed worker output cannot be published and next job starts with
   assert.equal(s.status().acceptedJobs,2);assert.equal(s.dispose(),true);
  }finally{mock.mock.restore();}
 });
+
+test('circuit opens permanently after three confirmed technical failures',async()=>{
+ const s=create({timeoutMs:0});
+ for(let i=1;i<=3;i++){
+  const result=await s.analyze(request());
+  assert.deepEqual(result,{state:'fixture-worker-failed',reason:'timeout',report:null,operationsEnabled:false});
+  const st=s.status();assert.equal(st.consecutiveFailures,i);assert.equal(st.circuitOpen,i===3);
+  assert.equal(st.active,false);assert.equal(st.cleanupPending,false);assert.equal(st.quarantined,false);
+ }
+ await assert.rejects(s.analyze(request()),refuse);
+ assert.equal(s.status().acceptedJobs,3);
+ assert.equal(s.cancel('a'.repeat(32)),false);
+ assert.equal(s.dispose(),true);assert.equal(s.status().circuitOpen,true);
+});
+test('voluntary cancellation and rejected requests neither increment nor clear technical failure streak',async t=>{
+ const original=ChildProcess.prototype.spawn;
+ let corrupt=true;
+ const mock=t.mock.method(ChildProcess.prototype,'spawn',function(options){
+  const value=original.call(this,options);
+  if(corrupt&&options.args?.some(x=>x.endsWith('runtime-fixture-worker.mjs')))this.once('spawn',()=>this.stdout.emit('data',Buffer.from('{"partial":')));
+  return value;
+ });
+ const s=create();
+ try{
+  assert.equal((await s.analyze(request())).reason,'invalid-report');
+  assert.equal(s.status().consecutiveFailures,1);
+  await assert.rejects(s.analyze({...request(),scope:'real-mod'}),refuse);
+  assert.equal(s.status().consecutiveFailures,1);
+  corrupt=false;
+  const p=s.analyze(request());assert.equal(s.cancel(s.status().activeJobId),true);
+  assert.equal((await p).reason,'cancelled');assert.equal(s.status().consecutiveFailures,1);
+  assert.equal(s.status().circuitOpen,false);
+  const good=await s.analyze(request('clean-reference'));
+  assert.equal(good.state,'fixture-worker-report');assert.equal(s.status().consecutiveFailures,0);
+  corrupt=true;
+  for(let i=1;i<=2;i++){
+   assert.equal((await s.analyze(request())).reason,'invalid-report');
+   assert.equal(s.status().consecutiveFailures,i);assert.equal(s.status().circuitOpen,false);
+  }
+  assert.equal(s.status().acceptedJobs,5);assert.equal(s.dispose(),true);
+ }finally{mock.mock.restore();}
+});
+test('successful recovery never expands the existing eight-job lifetime budget',async()=>{
+ const s=create();
+ for(let i=0;i<8;i++){
+  const p=s.analyze(request()),id=s.status().activeJobId;
+  assert.equal(s.cancel(id),true);
+  assert.equal((await p).reason,'cancelled');
+  assert.equal(s.status().consecutiveFailures,0);
+ }
+ assert.equal(s.status().acceptedJobs,8);assert.equal(s.status().circuitOpen,false);
+ await assert.rejects(s.analyze(request()),refuse);assert.equal(s.dispose(),true);
+});
