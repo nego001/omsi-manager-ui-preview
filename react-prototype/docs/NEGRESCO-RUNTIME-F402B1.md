@@ -1,0 +1,7 @@
+# F4.02b.1 — Linux native memory limit experiment
+
+F4.02b code qualified at a9e2b2af699f6f2bc886bcd86060c28b61025ac9: combined CI 45736989597 305/305 per OS; independent Core CI 45736989417 111/111 per OS. All four jobs zero failures/skips/cancellations. V8 total heap ceiling 184549376 bytes (176 MiB) with configured old-space 128 MiB; external-buffer accounting delta 4194304 bytes on both OS. This is not an RSS cap.
+
+A separate disposable Python process on Linux sets its own RLIMIT_AS soft and hard bounds to 128 MiB, checks the applied values, maps 8 MiB with endpoint write/read positive control, attempts a 128 MiB mapping which must be refused by ENOMEM, repeats the 8 MiB positive control, and rechecks the resource limit. The denied mapping is not touched if unexpectedly admitted. Any inconclusive outcome fails. No changes to supervisor limits, elevated privileges, caller paths, or actual mod access.
+
+One new test wrapper; expected combined 306 and Core-only 112 per OS. Linux native qualification pending; Windows explicitly reports Linux laboratory not executed. RLIMIT_AS bounds virtual address space, not physical RSS, and is not yet integrated into the Node Reader. Next native Windows memory experiment, then evaluate realistic per-worker OS constraints (Linux cgroup v2 where delegated; Windows Job Object), including launcher/descendant lifecycle. No claim of complete sandbox, real read authority, F1 waiver, merge or release.

@@ -1,0 +1,7 @@
+# F4.02b.8 — native resource evidence binding
+
+F4.02b.7 qualified at a9f6b48120b45c615194911b9c6b36a050d16d1d: combined CI 45738238962 317/317 per OS and Core CI 45738238530 123/123 per OS, zero failures/skips/cancellations (880 executions including overlaps). Both Windows logs confirm individual 112 MiB allocation, combined refusal under 192 MiB job cap with Win32 1455, and successful allocation after release. Both Linux logs confirm cgroup v2 not-writable; no delegation or enforcement.
+
+Six native wrappers now submit their exact validated reports to the resource normalizer and a test-only identity binding. The binding includes platform, kind, checked-out Git SHA (checked against GITHUB_SHA in Actions), SHA-256 of the fixed native script after execution, normalized report digest and envelope digest. Each matching host emits its binding as a diagnostic. Nonmatching hosts do not emit a native observation. Two new synthetic binding tests cover identity changes, scope/platform mismatches, malformed input, accessors and authority injection. Expected 319 combined and 125 Core per OS. CI pending. Check all six native bindings across the two matrices before experimental closure. Digests identify contents, not signatures or independently verified attestation; post-execution script hash is not atomic execution proof.
+
+Next F4.02c CPU accounting and native constraints. Linux delegated group enforcement, actual Reader native limits, whole-process RSS limits, F1 and operational release remain blocked. No real mod reads, merge or release.

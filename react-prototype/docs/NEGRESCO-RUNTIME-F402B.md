@@ -1,0 +1,7 @@
+# F4.02b — fixture memory control
+
+F4.02a five supervisor contracts passed on both OS in Core CI 45736778856 (106/106 each) at 43a5f2fce7e7eea7737fc1b5707f5f1487c95748. Latest prior combined CI 45736797573 Linux 300/300; Windows was still running at inspection.
+
+F4.02b adds fixed 128 MiB V8 old-space launch option; the worker refuses valid jobs without that exact launch option. Memory admission samples before and after the fixed fixture Reader job: heap used threshold 96 MiB, external threshold 32 MiB, observed RSS threshold 256 MiB, ArrayBuffer accounting/admission budget 8 MiB. The pure admission contract also considers a requested explicit buffer before allocation. These are sampled thresholds, not continuous enforcement. The separate test child observes V8 heap-size-limit and a controlled 4 MiB Buffer allocation; tests cover each policy denial, malformed samples, no authority and missing launch flag. No intentional OOM or large unbounded allocation. Native buffers and transient peaks can exceed V8 heap limits; RSS sampling is not an OS hard cap. No claim of complete allocator instrumentation, OS isolation, process-tree limits, or actual mod access.
+
+Five new contracts; expected Core 111 and combined 305 per OS. CI pending. Next F4.02b follow-up: investigate disposable native whole-process enforcement on both platforms before claiming hard memory limits; F4.02c CPU limits thereafter. F1 still blocked, no merge/release.

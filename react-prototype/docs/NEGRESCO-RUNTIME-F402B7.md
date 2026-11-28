@@ -1,0 +1,7 @@
+# F4.02b.7 — resource evidence consolidation
+
+The aggregate Windows memory fixture remains pending Windows qualification. Combined CI 45738069871 at 44b6f5c67a7074623b9fc63824211196a15dbbb7: Ubuntu 311/311, Windows in progress at inspection. Ubuntu does not run the native Windows allocation test.
+
+A pure resource evidence module now validates six exact fixture schemas: Linux RLIMIT_AS, Linux cgroup discovery, Windows per-process commitment, Windows job lifecycle, Windows active-process admission and Windows aggregate commitment. It refuses unsupported results, accessor fields, unexpected properties and contradictory discovery flags. Missing reports must be explicit nulls, not fabricated successes. Normalized reports and the consolidated envelope have deterministic SHA-256 content identity, immutable nested observations, and no release or operational authority. Caller-provided reports are not authenticated attestation or independent CI evidence. In particular, a writable cgroup hint does not establish delegation or enforcement.
+
+Six new synthetic contracts; expected Core 123 and combined 317 per OS. CI pending. Next: inspect aggregate Windows evidence, connect strict normalization directly to native test wrappers, and close experimental memory contracts before CPU experiments. Real Reader integration, cgroup delegation, whole-process RSS enforcement, F1 and operational access remain blocked. No real mod reads, merge or release.
