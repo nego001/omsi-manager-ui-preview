@@ -32,6 +32,8 @@ export function createFixtureProcessSupervisor(options=undefined){
  }
  let active=false,closed=false,accepted=0,activeJobId=null,cancelActive=null,quarantined=false,cleanupPending=false;
  let consecutiveFailures=0,circuitOpen=false;
+ // At most eight accepted jobs per instance: one terminal entry per job.
+ const history=[],lateClosureSequences=[];
  async function analyze(input){
   if(closed||quarantined||circuitOpen||cleanupPending||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
   const a=Object.getOwnPropertyDescriptor(input,'scope'),b=Object.getOwnPropertyDescriptor(input,'scenario');
@@ -40,6 +42,8 @@ export function createFixtureProcessSupervisor(options=undefined){
   const deadline=process.hrtime.bigint()+BigInt(timeoutMs)*1000000n;
   const expired=()=>process.hrtime.bigint()>=deadline;
   active=true;activeJobId=jobId;accepted++;
+  const sequence=accepted;
+  let closeObserved=false;
   try{
    const outcome=await new Promise(resolve=>{
     let child;try{
@@ -75,8 +79,9 @@ export function createFixtureProcessSupervisor(options=undefined){
     child.on('close',(code,signal)=>{
      // A late close cannot escape quarantine just because timer delivery was delayed.
      const closeLate=closeDeadline!==null&&process.hrtime.bigint()>=closeDeadline;
-     closeSeen=true;clearTimeout(timer);clearTimeout(closeWatchdog);cleanupPending=false;cancelActive=null;
-     if(quarantined)return;
+     if(closeSeen)return;
+     closeSeen=true;closeObserved=true;clearTimeout(timer);clearTimeout(closeWatchdog);cleanupPending=false;cancelActive=null;
+     if(quarantined){lateClosureSequences.push(sequence);return;}
      if(closeLate){quarantine();return;}
      if(expired())stop('timeout',false);
      if(reason||code!==0||signal){resolve(failed(reason||'worker-exit'));return;}
@@ -101,6 +106,9 @@ export function createFixtureProcessSupervisor(options=undefined){
     consecutiveFailures=Math.min(MAX_CONSECUTIVE_FAILURES,consecutiveFailures+1);
     if(consecutiveFailures===MAX_CONSECUTIVE_FAILURES)circuitOpen=true;
    }
+   history.push(Object.freeze({sequence,outcome:outcome.state,reason:outcome.reason??null,
+    closeObservedAtOutcome:closeObserved,cleanupPendingAtOutcome:cleanupPending,
+    consecutiveFailures,circuitOpen,quarantined}));
    return outcome;
   }finally{cancelActive=null;activeJobId=null;active=false;}
  }
@@ -111,6 +119,14 @@ export function createFixtureProcessSupervisor(options=undefined){
   return cancelActive();
  }
  function status(){return Object.freeze({active,activeJobId,closed,quarantined,cleanupPending,acceptedJobs:accepted,consecutiveFailures,circuitOpen,operationsEnabled:false});}
+ function diagnostics(){
+  const body={schemaVersion:1,scope:'synthetic-fixture',acceptedJobs:accepted,active,closed,
+   consecutiveFailures,circuitOpen,quarantined,cleanupPending,
+   history:Object.freeze([...history]),lateClosureSequences:Object.freeze([...lateClosureSequences]),
+   persistentAuditVerified:false,independentAttestationVerified:false,osIsolationVerified:false,
+   operationsEnabled:false,realReadsPerformed:false,releaseAuthorized:false};
+  return Object.freeze({...body,diagnosticDigest:createHash('sha256').update(JSON.stringify(body)).digest('hex')});
+ }
  function dispose(){if(active||cleanupPending)refuse();if(closed)return false;closed=true;return true;}
- return Object.freeze({analyze,cancel,status,dispose});
+ return Object.freeze({analyze,cancel,status,diagnostics,dispose});
 }
