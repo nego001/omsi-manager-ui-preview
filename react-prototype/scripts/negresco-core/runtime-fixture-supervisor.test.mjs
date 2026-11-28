@@ -103,8 +103,19 @@ test('watchdog permanently quarantines when child close notification is withheld
   assert.equal(s.status().active,false);assert.equal(s.status().quarantined,true);
   assert.equal(s.status().cleanupPending,true);
   await assert.rejects(s.analyze(request()),refuse);assert.throws(()=>s.dispose(),refuse);
+  const before=s.diagnostics();
+  assert.equal(before.history.length,1);
+  assert.deepEqual(before.history[0],{sequence:1,outcome:'fixture-worker-failed',reason:'termination-unconfirmed',
+   closeObservedAtOutcome:false,cleanupPendingAtOutcome:true,consecutiveFailures:1,circuitOpen:false,quarantined:true});
+  assert.deepEqual(before.lateClosureSequences,[]);
   assert.equal(typeof delayed,'function');
   delayed();delayed=null;
+  const after=s.diagnostics();
+  assert.deepEqual(after.history,before.history);
+  assert.deepEqual(after.lateClosureSequences,[1]);
+  assert.deepEqual(before.lateClosureSequences,[]);
+  assert.equal(after.cleanupPending,false);assert.equal(after.quarantined,true);
+  assert.notEqual(before.diagnosticDigest,after.diagnosticDigest);
   assert.equal(s.status().cleanupPending,false);assert.equal(s.status().quarantined,true);
   await assert.rejects(s.analyze(request()),refuse);assert.equal(s.dispose(),true);
  }finally{
@@ -260,4 +271,60 @@ test('successful recovery never expands the existing eight-job lifetime budget',
  }
  assert.equal(s.status().acceptedJobs,8);assert.equal(s.status().circuitOpen,false);
  await assert.rejects(s.analyze(request()),refuse);assert.equal(s.dispose(),true);
+});
+
+test('recovery diagnostic snapshots are immutable bounded metadata without worker payload or identity',async()=>{
+ const s=create();
+ const initial=s.diagnostics();
+ assert.deepEqual(initial.history,[]);assert.equal(initial.acceptedJobs,0);
+ const first=s.analyze(request()),id=s.status().activeJobId;
+ const active=s.diagnostics();assert.equal(active.active,true);assert.deepEqual(active.history,[]);
+ assert.equal(s.cancel(id),true);assert.equal((await first).reason,'cancelled');
+ const result=await s.analyze(request('clean-reference'));
+ assert.equal(result.state,'fixture-worker-report');
+ const report=s.diagnostics();
+ assert.deepEqual(report.history,[
+  {sequence:1,outcome:'fixture-worker-failed',reason:'cancelled',closeObservedAtOutcome:true,cleanupPendingAtOutcome:false,consecutiveFailures:0,circuitOpen:false,quarantined:false},
+  {sequence:2,outcome:'fixture-worker-report',reason:null,closeObservedAtOutcome:true,cleanupPendingAtOutcome:false,consecutiveFailures:0,circuitOpen:false,quarantined:false}
+ ]);
+ assert.equal(report.acceptedJobs,2);assert.equal(report.active,false);
+ assert.ok(Object.isFrozen(report)&&Object.isFrozen(report.history)&&Object.isFrozen(report.history[0])&&Object.isFrozen(report.lateClosureSequences));
+ assert.throws(()=>{report.history[0].reason='tampered';},TypeError);
+ assert.throws(()=>report.history.push({}),TypeError);
+ const {diagnosticDigest,...body}=report;
+ assert.equal(diagnosticDigest,createHash('sha256').update(JSON.stringify(body)).digest('hex'));
+ assert.deepEqual(s.diagnostics(),report);
+ const wire=JSON.stringify(report);
+ for(const value of [id,result.report.jobId,result.report.bridgeDigest,result.report.reportDigest,'clean-reference','workerPid','findings','cpuObservation'])assert.equal(wire.includes(value),false);
+ for(const key of ['persistentAuditVerified','independentAttestationVerified','osIsolationVerified','operationsEnabled','realReadsPerformed','releaseAuthorized'])assert.equal(report[key],false);
+ assert.deepEqual(initial.history,[]);assert.deepEqual(active.history,[]);
+ assert.equal(s.dispose(),true);
+ assert.equal(s.diagnostics().closed,true);assert.deepEqual(s.diagnostics().history,report.history);
+});
+test('recovery diagnostic terminal history includes circuit latch and never records rejected admission',async()=>{
+ const s=create({timeoutMs:0});
+ for(let i=1;i<=3;i++){
+  assert.equal((await s.analyze(request())).reason,'timeout');
+  const report=s.diagnostics();
+  assert.equal(report.history.length,i);
+  assert.equal(report.history[i-1].sequence,i);
+  assert.equal(report.history[i-1].consecutiveFailures,i);
+  assert.equal(report.history[i-1].circuitOpen,i===3);
+  assert.equal(report.history[i-1].reason,'timeout');
+ }
+ const blocked=s.diagnostics();
+ await assert.rejects(s.analyze(request()),refuse);
+ assert.deepEqual(s.diagnostics(),blocked);
+ assert.equal(s.dispose(),true);
+});
+test('diagnostics retain exactly eight terminal entries at lifetime budget exhaustion',async()=>{
+ const s=create();
+ for(let i=0;i<8;i++){
+  const pending=s.analyze(request());assert.equal(s.cancel(s.status().activeJobId),true);
+  assert.equal((await pending).reason,'cancelled');
+ }
+ const report=s.diagnostics();
+ assert.equal(report.history.length,8);assert.deepEqual(report.history.map(x=>x.sequence),[1,2,3,4,5,6,7,8]);
+ await assert.rejects(s.analyze(request()),refuse);
+ assert.deepEqual(s.diagnostics(),report);assert.equal(s.dispose(),true);
 });
