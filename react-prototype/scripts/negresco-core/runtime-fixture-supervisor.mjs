@@ -9,6 +9,7 @@ const refuse=()=>{throw Error('CORE_RUNTIME_WORKER_REFUSED');};
 const scenarios=['missing-reference','clean-reference'];
 const MAX_OUTPUT=4096;
 const CLOSE_GRACE_MS=2000;
+const MAX_CONSECUTIVE_FAILURES=3;
 function validate(x,scenario,jobId,pid){
  if(!x||Object.getPrototypeOf(x)!==Object.prototype)return false;
  const keys=['schemaVersion','scope','scenario','jobId','pid','bridgeDigest','fixtureStatus','findings','cpuSample','operationsEnabled','realReadsPerformed','productionIntegrated'];
@@ -30,8 +31,9 @@ export function createFixtureProcessSupervisor(options=undefined){
   timeoutMs=d.value;
  }
  let active=false,closed=false,accepted=0,activeJobId=null,cancelActive=null,quarantined=false,cleanupPending=false;
+ let consecutiveFailures=0,circuitOpen=false;
  async function analyze(input){
-  if(closed||quarantined||cleanupPending||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
+  if(closed||quarantined||circuitOpen||cleanupPending||active||accepted>=8||!input||Object.getPrototypeOf(input)!==Object.prototype||Reflect.ownKeys(input).length!==2)refuse();
   const a=Object.getOwnPropertyDescriptor(input,'scope'),b=Object.getOwnPropertyDescriptor(input,'scenario');
   if(!a||!b||!Object.hasOwn(a,'value')||!Object.hasOwn(b,'value')||a.value!=='synthetic-fixture'||!scenarios.includes(b.value))refuse();
   const scenario=b.value,jobId=randomBytes(16).toString('hex');
@@ -39,7 +41,7 @@ export function createFixtureProcessSupervisor(options=undefined){
   const expired=()=>process.hrtime.bigint()>=deadline;
   active=true;activeJobId=jobId;accepted++;
   try{
-   return await new Promise(resolve=>{
+   const outcome=await new Promise(resolve=>{
     let child;try{
      const env={};if(process.platform==='win32'&&process.env.SystemRoot)env.SystemRoot=process.env.SystemRoot;
      child=spawn(process.execPath,[...FIXTURE_V8_ARGS,worker],{cwd:fileURLToPath(new URL('.',import.meta.url)),env,stdio:['pipe','pipe','pipe'],windowsHide:true,shell:false});
@@ -92,6 +94,14 @@ export function createFixtureProcessSupervisor(options=undefined){
      else child.stdin.end(JSON.stringify({scope:'synthetic-fixture',scenario,jobId}));
     }catch{stop('input-error');}
    });
+   // Count only completed accepted jobs, before another admission can occur.
+   // User cancellation is neutral: it neither increments nor clears prior failures.
+   if(outcome.state==='fixture-worker-report')consecutiveFailures=0;
+   else if(outcome.reason!=='cancelled'){
+    consecutiveFailures=Math.min(MAX_CONSECUTIVE_FAILURES,consecutiveFailures+1);
+    if(consecutiveFailures===MAX_CONSECUTIVE_FAILURES)circuitOpen=true;
+   }
+   return outcome;
   }finally{cancelActive=null;activeJobId=null;active=false;}
  }
  function failed(reason){return Object.freeze({state:'fixture-worker-failed',reason,report:null,operationsEnabled:false});}
@@ -100,7 +110,7 @@ export function createFixtureProcessSupervisor(options=undefined){
   if(closed||quarantined||!active||jobId!==activeJobId||cancelActive===null)return false;
   return cancelActive();
  }
- function status(){return Object.freeze({active,activeJobId,closed,quarantined,cleanupPending,acceptedJobs:accepted,operationsEnabled:false});}
+ function status(){return Object.freeze({active,activeJobId,closed,quarantined,cleanupPending,acceptedJobs:accepted,consecutiveFailures,circuitOpen,operationsEnabled:false});}
  function dispose(){if(active||cleanupPending)refuse();if(closed)return false;closed=true;return true;}
  return Object.freeze({analyze,cancel,status,dispose});
 }
